@@ -1,17 +1,53 @@
-import 'dotenv/config'
+import './register';
+import { config } from './config/env.config';
+import express, { Application, Request, Response, NextFunction } from 'express';
+import logger from './utils/logger';
+import { handleError, NotFoundError, setupGlobalErrorHandlers } from './core/error';
+import morganConfig from './config/morgan.config';
+import successHandler from './core/success';
+import router from './routes/api.routes';
 
-import * as expressModule from "express";
-const express = expressModule.default;
+setupGlobalErrorHandlers();
 
-const app = express();
+const app: Application = express();
 
-const PORT = 3000;
+const { host, port } = config.server;
 
-const a = "a";
+// Middleware to log requests
+app.use(morganConfig);
 
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-app.listen(PORT, () => {
-  console.log(`Running on Port ${PORT}`);
+// Apply success handler middleware request
+app.use(successHandler);
+
+app.get('/health', async (req: Request, res: Response) => {
+  res.status(200).json({
+    message: 'Hello, World!',
+  });
 });
 
-export default app
+app.use('/api', router);
+
+// Handle 404 errors for undefined routes
+app.all('*', (req: Request, _res: Response, next: NextFunction) => {
+  next(new NotFoundError(`Can't find ${req.originalUrl} on this server!`));
+});
+
+// Global error handler
+app.use(handleError);
+
+const server = app.listen(port, () => {
+  console.log(`Server is running at http://${host}:${port}`);
+});
+
+// Handle graceful shutdown
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM received. Shutting down gracefully');
+  server.close(() => {
+    logger.info('Process terminated');
+  });
+});
+
+export default app;

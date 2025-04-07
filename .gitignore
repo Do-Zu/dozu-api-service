@@ -43,6 +43,7 @@ coverage/
 # Logs
 logs/
 *.log
+tsconfig.tsbuildinfo
 
 # OS generated files
 .DS_Store

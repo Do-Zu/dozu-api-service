@@ -1,29 +1,52 @@
 {
-  "name": "node",
-  "version": "1.0.0",
-  "description": "",
+  "name": "api-services",
+  "version": "0.0.1",
+  "description": "api service ",
   "main": "index.js",
-  "type": "module",
+  "_moduleAliases": {
+    "@": "dist"
+  },
   "scripts": {
-    "build": "tsc",
-    "start": "node ./dist/index.js",
+    "dev": "set NODE_ENV=development&& nodemon",
+    "start": "set NODE_ENV=production && node dist/index.js",
+    "build": "set NODE_ENV=production && tsc",
+    "build:watch": "tsc --watch",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "clean": "rimraf dist",
+    "prebuild": "npm run clean",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "@eslint/js": "^9.17.0",
-    "@types/express": "^5.0.0",
+    "@types/express": "^5.0.1",
+    "@types/module-alias": "^2.0.4",
+    "@types/morgan": "^1.9.9",
+    "@types/node": "^22.14.0",
     "eslint": "^9.17.0",
     "eslint-config-prettier": "^9.1.0",
     "globals": "^15.14.0",
+    "nodemon": "^3.1.7",
     "prettier": "3.4.2",
-    "typescript": "^5.7.2",
+    "rimraf": "^6.0.1",
+    "ts-node": "^10.9.1",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.7.3",
     "typescript-eslint": "^8.18.2"
   },
   "dependencies": {
     "dotenv": "^16.4.7",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "module-alias": "^2.2.3",
+    "morgan": "^1.10.0",
+    "winston": "^3.17.0"
   }
 }
