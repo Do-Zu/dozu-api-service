@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+build/
+lib/
+coverage/
+.nyc_output/
+
+# Config files
+.eslintrc.js
+.prettierrc
+.commitlintrc.js
+jest.config.js
+babel.config.js
+webpack.config.js
+
+# Misc
+.github/
+.vscode/
+*.d.ts
+*.min.js
+
+# Environment
+.env
+.env.*
