@@ -1,13 +1,16 @@
 {
   "name": "node",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "version": "0.0.1",
+  "description": "api service ",
+  "main": "index.ts",
   "type": "module",
   "scripts": {
+    "dev": "nodemon --watch \"src/**/*.ts\" --exec \"node --loader ts-node/esm src/index.ts\"",
+    "dev:build": "nodemon --watch \"src/**/*.ts\" --exec tsc",
     "build": "tsc",
     "start": "node ./dist/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint . --ext .ts"
   },
   "keywords": [],
   "author": "",
@@ -20,7 +23,9 @@
     "globals": "^15.14.0",
     "prettier": "3.4.2",
     "typescript": "^5.7.2",
-    "typescript-eslint": "^8.18.2"
+    "typescript-eslint": "^8.18.2",
+    "ts-node": "^10.9.1",
+    "nodemon": "^3.1.7"
   },
   "dependencies": {
     "dotenv": "^16.4.7",
