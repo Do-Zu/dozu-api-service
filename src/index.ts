@@ -1,17 +1,23 @@
-import 'dotenv/config'
+import './register';
+import { config } from './config/env.config';
+import express, { Application, Request, Response } from 'express';
+import logger from './utils/logger';
 
-import * as expressModule from "express";
-const express = expressModule.default;
+const app: Application = express();
 
-const app = express();
+const { host, port } = config.server;
 
-const PORT = 3000;
+logger.info(`Server is starting in ${config.env} mode...`);
 
-const a = "a";
-
-
-app.listen(PORT, () => {
-  console.log(`Running on Port ${PORT}`);
+app.get('/', async (req: Request, res: Response) => {
+  logger.debug('Processing request to root endpoint');
+  res.status(200).json({
+    message: 'Hello, World!',
+  });
 });
 
-export default app
+app.listen(port, () => {
+  console.log(`Server is running at http://${host}:${port}`);
+});
+
+export default app;
