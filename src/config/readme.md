@@ -1,0 +1,1 @@
+For config files, like database, logger, etc
