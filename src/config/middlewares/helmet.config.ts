@@ -11,7 +11,6 @@ const helmetConfig = () => {
     crossOriginEmbedderPolicy: config.isProduction,
     hidePoweredBy: true,
     hsts: config.isProduction,
-    xssFilter: true,
   });
 };
 
