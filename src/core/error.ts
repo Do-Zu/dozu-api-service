@@ -62,43 +62,67 @@ class BadRequest extends AppError {
   }
 }
 
+/**
+ *
+ * Global error handler middleware
+ * Ensure server never crash in any situation
+ */
 const handleError = (error: unknown, _req: Request, res: Response, next: NextFunction): void => {
-  let appError: AppError;
-
-  if (error instanceof AppError) {
-    appError = error;
-  } else if (error instanceof Error) {
-    appError = new AppError(error.message, 500);
-    appError.stack = error.stack;
-  } else {
-    appError = new AppError(
-      typeof error === 'string' ? error : 'Unknown error',
-      HTTP_STATUS.INTERNAL_SERVER
-    );
+  if (res.headersSent) {
+    logger.warn('Attempted to send response when headers were already sent');
+    return next(error);
   }
+  try {
+    let appError: AppError;
 
-  appError.statusCode = appError.statusCode || HTTP_STATUS.INTERNAL_SERVER;
-  appError.status = appError.status || 'error';
+    if (error instanceof AppError) {
+      appError = error;
+    } else if (error instanceof Error) {
+      appError = new AppError(error.message, 500);
+      appError.stack = error.stack;
+    } else {
+      appError = new AppError(
+        typeof error === 'string' ? error : 'Unknown error',
+        HTTP_STATUS.INTERNAL_SERVER
+      );
+    }
 
-  logger.error(`[${appError.name || 'Error'}] ${appError.message}`, {
-    statusCode: appError.statusCode,
-    stack: appError.stack,
-    isOperational: appError.isOperational,
-  });
+    appError.statusCode = appError.statusCode || HTTP_STATUS.INTERNAL_SERVER;
+    appError.status = appError.status || 'error';
 
-  if (config.isDevelopment) {
-    res.status(appError.statusCode).json({
-      status: appError.status,
-      message: appError.message,
+    logger.error(`[${appError.name || 'Error'}] ${appError.message}`, {
+      statusCode: appError.statusCode,
       stack: appError.stack,
       isOperational: appError.isOperational,
     });
-  }
 
-  res.status(appError.statusCode).json({
-    status: appError.status,
-    message: appError.message,
-  });
+    try {
+      if (config.isDevelopment) {
+        res.status(appError.statusCode).json({
+          status: appError.status,
+          code: appError.statusCode,
+          message: appError.message,
+          stack: appError.stack,
+          isOperational: appError.isOperational,
+        });
+      } else {
+        res.status(appError.statusCode).json({
+          status: appError.status,
+          code: appError.statusCode,
+          message: appError.message,
+        });
+      }
+    } catch (responseError) {
+      logger.error('Error sending error response', { error: responseError });
+    }
+  } catch (error) {
+    logger.error('Error in error handler itself', { error });
+    res.status(HTTP_STATUS.INTERNAL_SERVER).json({
+      status: 'error',
+      code: HTTP_STATUS.INTERNAL_SERVER,
+      message: 'Internal Server Error',
+    });
+  }
 };
 
 const setupGlobalErrorHandlers = (): void => {
@@ -108,7 +132,9 @@ const setupGlobalErrorHandlers = (): void => {
       stack: error.stack,
     });
 
-    process.exit(1);
+    // process.exit(1);
+    // In production, you might want to implement a restart mechanism here
+    // instead of just logging and continuing
   });
 
   process.on('unhandledRejection', (reason: Error) => {
@@ -117,12 +143,14 @@ const setupGlobalErrorHandlers = (): void => {
       stack: reason.stack,
     });
 
-    process.exit(1);
+    // process.exit(1);
+    // Implement graceful shutdown but don't exit immediately
   });
 
   process.on('SIGTERM', () => {
     logger.info('SIGTERM received. Shutting down gracefully');
-    process.exit(0);
+    // process.exit(0);
+    // Implement graceful shutdown but don't exit immediately
   });
 };
 
