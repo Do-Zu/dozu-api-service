@@ -1,7 +1,8 @@
-type HttpStatusCode = 200 | 201 | 400 | 401 | 403 | 404 | 409 | 500;
+type HttpStatusCode = 200 | 201 | 204 | 400 | 401 | 403 | 404 | 409 | 500;
 type HttpResponse =
   | 'OK'
   | 'CREATED'
+  | 'NO_CONTENT'
   | 'BAD_REQUEST'
   | 'UNAUTHORIZED'
   | 'FORBIDDEN'
@@ -12,6 +13,7 @@ type HttpResponse =
 const HTTP_STATUS: Record<HttpResponse, HttpStatusCode> = {
   OK: 200,
   CREATED: 201,
+  NO_CONTENT: 204,
   BAD_REQUEST: 400,
   UNAUTHORIZED: 401,
   FORBIDDEN: 403,
@@ -52,4 +54,6 @@ const UPLOAD = {
 
 const METHODS: string[] = ['get', 'post', 'put', 'delete', 'patch', 'use'];
 
-export { HTTP_STATUS, USER_ROLES, AUTH, MESSAGES, UPLOAD, METHODS };
+const API_VERSION = 'v1';
+
+export { HTTP_STATUS, USER_ROLES, AUTH, MESSAGES, UPLOAD, METHODS, API_VERSION };

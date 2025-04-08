@@ -1,25 +1,37 @@
 import express, { Router } from 'express';
-import globalAsyncHandler from '@/middleware/handler';
+import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
+import { getRoutes, registerRoute } from './register.routes';
+import logger from '@/utils/logger';
 
 const router: Router = express.Router();
 
 //import routers here
 import './demo/demo.routes';
-import { getRoutes } from './register.routes';
 
 // Apply global async handler to router
 globalAsyncHandler(router);
 
-getRoutes()?.forEach(({ path, router: moduleRouter }) => {
-  if (!path || typeof path !== 'string') {
-    throw new Error('Path must be a string and cannot be empty');
+try {
+  const registeredRoutes = getRoutes();
+
+  if (registeredRoutes.length === 0) {
+    logger.warn('No routes registered with the API router');
   }
-  if (!moduleRouter || !(moduleRouter instanceof Router)) {
-    throw new Error('Router must be an instance of express.Router');
-  }
-  const normalizedPath: string = path.startsWith('/') ? path : `/${path}`;
-  console.log(normalizedPath, '\n');
-  router.use(normalizedPath, moduleRouter);
-});
+
+  registeredRoutes.forEach(({ path, router: moduleRouter }) => {
+    try {
+      router.use(path, moduleRouter);
+      logger.debug(`Mounted route: ${path}`);
+    } catch (error) {
+      logger.error(`Failed to mount route ${path}`, {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  });
+} catch (error) {
+  logger.error('Error mounting API routes', {
+    error: error instanceof Error ? error.message : 'Unknown error',
+  });
+}
 
 export default router;

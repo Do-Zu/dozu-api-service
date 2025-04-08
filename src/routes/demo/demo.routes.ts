@@ -1,10 +1,10 @@
 import express from 'express';
 import { registerRoute } from '../register.routes';
 import { handleDemoController } from '@/controllers/demo.controller';
-import globalAsyncHandler from '@/middleware/handler';
-
+import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 const router = express.Router();
 
+// must add global async handler
 globalAsyncHandler(router);
 
 // apply middleware here and use key word "use"
@@ -12,8 +12,14 @@ globalAsyncHandler(router);
 
 // implement route and method below middleware
 router.get('/', handleDemoController);
+// router.post('/', handleDemoController);
+// router.put('/', handleDemoController);
 
 //important: remember register router  !!!!
-registerRoute('/demo', router); // register the route with the path "/demo"
+registerRoute('/demo', router, {
+  description: 'Demo API endpoints for testing',
+  version: 'v1',
+  isEnabled: true,
+});
 
 export default router;

@@ -7,7 +7,7 @@ import morganConfig from './config/morgan.config';
 import successHandler from './core/success';
 import router from './routes/api.routes';
 
-setupGlobalErrorHandlers();
+// setupGlobalErrorHandlers();
 
 const app: Application = express();
 
