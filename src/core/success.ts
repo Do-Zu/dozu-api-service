@@ -54,7 +54,7 @@ export class SuccessResponse {
    * Send a No Content (204) response
    */
   public static noContent(res: Response): Response {
-    return res.status(HTTP_STATUS.NOT_FOUND).send();
+    return res.status(HTTP_STATUS.NO_CONTENT).send();
   }
 }
 
