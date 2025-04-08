@@ -1,11 +1,15 @@
 import './register';
-import { config } from './config/env.config';
 import express, { Application, Request, Response, NextFunction } from 'express';
-import logger from './utils/logger';
+import { config } from './config/env.config';
 import { handleError, NotFoundError, setupGlobalErrorHandlers } from './core/error';
-import morganConfig from './config/morgan.config';
+import { parserMiddleware } from './config/middlewares/parse.config';
+import logger from './utils/logger';
+import morganConfig from './config/middlewares/morgan.config';
 import successHandler from './core/success';
 import router from './routes/api.routes';
+import helmet from './config/middlewares/helmet.config';
+import cors from './config/middlewares/cors.config';
+import rateLimit from './config/middlewares/rate-limit.config';
 
 // setupGlobalErrorHandlers();
 
@@ -13,11 +17,20 @@ const app: Application = express();
 
 const { host, port } = config.server;
 
+//Parsing middleware
+app.use(parserMiddleware.json());
+app.use(parserMiddleware.urlencoded());
+
+app.use(helmet());
+app.use(cors());
+
 // Middleware to log requests
 app.use(morganConfig);
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+//Rate limiting to all requests
+if (config.isProduction) {
+  app.use(rateLimit());
+}
 
 // Apply success handler middleware request
 app.use(successHandler);
