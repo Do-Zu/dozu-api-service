@@ -20,6 +20,8 @@ import { eq } from 'drizzle-orm';
 
 const app: Application = express();
 
+app.set('trust proxy', true);
+
 const { host, port } = config.server;
 
 //Parsing middleware
