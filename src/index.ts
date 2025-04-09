@@ -11,6 +11,11 @@ import helmet from './config/middlewares/helmet.config';
 import cors from './config/middlewares/cors.config';
 import rateLimit from './config/middlewares/rate-limit.config';
 
+//!TESTING
+import { getDb } from './libs/drizzleClient.lib';
+import { usersTable } from './models';
+import { eq } from 'drizzle-orm';
+
 // setupGlobalErrorHandlers();
 
 const app: Application = express();
@@ -42,6 +47,40 @@ app.get('/health', async (req: Request, res: Response) => {
 });
 
 app.use('/api', router);
+
+//begin of test drizzle
+app.get('/testDrizzle', async (req: Request, res: Response) => {
+  const db = getDb();
+
+  async function main() {
+    const user: typeof usersTable.$inferInsert = {
+      name: 'John',
+      age: 30,
+      email: 'john4@example.com',
+    };
+
+    await db.insert(usersTable).values(user);
+    console.log('New user created!');
+
+    const users = await db.select().from(usersTable);
+    console.log('Getting all users from the database: ', users);
+
+    await db
+      .update(usersTable)
+      .set({
+        age: 31,
+      })
+      .where(eq(usersTable.email, user.email));
+    console.log('User info updated!');
+  }
+
+  main();
+
+  res.status(200).json({
+    message: 'Hello, World!',
+  });
+});
+//end of test
 
 // Handle 404 errors for undefined routes
 app.all('*', (req: Request, _res: Response, next: NextFunction) => {
