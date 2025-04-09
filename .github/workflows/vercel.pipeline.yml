@@ -1,9 +1,9 @@
-name: CI/CD Pipeline
+name: Vercel CI/CD Pipeline
 
 on:
-  pull_request:
-    types: [closed]
-    branches: [feature/merge, develop, feature/pipeline]
+  # pull_request:
+  #   types: [closed]
+  #   branches: [feature/merge, develop, feature/pipeline]
 
   # Allow manual trigger
   workflow_dispatch:
