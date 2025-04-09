@@ -74,7 +74,7 @@ jobs:
         if: github.ref == 'refs/heads/main' && success()
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
         with:
           tag_name: v${{ github.run_number }}-${{ github.sha }}
           release_name: Release v${{ github.run_number }}
