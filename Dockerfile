@@ -1,4 +1,4 @@
-FROM node:18
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
@@ -8,6 +8,20 @@ RUN npm install
 
 COPY . .
 
-EXPOSE 3000
+RUN npm run build
+
+FROM node:20-slim
+
+WORKDIR /app
+
+COPY --from=builder /app/package*.json ./
+RUN npm ci --omit=dev
+
+COPY --from=builder /app/dist ./dist
+
+COPY --from=builder /app/.env.production ./.env.production
+COPY --from=builder /app/.env.development ./.env.development
+
+EXPOSE 3333
 
 CMD ["npm", "start"]
