@@ -1,0 +1,91 @@
+name: CI/CD Pipeline
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [feature/merge, develop]
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20.x'
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  validate:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    name: Validate and Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run TypeScript Compiler Check
+        run: npm run typecheck
+
+      - name: Create Test Environment File
+        run: |
+          echo "PORT=3000" > .env.test
+          echo "HOST=localhost" >> .env.test
+
+      - name: Run Tests
+        run: npm test
+        env:
+          NODE_ENV: test
+
+      # Deploy to preview for non-main branches
+      - name: Deploy to Preview (non-main branches)
+        if: github.ref != 'refs/heads/main'
+        run: |
+          npm install -g vercel@latest
+          vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+          vercel build --token=${{ secrets.VERCEL_TOKEN }}
+          DEPLOYMENT_URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          echo "DEPLOYMENT_URL=$DEPLOYMENT_URL" >> $GITHUB_ENV
+          echo "Preview URL: $DEPLOYMENT_URL" >> $GITHUB_STEP_SUMMARY
+
+      # Deploy to production only for main branch
+      - name: Deploy to Production (main branch)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          npm install -g vercel@latest
+          vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+          vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+          DEPLOYMENT_URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "DEPLOYMENT_URL=$DEPLOYMENT_URL" >> $GITHUB_ENV
+          echo "Production URL: $DEPLOYMENT_URL" >> $GITHUB_STEP_SUMMARY
+
+      # Create a GitHub release for main branch deployments
+      - name: Create GitHub Release
+        if: github.ref == 'refs/heads/main' && success()
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}-${{ github.sha }}
+          release_name: Release v${{ github.run_number }}
+          body: |
+            ## 🚀 API Service Release
+
+            **Deployment URL**: ${{ env.DEPLOYMENT_URL }}
+            **Commit**: ${{ github.sha }}
+            **Date**: ${{ github.event.repository.updated_at }}
+
+            ### Changes
+            ${{ github.event.head_commit.message }}
+          draft: false
+          prerelease: false
