@@ -1,0 +1,13 @@
+node_modules
+.git
+.vscode
+logs
+*.log
+coverage
+dist
+test
+docs
+.env*
+.editorconfig
+.eslintrc.js
+.prettierrc

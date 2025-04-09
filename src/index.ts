@@ -15,6 +15,8 @@ import rateLimit from './config/middlewares/rate-limit.config';
 
 const app: Application = express();
 
+app.set('trust proxy', true);
+
 const { host, port } = config.server;
 
 //Parsing middleware
