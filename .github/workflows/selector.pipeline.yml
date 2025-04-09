@@ -65,7 +65,7 @@ jobs:
         uses: benc-uk/workflow-dispatch@v1
         with:
           workflow: Vercel CI/CD Pipeline
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.TOKEN }}
           inputs: |
             {
               "branch": "${{ github.event.inputs.branch || github.ref_name }}",
@@ -78,7 +78,7 @@ jobs:
         uses: benc-uk/workflow-dispatch@v1
         with:
           workflow: AWS EC2 CI/CD Pipeline
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.TOKEN }}
           inputs: |
             {
               "branch": "${{ github.event.inputs.branch || github.ref_name }}",
