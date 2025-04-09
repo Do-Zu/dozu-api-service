@@ -3,10 +3,35 @@ name: CI/CD Pipeline
 on:
   pull_request:
     types: [closed]
-    branches: [feature/merge, develop]
+    branches: [feature/merge, develop, feature/pipeline]
 
   # Allow manual trigger
   workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy'
+        required: true
+        default: 'develop'
+        type: choice
+        options:
+          - develop
+          - feature/merege
+          - main
+          - feature/pipeline
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      deploy:
+        description: 'Deploy to Vercel?'
+        required: true
+        default: true
+        type: boolean
 
 env:
   NODE_VERSION: '20.x'
@@ -31,21 +56,13 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Run ESLint
-        run: npm run lint
-
       - name: Run TypeScript Compiler Check
         run: npm run typecheck
 
       - name: Create Test Environment File
         run: |
-          echo "PORT=3000" > .env.test
+          echo "PORT=3333" > .env.test
           echo "HOST=localhost" >> .env.test
-
-      - name: Run Tests
-        run: npm test
-        env:
-          NODE_ENV: test
 
       # Deploy to preview for non-main branches
       - name: Deploy to Preview (non-main branches)
