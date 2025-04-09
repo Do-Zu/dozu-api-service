@@ -11,13 +11,14 @@ export const handleServiceDemo = async (_param: any) => {
     throw new DatabaseError('data not found');
   }
 
-  if (data.length === 0) {
-    throw new NotFoundError('Not found');
-  }
+  // if (data.length === 0) {
+  //   throw new NotFoundError('Not found');
+  // }
 
   return {
     data,
     value: 1000,
+    mess: ' GET DATA SUCCESS',
     //... rest all data
   };
 };
