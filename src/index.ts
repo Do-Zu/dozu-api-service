@@ -16,8 +16,6 @@ setupGlobalErrorHandlers();
 
 const app: Application = express();
 
-app.set('trust proxy', true);
-
 const { host, port } = config.server;
 
 //Parsing middleware
@@ -41,6 +39,8 @@ app.use(successHandler);
 app.get('/health', async (req: Request, res: Response) => {
   res.status(200).json({
     message: 'Hello, World!',
+    code: 200,
+    status: 'success',
   });
 });
 
