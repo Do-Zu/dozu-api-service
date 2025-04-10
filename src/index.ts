@@ -10,8 +10,7 @@ import router from './routes/api.routes';
 import helmet from './config/middlewares/helmet.config';
 import cors from './config/middlewares/cors.config';
 import rateLimit from './config/middlewares/rate-limit.config';
-
-
+import { getDb } from './libs/drizzleClient.lib';
 
 // setupGlobalErrorHandlers();
 
@@ -47,8 +46,6 @@ app.get('/health', async (req: Request, res: Response) => {
 
 app.use('/api', router);
 
-
-
 // Handle 404 errors for undefined routes
 app.all('*', (req: Request, _res: Response, next: NextFunction) => {
   next(new NotFoundError(`Can't find ${req.originalUrl} on this server!`));
@@ -59,6 +56,7 @@ app.use(handleError);
 
 const server = app.listen(port, () => {
   console.log(`Server is running at http://${host}:${port}`);
+  getDb();
 });
 
 // Handle graceful shutdown
