@@ -10,8 +10,9 @@ import router from './routes/api.routes';
 import helmet from './config/middlewares/helmet.config';
 import cors from './config/middlewares/cors.config';
 import rateLimit from './config/middlewares/rate-limit.config';
+import { getDbInstance } from './libs/drizzleClient.lib';
 
-// setupGlobalErrorHandlers();
+setupGlobalErrorHandlers();
 
 const app: Application = express();
 
@@ -55,6 +56,7 @@ app.use(handleError);
 
 const server = app.listen(port, () => {
   console.log(`Server is running at http://${host}:${port}`);
+  getDbInstance();
 });
 
 // Handle graceful shutdown
