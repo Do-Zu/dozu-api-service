@@ -1,4 +1,4 @@
-name: Pipeline EC2 Pull Source & Run Docker (Root)
+name: Pipeline EC2 Pull Source & Run Docker
 
 on:
   workflow_dispatch:
@@ -44,12 +44,8 @@ jobs:
         run: |
           ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "echo 'Connection successful!' && echo 'Checking sudo access:' && sudo -n echo 'Sudo access confirmed'"
 
-      - name: Verify project directory exists with root
-        run: |
-          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "sudo test -d ${{ env.PROJECT_DIR }} && echo 'Project directory exists' || echo 'Project directory does not exist'"
-
   deploy-application:
-    name: Deploy Application to EC2
+    name: Deploy
     needs: check-connection
     runs-on: ubuntu-latest
     environment:
