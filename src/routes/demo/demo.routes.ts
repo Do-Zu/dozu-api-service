@@ -1,6 +1,6 @@
 import express from 'express';
 import { registerRoute } from '../register.routes';
-import { handleDemoController } from '@/controllers/demo.controller';
+import { handleDemoController, handleInsertDemoController } from '@/controllers/demo.controller';
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 const router = express.Router();
 
@@ -12,7 +12,7 @@ globalAsyncHandler(router);
 
 // implement route and method below middleware
 router.get('/', handleDemoController);
-// router.post('/', handleDemoController);
+router.post('/', handleInsertDemoController);
 // router.put('/', handleDemoController);
 
 //important: remember register router  !!!!
