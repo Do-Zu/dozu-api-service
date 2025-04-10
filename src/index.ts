@@ -39,6 +39,8 @@ app.use(successHandler);
 app.get('/health', async (req: Request, res: Response) => {
   res.status(200).json({
     message: 'Hello, World!',
+    code: 200,
+    status: 'success',
   });
 });
 
