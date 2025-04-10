@@ -1,15 +1,12 @@
 name: AWS EC2 CI/CD Pipeline
 
 on:
-  #   pull_request:
-  #     types: [closed]
-  #     branches: [develop, feature/merge, feature/pipeline]
   workflow_dispatch:
     inputs:
       branch:
         description: 'Branch to deploy'
         required: true
-        default: 'develop'
+        default: 'feature/merge'
         type: choice
         options:
           - develop
@@ -26,61 +23,13 @@ on:
 
 env:
   NODE_VERSION: '20.x'
-  ECR_REPOSITORY: dozu-api-service
-  AWS_REGION: us-east-1
+  PROJECT_DIR: '/projects/dozu-api-service'
 
 jobs:
-  build-and-test:
-    name: Build and Test
+  check-connection:
+    name: Check EC2 Connection
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.branch || github.ref }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Run TypeScript Compiler Check
-        run: npm run typecheck
-
-      - name: Create Environment Files
-        run: |
-          if [[ "${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'development') }}" == "production" ]]; then
-            echo "Setting up production environment"
-            cp .env.production .env
-          else
-            echo "Setting up development environment"
-            cp .env.development .env
-          fi
-
-  deploy-to-ec2:
-    name: Deploy to AWS EC2
-    runs-on: ubuntu-latest
-    needs: build-and-test
-    environment:
-      name: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'development') }}
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.branch || github.ref }}
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
       - name: Install SSH key
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -91,62 +40,117 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Setup Environment Variables File
+      - name: Check connection to EC2 and root access
         run: |
-          cat > .env << EOF
-          POSTGRES_DB=${{ secrets.POSTGRES_DB }}
-          POSTGRES_USER=${{ secrets.POSTGRES_USER }}
-          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
-          EOF
+          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "echo 'Connection successful!' && echo 'Checking sudo access:' && sudo -n echo 'Sudo access confirmed'"
 
-      - name: Deploy to EC2
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
-          APP_DIR: /home/${{ secrets.EC2_USERNAME }}/dozu-api
-        run: |
-          # Create app directory if not exists
-          ssh $EC2_USERNAME@$EC2_HOST "mkdir -p $APP_DIR"
-
-          # Transfer necessary files to EC2
-          scp -r docker-compose.yml Dockerfile .env $EC2_USERNAME@$EC2_HOST:$APP_DIR/
-          scp -r .env.production .env.development $EC2_USERNAME@$EC2_HOST:$APP_DIR/
-          scp -r src package*.json tsconfig.json $EC2_USERNAME@$EC2_HOST:$APP_DIR/
-          scp -r init-scripts $EC2_USERNAME@$EC2_HOST:$APP_DIR/
-
-          # Connect to EC2 and start Docker containers
-          ssh $EC2_USERNAME@$EC2_HOST "cd $APP_DIR && \
-            # Create logs directory for volume mounting
-            mkdir -p logs && \
-            # Pull the latest changes and rebuild containers
-            docker-compose down && \
-            docker-compose up -d --build"
-
-      - name: Verify Deployment
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
-        run: |
-          ssh $EC2_USERNAME@$EC2_HOST "cd /home/$EC2_USERNAME/dozu-api && docker-compose ps"
-
-      - name: Create GitHub Release
-        if: github.ref == 'refs/heads/main' && success()
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  deploy-application:
+    name: Deploy
+    needs: check-connection
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
         with:
-          tag_name: v${{ github.run_number }}-${{ github.sha }}
-          release_name: Release v${{ github.run_number }}
-          body: |
-            ## 🚀 API Service Release
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-            **Deployment**: EC2 Production
-            **Environment**: Production
-            **Host**: ${{ secrets.EC2_HOST }}
-            **Commit**: ${{ github.sha }}
-            **Date**: ${{ github.event.repository.updated_at || github.event.head_commit.timestamp }}
+      - name: Add EC2 host to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-            ### Changes
-            ${{ github.event.head_commit.message }}
-          draft: false
-          prerelease: false
+      - name: Create deployment script
+        run: |
+          cat > deploy.sh << 'EOL'
+          #!/bin/bash
+          set -e
+
+          PROJECT_DIR="$1"
+          BRANCH="$2"
+          ENV="$3"
+
+          # Become root
+          sudo -s << EOF
+          cd /
+
+          # Create project directory if it doesn't exist
+          mkdir -p "$PROJECT_DIR"
+          cd "$PROJECT_DIR" || { echo "Failed to change directory to $PROJECT_DIR"; exit 1; }
+
+          # Set proper ownership
+          chown -R $(whoami):$(whoami) "$PROJECT_DIR"
+
+          # Check if the directory is a Git repository
+          if [ -d .git ]; then
+            echo "Git repository exists, fetching latest changes"
+            git fetch --all
+            
+            # Check if the branch exists locally
+            if git rev-parse --verify "$BRANCH" >/dev/null 2>&1; then
+              echo "Checking out existing branch: $BRANCH"
+              git checkout "$BRANCH"
+            else
+              echo "Creating new tracking branch for: $BRANCH"
+              git checkout -b "$BRANCH" "origin/$BRANCH"
+            fi
+            
+            echo "Pulling latest code from branch: $BRANCH"
+            git pull origin "$BRANCH"
+          else
+            echo "Directory is not a Git repository, initializing..."
+            # If not a Git repo, initialize and clone
+            rm -rf * .[!.]* ..?*
+            git init
+            git remote add origin https://github.com/your-org/dozu-api-service.git
+            git fetch --all
+            git checkout -b "$BRANCH" "origin/$BRANCH"
+          fi
+
+          # Set up environment variables for docker-compose
+          echo "Setting up environment variables for $ENV environment"
+          if [ "$ENV" = "production" ]; then
+            cp .env.production .env || echo "Warning: No .env.production file found"
+          else
+            cp .env.development .env || echo "Warning: No .env.development file found"
+          fi
+
+          # Ensure Docker is running
+          systemctl status docker > /dev/null || systemctl start docker
+
+
+          # Build and run Docker containers
+          echo "Building and starting Docker containers"
+          docker-compose build api
+          docker-compose up -d api
+
+          # Check container status
+          echo "Container status:"
+          docker-compose ps
+
+          # Check logs for errors
+          echo "Container logs (last 20 lines):"
+          docker-compose logs --tail=20
+
+          echo "Deployment completed successfully!"
+          EOF
+          EOL
+
+          chmod +x deploy.sh
+
+      - name: Transfer deployment script to EC2
+        run: |
+          scp deploy.sh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:~/deploy.sh
+
+      - name: Execute deployment script on EC2
+        run: |
+          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "~/deploy.sh '${{ env.PROJECT_DIR }}' '${{ github.event.inputs.branch }}' '${{ github.event.inputs.environment }}'"
+
+      - name: Verify deployment
+        run: |
+          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "sudo docker ps | grep dozu-api"
+
+      - name: Clean up
+        run: |
+          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "rm ~/deploy.sh"
