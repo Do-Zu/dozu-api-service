@@ -17,7 +17,7 @@ coverage/
 .nyc_output/
 
 # Environment and local config
-# .env
+.env
 # .env.*
 !.env.development
 !.env.local

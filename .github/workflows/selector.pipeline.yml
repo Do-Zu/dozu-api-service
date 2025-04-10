@@ -1,0 +1,97 @@
+name: Pipeline Selector
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [feature/merge, develop, feature/pipeline]
+
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy'
+        required: true
+        default: 'feature/merge'
+        type: choice
+        options:
+          - develop
+          - feature/merge
+          - feature/pipeline
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'development'
+        type: choice
+        options:
+          - development
+          - production
+      pipeline:
+        description: 'Pipeline to run'
+        required: true
+        default: 'aws'
+        type: choice
+        options:
+          - vercel
+          - aws
+
+jobs:
+  select-pipeline:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set target pipeline
+        id: set-pipeline
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "PIPELINE=${{ github.event.inputs.pipeline }}" >> $GITHUB_ENV
+          else
+            # Extract deploy target from PR labels or title
+            # Only trigger specific pipeline if pattern is found
+            if [[ "${{ github.event.pull_request.title }}" == *"[aws]"* ]]; then
+              echo "PIPELINE=aws" >> $GITHUB_ENV
+            elif [[ "${{ github.event.pull_request.title }}" == *"[vercel]"* ]]; then
+              echo "PIPELINE=vercel" >> $GITHUB_ENV
+            else
+              # Don't trigger any pipeline if no pattern is found
+              echo "PIPELINE=none" >> $GITHUB_ENV
+              echo "No deployment pattern ([aws] or [vercel]) found in PR title. Skipping deployment." >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+
+      - name: Trigger Vercel Pipeline
+        if: env.PIPELINE == 'vercel'
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: Vercel CI/CD Pipeline
+          token: ${{ secrets.TOKEN }}
+          inputs: |
+            {
+              "branch": "${{ github.event.inputs.branch || github.ref_name }}",
+              "environment": "${{ github.event.inputs.environment || 'development' }}",
+              "deploy": "true"
+            }
+
+      - name: Trigger AWS Pipeline
+        if: env.PIPELINE == 'aws'
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: AWS EC2 CI/CD Pipeline
+          token: ${{ secrets.TOKEN }}
+          inputs: |
+            {
+              "branch": "${{ github.event.inputs.branch || github.ref_name }}",
+              "environment": "${{ github.event.inputs.environment || 'development' }}"
+            }
+
+      - name: No Pipeline Selected
+        if: env.PIPELINE == 'none'
+        run: |
+          echo "No pipeline selected to run."
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "To trigger deployment, include [aws] or [vercel] in the PR title."
+          else
+            echo "Manual run with 'none' pipeline option selected."
+          fi
+          echo "Deployment skipped."
