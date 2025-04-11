@@ -16,7 +16,7 @@ if (!process.env.DATABASE_URL) {
 
 const productionConfig: IDatabaseConfig = {
   connectionString: process.env.DATABASE_URL!,
-  ssl: { rejectUnauthorized: false },
+  ssl: false , // TODO WHEN NEED SECURE: { rejectUnauthorized: false }
   maxConnections: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
