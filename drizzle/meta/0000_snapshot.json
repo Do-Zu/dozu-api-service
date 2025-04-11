@@ -1,5 +1,5 @@
 {
-  "id": "4cb94163-9c75-430d-a015-dd8342cdb751",
+  "id": "f8186f38-5bfe-4f31-9291-da487f731bcc",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -89,8 +89,8 @@
           "notNull": false,
           "default": "'2.5'"
         },
-        "interval": {
-          "name": "interval",
+        "review_interval": {
+          "name": "review_interval",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
