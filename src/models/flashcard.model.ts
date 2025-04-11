@@ -20,7 +20,7 @@ export const flashcardsTable = pgTable('flashcards', {
 
   repetitionNumber: integer('repetition_number').default(0),
   easinessFactor: decimal('easiness_factor', { precision: 3, scale: 2 }).default('2.5'),
-  reviewInterval: integer('reviewInterval').default(0),
+  reviewInterval: integer('review_interval').default(0),
   lastReviewed: date('last_reviewed'),
   nextReview: date('next_review'),
   status: varchar('status', { length: 10 }).default('new'),
