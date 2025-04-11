@@ -10,12 +10,11 @@ import router from './routes/api.routes';
 import helmet from './config/middlewares/helmet.config';
 import cors from './config/middlewares/cors.config';
 import rateLimit from './config/middlewares/rate-limit.config';
+import { getDbInstance } from './libs/drizzleClient.lib';
 
-// setupGlobalErrorHandlers();
+setupGlobalErrorHandlers();
 
 const app: Application = express();
-
-app.set('trust proxy', true);
 
 const { host, port } = config.server;
 
@@ -40,6 +39,8 @@ app.use(successHandler);
 app.get('/health', async (req: Request, res: Response) => {
   res.status(200).json({
     message: 'Hello, World!',
+    code: 200,
+    status: 'success',
   });
 });
 
@@ -55,6 +56,7 @@ app.use(handleError);
 
 const server = app.listen(port, () => {
   console.log(`Server is running at http://${host}:${port}`);
+  getDbInstance();
 });
 
 // Handle graceful shutdown

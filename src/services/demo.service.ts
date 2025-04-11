@@ -1,12 +1,13 @@
 import { BadRequest, DatabaseError, NotFoundError } from '@/core/error';
-import { handleRepositoryDemo } from '@/repositories/demo.repo';
+import { handleRepositoryDemo, handleInsertDemo as insertRepo } from '@/repositories/demo.repo';
 
 export const handleServiceDemo = async (_param: any) => {
   if (!_param) {
     throw new BadRequest('param is required');
   }
 
-  const data: any[] = await handleRepositoryDemo(_param);
+  const data = await handleRepositoryDemo(_param);
+
   if (!data) {
     throw new DatabaseError('data not found');
   }
@@ -83,4 +84,16 @@ export const handleServiceDemo = async (_param: any) => {
       readme: 'Check README.md for detailed documentation',
     },
   };
+};
+
+export const handleInsertDemo = async (_param: any) => {
+  if (!_param) {
+    throw new BadRequest('param is required');
+  }
+
+  const data: any[] | undefined = await insertRepo(_param);
+
+  if (!data) throw new DatabaseError('Insert failed');
+
+  return data;
 };

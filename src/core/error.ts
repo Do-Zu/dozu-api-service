@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import { HTTP_STATUS } from '@/constants/index.constant';
 import { config } from '@/config/env.config';
 import logger from '@/utils/logger';
+import { closeDb } from '@/libs/drizzleClient.lib';
 
 interface IError {
   statusCode: number;
@@ -147,9 +148,10 @@ const setupGlobalErrorHandlers = (): void => {
     // Implement graceful shutdown but don't exit immediately
   });
 
-  process.on('SIGTERM', () => {
+  process.on('SIGTERM', async () => {
     logger.info('SIGTERM received. Shutting down gracefully');
-    // process.exit(0);
+    await closeDb();
+    process.exit(0);
     // Implement graceful shutdown but don't exit immediately
   });
 };
