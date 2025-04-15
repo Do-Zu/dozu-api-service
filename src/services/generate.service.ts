@@ -22,7 +22,7 @@ const processingJobs = new Map<string, ProcessingResult>();
 export class GenerateService {
   private openaiClient: OpenAI;
   private readonly API_KEY: string =
-    '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';
+    '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';
 
   constructor() {
     this.openaiClient = new OpenAI({
