@@ -15,7 +15,6 @@ FROM node:20-slim
 WORKDIR /app
 
 COPY --from=builder /app/package*.json ./
-
 RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist

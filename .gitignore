@@ -53,3 +53,5 @@ tsconfig.tsbuildinfo
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+uploads/*

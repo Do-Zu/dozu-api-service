@@ -11,7 +11,7 @@ CREATE TABLE "flashcards" (
 	"back" text NOT NULL,
 	"repetition_number" integer DEFAULT 0,
 	"easiness_factor" numeric(3, 2) DEFAULT '2.5',
-	"interval" integer DEFAULT 0,
+	"review_interval" integer DEFAULT 0,
 	"last_reviewed" date,
 	"next_review" date,
 	"status" varchar(10) DEFAULT 'new',

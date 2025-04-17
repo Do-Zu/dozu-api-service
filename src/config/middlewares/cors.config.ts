@@ -14,11 +14,7 @@ const corsConfig = () => {
   };
 
   const productionOptions = {
-    origin: [
-      'https://sample.com',
-      'https://api.sample.com',
-      // Add more trusted domains for production
-    ],
+    origin: ['https://dozu.blog', 'https://dev.web.dozu.blog', 'http://localhost:3000'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
