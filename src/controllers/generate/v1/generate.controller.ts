@@ -38,14 +38,7 @@ export class GenerateController {
 
     const result = await generateService.generateFlashcardsLLM(content);
 
-    SuccessResponse.ok(
-      res,
-      {
-        flashcards: result.items,
-        text: result.rawText,
-      },
-      'Flashcards generated successfully'
-    );
+    SuccessResponse.ok(res, result, 'Flashcards generated successfully');
   }
 
   async handleGenerateFlashCardAlgo(req: Request, res: Response): Promise<void> {
@@ -57,14 +50,7 @@ export class GenerateController {
 
     const result = await generateService.generateFlashcardsAlgo(content);
 
-    SuccessResponse.ok(
-      res,
-      {
-        flashcards: result.items,
-        text: result.rawText,
-      },
-      'Flashcards generated successfully'
-    );
+    SuccessResponse.ok(res, result, 'Flashcards generated successfully');
   }
 
   async handleGenerateContentPdf(req: Request, res: Response): Promise<void> {
@@ -88,13 +74,6 @@ export class GenerateController {
 
     const result = await generateService.generateQuizzesLLM(content);
 
-    SuccessResponse.ok(
-      res,
-      {
-        quizzes: result.items,
-        text: result.rawText,
-      },
-      'Quizzes generated successfully'
-    );
+    SuccessResponse.ok(res, result, 'Quizzes generated successfully');
   }
 }
