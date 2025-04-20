@@ -1,7 +1,8 @@
-type HttpStatusCode = 200 | 201 | 204 | 400 | 401 | 403 | 404 | 409 | 500;
+type HttpStatusCode = 200 | 201 | 202 | 204 | 400 | 401 | 403 | 404 | 409 | 500;
 type HttpResponse =
   | 'OK'
   | 'CREATED'
+  | 'ACCEPTED'
   | 'NO_CONTENT'
   | 'BAD_REQUEST'
   | 'UNAUTHORIZED'
@@ -13,6 +14,7 @@ type HttpResponse =
 const HTTP_STATUS: Record<HttpResponse, HttpStatusCode> = {
   OK: 200,
   CREATED: 201,
+  ACCEPTED: 202,
   NO_CONTENT: 204,
   BAD_REQUEST: 400,
   UNAUTHORIZED: 401,
