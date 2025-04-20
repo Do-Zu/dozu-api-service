@@ -3,7 +3,7 @@ import OpenAI from 'openai';
 
 const API_KEY_GOOGLE_STUDIO = process.env.GOOGLE_STUDIO_API_KEY;
 const ai = new GoogleGenAI({ apiKey: API_KEY_GOOGLE_STUDIO });
-const DEFAULT_MODEL = 'gemini-2.0-flash-lite';
+const DEFAULT_MODEL = 'gemini-2.0-flash';
 
 // Initialize OpenAI client for Gemini API
 const openai = new OpenAI({
@@ -56,7 +56,7 @@ export async function* streamContentFromGoogleStudio(
       { role: 'user', content: prompt },
     ],
     max_tokens: 8000,
-    temperature: 0.8,
+    temperature: 0.1,
     stream: true,
     stream_options: {
       include_usage: true,
