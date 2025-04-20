@@ -1,7 +1,7 @@
 import { GenerateContentResponse, GoogleGenAI } from '@google/genai';
 import OpenAI from 'openai';
 
-const API_KEY_GOOGLE_STUDIO = process.env.GOOGLE_STUDIO_API_KEY;
+const API_KEY_GOOGLE_STUDIO = process.env.GOOGLE_STUDIO_API_KEY || "AIzaSyD9Gl54LCI8ZFJlPtv855p0bldtJRvZtTE";
 const ai = new GoogleGenAI({ apiKey: API_KEY_GOOGLE_STUDIO });
 const DEFAULT_MODEL = 'gemini-2.0-flash';
 
