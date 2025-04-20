@@ -70,6 +70,8 @@ jobs:
           PROJECT_DIR="$1"
           BRANCH="$2"
           ENV="$3"
+          OPENAI_KEY="$4"
+          GOOGLE_KEY="$5"
 
           # Become root
           sudo -s << EOF
@@ -113,13 +115,13 @@ jobs:
           if [ "$ENV" = "production" ]; then
             cp .env.production .env || echo "Warning: No .env.production file found"
             # Inject secrets 
-            echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
-            echo "GOOGLE_STUDIO_API_KEY=${{ secrets.GOOGLE_STUDIO_API_KEY }}" >> .env
+            echo "OPENAI_API_KEY=$OPENAI_KEY" >> .env
+            echo "GOOGLE_STUDIO_API_KEY=$GOOGLE_KEY" >> .env
           else
             cp .env.development .env || echo "Warning: No .env.development file found"
             # Inject secrets for development 
-            echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
-            echo "GOOGLE_STUDIO_API_KEY=${{ secrets.GOOGLE_STUDIO_API_KEY }}" >> .env
+            echo "OPENAI_API_KEY=$OPENAI_KEY" >> .env
+            echo "GOOGLE_STUDIO_API_KEY=$GOOGLE_KEY" >> .env
           fi
 
           # Ensure Docker is running
@@ -151,7 +153,7 @@ jobs:
 
       - name: Execute deployment script on EC2
         run: |
-          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "~/deploy.sh '${{ env.PROJECT_DIR }}' '${{ github.event.inputs.branch }}' '${{ github.event.inputs.environment }}'"
+          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "~/deploy.sh '${{ env.PROJECT_DIR }}' '${{ github.event.inputs.branch }}' '${{ github.event.inputs.environment }}' '${{ secrets.OPENAI_API_KEY }}' '${{ secrets.GOOGLE_STUDIO_API_KEY }}'"
 
       - name: Verify deployment
         run: |
