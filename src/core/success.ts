@@ -51,6 +51,18 @@ export class SuccessResponse {
   }
 
   /**
+   * Send a Accept 202 response
+   */
+  public static accepted<T>(res: Response, data: T, message = 'Accepted'): Response {
+    const response: IApiResponse<T> = {
+      status: 'accepted',
+      message,
+      data,
+    };
+    return res.status(HTTP_STATUS.ACCEPTED).json(response);
+  }
+
+  /**
    * Send a No Content (204) response
    */
   public static noContent(res: Response): Response {
