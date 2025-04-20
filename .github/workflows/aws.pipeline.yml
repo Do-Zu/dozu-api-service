@@ -112,8 +112,14 @@ jobs:
           echo "Setting up environment variables for $ENV environment"
           if [ "$ENV" = "production" ]; then
             cp .env.production .env || echo "Warning: No .env.production file found"
+            # Inject secrets 
+            echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env
+            echo "GOOGLE_STUDIO_API_KEY=$GOOGLE_STUDIO_API_KEY" >> .env
           else
             cp .env.development .env || echo "Warning: No .env.development file found"
+            # Inject secrets for development 
+            echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env
+            echo "GOOGLE_STUDIO_API_KEY=$GOOGLE_STUDIO_API_KEY" >> .env
           fi
 
           # Ensure Docker is running
