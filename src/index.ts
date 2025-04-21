@@ -11,10 +11,15 @@ import helmet from './config/middlewares/helmet.config';
 import cors from './config/middlewares/cors.config';
 import rateLimit from './config/middlewares/rate-limit.config';
 import { getDbInstance } from './libs/drizzleClient.lib';
+import { redisInstance } from './libs/redis/redis.connect';
+import { createServer } from 'http';
+import { webSocketService } from './libs/websocket/socket.io';
 
 setupGlobalErrorHandlers();
 
 const app: Application = express();
+
+const httpServer = createServer(app);
 
 const { host, port } = config.server;
 
@@ -32,6 +37,8 @@ app.use(morganConfig);
 if (config.isProduction) {
   app.use(rateLimit());
 }
+
+webSocketService.initialize(httpServer);
 
 // Apply success handler middleware request
 app.use(successHandler);
@@ -55,8 +62,9 @@ app.all('*', (req: Request, _res: Response, next: NextFunction) => {
 app.use(handleError);
 
 const server = app.listen(port, () => {
-  console.log(`Server is running at http://${host}:${port}`);
   getDbInstance();
+  redisInstance.connect();
+  console.log(`Server is running at http://${host}:${port}`);
 });
 
 // Handle graceful shutdown
