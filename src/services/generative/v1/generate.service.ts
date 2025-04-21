@@ -10,10 +10,10 @@ import { generateConfig } from '@/config/generate.config';
 import { convertJsonToArray, generatePromptText } from '@/utils/prompt';
 import * as fsPromise from 'fs/promises';
 import pdfParse from 'pdf-parse';
-import { generateFlashcards } from './provider/generate.algorithm.service';
-import { streamContentFromGoogleStudio } from './provider/googlestudio.service';
+import { generateFlashcards } from '../provider/generate.algorithm.service';
+import { streamContentFromGoogleStudio } from '../provider/googlestudio.service';
 
-import { OpenAIService } from './provider/openai.service';
+import { OpenAIService } from '../provider/openai.service';
 
 const processingJobs = new Map<string, ProcessingResult>();
 

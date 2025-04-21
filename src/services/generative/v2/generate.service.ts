@@ -5,7 +5,7 @@ import {
 } from '@/services/generative/v2/base/service.interface';
 import { contentGenerationService } from './content-generation.service';
 import { fileProcessingService } from './file-processing.service';
-import { generateFlashcards } from '../v1/provider/generate.algorithm.service';
+import { generateFlashcards } from '../provider/generate.algorithm.service';
 
 /**
  * Main service for content generation operations

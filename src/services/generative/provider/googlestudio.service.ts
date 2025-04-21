@@ -1,7 +1,9 @@
-import { GenerateContentResponse, GoogleGenAI } from '@google/genai';
+import { GenerateContentConfig, GenerateContentResponse, GoogleGenAI } from '@google/genai';
 import OpenAI from 'openai';
 
-const API_KEY_GOOGLE_STUDIO = process.env.GOOGLE_STUDIO_API_KEY || "AIzaSyD9Gl54LCI8ZFJlPtv855p0bldtJRvZtTE";
+const API_KEY_GOOGLE_STUDIO =
+  process.env.GOOGLE_STUDIO_API_KEY || 'AIzaSyD9Gl54LCI8ZFJlPtv855p0bldtJRvZtTE';
+
 const ai = new GoogleGenAI({ apiKey: API_KEY_GOOGLE_STUDIO });
 const DEFAULT_MODEL = 'gemini-2.0-flash';
 
@@ -11,7 +13,11 @@ const openai = new OpenAI({
   baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
 });
 
-export async function generateContentByGoogleStudio(prompt: string, model: string = DEFAULT_MODEL) {
+export async function generateContentByGoogleStudio(
+  prompt: string,
+  model: string = DEFAULT_MODEL,
+  config?: GenerateContentConfig
+) {
   const response: GenerateContentResponse = await ai.models.generateContent({
     model,
     contents: [
@@ -25,6 +31,7 @@ export async function generateContentByGoogleStudio(prompt: string, model: strin
       },
     ],
     config: {
+      ...config,
       maxOutputTokens: 3000,
       temperature: 0.5,
       stopSequences: ['\n'],
