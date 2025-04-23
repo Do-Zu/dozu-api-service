@@ -1,6 +1,7 @@
 import { Queue, Worker, Job, QueueEvents } from 'bullmq';
 import { RedisManager } from '../redis/redis.connect';
 import logger from '@/utils/logger';
+import Redis from 'ioredis';
 
 export interface JobOptions {
   attempts?: number;
@@ -19,10 +20,12 @@ class BullMQService {
   private queues: Map<string, Queue> = new Map();
   private workers: Map<string, Worker> = new Map();
   private queueEvents: Map<string, QueueEvents> = new Map();
-  private redisManager: RedisManager;
+  // private redisManager: RedisManager;
+  private redis: Redis;
 
   private constructor() {
-    this.redisManager = RedisManager.getInstance();
+    // this.redisManager = RedisManager.getInstance();
+    this.redis = RedisManager.getInstance().connect();
   }
 
   public static getInstance(): BullMQService {
@@ -37,7 +40,7 @@ class BullMQService {
       return this.queues.get(name)!;
     }
     const queue = new Queue(name, {
-      connection: this.redisManager.connect(),
+      connection: this.redis,
       defaultJobOptions: {
         attempts: 3,
         backoff: {
@@ -62,7 +65,7 @@ class BullMQService {
       return this.queueEvents.get(name)!;
     }
     const queueEvents = new QueueEvents(name, {
-      connection: this.redisManager.connect(),
+      connection: this.redis,
     });
     queueEvents.on('completed', ({ jobId }) => {
       logger.info(`Job ${jobId} has completed in queue ${name}`);
@@ -108,7 +111,7 @@ class BullMQService {
         }
       },
       {
-        connection: this.redisManager.connect(),
+        connection: this.redis,
         concurrency: concurrency,
         autorun: true,
       }
@@ -142,6 +145,13 @@ class BullMQService {
   public async getJob(queueName: string, jobId: string): Promise<Job | undefined> {
     const queue = this.createQueue(queueName);
     return queue.getJob(jobId);
+  }
+
+  /**
+   *
+   */
+  public async disconnect() {
+    await this.redis.quit();
   }
 }
 

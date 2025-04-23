@@ -15,7 +15,8 @@ export class RedisManager {
     private host: string = process.env.REDIS_HOST || 'localhost',
     private port: number = parseInt(process.env.REDIS_PORT || '6379'),
     private password: string = process.env.REDIS_PASSWORD || '',
-    private db: number = parseInt(process.env.REDIS_DB || '0')
+    private db: number = parseInt(process.env.REDIS_DB || '0'),
+    private username: string = process.env.REDIS_USERNAME || 'default'
   ) {
     this.events = new EventEmitter();
   }
@@ -33,8 +34,8 @@ export class RedisManager {
     this.redis = new Redis({
       host: this.host,
       port: this.port,
+      username: this.username,
       password: this.password || undefined,
-      db: this.db,
       retryStrategy: times => {
         if (times * this.retryStrategy.retryDelay > this.retryStrategy.maxRetryTime) {
           // Stop retrying after maxRetryTime
@@ -43,7 +44,7 @@ export class RedisManager {
         return Math.min(times * 100, 3000); // Exponential backoff with max 3s delay
       },
       enableReadyCheck: true,
-      maxRetriesPerRequest: 3,
+      maxRetriesPerRequest: null,
       connectTimeout: 10000, //10s
     });
     this.setupListeners();
@@ -74,16 +75,18 @@ export class RedisManager {
     });
   }
 
-  public async get(key: string): Promise<string | null> {
-    return this.connect().get(key);
+  public async get(key: string) {
+    const data = await this.connect().get(key);
+    return data ? JSON.parse(data) : null;
   }
 
-  public async set(key: string, value: string, ttlSeconds?: number): Promise<'OK'> {
+  public async set(key: string, value: unknown, ttlSeconds?: number): Promise<'OK'> {
     const redis = this.connect();
+    const dataParse = JSON.stringify(value);
     if (ttlSeconds) {
-      return redis.set(key, value, 'EX', ttlSeconds);
+      return redis.set(key, dataParse, 'EX', ttlSeconds);
     }
-    return redis.set(key, value);
+    return redis.set(key, dataParse);
   }
 
   public async del(...keys: string[]): Promise<number> {
@@ -132,4 +135,4 @@ export class RedisManager {
 
 export const redisInstance = RedisManager.getInstance();
 
-export const redis = RedisManager.getInstance().connect();
+export const redis = redisInstance.connect();
