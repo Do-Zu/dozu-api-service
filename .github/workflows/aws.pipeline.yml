@@ -112,6 +112,7 @@ jobs:
           # Log environment variables (safely) for debugging
           echo "======== Environment Variables in $ENV_FILE (Debug) ========"
           echo "Environment: $ENV"
+          cat "$ENV_FILE"
 
           # Print all variables with masked sensitive values
           mask_value() {
