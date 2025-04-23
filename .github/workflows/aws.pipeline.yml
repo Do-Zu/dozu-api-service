@@ -61,6 +61,13 @@ jobs:
           ACCESS_KEY_ID_AWS="${12}"
           SECRET_ACCESS_KEY_AWS="${13}"
 
+          # Determine which env file to use
+          if [ "$ENV" = "production" ]; then
+            ENV_FILE=".env.production"
+          else
+            ENV_FILE=".env.development"
+          fi
+
           # Ensure project directory exists with correct permission
           cd /
 
@@ -83,31 +90,40 @@ jobs:
             git checkout -b "$BRANCH" "origin/$BRANCH"
           fi
 
-          # Set up .env file
-          echo "Configuring environment..."
-          if [ "$ENV" = "production" ]; then
-            cp .env.production .env || echo "No .env.production file found"
-          else
-            cp .env.development .env || echo "No .env.development file found"
-          fi
+          # Ensure env file exists
+          echo "Configuring environment variables in $ENV_FILE..."
+          touch "$ENV_FILE"
 
-          echo "OPENAI_API_KEY=$OPENAI_KEY" >> .env
-          echo "GOOGLE_STUDIO_API_KEY=$GOOGLE_KEY" >> .env
-          echo "REDIS_HOST=$REDIS_HOST" >> .env
-          echo "REDIS_PORT=$REDIS_PORT" >> .env
-          echo "REDIS_PASSWORD=$REDIS_PASSWORD" >> .env
-          echo "REDIS_DB=$REDIS_DB" >> .env
-          echo "REDIS_USERNAME=$REDIS_USERNAME" >> .env
-          echo "AWS_REGION=$AWS_REGION" >> .env
-          echo "ACCESS_KEY_ID_AWS=$ACCESS_KEY_ID_AWS" >> .env
-          echo "SECRET_ACCESS_KEY_AWS=$SECRET_ACCESS_KEY_AWS" >> .env
+          # Update environment variables in the appropriate env file
+          # Function to update or add a variable to the env file
+          update_env_var() {
+            local key=$1
+            local value=$2
+            if grep -q "^${key}=" "$ENV_FILE"; then
+              # Replace existing value
+              sed -i "s|^${key}=.*|${key}=${value}|" "$ENV_FILE"
+            else
+              # Add new value
+              echo "${key}=${value}" >> "$ENV_FILE"
+            fi
+          }
 
+          update_env_var "OPENAI_API_KEY" "$OPENAI_KEY"
+          update_env_var "GOOGLE_STUDIO_API_KEY" "$GOOGLE_KEY"
+          update_env_var "REDIS_HOST" "$REDIS_HOST"
+          update_env_var "REDIS_PORT" "$REDIS_PORT"
+          update_env_var "REDIS_PASSWORD" "$REDIS_PASSWORD"
+          update_env_var "REDIS_DB" "$REDIS_DB"
+          update_env_var "REDIS_USERNAME" "$REDIS_USERNAME"
+          update_env_var "AWS_REGION" "$AWS_REGION"
+          update_env_var "ACCESS_KEY_ID_AWS" "$ACCESS_KEY_ID_AWS"
+          update_env_var "SECRET_ACCESS_KEY_AWS" "$SECRET_ACCESS_KEY_AWS"
 
-          # Start Docker
-          echo "Starting Docker services..."
+          # Start Docker with the appropriate env file
+          echo "Starting Docker services with $ENV_FILE..."
           sudo systemctl start docker || echo "Docker already running"
-          sudo docker-compose build api
-          sudo docker-compose up -d api
+          sudo docker-compose build --build-arg ENV_FILE=$ENV_FILE api
+          sudo docker-compose --env-file $ENV_FILE up -d api
 
           echo "Deployment complete!"
           sudo docker-compose ps
