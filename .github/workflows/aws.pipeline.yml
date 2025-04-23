@@ -26,30 +26,10 @@ env:
   PROJECT_DIR: '/projects/dozu-api-service'
 
 jobs:
-  check-connection:
-    name: Check EC2 Connection
+  deploy-ec2:
+    name: Deploy to EC2
     runs-on: ubuntu-latest
-    steps:
-      - name: Install SSH key
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-      - name: Add EC2 host to known hosts
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
-
-      - name: Check connection to EC2 and root access
-        run: |
-          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "echo 'Connection successful!' && echo 'Checking sudo access:' && sudo -n echo 'Sudo access confirmed'"
-
-  deploy-application:
-    name: Deploy
-    needs: check-connection
-    runs-on: ubuntu-latest
-    environment:
-      name: ${{ github.event.inputs.environment }}
     steps:
       - name: Install SSH key
         uses: webfactory/ssh-agent@v0.9.0
@@ -72,37 +52,30 @@ jobs:
           ENV="$3"
           OPENAI_KEY="$4"
           GOOGLE_KEY="$5"
+          REDIS_HOST="$6"
+          REDIS_PORT="$7"
+          REDIS_PASSWORD="$8"
+          REDIS_DB="$9"
+          REDIS_USERNAME="${10}"
+          AWS_REGION="${11}"
+          ACCESS_KEY_ID_AWS="${12}"
+          SECRET_ACCESS_KEY_AWS="${13}"
 
-          # Become root
-          sudo -s << EOF
+          # Ensure project directory exists with correct permission
           cd /
 
-          # Create project directory if it doesn't exist
-          mkdir -p "$PROJECT_DIR"
+          sudo mkdir -p "$PROJECT_DIR"
+          sudo chown -R $(whoami):$(whoami) "$PROJECT_DIR"
+
           cd "$PROJECT_DIR" || { echo "Failed to change directory to $PROJECT_DIR"; exit 1; }
 
-          # Set proper ownership
-          chown -R $(whoami):$(whoami) "$PROJECT_DIR"
-
-          # Check if the directory is a Git repository
           if [ -d .git ]; then
-            echo "Git repository exists, fetching latest changes"
+            echo "Git repository exists, fetching changes..."
             git fetch --all
-            
-            # Check if the branch exists locally
-            if git rev-parse --verify "$BRANCH" >/dev/null 2>&1; then
-              echo "Checking out existing branch: $BRANCH"
-              git checkout "$BRANCH"
-            else
-              echo "Creating new tracking branch for: $BRANCH"
-              git checkout -b "$BRANCH" "origin/$BRANCH"
-            fi
-            
-            echo "Pulling latest code from branch: $BRANCH"
+            git checkout "$BRANCH" || git checkout -b "$BRANCH" "origin/$BRANCH"
             git pull origin "$BRANCH"
           else
-            echo "Directory is not a Git repository, initializing..."
-            # If not a Git repo, initialize and clone
+            echo "Cloning fresh repository..."
             rm -rf * .[!.]* ..?*
             git init
             git remote add origin https://github.com/your-org/dozu-api-service.git
@@ -110,55 +83,60 @@ jobs:
             git checkout -b "$BRANCH" "origin/$BRANCH"
           fi
 
-          # Set up environment variables for docker-compose
-          echo "Setting up environment variables for $ENV environment"
+          # Set up .env file
+          echo "Configuring environment..."
           if [ "$ENV" = "production" ]; then
-            cp .env.production .env || echo "Warning: No .env.production file found"
-            # Inject secrets 
-            echo "OPENAI_API_KEY=$OPENAI_KEY" >> .env
-            echo "GOOGLE_STUDIO_API_KEY=$GOOGLE_KEY" >> .env
+            cp .env.production .env || echo "No .env.production file found"
           else
-            cp .env.development .env || echo "Warning: No .env.development file found"
-            # Inject secrets for development 
-            echo "OPENAI_API_KEY=$OPENAI_KEY" >> .env
-            echo "GOOGLE_STUDIO_API_KEY=$GOOGLE_KEY" >> .env
+            cp .env.development .env || echo "No .env.development file found"
           fi
 
-          # Ensure Docker is running
-          systemctl status docker > /dev/null || systemctl start docker
+          echo "OPENAI_API_KEY=$OPENAI_KEY" >> .env
+          echo "GOOGLE_STUDIO_API_KEY=$GOOGLE_KEY" >> .env
+          echo "REDIS_HOST=$REDIS_HOST" >> .env
+          echo "REDIS_PORT=$REDIS_PORT" >> .env
+          echo "REDIS_PASSWORD=$REDIS_PASSWORD" >> .env
+          echo "REDIS_DB=$REDIS_DB" >> .env
+          echo "REDIS_USERNAME=$REDIS_USERNAME" >> .env
+          echo "AWS_REGION=$AWS_REGION" >> .env
+          echo "ACCESS_KEY_ID_AWS=$ACCESS_KEY_ID_AWS" >> .env
+          echo "SECRET_ACCESS_KEY_AWS=$SECRET_ACCESS_KEY_AWS" >> .env
 
 
-          # Build and run Docker containers
-          echo "Building and starting Docker containers"
-          docker-compose build api
-          docker-compose up -d api
+          # Start Docker
+          echo "Starting Docker services..."
+          sudo systemctl start docker || echo "Docker already running"
+          sudo docker-compose build api
+          sudo docker-compose up -d api
 
-          # Check container status
-          echo "Container status:"
-          docker-compose ps
-
-          # Check logs for errors
-          echo "Container logs (last 20 lines):"
-          docker-compose logs --tail=20
-
-          echo "Deployment completed successfully!"
-          EOF
+          echo "Deployment complete!"
+          sudo docker-compose ps
+          sudo docker-compose logs --tail=20
           EOL
 
           chmod +x deploy.sh
 
-      - name: Transfer deployment script to EC2
+      - name: Copy deployment script to EC2
         run: |
           scp deploy.sh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:~/deploy.sh
 
-      - name: Execute deployment script on EC2
+      - name: Run deployment on EC2
         run: |
-          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "~/deploy.sh '${{ env.PROJECT_DIR }}' '${{ github.event.inputs.branch }}' '${{ github.event.inputs.environment }}' '${{ secrets.OPENAI_API_KEY }}' '${{ secrets.GOOGLE_STUDIO_API_KEY }}'"
+          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} \
+          "~/deploy.sh '${{ env.PROJECT_DIR }}' \
+          '${{ github.event.inputs.branch }}' \
+          '${{ github.event.inputs.environment }}' \
+          '${{ secrets.OPENAI_API_KEY }}' \
+          '${{ secrets.GOOGLE_STUDIO_API_KEY }}' \
+          '${{ secrets.REDIS_HOST }}' \
+          '${{ secrets.REDIS_PORT }}'\
+          '${{ secrets.REDIS_PASSWORD }}' \
+          '${{ secrets.REDIS_DB }}' \
+          '${{ secrets.REDIS_USERNAME }}' \
+          '${{ secrets.AWS_REGION }}' \
+          '${{ secrets.ACCESS_KEY_ID_AWS }}' \
+          '${{ secrets.SECRET_ACCESS_KEY_AWS }}'"
 
-      - name: Verify deployment
+      - name: Cleanup script
         run: |
-          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "sudo docker ps | grep dozu-api"
-
-      - name: Clean up
-        run: |
-          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "rm ~/deploy.sh"
+          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "rm -f ~/deploy.sh"
