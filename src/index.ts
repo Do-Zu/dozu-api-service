@@ -63,7 +63,6 @@ app.use(handleError);
 
 const server = app.listen(port, () => {
   getDbInstance();
-  redisInstance.connect();
   console.log(`Server is running at http://${host}:${port}`);
 });
 
