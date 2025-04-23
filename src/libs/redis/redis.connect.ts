@@ -12,7 +12,7 @@ export class RedisManager {
   };
 
   private constructor(
-    private host: string = process.env.REDIS_HOST || 'localhost',
+    private host: string = 'redis-16102.c292.ap-southeast-1-1.ec2.redns.redis-cloud.com',
     private port: number = parseInt(process.env.REDIS_PORT || '6379'),
     private password: string = process.env.REDIS_PASSWORD || '',
     private db: number = parseInt(process.env.REDIS_DB || '0'),
