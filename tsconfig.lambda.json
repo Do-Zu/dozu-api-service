@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist-lambda",
+    "rootDir": "./src",
+    "sourceMap": false,
+    "inlineSourceMap": true
+  },
+  "include": [
+    "src/libs/aws/lambda/generate/handler.ts",
+    "src/utils/**/*.ts",
+    "src/services/generative/v3/base/openai.service.ts",
+    "src/libs/redis/**/*.ts"
+  ],
+  "exclude": ["node_modules", "**/*.test.ts"]
+}

@@ -1,37 +1,14 @@
-import { GenerateContentResponse, GoogleGenAI } from '@google/genai';
 import OpenAI from 'openai';
 
-const API_KEY_GOOGLE_STUDIO = process.env.GOOGLE_STUDIO_API_KEY || "AIzaSyD9Gl54LCI8ZFJlPtv855p0bldtJRvZtTE";
-const ai = new GoogleGenAI({ apiKey: API_KEY_GOOGLE_STUDIO });
-const DEFAULT_MODEL = 'gemini-2.0-flash';
+const API_KEY_GOOGLE_STUDIO = process.env.GOOGLE_STUDIO_API_KEY;
 
-// Initialize OpenAI client for Gemini API
+const DEFAULT_MODEL = 'gemini-2.0-flash';
+const URL_API_GOOGLE_STUDIO = 'https://generativelanguage.googleapis.com/v1beta/openai/';
+
 const openai = new OpenAI({
   apiKey: API_KEY_GOOGLE_STUDIO,
-  baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+  baseURL: URL_API_GOOGLE_STUDIO,
 });
-
-export async function generateContentByGoogleStudio(prompt: string, model: string = DEFAULT_MODEL) {
-  const response: GenerateContentResponse = await ai.models.generateContent({
-    model,
-    contents: [
-      {
-        role: 'system',
-        text: 'You are an expert at creating educational content from academic content.',
-      },
-      {
-        role: 'user',
-        text: prompt,
-      },
-    ],
-    config: {
-      maxOutputTokens: 3000,
-      temperature: 0.5,
-      stopSequences: ['\n'],
-    },
-  });
-  return response;
-}
 
 /**
  * Generate content using Google Studio with streaming capability via OpenAI client
