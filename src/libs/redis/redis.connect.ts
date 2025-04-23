@@ -22,6 +22,7 @@ export class RedisManager {
       host: this.host,
       port: this.port,
       password: this.password,
+      db: this.db,
       username: this.username,
     });
 
