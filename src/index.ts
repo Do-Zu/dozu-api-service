@@ -8,9 +8,12 @@ import morganConfig from './config/middlewares/morgan.config';
 import successHandler from './core/success';
 import router from './routes/api.routes';
 import helmet from './config/middlewares/helmet.config';
+import cookieParser from 'cookie-parser';
 import cors from './config/middlewares/cors.config';
 import rateLimit from './config/middlewares/rate-limit.config';
 import { getDbInstance } from './libs/drizzleClient.lib';
+
+
 
 setupGlobalErrorHandlers();
 
@@ -24,6 +27,8 @@ app.use(parserMiddleware.urlencoded());
 
 app.use(helmet());
 app.use(cors());
+
+app.use(cookieParser());
 
 // Middleware to log requests
 app.use(morganConfig);
