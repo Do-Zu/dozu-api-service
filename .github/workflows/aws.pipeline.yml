@@ -152,7 +152,7 @@ jobs:
           # Start Docker with the appropriate env file
           echo "Starting Docker services with $ENV_FILE..."
 
-          sudo docker-compose --env-file $ENV_FILE build api
+          sudo docker-compose build --build-arg ENV_FILE=$ENV_FILE api
           sudo docker-compose --env-file $ENV_FILE up -d api
 
           echo "Deployment complete!"
