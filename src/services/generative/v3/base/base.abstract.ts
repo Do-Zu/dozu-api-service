@@ -1,5 +1,7 @@
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { OpenAIService } from './openai.service';
+import { InvokeCommand, LambdaClient } from '@aws-sdk/client-lambda';
+import logger from '@/utils/logger';
 
 export interface GenerationOptions {
   model?: string;
@@ -25,6 +27,7 @@ export abstract class BaseGenerativeService extends OpenAIService implements IGe
   }
 
   //TODO : handle  methods update change model and api key when rate-limit for open api integrate
+  //....................................................
 
   /**
    * @description create stream handler generate content from google studio by gemini

@@ -1,41 +1,38 @@
-import { Worker, Job, tryCatch } from 'bullmq';
-import OpenAI from 'openai';
+import { Worker, Job, Queue } from 'bullmq';
 import { bullMQService as queue } from '@/libs/bullmq/bullmq';
 import { BaseGenerativeService } from './base/base.abstract';
 import { convertJsonToArray, generatePromptText } from '@/utils/prompt';
 import { v4 as uuidv4 } from 'uuid';
 import logger from '@/utils/logger';
-import { redis, redisInstance } from '@/libs/redis/redis.connect';
+import { redisInstance } from '@/libs/redis/redis.connect';
+import { InternalServerError } from '@/core/error';
+import { lambdaService } from './provider/lambda.service';
 
 class GenerativeService extends BaseGenerativeService {
   private worker: Worker;
-  private WORKER_NAME: string = 'WORKER_HANDLER_OPEN_API_INTEGRATE_GEN_CONTENT';
-  private JOB_NAME: string = 'GENERATE_FLASHCARD';
-  private readonly RESULT_TTL: number = 60 * 5;
+
+  private readonly WORKER_NAME: string = 'WORKER_HANDLER_OPEN_API_INTEGRATE_GEN_CONTENT';
+  private readonly JOB_NAME: string = 'GENERATE_FLASHCARD';
+  private readonly RESULT_TTL: number = 60 * 5; // 5 minutes
 
   constructor() {
     super();
-    this.worker = queue.createWorker(this.WORKER_NAME, this.processor.bind(this));
+    this.worker = queue.createWorker(this.WORKER_NAME, this.processor.bind(this), 3);
   }
 
   private async processor(job: Job) {
-    logger.info(`Processing job ${job.id} with data:`, job.data);
-    const { content, jobId } = job.data;
+    console.info(`Processing job ${job.id} after gen content`);
+
+    const { data, jobId, type } = job.data;
+    console.log(job.data);
 
     try {
-      // Call the background processing method
-      const result = await this.generateFlashcardsByLLMBackGround(content);
-
       //   TODO: handle result
       //   emit an event(websocket) to transfer data to client , then close connect
-      //   store in redis for get data, after get data will remove
       //   Store in a database
 
-      logger.info(`Successfully processed job ${jobId} with result:`, result);
-
-      await this.storeData(result, jobId);
-
-      return result; // Return result to mark job as completed successfully
+      //   store in redis for get data, after get data will remove
+      await this.storeData(data, jobId);
     } catch (error) {
       logger.error(`Error processing job ${jobId}:`, error);
       throw error; // Rethrow to mark the job as failed
@@ -55,18 +52,26 @@ class GenerativeService extends BaseGenerativeService {
   public async generateFlashcardsByLLM(content: string) {
     const jobId = uuidv4();
 
-    const jobData = {
-      content,
+    const dataSend = {
       jobId,
-      timestamp: new Date().toISOString(),
+      content,
+      queue_name: this.WORKER_NAME,
+      job_name: this.JOB_NAME,
+      type: 'FLASH_CARD',
     };
 
-    const job = await queue.addJob(this.WORKER_NAME, this.JOB_NAME, jobData);
-    logger.info(`Job added to queue with ID: ${job.id}`);
+    //LAMBDA FUNCTION PROCESS
+    const lambdaTriggered = await lambdaService.triggerContentGeneration(dataSend, 'FLASH_CARD');
+
+    if (!lambdaTriggered) {
+      logger.warn(`Failed to trigger Lambda for job ${jobId}, will use fallback processing`);
+      // TODO: Implement fallback processing
+    }
 
     return {
       jobId: jobId,
       timestamp: new Date().toISOString(),
+      status: 'register',
     };
   }
 
@@ -100,11 +105,12 @@ class GenerativeService extends BaseGenerativeService {
   public async getJobStatus(jobId: string): Promise<any> {
     // First try to get cached result from Redis
     const cachedResult = await redisInstance.get(`flashcard:result:${jobId}`);
+
     if (cachedResult) {
       return {
         jobId,
         status: 'completed',
-        data: JSON.parse(cachedResult),
+        data: cachedResult,
       };
     }
 
@@ -121,7 +127,8 @@ class GenerativeService extends BaseGenerativeService {
     const state = await job.getState();
 
     return {
-      jobId: job.id,
+      jobId: job?.data?.jobId,
+      jobIndex: job.id,
       status: state,
       data: job.returnvalue,
     };

@@ -30,15 +30,15 @@ export class GenerateController {
     );
   }
 
-  async getFlashcardStatus(req: Request, res: Response) {
-    const { jobId } = req.params;
+  async getGenerateFlashcardStatus(req: Request, res: Response) {
+    const { jobId } = req.body;
 
     if (!jobId) {
       throw new BadRequest('Job ID is required ');
     }
 
-    const status = await generativeService.getJobStatus(jobId);
+    const result = await generativeService.getJobStatus(jobId);
 
-    return SuccessResponse.ok(res, status);
+    SuccessResponse.ok(res, result);
   }
 }
