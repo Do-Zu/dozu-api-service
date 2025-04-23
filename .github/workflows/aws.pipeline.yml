@@ -112,7 +112,6 @@ jobs:
           # Log environment variables (safely) for debugging
           echo "======== Environment Variables in $ENV_FILE (Debug) ========"
           echo "Environment: $ENV"
-          cat "$ENV_FILE"
 
           # Print all variables with masked sensitive values
           mask_value() {
@@ -152,8 +151,8 @@ jobs:
 
           # Start Docker with the appropriate env file
           echo "Starting Docker services with $ENV_FILE..."
-          sudo systemctl start docker || echo "Docker already running"
-          sudo docker-compose build --build-arg ENV_FILE=$ENV_FILE api
+
+          sudo docker-compose --env-file $ENV_FILE build api
           sudo docker-compose --env-file $ENV_FILE up -d api
 
           echo "Deployment complete!"
