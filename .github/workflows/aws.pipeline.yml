@@ -96,6 +96,7 @@ jobs:
 
           # Update environment variables in the appropriate env file
           # Function to update or add a variable to the env file
+
           update_env_var() {
             local key=$1
             local value=$2
@@ -118,10 +119,10 @@ jobs:
               echo "[EMPTY]"
             else
               local length=${#1}
-              if [ $length -gt 8 ]; then
-                echo "${1:0:4}...${1: -4}" # Show first 4 and last 4 characters
+              if [ "$length" -gt 8 ]; then
+                echo "${1:0:4}...${1:$(($length - 4))}"
               else
-                echo "********" # Completely mask short values
+                echo "$1"
               fi
             fi
           }
@@ -174,14 +175,13 @@ jobs:
           '${{ secrets.OPENAI_API_KEY }}' \
           '${{ secrets.GOOGLE_STUDIO_API_KEY }}' \
           '${{ secrets.REDIS_HOST }}' \
-          '${{ secrets.REDIS_PORT }}'\
+          '${{ secrets.REDIS_PORT }}' \
           '${{ secrets.REDIS_PASSWORD }}' \
           '${{ secrets.REDIS_DB }}' \
           '${{ secrets.REDIS_USERNAME }}' \
           '${{ secrets.AWS_REGION }}' \
           '${{ secrets.ACCESS_KEY_ID_AWS }}' \
           '${{ secrets.SECRET_ACCESS_KEY_AWS }}'"
-
       - name: Cleanup script
         run: |
           ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "rm -f ~/deploy.sh"
