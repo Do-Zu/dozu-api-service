@@ -108,16 +108,45 @@ jobs:
             fi
           }
 
-          update_env_var "OPENAI_API_KEY" "$OPENAI_KEY"
-          update_env_var "GOOGLE_STUDIO_API_KEY" "$GOOGLE_KEY"
-          update_env_var "REDIS_HOST" "$REDIS_HOST"
-          update_env_var "REDIS_PORT" "$REDIS_PORT"
-          update_env_var "REDIS_PASSWORD" "$REDIS_PASSWORD"
-          update_env_var "REDIS_DB" "$REDIS_DB"
-          update_env_var "REDIS_USERNAME" "$REDIS_USERNAME"
-          update_env_var "AWS_REGION" "$AWS_REGION"
-          update_env_var "ACCESS_KEY_ID_AWS" "$ACCESS_KEY_ID_AWS"
-          update_env_var "SECRET_ACCESS_KEY_AWS" "$SECRET_ACCESS_KEY_AWS"
+          # Log environment variables (safely) for debugging
+          echo "======== Environment Variables in $ENV_FILE (Debug) ========"
+          echo "Environment: $ENV"
+
+          # Print all variables with masked sensitive values
+          mask_value() {
+            if [ -z "$1" ]; then
+              echo "[EMPTY]"
+            else
+              local length=${#1}
+              if [ $length -gt 8 ]; then
+                echo "${1:0:4}...${1: -4}" # Show first 4 and last 4 characters
+              else
+                echo "********" # Completely mask short values
+              fi
+            fi
+          }
+            
+          echo "OPENAI_API_KEY: $(mask_value "$OPENAI_KEY")"
+          echo "GOOGLE_STUDIO_API_KEY: $(mask_value "$GOOGLE_KEY")"
+          echo "REDIS_HOST: $REDIS_HOST"
+          echo "REDIS_PORT: $REDIS_PORT"
+          echo "REDIS_PASSWORD: $(mask_value "$REDIS_PASSWORD")"
+          echo "REDIS_DB: $REDIS_DB"
+          echo "REDIS_USERNAME: $REDIS_USERNAME"
+          echo "AWS_REGION: $AWS_REGION"
+          echo "ACCESS_KEY_ID_AWS: $(mask_value "$ACCESS_KEY_ID_AWS")"
+          echo "SECRET_ACCESS_KEY_AWS: $(mask_value "$SECRET_ACCESS_KEY_AWS")"
+
+          # update_env_var "OPENAI_API_KEY" "$OPENAI_KEY"
+          # update_env_var "GOOGLE_STUDIO_API_KEY" "$GOOGLE_KEY"
+          # update_env_var "REDIS_HOST" "$REDIS_HOST"
+          # update_env_var "REDIS_PORT" "$REDIS_PORT"
+          # update_env_var "REDIS_PASSWORD" "$REDIS_PASSWORD"
+          # update_env_var "REDIS_DB" "$REDIS_DB"
+          # update_env_var "REDIS_USERNAME" "$REDIS_USERNAME"
+          # update_env_var "AWS_REGION" "$AWS_REGION"
+          # update_env_var "ACCESS_KEY_ID_AWS" "$ACCESS_KEY_ID_AWS"
+          # update_env_var "SECRET_ACCESS_KEY_AWS" "$SECRET_ACCESS_KEY_AWS"
 
           # Start Docker with the appropriate env file
           echo "Starting Docker services with $ENV_FILE..."

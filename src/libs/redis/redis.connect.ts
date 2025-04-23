@@ -18,6 +18,13 @@ export class RedisManager {
     private db: number = parseInt(process.env.REDIS_DB || '0'),
     private username: string = process.env.REDIS_USERNAME || 'default'
   ) {
+    console.log({
+      host: this.host,
+      port: this.port,
+      password: this.password,
+      username: this.username,
+    });
+
     this.events = new EventEmitter();
   }
 
