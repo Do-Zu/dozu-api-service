@@ -63,6 +63,13 @@ class BadRequest extends AppError {
   }
 }
 
+class InternalServerError extends AppError {
+  constructor(message = 'Internal Server Error') {
+    super(message, 500);
+    this.name = 'InternalServerError';
+  }
+}
+
 /**
  *
  * Global error handler middleware
@@ -163,6 +170,7 @@ export {
   NotFoundError,
   DatabaseError,
   BadRequest,
+  InternalServerError,
   handleError,
   setupGlobalErrorHandlers,
 };
