@@ -1,74 +1,117 @@
-import { OpenAIService } from '@/services/generative/v3/base/openai.service';
-import { APIGatewayProxyHandler } from 'aws-lambda';
-import { convertJsonToArray, generatePromptText, TYPE_PROMPT } from '@/utils/prompt';
 import { ChatCompletionMessageParam } from 'openai/resources/chat';
+import { OpenAIService } from '../../../../services/generative/v3/base/openai.service';
+import { convertJsonToArray, generatePromptText, TYPE_PROMPT } from '../../../../utils/prompt';
+import { Queue, QueueEvents, Worker, ConnectionOptions } from 'bullmq';
 import Redis from 'ioredis';
 
-let redis: Redis | null = null;
+// Configure Redis connection
+const REDIS_HOST = process.env.REDIS_HOST || 'localhost';
+const REDIS_PORT = parseInt(process.env.REDIS_PORT || '6379');
+const REDIS_PASSWORD = process.env.REDIS_PASSWORD;
 
-function getRedisClient() {
-  if (!redis) {
-    redis = new Redis({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: Number(process.env.REDIS_PORT) || 6379,
-      password: process.env.REDIS_PASSWORD,
-      // Lambda-specific options to handle connections better
+// Redis singleton for Lambda to reuse across invocations
+let redisConnection: Redis | null = null;
+
+// Get or create Redis connection
+function getRedisConnection(): Redis {
+  if (!redisConnection) {
+    console.log(`Connecting to Redis at ${REDIS_HOST}:${REDIS_PORT}...`);
+    redisConnection = new Redis({
+      host: REDIS_HOST,
+      port: REDIS_PORT,
+      password: REDIS_PASSWORD,
       maxRetriesPerRequest: 1,
       enableReadyCheck: false,
+      connectTimeout: 10000,
+      disconnectTimeout: 2000,
+      // Lambda-optimized settings
+      retryStrategy: times => Math.min(times * 50, 2000),
+    });
+
+    redisConnection.on('error', err => {
+      console.error('Redis connection error:', err);
+    });
+
+    redisConnection.on('connect', () => {
+      console.log('Connected to Redis server');
     });
   }
-  return redis;
+  return redisConnection;
 }
 
-export const handler: APIGatewayProxyHandler = async event => {
-  const redisClient = getRedisClient();
+// Create a queue instance
+function createQueue(name: string): Queue {
+  const connection = getRedisConnection();
+  return new Queue(name, { connection });
+}
 
+export const handler = async (event: any) => {
   try {
-    const { jobId, type = 'FLASH_CARD' } = JSON.parse(event.body || '{}');
+    console.log({ event });
 
-    if (!jobId) {
+    const { jobId, content, queue_name, type, job_name } = event?.data;
+
+    console.log({ dataReceive: { jobId, content, queue_name, type } });
+
+    if (!jobId || !content || !queue_name || !type) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ message: 'Missing jobId' }),
+        body: JSON.stringify({ message: 'Missing param' }),
       };
     }
 
-    const key = `bull:QUEUE_HANDLER_OPEN_API_INTEGRATE_GEN_CONTENT:${jobId}`;
-    const jobDataRaw = await redisClient.get(key);
-
-    if (!jobDataRaw) {
-      return {
-        statusCode: 404,
-        body: JSON.stringify({ message: 'Job data not found' }),
-      };
-    }
-
-    const jobData = JSON.parse(jobDataRaw);
-    const content = jobData?.data?.content;
-
+    //generate content
     const result = await generateContent(content, type);
 
-    // Store the result with proper key format
-    const resultKey = `flashcard:result:${jobId}`;
-    await redisClient.set(resultKey, JSON.stringify(result), 'EX', 300);
+    const queue = createQueue(queue_name);
 
-    // Close Redis connection - important in Lambda to avoid hanging
-    await redisClient.quit();
-    redis = null;
+    // Add job to the queue
+    const job = await queue.add(
+      job_name,
+      { data: result, jobId, type },
+      {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 1000,
+        },
+        removeOnComplete: true,
+        removeOnFail: 5000,
+      }
+    );
+
+    console.log(`Job added to queue ${queue_name}, job ID: ${job.id}`);
+
+    // // Store the result with proper key format
+    // await queue.addJob(queue_name, job_name, { data: result, jobId, type });
+
+    // //disconnect with redis
+    // await queue.disconnect();
+
+    if (redisConnection) {
+      await redisConnection.quit();
+      redisConnection = null;
+      console.log('Redis connection closed');
+    }
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ message: 'Job processed', jobId }),
+      body: JSON.stringify({
+        message: 'Job processed',
+        jobId,
+        queueJobId: job.id,
+      }),
     };
   } catch (error) {
     console.error('Lambda handler error:', error);
-
-    // Always close Redis connection on error
-    if (redis) {
-      await redis.quit().catch(() => {});
-      redis = null;
+    if (redisConnection) {
+      try {
+        await redisConnection.quit();
+        redisConnection = null;
+      } catch (e) {
+        console.error('Error closing Redis connection:', e);
+      }
     }
-
     return {
       statusCode: 500,
       body: JSON.stringify({
