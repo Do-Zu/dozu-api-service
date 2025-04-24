@@ -1,12 +1,12 @@
-import { Worker, Job, Queue } from 'bullmq';
+import { Worker, Job } from 'bullmq';
 import { bullMQService as queue } from '@/libs/bullmq/bullmq';
 import { BaseGenerativeService } from './base/base.abstract';
 import { convertJsonToArray, generatePromptText } from '@/utils/prompt';
 import { v4 as uuidv4 } from 'uuid';
 import logger from '@/utils/logger';
 import { redisInstance } from '@/libs/redis/redis.connect';
-import { InternalServerError } from '@/core/error';
 import { lambdaService } from './provider/lambda.service';
+import { sseManager } from '@/services/sse/sse.service';
 
 class GenerativeService extends BaseGenerativeService {
   private worker: Worker;
@@ -23,20 +23,21 @@ class GenerativeService extends BaseGenerativeService {
   private async processor(job: Job) {
     console.info(`Processing job ${job.id} after gen content`);
 
-    const { data, jobId, type } = job.data;
-    console.log(job.data);
+    const { data, jobId } = job.data;
 
-    try {
-      //   TODO: handle result
-      //   emit an event(websocket) to transfer data to client , then close connect
-      //   Store in a database
-
-      //   store in redis for get data, after get data will remove
-      await this.storeData(data, jobId);
-    } catch (error) {
-      logger.error(`Error processing job ${jobId}:`, error);
-      throw error; // Rethrow to mark the job as failed
+    // Check if a client is waiting for this specific job
+    if (sseManager.isClientConnected(jobId)) {
+      //immediately send the data via SSE
+      const clientNotified = sseManager.sendEvent(jobId, data);
+      if (clientNotified) {
+        logger.info(`Data sent to client for job ${jobId}`);
+      }
+    } else {
+      logger.info(`No client connected for job ${jobId}, storing result in Redis`);
     }
+
+    // Always store in Redis for potential later retrieval
+    await this.storeData(data, jobId);
   }
 
   private async storeData(data: any, jobId: string) {
