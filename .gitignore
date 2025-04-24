@@ -11,6 +11,7 @@ yarn-error.log
 
 # Build outputs
 dist/
+dist-lambda/
 build/
 lib/
 coverage/
@@ -44,6 +45,7 @@ coverage/
 logs/
 *.log
 tsconfig.tsbuildinfo
+*.tsbuildinfo
 
 # OS generated files
 .DS_Store
