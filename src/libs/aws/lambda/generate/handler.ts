@@ -1,5 +1,5 @@
 import { ChatCompletionMessageParam } from 'openai/resources/chat';
-import { OpenAIService } from '../../../../services/generative/v3/base/openai.service';
+import { OpenAIService } from '../../../../services/generative/v3/provider/llm/openai.service';
 import { convertJsonToArray, generatePromptText, TYPE_PROMPT } from '../../../../utils/prompt';
 import { Queue, QueueEvents, Worker, ConnectionOptions } from 'bullmq';
 import Redis from 'ioredis';
