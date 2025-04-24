@@ -63,6 +63,13 @@ class BadRequest extends AppError {
   }
 }
 
+class TemplateInternalServerError extends AppError {
+  constructor(message = 'Internal Server Error') {
+    super(message, 500);
+    this.name = 'TemplateInternalServerError';
+  }
+}
+
 /**
  *
  * Global error handler middleware

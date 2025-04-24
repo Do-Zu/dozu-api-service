@@ -7,6 +7,7 @@ const router: Router = express.Router();
 
 //import routers here
 import './demo/demo.routes';
+import './auth/auth.routes';
 
 // Apply global async handler to router
 globalAsyncHandler(router);
