@@ -126,7 +126,7 @@ export const handler = async (event: any) => {
 async function generateContent(content: string, type: TYPE_PROMPT): Promise<any> {
   try {
     const openAIService = new OpenAIService();
-    const isModelAvailable = await openAIService.isAvailableModel();
+    const isModelAvailable = openAIService.isAvailable();
 
     if (!isModelAvailable) {
       throw new Error('OpenAI model not available');
@@ -149,6 +149,8 @@ async function generateContent(content: string, type: TYPE_PROMPT): Promise<any>
 
     // Stream the content from OpenAI
     const stream = await openAIService.createStream(messages);
+
+    if (!stream) return undefined;
 
     for await (const chunk of stream) {
       const content = chunk.choices[0]?.delta?.content || '';
