@@ -1,7 +1,5 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { Transform, pipeline } from 'stream';
-import { promisify } from 'util';
 import { v4 as uuidv4 } from 'uuid';
 import {
   FileMetadata,
@@ -9,27 +7,23 @@ import {
   FileProcessingStatus,
 } from '@/types/generate/generate.type';
 import { generateConfig } from '@/config/generate.config';
-import OpenAI from 'openai';
-import { extractAndNormalizeJson, generatePromptText } from '@/utils/prompt';
-import { MODELS } from '@/constants/openapi';
+import { convertJsonToArray, generatePromptText } from '@/utils/prompt';
 import * as fsPromise from 'fs/promises';
-import { PDFDocument } from 'pdf-lib';
 import pdfParse from 'pdf-parse';
+import { generateFlashcards } from '../provider/generate.algorithm.service';
+import { streamContentFromGoogleStudio } from '../provider/googlestudio.service';
 
-const pipelineAsync = promisify(pipeline);
+import { OpenAIService } from '../provider/openai.service';
+
 const processingJobs = new Map<string, ProcessingResult>();
 
-export class GenerateService {
-  private openaiClient: OpenAI;
-  private readonly API_KEY: string =
-    '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';
+class GenerateService {
+  private openAiService: OpenAIService;
 
   constructor() {
-    this.openaiClient = new OpenAI({
-      baseURL: 'https://openrouter.ai/api/v1',
-      apiKey: this.API_KEY,
-    });
+    this.openAiService = new OpenAIService();
   }
+
   async startProcessing(file: Express.Multer.File): Promise<string> {
     const processingId = uuidv4();
     const metadata = this.getFileMetadata(file);
@@ -40,18 +34,6 @@ export class GenerateService {
       metadata,
       startTime: Date.now(),
     });
-
-    // Start async processing
-    // this.processFileAsync(file.path, processingId).catch(error => {
-    //   processingJobs.set(processingId, {
-    //     id: processingId,
-    //     status: FileProcessingStatus.FAILED,
-    //     error: error.message,
-    //     metadata,
-    //     startTime: processingJobs.get(processingId).startTime,
-    //     endTime: Date.now(),
-    //   });
-    // });
 
     return processingId;
   }
@@ -115,25 +97,77 @@ export class GenerateService {
     };
   }
 
-  async generateFlashcards(content: string): Promise<any> {
-    const response = await this.openaiClient.chat.completions.create({
-      model: 'google/gemini-2.5-pro-exp-03-25:free',
-      messages: [
-        {
-          role: 'user',
-          content: generatePromptText(content),
-        },
-      ],
-      response_format: {
-        type: 'json_object',
-      },
-    });
+  /**
+   * @description Generates quizzes using the OpenAI API LLM
+   * @param content The content to generate quizzes from
+   * @returns
+   */
+  public async generateQuizzesLLM(content: string): Promise<any> {
+    return await this.generateQuizzesLLMStream(content);
+  }
 
-    // Parse the response to extract the flashcards
-    const dataResponse = response?.choices[0]?.message?.content;
-    const flashcards = extractAndNormalizeJson(dataResponse || '[]');
+  /**
+   *
+   * @description Generates quizzes using the OpenAI API LLM streaming method
+   * @param content The content to generate quizzes from
+   * @returns list quizzes
+   */
+  private async generateQuizzesLLMStream(content: string): Promise<any> {
+    const prompt = generatePromptText(content, 'MULTIPLE_CHOICE');
 
-    return { flashcards };
+    let fullContent = '';
+    for await (const chunk of streamContentFromGoogleStudio(prompt)) {
+      fullContent += chunk;
+    }
+
+    const data = convertJsonToArray(fullContent || '[]');
+
+    return {
+      quizzes: data,
+      text: fullContent,
+    };
+  }
+
+  /**
+   *
+   * @description Generates flashcards using the OpenAI API non-streaming method
+   * @param content The content to generate flashcards from
+   * @returns list flashcards
+   */
+  public async generateFlashcardsLLM(content: string): Promise<any> {
+    return await this.generateFlashcardsLLMStream(content);
+  }
+
+  /**
+   * @description Generates flashcards using the OpenAI API streaming method
+   * @param content The content to generate flashcards from
+   * @returns list flashcards
+   */
+  private async generateFlashcardsLLMStream(content: string): Promise<any> {
+    const prompt = generatePromptText(content, 'FLASH_CARD');
+
+    let fullContent = '';
+
+    for await (const chunk of streamContentFromGoogleStudio(prompt)) {
+      fullContent += chunk;
+    }
+
+    const data = convertJsonToArray(fullContent || '[]');
+
+    return {
+      quizzes: data,
+      text: fullContent,
+    };
+  }
+
+  /**
+   * @param content The content to generate flashcards from
+   * @returns list flashcards
+   * @description Generates flashcards using the algorithm service
+   */
+  public async generateFlashcardsAlgo(content: string): Promise<any> {
+    const flashcards = generateFlashcards(content);
+    return Promise.resolve(flashcards);
   }
 
   /**
@@ -157,35 +191,13 @@ export class GenerateService {
     //Get PDF metadata
     const { numpages, text } = pdfData;
 
-    // // Truncate content if it's too large to avoid token limits
-    // const contentForProcessing = text.substring(0, maxContentLength);
-
-    // // Log information about the PDF
-    // console.log(`Processing PDF with ${numpages} pages, extracted ${text.length} characters`);
-    // if (text.length > maxContentLength) {
-    //   console.log(`Content truncated to ${maxContentLength} characters due to token limits`);
-    // }
+    // TODO: Truncate content if it's too large to avoid token limits
 
     // Call the AI model with the extracted text
-    const response = await this.openaiClient.chat.completions.create({
-      model: 'qwen/qwen-2.5-7b-instruct:free',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are an expert at creating educational from academic content.',
-        },
-        {
-          role: 'user',
-          content: generatePromptText(text),
-        },
-      ],
-      response_format: {
-        type: 'json_object',
-      },
-    });
+    const response = await this.generateFlashcardsLLM(text);
 
     const dataResponse = response?.choices[0]?.message?.content;
-    const flashcards = extractAndNormalizeJson(dataResponse || '[]');
+    const flashcards = convertJsonToArray(dataResponse || '[]');
 
     return {
       flashcards,
@@ -197,3 +209,5 @@ export class GenerateService {
     };
   }
 }
+
+export const generateService = new GenerateService();

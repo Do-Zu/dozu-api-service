@@ -18,4 +18,7 @@ export const MODELS: IModel = {
   DEEPSEEK_V3_BASE: {
     model: 'deepseek/deepseek-chat:free',
   },
+  'huggingfaceh4/zephyr-7b-beta:free': {
+    model: 'huggingfaceh4/zephyr-7b-beta:free',
+  },
 };
