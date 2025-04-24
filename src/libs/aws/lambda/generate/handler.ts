@@ -1,5 +1,5 @@
 import { ChatCompletionMessageParam } from 'openai/resources/chat';
-import { OpenAIService } from '../../../../services/generative/v3/base/openai.service';
+import { OpenAIService } from '../../../../services/generative/v3/provider/llm/openai.service';
 import { convertJsonToArray, generatePromptText, TYPE_PROMPT } from '../../../../utils/prompt';
 import { Queue, QueueEvents, Worker, ConnectionOptions } from 'bullmq';
 import Redis from 'ioredis';
@@ -126,7 +126,7 @@ export const handler = async (event: any) => {
 async function generateContent(content: string, type: TYPE_PROMPT): Promise<any> {
   try {
     const openAIService = new OpenAIService();
-    const isModelAvailable = await openAIService.isAvailableModel();
+    const isModelAvailable = openAIService.isAvailable();
 
     if (!isModelAvailable) {
       throw new Error('OpenAI model not available');
@@ -149,6 +149,8 @@ async function generateContent(content: string, type: TYPE_PROMPT): Promise<any>
 
     // Stream the content from OpenAI
     const stream = await openAIService.createStream(messages);
+
+    if (!stream) return undefined;
 
     for await (const chunk of stream) {
       const content = chunk.choices[0]?.delta?.content || '';

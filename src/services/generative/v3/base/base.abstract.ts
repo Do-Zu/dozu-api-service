@@ -1,5 +1,5 @@
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
-import { OpenAIService } from './openai.service';
+import { OpenAIService } from '../provider/llm/openai.service';
 import { InvokeCommand, LambdaClient } from '@aws-sdk/client-lambda';
 import logger from '@/utils/logger';
 
@@ -22,8 +22,8 @@ export interface ITextFormatGenerateService extends IGenerativeService {
 }
 
 export abstract class BaseGenerativeService extends OpenAIService implements IGenerativeService {
-  constructor(modelName?: string) {
-    super(modelName);
+  constructor() {
+    super();
   }
 
   //TODO : handle  methods update change model and api key when rate-limit for open api integrate
@@ -45,6 +45,8 @@ export abstract class BaseGenerativeService extends OpenAIService implements IGe
     ];
 
     const stream = await this.createStream(messages);
+
+    if (!stream) return;
 
     for await (const chunk of stream) {
       const content = chunk.choices[0]?.delta?.content;
