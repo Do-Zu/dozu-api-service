@@ -8,8 +8,7 @@ import logger from '@/utils/logger';
 import { BadRequest } from '@/core/error';
 
 
-// const SECRET = process.env.JWT_SECRET || 'dev-secret'; // make sure to use env vars in production
-const SECRET = 'SECRETKEY,REPLACEWITHENV';
+const SECRET = process.env.JWT_SECRET || 'dev-secret'; // make sure to use env vars in production
 
 export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   const accessToken = req.cookies.accessToken;
@@ -19,11 +18,12 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
   }
 
   try {
-    const decoded = jwt.verify(accessToken, SECRET);
+    const decoded: any = jwt.verify(accessToken, SECRET);
+    //.verify Validates expiration by default
+    //todo: enforce type for decoded
     // You can attach decoded data to the request for downstream use
-    //todo:Validate expiration
-    console.log(decoded);
-    // req.currentUser = decoded; // add `user` to Request via type augmentation
+    req.currentUser = decoded; // add `user` to Request via type augmentation
+
     next();
   } catch (error) {
     logger.warn('Invalid token');

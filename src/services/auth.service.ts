@@ -9,6 +9,17 @@ import {
 } from '@/repositories/auth.repo';
 import { hashPassword, verifyPassword } from '@/utils/auth/hash.utils';
 
+
+type LoginResult = { success: true; user: SelectUser } | { success: false; reason: string };
+export const loginService = async (username: string, password: string): Promise<LoginResult> => {
+  const userData = await selectOneUserByUsername(username);
+  if (!userData) return { success: false, reason: 'Username does not exist' };
+  const isCorrectPassword = await verifyPassword(password, userData.passwordHash);
+  if (isCorrectPassword) return { success: true, user: userData };
+  else return { success: false, reason: 'Username or password is not correct' };
+};
+
+//todo:format response with types
 export const registerUserService = async (username:string, password:string,email:string) => {
   const passwordHash = await hashPassword(password);
 
@@ -19,12 +30,9 @@ export const registerUserService = async (username:string, password:string,email
     verificationCodeData.verificationCode as string
   );
   // const data = hashedPassword;
-  const returnData = {
-    username: newUserData.username,
-    email: newUserData.email,
-  };
 
-  return returnData;
+
+  return { success: true, user: newUserData }
 };
 
 export const verifyEmailService = async (email: any, verificationCode: any) => {
@@ -32,11 +40,3 @@ export const verifyEmailService = async (email: any, verificationCode: any) => {
   //todo:WIP
 };
 
-type LoginResult = { success: true; user: SelectUser } | { success: false; reason: string };
-export const loginService = async (username: string, password: string): Promise<LoginResult> => {
-  const userData = await selectOneUserByUsername(username);
-  if (!userData) return { success: false, reason: 'Username does not exist' };
-  const isCorrectPassword = await verifyPassword(password, userData.passwordHash);
-  if (isCorrectPassword) return { success: true, user: userData };
-  else return { success: false, reason: 'Username or password is not correct' };
-};

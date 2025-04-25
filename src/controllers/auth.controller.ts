@@ -4,6 +4,7 @@ import { loginService, registerUserService, verifyEmailService } from '@/service
 import { sendVerificationLinkEmail } from '@/libs/nodeMailerTransporter.lib';
 import { BadRequest } from '@/core/error';
 import { signAccessJwtToken } from '@/utils/auth/jwt.utils';
+import { sanitizeUserObject } from '@/utils/auth/autheHelpers.utils';
 
 export const testingAuthPath = async (req: Request, res: Response) => {
   // const data = await handleServiceDemo(req.body);
@@ -15,19 +16,12 @@ export const registerUserController = async (req: Request, res: Response) => {
     throw new BadRequest('Username, password and email are required');
   }
   const data = await registerUserService(req.body.username, req.body.password, req.body.email);
-  SuccessResponse.created(res, data);
-};
+  const accessToken = signAccessJwtToken(data.user);
 
-export const verifyEmailController = async (req: Request, res: Response) => {
-  if (!req.query.email || !req.query.verificationCode) {
-    throw new BadRequest('Bad link');
-  }
-  const email = req.query.email;
-  const verificationCode = req.query.verificationCode;
 
-  const data = await verifyEmailService(email, verificationCode);
-
-  SuccessResponse.ok(res, { email, verificationCode });
+  const returnData: any = sanitizeUserObject(data);
+  returnData.accessToken = accessToken;
+  SuccessResponse.created(res, returnData);
 };
 
 export const loginController = async (req: Request, res: Response) => {
@@ -43,14 +37,33 @@ export const loginController = async (req: Request, res: Response) => {
   } else {
     //add cookie and more
     const accessToken = signAccessJwtToken(data.user);
-    res.cookie('accessToken', accessToken, { httpOnly: true });
-    const returnData = {
-      userId: data.user.userId,
-      username: data.user.username,
-      email: data.user.email,
-      fullName: data.user.fullName,
-      avatarUrl: data.user.avatarUrl,
-    };
+    res.cookie('accessToken', accessToken, { httpOnly: true }); //todo: temp setting cookie, change to using cookie for refresh and memory for access
+    const returnData: any = sanitizeUserObject(data);
+    returnData.accessToken = accessToken;
     SuccessResponse.ok(res, returnData);
   }
+};
+
+export const logoutController = async (req: Request, res: Response) => {
+  //todo:delete refresh token when it is implemented
+  res.clearCookie('accessToken');
+  SuccessResponse.ok(res, {}); //todo:checkif empty data is ok
+};
+
+export const verifyEmailController = async (req: Request, res: Response) => {
+  if (!req.query.email || !req.query.verificationCode) {
+    throw new BadRequest('Bad link');
+  }
+  const email = req.query.email;
+  const verificationCode = req.query.verificationCode;
+
+  const data = await verifyEmailService(email, verificationCode);
+
+  SuccessResponse.ok(res, { email, verificationCode });
+};
+
+export const getProfileController = async (req: Request, res: Response) => {
+  const returnData: any = sanitizeUserObject(req.currentUser);
+
+  SuccessResponse.ok(res, returnData);
 };
