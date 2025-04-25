@@ -88,5 +88,4 @@ const handleBatchFlashcardsForTopic = async(req: Request, res: Response) => {
 
 const flashcardController = { handleGetAllFlashcardsForTopic, handleInsertFlashcardsForTopic, handleBatchFlashcardsForTopic }
 
-// test
 export default flashcardController;

@@ -9,9 +9,11 @@ const router = Router();
 
 globalAsyncHandler(router);
 
+// validation example with zod
 router.get('/', validateTopicId(), flashcardController.handleGetAllFlashcardsForTopic);
 router.post('/', validateTopicId(), validateFlashcardsAdded(), flashcardController.handleInsertFlashcardsForTopic);
 
+// validation example with zod
 router.get('/test', validateUser(), (req, res) => {
     res.json({ message: 'Success' });
 })
