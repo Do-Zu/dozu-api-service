@@ -8,9 +8,6 @@ import { Request, Response } from "express";
 
 const handleGetAllFlashcardsForTopic = async(req: Request, res: Response) => {
     let { topicId } = req.query as { topicId: string | number };
-    if(!topicId) {
-        throw new BadRequest('Invalid param, cannot get flashcards');
-    }
 
     topicId = parseInt(topicId as string);
     
