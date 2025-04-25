@@ -11,7 +11,7 @@ const levels = {
 };
 
 const level = () => {
-  return config?.env === 'production' ? 'error' : 'debug';
+  return config?.env === 'production' ? 'error' : 'info';
 };
 
 const colors = {
@@ -34,14 +34,19 @@ const logFormat = format.combine(
 );
 
 const logTransports = [
-  new transports.Console(),
+  new transports.Console({
+    level: config?.isProduction ? 'error' : 'info', // Only log error in production, info+ in dev
+  }),
 
   new transports.File({
     filename: 'logs/error.log',
     level: 'error',
   }),
 
-  new transports.File({ filename: 'logs/all.log' }),
+  new transports.File({
+    filename: 'logs/all.log',
+    level: config?.isProduction ? 'error' : 'info', // Only log error in production, info+ in dev
+  }),
 ];
 
 const logger = createLogger({
