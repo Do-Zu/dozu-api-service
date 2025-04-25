@@ -7,23 +7,23 @@ export class RedisManager {
   private events: EventEmitter;
   private redis: Redis | null = null;
   private readonly retryStrategy = {
-    maxRetryTime: 30 * 1000, //~30s
-    retryDelay: 100, //~100ms
+    maxRetryTime: 10 * 1000, //~10s
+    retryDelay: 500, //~500ms
   };
+  private connectionAttempts = 0;
+  private readonly maxConnectionAttempts = 3;
 
   private constructor(
-    private host: string = 'redis-16102.c292.ap-southeast-1-1.ec2.redns.redis-cloud.com',
+    private host: string = process.env.REDIS_HOST || 'localhost',
     private port: number = parseInt(process.env.REDIS_PORT || '6379'),
     private password: string = process.env.REDIS_PASSWORD || '',
     private db: number = parseInt(process.env.REDIS_DB || '0'),
     private username: string = process.env.REDIS_USERNAME || 'default'
   ) {
-    console.log({
+    console.info({
       host: this.host,
       port: this.port,
-      password: this.password,
       db: this.db,
-      username: this.username,
     });
 
     this.events = new EventEmitter();
@@ -37,26 +37,57 @@ export class RedisManager {
   }
 
   public connect(): Redis {
-    if (this.redis && this.redis.status === 'ready') return this.redis;
+    try {
+      if (this.redis && this.redis.status === 'ready') return this.redis;
 
-    this.redis = new Redis({
-      host: this.host,
-      port: this.port,
-      username: this.username,
-      password: this.password || undefined,
-      retryStrategy: times => {
-        if (times * this.retryStrategy.retryDelay > this.retryStrategy.maxRetryTime) {
-          // Stop retrying after maxRetryTime
-          return null;
-        }
-        return Math.min(times * 100, 3000); // Exponential backoff with max 3s delay
-      },
-      enableReadyCheck: true,
-      maxRetriesPerRequest: null,
-      connectTimeout: 10000, //10s
-    });
-    this.setupListeners();
-    return this.redis;
+      if (this.connectionAttempts >= this.maxConnectionAttempts) {
+        logger.error(
+          `Failed to connect to Redis after ${this.maxConnectionAttempts} attempts. Using fallback strategy.`
+        );
+        this.events.emit('max_retries_exceeded');
+
+        // Return a dummy Redis client that logs operations but doesn't crash
+        return this.createFallbackClient();
+      }
+
+      this.connectionAttempts++;
+      console.info(
+        `Connecting to Redis (attempt ${this.connectionAttempts} of ${this.maxConnectionAttempts})...`
+      );
+
+      this.redis = new Redis({
+        host: this.host,
+        port: this.port,
+        username: this.username,
+        password: this.password || undefined,
+        enableReadyCheck: true,
+        maxRetriesPerRequest: null,
+        connectTimeout: 5000, //5s
+        retryStrategy: times => {
+          if (times * this.retryStrategy.retryDelay > this.retryStrategy.maxRetryTime) {
+            // Stop retrying after maxRetryTime
+            return null;
+          }
+          return Math.min(times * 100, 3000); // Exponential backoff with max 3s delay
+        },
+        reconnectOnError: error => {
+          const targetErrors = ['READONLY', 'ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED'];
+          if (targetErrors.includes(error.message)) {
+            return true;
+          }
+          return false;
+        },
+      });
+      this.setupListeners();
+      return this.redis;
+    } catch (error) {
+      logger.error('Failed to initialize Redis connection:', error);
+      if (this.connectionAttempts < this.maxConnectionAttempts) {
+        console.info('Retrying Redis connection...');
+        return this.connect();
+      }
+      return this.createFallbackClient();
+    }
   }
 
   private setupListeners(): void {
@@ -134,6 +165,45 @@ export class RedisManager {
       await this.redis.quit();
       this.redis = null;
     }
+  }
+  private createFallbackClient(): Redis {
+    logger.warn('Using Redis fallback mode - operations will be logged but not executed');
+
+    // Create a proxy object with the same API as Redis
+    const fallbackClient = {
+      status: 'fallback',
+
+      get: async (key: string) => {
+        console.debug(`[Redis Fallback] GET ${key}`);
+        return null;
+      },
+
+      set: async (key: string, value: string) => {
+        console.debug(`[Redis Fallback] SET ${key} ${value?.substring(0, 20)}...`);
+        return 'OK';
+      },
+
+      // Add other required Redis methods here
+      del: async (...keys: string[]) => {
+        console.debug(`[Redis Fallback] DEL ${keys.join(', ')}`);
+        return 0;
+      },
+
+      // Handle events
+      on: (event: string, callback: Function) => {
+        console.debug(`[Redis Fallback] Registered event handler for ${event}`);
+        return fallbackClient;
+      },
+
+      // Add other required methods
+      quit: async () => {
+        console.debug('[Redis Fallback] QUIT');
+        return 'OK';
+      },
+    };
+
+    // Return the proxy object cast as Redis
+    return fallbackClient as unknown as Redis;
   }
 
   public onEvent(event: string, callback: (...args: any[]) => void): void {
