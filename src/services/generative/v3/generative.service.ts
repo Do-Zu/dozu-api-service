@@ -21,8 +21,6 @@ class GenerativeService extends BaseGenerativeService {
   }
 
   private async processor(job: Job) {
-    console.info(`Processing job ${job.id} after gen content`);
-
     const { data, jobId } = job.data;
 
     // Check if a client is waiting for this specific job
