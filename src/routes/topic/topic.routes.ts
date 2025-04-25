@@ -1,25 +1,34 @@
-import { globalAsyncHandler } from "@/middleware/handler/handler.v2";
-import { Router } from "express";
-import { registerRoute } from "../register.routes";
-import { handleDeleteAllFlashcardsController, handleDeleteOneFlashcardController, handleGetAllFlashcardsController, handleInsertManyFlashcardsController, handleUpdateManyFlashcardsController, handleUpdateOneFlashcardController } from "@/controllers/topic.controller";
+// import { globalAsyncHandler } from "@/middleware/handler/handler.v2";
+// import { Router } from "express";
+// import { registerRoute } from "../register.routes";
+// import { handleDeleteAllFlashcardsController, handleDeleteOneFlashcardController, handleGetAllFlashcardsController, handleInsertManyFlashcardsController, handleUpdateManyFlashcardsController, handleUpdateOneFlashcardController } from "@/controllers/topic.controller";
+// import flashcardController from "@/controllers/flashcard.controller";
 
-const router = Router();
+// const router = Router();
 
-globalAsyncHandler(router);
+// globalAsyncHandler(router);
 
-// đẩy qua flashcards router nếu ko cần topicId
-router.get('/:topicId/flashcards', handleGetAllFlashcardsController);
-router.patch('/:topicId/flashcards/:flashcardId', handleUpdateOneFlashcardController);
-router.delete('/:topicId/flashcards/:flashcardId', handleDeleteOneFlashcardController);
+// // hiển thị danh sách flashcards
+// router.get('/:topicId/flashcards', flashcardController.handleGetFlashcardsForTopic);
 
-router.post('/:topicId/flashcards', handleInsertManyFlashcardsController);
-router.patch('/:topicId/flashcards', handleUpdateManyFlashcardsController);
-router.delete('/:topicId/flashcards', handleDeleteAllFlashcardsController);
+// // update 1 flashcard cụ thể
+// router.patch('/:topicId/flashcards/:flashcardId', handleUpdateOneFlashcardController);
 
-registerRoute('/topics', router, {
-    description: 'Topic API for CRUD new Topic and Flashcard in a topic',
-    version: 'v1',
-    isEnabled: true
-})
+// // delete 1 flashcard cụ thể
+// router.delete('/:topicId/flashcards/:flashcardId', handleDeleteOneFlashcardController);
 
-export const topicRoutes = router;
+// // tạo mới 1 danh sách flashcards 
+// router.post('/:topicId/flashcards', handleInsertManyFlashcardsController);
+// // router.patch('/:topicId/flashcards', handleUpdateManyFlashcardsController);
+// // router.delete('/:topicId/flashcards', handleDeleteAllFlashcardsController);
+
+// // user có thể tạo, chỉnh sửa, xóa cùng 1 lúc
+// router.post('/:topicId/flashcards/batch');
+
+// registerRoute('/topics', router, {
+//     description: 'Topic API for CRUD new Topic and Flashcard in a topic',
+//     version: 'v1',
+//     isEnabled: true
+// })
+
+// export const topicRoutes = router;

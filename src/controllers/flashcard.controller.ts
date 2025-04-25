@@ -1,129 +1,91 @@
 import { BadRequest, DatabaseError } from "@/core/error";
 import { SuccessResponse } from "@/core/success";
-import { Request, Response } from "express";
-import db from '@/libs/drizzleClient.lib';
-import { topicsTable, usersTable } from "@/models";
 import flashcardService from "@/services/flashcard.service";
 import topicService from "@/services/topic.service";
+import { IFlashcardAdded } from "@/types/flashcards/flashcard.type";
 import logger from "@/utils/logger";
+import { Request, Response } from "express";
 
-export const handleInsertExampleUser = async(req: Request, res: Response) => {
-    const { username, email, passwordHash } = req.body;
-    const user = await db.insert(usersTable).values({ username, email, passwordHash });
+const handleGetAllFlashcardsForTopic = async(req: Request, res: Response) => {
+    let { topicId } = req.query as { topicId: string | number };
+    if(!topicId) {
+        throw new BadRequest('Invalid param, cannot get flashcards');
+    }
+
+    topicId = parseInt(topicId as string);
     
-    SuccessResponse.ok(res, { user });
-}
-
-export const handleInsertExampleTopic = async(req: Request, res: Response) => {
-    const { userId, name } = req.body;
-    const topic = await db.insert(topicsTable).values({ userId, name });
-    SuccessResponse.ok(res, { topic });
-}
-
-export const handleGetFlashcardController = async(req: Request, res: Response) => {
-    const { flashcardId } = req.body;
-
-    // data validation
-    if(!flashcardId) {
-        throw new BadRequest('Invalid input, cannot get flashcard');
+    if(isNaN(topicId)) {
+        throw new BadRequest('Invalid param, cannot get flashcards');
     }
 
-    // get flashcard
-    let flashcard;
-    try {
-        flashcard = await flashcardService.handleGetFlashcard(flashcardId);
-    } catch(err) {
-        logger.error(err);
-        throw new DatabaseError('Something went wrong, cannot get flashcard');
-    }
-
-    // kiểm tra flashcardId có tồn tại không 
-    if(!flashcard) {
-        throw new BadRequest('Invalid flashcard');
-    }
-
-    SuccessResponse.ok(res, { flashcard: { front: flashcard.front, back: flashcard.back } });
-}
-
-export const handleInsertFlashcardController = async(req: Request, res: Response) => {
-    const { topicId, front, back } = req.body;
-    
-    // data validation
-    if(!topicId || !front || !back) {
-        throw new BadRequest('Invalid input, cannot create flashcard');
-    }
-
-    // validate topicId 
-    // return undefined nếu ko tìm thấy
     const isExistedTopic = await topicService.handleIsExistedTopic(topicId);
-
     if(!isExistedTopic) {
         throw new BadRequest('Invalid topic');
     }
-    // end validate topicId
 
-    // create flashcard
+    let flashcards;
     try {
-        const flashcard = await flashcardService.handleInsertFlashcard({ topicId, front, back });
-        SuccessResponse.created(res, { flashcard: { front: flashcard.front, back: flashcard.back } });
+        flashcards = await flashcardService.handleGetAllFlashcardsForTopic(topicId);
     } catch(err) {
         logger.error(err);
-        throw new DatabaseError('Something went wrong, cannot create flashcard');
+        throw new DatabaseError('Something went wrong, cannot get flashcards');
     }
-    // end create flashcard
+    SuccessResponse.ok(res, { flashcards });
 }
 
-export const handleUpdateFlashcardController = async(req: Request, res: Response) => {
-    const { flashcardId, topicId, front, back } = req.body;
-
-    // data validation
-    if(!flashcardId || !front || !back) {
-        throw new BadRequest('Invalid input, cannot create flashcard');
+const handleInsertFlashcardsForTopic = async(req: Request, res: Response) => {
+    let { topicId } = req.query as { topicId: string | number };
+    if(!topicId) {
+        throw new BadRequest('Invalid param, cannot create flashcards');
     }
 
-    // validate topicId 
-    // return undefined nếu ko tìm thấy
+    topicId = parseInt(topicId as string);
+    
+    if(isNaN(topicId)) {
+        throw new BadRequest('Invalid param, cannot create flashcards');
+    }
 
-    // end validate topicId
+    const isExistedTopic = await topicService.handleIsExistedTopic(topicId);
+    if(!isExistedTopic) {
+        throw new BadRequest('Invalid topic');
+    }
 
-    // update flashcard
-    let flashcard;
+    const { flashcards } = req.body as { flashcards: IFlashcardAdded[] };
+    let result;
     try {
-        flashcard = await flashcardService.handleUpdateFlashcard({ flashcardId, front, back });
+        result = await flashcardService.handleInsertFlashcardsForTopic(topicId, flashcards);
     } catch(err) {
         logger.error(err);
-        throw new DatabaseError('Something went wrong, cannot update flashcard');
+        throw new DatabaseError('Something went wrong, cannot create flashcards');
     }
-    // end update flashcard
 
-    // kiểm tra flashcardId có tồn tại không
-    if(!flashcard) {
-        throw new BadRequest('Invalid flashcard');
-    }
-    SuccessResponse.ok(res, { flashcard: { front: flashcard.front, back: flashcard.back } });
+    SuccessResponse.ok(res, { flashcards: result });
 }
 
-export const handleDeleteFlashcardController = async(req: Request, res: Response) => {
-    const { flashcardId } = req.body;
-
-    // data validation
-    if(!flashcardId) {
-        throw new BadRequest('Invalid input, cannot delete flashcard');
+const handleBatchFlashcardsForTopic = async(req: Request, res: Response) => {
+    let { topicId } = req.params as { topicId: string | number };
+    if(!topicId) {
+        throw new BadRequest('Invalid param, cannot create flashcards');
     }
 
-    // delete flashcard
-    let flashcard;
-    try {
-        flashcard = await flashcardService.handleDeleteFlashcard(flashcardId);
-    } catch(err) {
-        logger.error(err);
-        throw new DatabaseError('Something went wrong, cannot delete flashcard');
+    topicId = parseInt(topicId as string);
+    
+    if(isNaN(topicId)) {
+        throw new BadRequest('Invalid param, cannot create flashcards');
     }
 
-    // kiểm tra flashcardId có tồn tại không
-    if(!flashcard) {
-        throw new BadRequest('Invalid flashcard');
+    const isExistedTopic = await topicService.handleIsExistedTopic(topicId);
+    if(!isExistedTopic) {
+        throw new BadRequest('Invalid topic');
     }
 
-    SuccessResponse.noContent(res);
+    const { flashcardsAdded, flashcardUpdated, flashcardDeleted } = req.body;
+
+    const result = await flashcardService.handleBatchFlashcardsForTopic(topicId, { flashcardsAdded });
+
+    SuccessResponse.created(res, { flashcardsAdded: result?.flashcardsAdded });
 }
+
+const flashcardController = { handleGetAllFlashcardsForTopic, handleInsertFlashcardsForTopic, handleBatchFlashcardsForTopic }
+
+export default flashcardController;

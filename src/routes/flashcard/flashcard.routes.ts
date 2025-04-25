@@ -1,20 +1,20 @@
-import { handleDeleteFlashcardController, handleGetFlashcardController, handleInsertExampleTopic, handleInsertExampleUser, handleInsertFlashcardController, handleUpdateFlashcardController } from "@/controllers/flashcard.controller";
 import { globalAsyncHandler } from "@/middleware/handler/handler.v2";
-import { Router } from "express";
+import { Request, Response, Router } from "express";
 import { registerRoute } from "@/routes/register.routes"; 
+import flashcardController from "@/controllers/flashcard.controller";
+import { validateUser } from "@/middleware/validations/validator";
+import { validateFlashcardsAdded, validateTopicId } from "@/middleware/validations/flashcard.validation";
 
 const router = Router();
 
 globalAsyncHandler(router);
 
-router.get('/', handleGetFlashcardController);
+router.get('/', validateTopicId(), flashcardController.handleGetAllFlashcardsForTopic);
+router.post('/', validateTopicId(), validateFlashcardsAdded(), flashcardController.handleInsertFlashcardsForTopic);
 
-router.post('/', handleInsertFlashcardController);
-router.post('/example/user', handleInsertExampleUser);
-router.post('/example/topic', handleInsertExampleTopic);
-
-router.put('/', handleUpdateFlashcardController);
-router.delete('/', handleDeleteFlashcardController);
+router.get('/test', validateUser(), (req, res) => {
+    res.json({ message: 'Success' });
+})
 
 registerRoute('/flashcards', router, {
     description: 'Flashcards API for CRUD single flashcard',

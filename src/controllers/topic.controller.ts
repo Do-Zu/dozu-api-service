@@ -7,18 +7,7 @@ import { flashcardsTable } from "@/models";
 import { BadRequest } from "@/core/error";
 import { DatabaseError } from "@/core/error";
 import topicService from "@/services/topic.service";
-
-interface IBasicCreatedFlashcard {
-    topicId: number,
-    front: string,
-    back: string
-}
-
-interface IBasicUpdatedFlashcard {
-    flashcardId: number,
-    front: string,
-    back: string
-}
+import { IFlashcardAdded, IFlashcardUpdated } from "@/types/flashcards/flashcard.type";
 
 export const handleGetAllFlashcardsController = async(req: Request, res: Response) => {
     let { topicId } = req.params as { topicId: string | number };
@@ -181,9 +170,9 @@ export const handleInsertManyFlashcardsController = async(req: Request, res: Res
         throw new BadRequest('Invalid topic');
     }
 
-    let { flashcards } = req.body as { flashcards: IBasicCreatedFlashcard[] };
+    let { flashcards } = req.body as { flashcards: IFlashcardAdded[] };
     
-    flashcards = flashcards.map((flashcard) => { return { topicId, front: flashcard.front, back: flashcard.back } });
+    // flashcards = flashcards.map((flashcard) => { return { topicId, front: flashcard.front, back: flashcard.back } });
     
     let createdFlashcards;
     try {
@@ -216,7 +205,7 @@ export const handleUpdateManyFlashcardsController = async(req: Request, res: Res
         throw new BadRequest('Invalid topic');
     }
 
-    const { flashcards } = req.body as { flashcards: IBasicUpdatedFlashcard[] };
+    const { flashcards } = req.body as { flashcards: IFlashcardUpdated[] };
     let updatedFlashcards = [];
 
     for(const flashcard of flashcards) {
