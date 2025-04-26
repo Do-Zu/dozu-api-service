@@ -1,12 +1,14 @@
 import { Worker, Job } from 'bullmq';
 import { bullMQService as queue } from '@/libs/bullmq/bullmq';
 import { BaseGenerativeService } from './base/base.abstract';
-import { convertJsonToArray, generatePromptText } from '@/utils/prompt';
+import { convertJsonToArray, generatePromptText, TYPE_PROMPT } from '@/utils/prompt';
 import { v4 as uuidv4 } from 'uuid';
 import logger from '@/utils/logger';
 import { redisInstance } from '@/libs/redis/redis.connect';
 import { lambdaService } from './provider/lambda.service';
 import { sseManager } from '@/services/sse/sse.service';
+import { IBodyRequestGenContent } from './types';
+import { STATUS_GEN } from './utils/constant';
 
 class GenerativeService extends BaseGenerativeService {
   private worker: Worker;
@@ -48,30 +50,42 @@ class GenerativeService extends BaseGenerativeService {
    * @param content The content to generate flashcards from
    * @returns Object with jobId for tracking
    */
-  public async generateFlashcardsByLLM(content: string) {
+  public async registerGenerateContentByLLM({ content, type }: IBodyRequestGenContent) {
     const jobId = uuidv4();
+
+    let typeSending: TYPE_PROMPT = 'FLASH_CARD';
+
+    switch (type) {
+      case 'flashcard':
+        typeSending = 'FLASH_CARD';
+        break;
+      case 'quiz':
+        typeSending = 'MULTIPLE_CHOICE';
+        break;
+    }
 
     const dataSend = {
       jobId,
       content,
       queue_name: this.WORKER_NAME,
       job_name: this.JOB_NAME,
-      type: 'FLASH_CARD',
+      type: typeSending,
     };
 
     //LAMBDA FUNCTION PROCESS
     const lambdaTriggered = await lambdaService.triggerContentGeneration(dataSend, 'FLASH_CARD');
 
-    if (!lambdaTriggered) {
-      logger.warn(`Failed to trigger Lambda for job ${jobId}, will use fallback processing`);
-      // TODO: Implement fallback processing
+    if (lambdaTriggered) {
+      return {
+        jobId: jobId,
+        timestamp: new Date().toISOString(),
+        status: STATUS_GEN.register,
+      };
     }
 
-    return {
-      jobId: jobId,
-      timestamp: new Date().toISOString(),
-      status: 'register',
-    };
+    logger.warn(`Failed to trigger Lambda for job ${jobId}, will use fallback processing`);
+    // fall back process
+    return await this.generateContentByLLMBackGround(content);
   }
 
   /**
@@ -79,7 +93,7 @@ class GenerativeService extends BaseGenerativeService {
    * @param content The content to generate flashcards from
    * @returns list flashcards
    */
-  private async generateFlashcardsByLLMBackGround(content: string): Promise<any> {
+  private async generateContentByLLMBackGround(content: string): Promise<any> {
     const prompt = generatePromptText(content, 'FLASH_CARD');
 
     let fullContent = '';
@@ -91,8 +105,9 @@ class GenerativeService extends BaseGenerativeService {
     const data = convertJsonToArray(fullContent || '[]');
 
     return {
-      quizzes: data,
+      data,
       text: fullContent,
+      status: STATUS_GEN.completed,
     };
   }
 
@@ -108,7 +123,7 @@ class GenerativeService extends BaseGenerativeService {
     if (cachedResult) {
       return {
         jobId,
-        status: 'completed',
+        status: STATUS_GEN.completed,
         data: cachedResult,
       };
     }
@@ -118,7 +133,7 @@ class GenerativeService extends BaseGenerativeService {
 
     if (!job) {
       return {
-        status: 'not_found',
+        status: STATUS_GEN.not_found,
         message: 'Job not found',
       };
     }
