@@ -9,10 +9,10 @@ globalAsyncHandler(router);
 
 const generateController = new GenerateController();
 
-router.post('/text/llm/flashcards', (req, res) => generateController.generateFlashcards(req, res));
+router.post('/text/llm', (req, res) => generateController.generateContent(req, res));
 
-router.post('/text/llm/flashcards/status', (req, res) =>
-  generateController.getGenerateFlashcardStatus(req, res)
+router.post('/text/llm/status', (req, res) =>
+  generateController.getGenerateContentStatus(req, res)
 );
 
 registerRoute('/generate/v3/', router, {

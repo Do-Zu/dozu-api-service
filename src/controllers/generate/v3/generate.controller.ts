@@ -3,34 +3,38 @@ import { generativeService } from '@/services/generative/v3/generative.service';
 import { FileProcessingStatus } from '@/types/generate/generate.type';
 import { BadRequest } from '@/core/error';
 import { SuccessResponse } from '@/core/success';
+import { isEmptyObject } from '@/utils/validate';
 
 export class GenerateController {
   constructor() {}
 
-  async generateFlashcards(req: Request, res: Response) {
-    const { content } = req.body;
+  async generateContent(req: Request, res: Response) {
+    const { content, type } = req.body;
 
     if (!content) {
       throw new BadRequest('Content is required');
     }
 
-    const jobInfo = await generativeService.generateFlashcardsByLLM(content);
+    if (!type || (typeof type === 'object' && !isEmptyObject(type))) {
+      throw new BadRequest('Type is required');
+    }
+
+    const jobInfo = await generativeService.registerGenerateContentByLLM(req.body);
 
     SuccessResponse.accepted(
       res,
       {
         ...jobInfo,
         // Include instructions for WebSocket connection
-        websocket: {
+        sse: {
           event: 'register',
-          jobId: jobInfo.jobId,
         },
       },
-      'Flashcard generation in progress'
+      'Content generation in progress'
     );
   }
 
-  async getGenerateFlashcardStatus(req: Request, res: Response) {
+  async getGenerateContentStatus(req: Request, res: Response) {
     const { jobId } = req.body;
 
     if (!jobId) {

@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import logger from '@/utils/logger';
+import { STATUS_GEN } from '../generative/v3/utils/constant';
 
 class SSEManager {
   private clients: Map<string, Response> = new Map();
