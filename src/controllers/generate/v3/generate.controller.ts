@@ -4,11 +4,16 @@ import { FileProcessingStatus } from '@/types/generate/generate.type';
 import { BadRequest } from '@/core/error';
 import { SuccessResponse } from '@/core/success';
 import { isEmptyObject } from '@/utils/validate';
+import {
+  GenerateContentRequestInterface,
+  GenerateContentResponseInterface,
+  JobStatusResponseInterface,
+} from '@/dtos/generate';
 
 export class GenerateController {
   constructor() {}
 
-  async generateContent(req: Request, res: Response) {
+  async generateContent(req: Request<{}, {}, GenerateContentRequestInterface>, res: Response) {
     const { content, type } = req.body;
 
     if (!content) {
@@ -34,7 +39,7 @@ export class GenerateController {
     );
   }
 
-  async getGenerateContentStatus(req: Request, res: Response) {
+  async getGenerateContentStatus(req: Request, res: Response<JobStatusResponseInterface>) {
     const { jobId } = req.body;
 
     if (!jobId) {

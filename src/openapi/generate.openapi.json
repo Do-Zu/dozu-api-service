@@ -1,0 +1,138 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Dozu API Schemas - Content Generation",
+    "version": "1.0.0"
+  },
+  "components": {
+    "schemas": {
+      "GenerateContentRequestInterface": {
+        "type": "object",
+        "required": ["content", "type"],
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "The content to generate flashcards or quizzes from."
+          },
+          "type": {
+            "type": "string",
+            "description": "The type of content to generate (e.g., 'flashcard', 'quiz')."
+          },
+          "method": {
+            "type": "string",
+            "description": "Optional method parameter for specifying generation behavior.",
+            "default": "default"
+          }
+        }
+      },
+      "GenerateContentResponseInterface": {
+        "type": "object",
+        "required": ["jobId", "timestamp", "status"],
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Unique identifier for the generation job."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when the job was created."
+          },
+          "status": {
+            "type": "string",
+            "description": "Current status of the job."
+          }
+        }
+      },
+      "JobStatusResponseInterface": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["jobId", "status", "data"],
+            "properties": {
+              "jobId": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Unique identifier for the generation job."
+              },
+              "jobIndex": {
+                "type": "string",
+                "description": "Optional index of the job in the processing queue."
+              },
+              "status": {
+                "type": "string",
+                "description": "Current status of the generation job."
+              },
+              "data": {
+                "type": "array",
+                "description": "Generated flashcards or quiz items.",
+                "items": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/FlashcardItemInterface"
+                    },
+                    {
+                      "$ref": "#/components/schemas/QuizItemInterface"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": ["status", "message"],
+            "properties": {
+              "status": {
+                "type": "string",
+                "description": "Status indicating the job was not found."
+              },
+              "message": {
+                "type": "string",
+                "description": "Detailed error message."
+              }
+            }
+          }
+        ]
+      },
+      "FlashcardItemInterface": {
+        "type": "object",
+        "required": ["q", "a"],
+        "properties": {
+          "q": {
+            "type": "string",
+            "description": "Flashcard question or term."
+          },
+          "a": {
+            "type": "string",
+            "description": "Flashcard answer or definition."
+          }
+        }
+      },
+      "QuizItemInterface": {
+        "type": "object",
+        "required": ["q", "o", "idx"],
+        "properties": {
+          "q": {
+            "type": "string",
+            "description": "Quiz question text."
+          },
+          "o": {
+            "type": "array",
+            "description": "Available answer options.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "idx": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3,
+            "description": "Index of the correct answer (0-3)."
+          }
+        }
+      }
+    }
+  }
+}
