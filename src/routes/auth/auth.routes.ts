@@ -3,6 +3,7 @@ import { registerRoute } from '../register.routes';
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 import {
   getProfileController,
+  googleOAuthRedirectController,
   loginController,
   logoutController,
   registerUserController,
@@ -25,6 +26,7 @@ router.post('/login', loginController);
 router.post('/logout', logoutController);
 router.get('/verify-email', verifyEmailController);
 router.get('/profile', authMiddleware, getProfileController);
+router.get('/google', googleOAuthRedirectController);
 
 registerRoute('/auth', router, {
   description: 'Authentication endpoints',

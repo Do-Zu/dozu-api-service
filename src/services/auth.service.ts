@@ -1,4 +1,5 @@
 import { BadRequest } from '@/core/error';
+import { getOAuthToken } from '@/libs/googleOAuth2Client';
 import { sendVerificationLinkEmail } from '@/libs/nodeMailerTransporter.lib';
 import { InsertUser, SelectUser } from '@/models/user.model';
 import {
@@ -8,7 +9,6 @@ import {
   selectOneUserByUsername,
 } from '@/repositories/auth.repo';
 import { hashPassword, verifyPassword } from '@/utils/auth/hash.utils';
-
 
 type LoginResult = { success: true; user: SelectUser } | { success: false; reason: string };
 export const loginService = async (username: string, password: string): Promise<LoginResult> => {
@@ -20,7 +20,7 @@ export const loginService = async (username: string, password: string): Promise<
 };
 
 //todo:format response with types
-export const registerUserService = async (username:string, password:string,email:string) => {
+export const registerUserService = async (username: string, password: string, email: string) => {
   const passwordHash = await hashPassword(password);
 
   const newUserData = await insertUser(username, passwordHash, email);
@@ -31,8 +31,7 @@ export const registerUserService = async (username:string, password:string,email
   );
   // const data = hashedPassword;
 
-
-  return { success: true, user: newUserData }
+  return { success: true, user: newUserData };
 };
 
 export const verifyEmailService = async (email: any, verificationCode: any) => {
@@ -40,3 +39,7 @@ export const verifyEmailService = async (email: any, verificationCode: any) => {
   //todo:WIP
 };
 
+export const getOAuthJwtTokenService = async (code: string) => {
+  const result = await getOAuthToken(code);
+  return result;
+};

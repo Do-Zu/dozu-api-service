@@ -63,12 +63,12 @@ class BadRequest extends AppError {
   }
 }
 
-class TemplateInternalServerError extends AppError {
+class InternalServerError extends AppError {
   constructor(message = 'Internal Server Error') {
     super(message, 500);
-    this.name = 'TemplateInternalServerError';
+    this.name = 'InternalServerError';
   }
-}
+} //todo: check if appropriately done
 
 /**
  *
@@ -170,6 +170,7 @@ export {
   NotFoundError,
   DatabaseError,
   BadRequest,
+  InternalServerError,
   handleError,
   setupGlobalErrorHandlers,
 };

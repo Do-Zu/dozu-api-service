@@ -1,10 +1,16 @@
 import { Response, Request } from 'express';
 import { SuccessResponse } from '@/core/success';
-import { loginService, registerUserService, verifyEmailService } from '@/services/auth.service';
+import {
+  getOAuthJwtTokenService,
+  loginService,
+  registerUserService,
+  verifyEmailService,
+} from '@/services/auth.service';
 import { sendVerificationLinkEmail } from '@/libs/nodeMailerTransporter.lib';
-import { BadRequest } from '@/core/error';
+import { AuthenticationError, BadRequest, InternalServerError } from '@/core/error';
 import { signAccessJwtToken } from '@/utils/auth/jwt.utils';
 import { sanitizeUserObject } from '@/utils/auth/autheHelpers.utils';
+import { OAuth2Client } from 'google-auth-library';
 
 export const testingAuthPath = async (req: Request, res: Response) => {
   // const data = await handleServiceDemo(req.body);
@@ -17,7 +23,6 @@ export const registerUserController = async (req: Request, res: Response) => {
   }
   const data = await registerUserService(req.body.username, req.body.password, req.body.email);
   const accessToken = signAccessJwtToken(data.user);
-
 
   const returnData: any = sanitizeUserObject(data);
   returnData.accessToken = accessToken;
@@ -66,4 +71,15 @@ export const getProfileController = async (req: Request, res: Response) => {
   const returnData: any = sanitizeUserObject(req.currentUser);
 
   SuccessResponse.ok(res, returnData);
+};
+
+export const googleOAuthRedirectController = async (req: Request, res: Response) => {
+  console.log(req.query);
+  const code = req.query.code!;
+  if (!code || typeof code !== 'string') {
+    throw new AuthenticationError('Google authentication failed');
+  }
+  const data = await getOAuthJwtTokenService(code);
+
+  SuccessResponse.ok(res, data);
 };
