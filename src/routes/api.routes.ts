@@ -9,6 +9,7 @@ const router: Router = express.Router();
 import './demo/demo.routes';
 import './generate/v1/generate.routes';
 import './generate/v3/generate.routes';
+import './sse/sse.routes';
 import './flashcard/flashcard.routes';
 
 // Apply global async handler to router
