@@ -26,30 +26,10 @@ env:
   PROJECT_DIR: '/projects/dozu-api-service'
 
 jobs:
-  check-connection:
-    name: Check EC2 Connection
+  deploy-ec2:
+    name: Deploy to EC2
     runs-on: ubuntu-latest
-    steps:
-      - name: Install SSH key
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-      - name: Add EC2 host to known hosts
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
-
-      - name: Check connection to EC2 and root access
-        run: |
-          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "echo 'Connection successful!' && echo 'Checking sudo access:' && sudo -n echo 'Sudo access confirmed'"
-
-  deploy-application:
-    name: Deploy
-    needs: check-connection
-    runs-on: ubuntu-latest
-    environment:
-      name: ${{ github.event.inputs.environment }}
     steps:
       - name: Install SSH key
         uses: webfactory/ssh-agent@v0.9.0
@@ -70,37 +50,39 @@ jobs:
           PROJECT_DIR="$1"
           BRANCH="$2"
           ENV="$3"
+          OPENAI_KEY="$4"
+          GOOGLE_KEY="$5"
+          REDIS_HOST="$6"
+          REDIS_PORT="$7"
+          REDIS_PASSWORD="$8"
+          REDIS_DB="$9"
+          REDIS_USERNAME="${10}"
+          AWS_REGION="${11}"
+          ACCESS_KEY_ID_AWS="${12}"
+          SECRET_ACCESS_KEY_AWS="${13}"
 
-          # Become root
-          sudo -s << EOF
+          # Determine which env file to use
+          if [ "$ENV" = "production" ]; then
+            ENV_FILE=".env.production"
+          else
+            ENV_FILE=".env.development"
+          fi
+
+          # Ensure project directory exists with correct permission
           cd /
 
-          # Create project directory if it doesn't exist
-          mkdir -p "$PROJECT_DIR"
+          sudo mkdir -p "$PROJECT_DIR"
+          sudo chown -R $(whoami):$(whoami) "$PROJECT_DIR"
+
           cd "$PROJECT_DIR" || { echo "Failed to change directory to $PROJECT_DIR"; exit 1; }
 
-          # Set proper ownership
-          chown -R $(whoami):$(whoami) "$PROJECT_DIR"
-
-          # Check if the directory is a Git repository
           if [ -d .git ]; then
-            echo "Git repository exists, fetching latest changes"
+            echo "Git repository exists, fetching changes..."
             git fetch --all
-            
-            # Check if the branch exists locally
-            if git rev-parse --verify "$BRANCH" >/dev/null 2>&1; then
-              echo "Checking out existing branch: $BRANCH"
-              git checkout "$BRANCH"
-            else
-              echo "Creating new tracking branch for: $BRANCH"
-              git checkout -b "$BRANCH" "origin/$BRANCH"
-            fi
-            
-            echo "Pulling latest code from branch: $BRANCH"
+            git checkout "$BRANCH" || git checkout -b "$BRANCH" "origin/$BRANCH"
             git pull origin "$BRANCH"
           else
-            echo "Directory is not a Git repository, initializing..."
-            # If not a Git repo, initialize and clone
+            echo "Cloning fresh repository..."
             rm -rf * .[!.]* ..?*
             git init
             git remote add origin https://github.com/your-org/dozu-api-service.git
@@ -108,49 +90,98 @@ jobs:
             git checkout -b "$BRANCH" "origin/$BRANCH"
           fi
 
-          # Set up environment variables for docker-compose
-          echo "Setting up environment variables for $ENV environment"
-          if [ "$ENV" = "production" ]; then
-            cp .env.production .env || echo "Warning: No .env.production file found"
-          else
-            cp .env.development .env || echo "Warning: No .env.development file found"
-          fi
+          # Ensure env file exists
+          echo "Configuring environment variables in $ENV_FILE..."
+          touch "$ENV_FILE"
 
-          # Ensure Docker is running
-          systemctl status docker > /dev/null || systemctl start docker
+          # Update environment variables in the appropriate env file
+          # Function to update or add a variable to the env file
 
+          update_env_var() {
+            local key=$1
+            local value=$2
+            if grep -q "^${key}=" "$ENV_FILE"; then
+              # Replace existing value
+              sed -i "s|^${key}=.*|${key}=${value}|" "$ENV_FILE"
+            else
+              # Add new value
+              echo "${key}=${value}" >> "$ENV_FILE"
+            fi
+          }
 
-          # Build and run Docker containers
-          echo "Building and starting Docker containers"
-          docker-compose build api
-          docker-compose up -d api
+          # Log environment variables (safely) for debugging
+          echo "======== Environment Variables in $ENV_FILE (Debug) ========"
+          echo "Environment: $ENV"
 
-          # Check container status
-          echo "Container status:"
-          docker-compose ps
+          # Print all variables with masked sensitive values
+          mask_value() {
+            if [ -z "$1" ]; then
+              echo "[EMPTY]"
+            else
+              local length=${#1}
+              if [ "$length" -gt 8 ]; then
+                echo "${1:0:4}...${1:$(($length - 4))}"
+              else
+                echo "$1"
+              fi
+            fi
+          }
+            
+          echo "OPENAI_API_KEY: $(mask_value "$OPENAI_KEY")"
+          echo "GOOGLE_STUDIO_API_KEY: $(mask_value "$GOOGLE_KEY")"
+          echo "REDIS_HOST: $REDIS_HOST"
+          echo "REDIS_PORT: $REDIS_PORT"
+          echo "REDIS_PASSWORD: $(mask_value "$REDIS_PASSWORD")"
+          echo "REDIS_DB: $REDIS_DB"
+          echo "REDIS_USERNAME: $REDIS_USERNAME"
+          echo "AWS_REGION: $AWS_REGION"
+          echo "ACCESS_KEY_ID_AWS: $(mask_value "$ACCESS_KEY_ID_AWS")"
+          echo "SECRET_ACCESS_KEY_AWS: $(mask_value "$SECRET_ACCESS_KEY_AWS")"
 
-          # Check logs for errors
-          echo "Container logs (last 20 lines):"
-          docker-compose logs --tail=20
+          update_env_var "OPENAI_API_KEY" "$OPENAI_KEY"
+          update_env_var "GOOGLE_STUDIO_API_KEY" "$GOOGLE_KEY"
+          update_env_var "REDIS_HOST" "$REDIS_HOST"
+          update_env_var "REDIS_PORT" "$REDIS_PORT"
+          update_env_var "REDIS_PASSWORD" "$REDIS_PASSWORD"
+          update_env_var "REDIS_DB" "$REDIS_DB"
+          update_env_var "REDIS_USERNAME" "$REDIS_USERNAME"
+          update_env_var "AWS_REGION" "$AWS_REGION"
+          update_env_var "ACCESS_KEY_ID_AWS" "$ACCESS_KEY_ID_AWS"
+          update_env_var "SECRET_ACCESS_KEY_AWS" "$SECRET_ACCESS_KEY_AWS"
 
-          echo "Deployment completed successfully!"
-          EOF
+          # Start Docker with the appropriate env file
+          echo "Starting Docker services with $ENV_FILE..."
+
+          sudo docker-compose build --build-arg ENV_FILE=$ENV_FILE api
+          sudo docker-compose --env-file $ENV_FILE up -d api
+
+          echo "Deployment complete!"
+          sudo docker-compose ps
+          sudo docker-compose logs --tail=20
           EOL
 
           chmod +x deploy.sh
 
-      - name: Transfer deployment script to EC2
+      - name: Copy deployment script to EC2
         run: |
           scp deploy.sh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:~/deploy.sh
 
-      - name: Execute deployment script on EC2
+      - name: Run deployment on EC2
         run: |
-          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "~/deploy.sh '${{ env.PROJECT_DIR }}' '${{ github.event.inputs.branch }}' '${{ github.event.inputs.environment }}'"
-
-      - name: Verify deployment
+          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} \
+          "~/deploy.sh '${{ env.PROJECT_DIR }}' \
+          '${{ github.event.inputs.branch }}' \
+          '${{ github.event.inputs.environment }}' \
+          '${{ secrets.OPENAI_API_KEY }}' \
+          '${{ secrets.GOOGLE_STUDIO_API_KEY }}' \
+          '${{ secrets.REDIS_HOST }}' \
+          '${{ secrets.REDIS_PORT }}' \
+          '${{ secrets.REDIS_PASSWORD }}' \
+          '${{ secrets.REDIS_DB }}' \
+          '${{ secrets.REDIS_USERNAME }}' \
+          '${{ secrets.AWS_REGION }}' \
+          '${{ secrets.ACCESS_KEY_ID_AWS }}' \
+          '${{ secrets.SECRET_ACCESS_KEY_AWS }}'"
+      - name: Cleanup script
         run: |
-          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "sudo docker ps | grep dozu-api"
-
-      - name: Clean up
-        run: |
-          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "rm ~/deploy.sh"
+          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "rm -f ~/deploy.sh"
