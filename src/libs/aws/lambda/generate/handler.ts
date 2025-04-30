@@ -1,7 +1,9 @@
+import pako from 'pako';
 import { ChatCompletionMessageParam } from 'openai/resources/chat';
 import { OpenAIService } from '../../../../services/generative/v3/provider/llm/openai.service';
 import { convertJsonToArray, generatePromptText, TYPE_PROMPT } from '../../../../utils/prompt';
-import { Queue, QueueEvents, Worker, ConnectionOptions } from 'bullmq';
+import { decompressContent } from '../../../../utils/compress';
+import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 
 // Configure Redis connection
@@ -49,19 +51,45 @@ export const handler = async (event: any) => {
   try {
     console.log({ event });
 
-    const { jobId, content, queue_name, type, job_name } = event?.data;
+    if (!event || !event.data) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({
+          message: 'Missing event data structure',
+        }),
+      };
+    }
 
-    console.log({ dataReceive: { jobId, content, queue_name, type } });
+    const { jobId, content, queue_name, type, job_name } = event?.data;
 
     if (!jobId || !content || !queue_name || !type) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ message: 'Missing param' }),
+        body: JSON.stringify({
+          message: 'Missing required parameters',
+          details: {
+            jobId: !jobId ? 'missing' : 'ok',
+            content: content === undefined ? 'missing' : 'ok',
+            queue_name: !queue_name ? 'missing' : 'ok',
+            type: !type ? 'missing' : 'ok',
+          },
+        }),
       };
     }
 
+    const contentDecompressed = decompressContent(content);
+
+    console.log({
+      jobId,
+      content,
+      queue_name,
+      type,
+      job_name,
+      contentDecompressed,
+    });
+
     //generate content
-    const result = await generateContent(content, type);
+    const result = await generateContent(contentDecompressed, type);
 
     const queue = createQueue(queue_name);
 
