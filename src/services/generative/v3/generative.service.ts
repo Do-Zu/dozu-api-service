@@ -14,7 +14,8 @@ import {
   GenerateContentResponseInterface,
   JobStatusResponseInterface,
 } from '@/dtos/generate';
-import { BadRequest } from '@/core/error';
+import { BadRequest, InternalServerError, PayloadTooLarge, ServiceUnavailable } from '@/core/error';
+import { decompressContent } from '@/utils/compress';
 
 class GenerativeService extends BaseGenerativeService {
   private worker: Worker;
@@ -84,7 +85,22 @@ class GenerativeService extends BaseGenerativeService {
     //LAMBDA FUNCTION PROCESS
     const lambdaTriggered = await lambdaService.triggerContentGeneration(dataSend, 'FLASH_CARD');
 
-    if (lambdaTriggered) {
+    if (lambdaTriggered && !lambdaTriggered.success) {
+      if (lambdaTriggered.statusCode === 503) {
+        throw new ServiceUnavailable('Server is currently overloaded. Please try again later.');
+      } else if (
+        lambdaTriggered.statusCode === 413 ||
+        (lambdaTriggered.error &&
+          typeof lambdaTriggered.error === 'string' &&
+          lambdaTriggered.error.includes('payload is too large'))
+      ) {
+        throw new PayloadTooLarge(
+          `Content too large for processing. Please reduce your content or upgrade your plan.`
+        );
+      }
+    }
+
+    if (lambdaTriggered && lambdaTriggered.success) {
       return {
         jobId: jobId,
         timestamp: new Date().toISOString(),
@@ -93,6 +109,7 @@ class GenerativeService extends BaseGenerativeService {
     }
 
     logger.warn(`Failed to trigger Lambda for job ${jobId}, will use fallback processing`);
+
     // fall back process
     const result = await this.generateContentByLLMBackGround(content);
     return {
