@@ -1,4 +1,4 @@
-import { VERIFICATION_TOKEN_DURATION_MINUTES  } from '@/constants/auth.constant';
+import { VERIFICATION_TOKEN_DURATION_MINUTES } from '@/constants/auth.constant';
 import db from '@/libs/drizzleClient.lib';
 import { usersTable } from '@/models';
 import {
@@ -29,7 +29,7 @@ export const insertVerificationCode = async (user: SelectUser) => {
     .where(eq(emailVerificationCodesTable.userId, user.userId));
   const verificationCode = generateSecureCode();
   const currTime = new Date();
-  const expirationDate = new Date(currTime.getTime() + VERIFICATION_TOKEN_DURATION_MINUTES  * 60000);
+  const expirationDate = new Date(currTime.getTime() + VERIFICATION_TOKEN_DURATION_MINUTES * 60000);
   const newVerificationCode: InsertEmailVerificationCode = {
     userId: user.userId,
     verificationCode: verificationCode,
@@ -65,7 +65,25 @@ export const queryVerificationCode = async (email: any, verificationCode: any) =
   return verificationCodeData;
 };
 
+export const updateUserIsVerified = async (userId: number) => {
+  //todo:check result of query
+  await db.update(usersTable).set({ isVerified: true }).where(eq(usersTable.userId, userId));
+};
+
+export const deleteVerificationCodeByEmailVerificationId = async (
+  emailVerificationCodeId: number
+) => {
+  await db
+    .delete(emailVerificationCodesTable)
+    .where(eq(emailVerificationCodesTable.emailVerificationCodeId, emailVerificationCodeId));
+};
+
 export const selectOneUserByUsername = async (username: string) => {
   const [result] = await db.select().from(usersTable).where(eq(usersTable.username, username));
+  return result;
+};
+
+export const selectOneUserByEmail = async (email: string) => {
+  const [result] = await db.select().from(usersTable).where(eq(usersTable.email, email));
   return result;
 };

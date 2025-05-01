@@ -18,6 +18,7 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
   }
 
   try {
+    
     const decoded: any = jwt.verify(accessToken, SECRET);
     //.verify Validates expiration by default
     //todo: enforce type for decoded

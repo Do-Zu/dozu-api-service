@@ -12,6 +12,8 @@ import { signAccessJwtToken } from '@/utils/auth/jwt.utils';
 import { sanitizeUserObject } from '@/utils/auth/autheHelpers.utils';
 import { OAuth2Client } from 'google-auth-library';
 
+const frontEndBaseUrl = process.env.FRONTEND_BASE_URL;
+
 export const testingAuthPath = async (req: Request, res: Response) => {
   // const data = await handleServiceDemo(req.body);
   SuccessResponse.ok(res, { message: 'Auth running' });
@@ -52,19 +54,26 @@ export const loginController = async (req: Request, res: Response) => {
 export const logoutController = async (req: Request, res: Response) => {
   //todo:delete refresh token when it is implemented
   res.clearCookie('accessToken');
-  SuccessResponse.ok(res, {}); //todo:checkif empty data is ok
+  SuccessResponse.ok(res, {}); //todo:check if empty data is ok
 };
 
 export const verifyEmailController = async (req: Request, res: Response) => {
   if (!req.query.email || !req.query.verificationCode) {
     throw new BadRequest('Bad link');
+    //todo: alternatively navigate to UI with error code
   }
   const email = req.query.email;
   const verificationCode = req.query.verificationCode;
 
   const data = await verifyEmailService(email, verificationCode);
+  //todo: login here
+  if (data.success) {
+    res.redirect(`${frontEndBaseUrl}/auth/verifyEmail`);
+  } else {
+    throw new BadRequest('Invalid verification code or email');
+  }
 
-  SuccessResponse.ok(res, { email, verificationCode });
+  // SuccessResponse.ok(res, { email, data });
 };
 
 export const getProfileController = async (req: Request, res: Response) => {
