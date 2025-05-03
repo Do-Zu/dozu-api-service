@@ -11,3 +11,5 @@ export * from './demo.model';
 
 //auth
 export * from '@/models/auth/emailVerificationCode.model';
+
+export * from '@/models/auth/authAccount.model';

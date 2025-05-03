@@ -16,7 +16,7 @@ export const usersTable = pgTable('users', {
   userId: serial('user_id').primaryKey(),
   username: varchar('username', { length: 50 }).notNull().unique(),
   email: varchar('email', { length: 100 }).notNull().unique(),
-  passwordHash: text('password_hash').notNull(),
+  passwordHash: text('password_hash'),//set to not null in case user register with 3rd party accounts (google)
   fullName: varchar('full_name', { length: 100 }),
   avatarUrl: text('avatar_url').default(
     'https://res.cloudinary.com/dsvllb1am/image/upload/f_auto,q_auto/v1/default/tcd6nnm6lgn0jb3puton'

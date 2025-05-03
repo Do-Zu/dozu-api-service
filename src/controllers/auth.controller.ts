@@ -1,16 +1,16 @@
 import { Response, Request } from 'express';
 import { SuccessResponse } from '@/core/success';
 import {
-  getOAuthJwtTokenService,
+  
+  googleOAuthLoginService,
   loginService,
   registerUserService,
   verifyEmailService,
 } from '@/services/auth.service';
-import { sendVerificationLinkEmail } from '@/libs/nodeMailerTransporter.lib';
-import { AuthenticationError, BadRequest, InternalServerError } from '@/core/error';
-import { signAccessJwtToken } from '@/utils/auth/jwt.utils';
+
+import { AuthenticationError, BadRequest } from '@/core/error';
+import {  signAccessJwtToken } from '@/utils/auth/jwt.utils';
 import { sanitizeUserObject } from '@/utils/auth/autheHelpers.utils';
-import { OAuth2Client } from 'google-auth-library';
 
 const frontEndBaseUrl = process.env.FRONTEND_BASE_URL;
 
@@ -52,6 +52,7 @@ export const loginController = async (req: Request, res: Response) => {
 };
 
 export const logoutController = async (req: Request, res: Response) => {
+  //?Consider blacklist if more security is wanted
   //todo:delete refresh token when it is implemented
   res.clearCookie('accessToken');
   SuccessResponse.ok(res, {}); //todo:check if empty data is ok
@@ -83,12 +84,24 @@ export const getProfileController = async (req: Request, res: Response) => {
 };
 
 export const googleOAuthRedirectController = async (req: Request, res: Response) => {
-  console.log(req.query);
-  const code = req.query.code!;
+  const code = req.query.code!; //code returned by google
   if (!code || typeof code !== 'string') {
     throw new AuthenticationError('Google authentication failed');
   }
-  const data = await getOAuthJwtTokenService(code);
+  //todo:chase these into services
+  // const data = await getOAuthJwtTokenService(code);
+  // const decoded = decodeJwtToken(data);
+  const data = await googleOAuthLoginService(code);
+
+  if (data.success) {
+    const accessToken = signAccessJwtToken(data.user);
+    res.redirect(`${frontEndBaseUrl}/?token=${accessToken}`);
+
+    //todo: includes token of some kind for FE & handle on frontend
+  } else {
+    res.redirect(`${frontEndBaseUrl}/auth/login`);
+    //todo: include message of some kind for FE
+  }
 
   SuccessResponse.ok(res, data);
 };

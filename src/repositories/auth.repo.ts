@@ -1,6 +1,6 @@
 import { VERIFICATION_TOKEN_DURATION_MINUTES } from '@/constants/auth.constant';
 import db from '@/libs/drizzleClient.lib';
-import { usersTable } from '@/models';
+import { authAccountsTable, InsertAuthAccount, SelectAuthAccount, usersTable } from '@/models';
 import {
   emailVerificationCodesTable,
   InsertEmailVerificationCode,
@@ -19,6 +19,11 @@ export const insertUser = async (
     passwordHash: passwordHash,
     email: email,
   };
+  const [insertedUser] = await db.insert(usersTable).values(newUser).returning();
+  return insertedUser;
+};
+
+export const insertUserObject = async (newUser: InsertUser): Promise<SelectUser> => {
   const [insertedUser] = await db.insert(usersTable).values(newUser).returning();
   return insertedUser;
 };
@@ -51,7 +56,6 @@ export const queryVerificationCode = async (email: any, verificationCode: any) =
     })
     .from(usersTable)
     .where(eq(usersTable.email, email));
-  console.log(queryEmailData);
   const [verificationCodeData] = await db
     .select()
     .from(emailVerificationCodesTable)
@@ -61,7 +65,6 @@ export const queryVerificationCode = async (email: any, verificationCode: any) =
         eq(emailVerificationCodesTable.userId, queryEmailData.userId)
       )
     ); //todo:CHECK IF WORKING
-  console.log(verificationCodeData);
   return verificationCodeData;
 };
 
@@ -78,6 +81,12 @@ export const deleteVerificationCodeByEmailVerificationId = async (
     .where(eq(emailVerificationCodesTable.emailVerificationCodeId, emailVerificationCodeId));
 };
 
+//todo:check result of query of those using [result]
+export const selectOneUserById = async (userId: number) => {
+  const [result] = await db.select().from(usersTable).where(eq(usersTable.userId, userId));
+  return result;
+};
+
 export const selectOneUserByUsername = async (username: string) => {
   const [result] = await db.select().from(usersTable).where(eq(usersTable.username, username));
   return result;
@@ -86,4 +95,22 @@ export const selectOneUserByUsername = async (username: string) => {
 export const selectOneUserByEmail = async (email: string) => {
   const [result] = await db.select().from(usersTable).where(eq(usersTable.email, email));
   return result;
+};
+
+export const findByProviderId = async (provider: string, providerId: string) => {
+  const [result] = await db
+    .select()
+    .from(authAccountsTable)
+    .where(
+      and(eq(authAccountsTable.provider, provider), eq(authAccountsTable.providerId, providerId))
+    );
+  return result;
+};
+
+//auth account
+export const insertAuthAccountObject = async (
+  newAuthAccount: InsertAuthAccount
+): Promise<SelectAuthAccount> => {
+  const [insertedAuthAccount] = await db.insert(authAccountsTable).values(newAuthAccount).returning();
+  return insertedAuthAccount;
 };
