@@ -4,7 +4,7 @@ import { BaseGenerativeService } from './base/base.abstract';
 import { convertJsonToArray, generatePromptText, TYPE_PROMPT } from '@/utils/prompt';
 import { v4 as uuidv4 } from 'uuid';
 import logger from '@/utils/logger';
-import { redis, redisInstance } from '@/libs/redis/redis.connect';
+import { redisInstance } from '@/libs/redis/redis.connect';
 import { lambdaService } from './provider/lambda/lambda.service';
 import { sseManager } from '@/services/sse/sse.service';
 import { ContentGenerationJobDataInterface } from './types';
@@ -20,22 +20,18 @@ import { decompressContent } from '@/utils/compress';
 class GenerativeService extends BaseGenerativeService {
   private worker: Worker;
 
-  private readonly WORKER_NAME: string = 'WORKER_HANDLER_OPEN_API_INTEGRATE_GEN_CONTENT';
+  private readonly WORKER_NAME: string = 'WORKER_OPEN_API_INTEGRATE_GEN_CONTENT';
   private readonly JOB_NAME: string = 'GENERATE_FLASHCARD';
   private readonly RESULT_TTL: number = 60 * 5; // 5 minutes
 
   constructor() {
     super();
-    this.worker = queue.createWorker(this.WORKER_NAME, this.processor.bind(this), 3);
+    this.worker = queue.createWorker(this.WORKER_NAME, this.processor.bind(this), 2);
   }
 
   private async processor(job: Job) {
-    const { jobId, content } = job.data;
+    const { jobId, data } = job.data;
     try {
-      const decompressedContent = decompressContent(content);
-
-      const data = await this.generateContentByLLMBackGround(decompressedContent);
-
       if (sseManager.isClientConnected(jobId)) {
         //immediately send the data via SSE
         const clientNotified = sseManager.sendEvent(jobId, data);
@@ -49,7 +45,6 @@ class GenerativeService extends BaseGenerativeService {
       await this.storeData(data, jobId);
     } catch (error) {
       if (error instanceof Error) {
-        console.log('Error here!');
         logger.error(`Error processing job ${jobId}: ${error?.message}`, {
           stack: error?.stack,
           jobId,
@@ -119,9 +114,7 @@ class GenerativeService extends BaseGenerativeService {
     await this.updateStatusLLMRateLimit();
 
     // BUG: LAMBDA FUNCTION PROCESS
-    // return await this.processWithLambda(dataSend);
-    // Fallback to handle lambda failure
-    return await this.processWithQueue(dataSend);
+    return await this.processWithLambda(dataSend);
   }
 
   /**
@@ -200,10 +193,17 @@ class GenerativeService extends BaseGenerativeService {
   private async processWithLambda(
     dataSend: ContentGenerationJobDataInterface
   ): Promise<GenerateContentResponseInterface> {
-    const { jobId, content, type } = dataSend;
+    const { jobId, type } = dataSend;
+
+    const dataSendOnLambda = {
+      ...dataSend,
+      model: this.getModel(),
+      apiKey: this.getApiKey(),
+      providerBaseUrl: this.getProviderBaseUrl(),
+    };
 
     // Trigger Lambda function to process the content
-    const lambdaTriggered = await lambdaService.triggerContentGeneration(dataSend, type);
+    const lambdaTriggered = await lambdaService.triggerContentGeneration(dataSendOnLambda, type);
 
     // Handle Lambda errors
     if (lambdaTriggered && !lambdaTriggered.success) {
@@ -255,10 +255,10 @@ class GenerativeService extends BaseGenerativeService {
     dataSend: ContentGenerationJobDataInterface
   ): Promise<GenerateContentResponseInterface> {
     const { jobId } = dataSend;
-
-    const job = await queue.addJob(this.WORKER_NAME, this.JOB_NAME, dataSend, {
+    const jobName = `${this.JOB_NAME}:${jobId}`;
+    const job = await queue.addJob(this.WORKER_NAME, jobName, dataSend, {
       removeOnComplete: true,
-      removeOnFail: 5000,
+      removeOnFail: 5,
     });
 
     if (!job) {

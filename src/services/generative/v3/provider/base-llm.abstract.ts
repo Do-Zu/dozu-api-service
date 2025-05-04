@@ -74,20 +74,13 @@ export abstract class AbstractBaseLLMService {
   constructor() {
     this.requestPerMinuteLimit = this.DEFAULT_RATE_LIMIT_PER_MINUTE;
     this.requestPerDateLimit = this.DEFAULT_RATE_LIMIT_PER_DATE;
-    this.initializeFromDatabase();
   }
 
-  protected async initialize(
-    model: string | null,
-    apiKey: string | null,
-    baseURL: string | null
-  ): Promise<void> {
-    this.apiKey = apiKey;
-    this.model = model;
-    this.baseURL = baseURL;
+  protected async initial() {
+    await this.getDefaultLLMProviderFromDatabase();
   }
 
-  protected async initializeFromDatabase(): Promise<void> {
+  private async getDefaultLLMProviderFromDatabase(): Promise<void> {
     try {
       // Get default provider, API key, and model
       const { apiKey, provider, model } = await getDefaultProviderWithApiKeyAndModels();
@@ -130,7 +123,7 @@ export abstract class AbstractBaseLLMService {
    */
   protected async checkAndUpdateRateLimits(): Promise<void> {
     if (!this.providerId || !this.modelId || !this.apiKeyId) {
-      await this.initializeFromDatabase();
+      await this.getDefaultLLMProviderFromDatabase();
     }
 
     if (
@@ -252,7 +245,7 @@ export abstract class AbstractBaseLLMService {
     try {
       // Check if we have valid configuration
       if (!this.apiKey || !this.model || !this.baseURL) {
-        await this.initializeFromDatabase();
+        await this.getDefaultLLMProviderFromDatabase();
       }
 
       // Check rate limits and update usage

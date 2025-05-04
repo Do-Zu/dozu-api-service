@@ -1,9 +1,6 @@
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { OpenAIService } from '../provider/llm/openai.service';
-import { InvokeCommand, LambdaClient } from '@aws-sdk/client-lambda';
-import logger from '@/utils/logger';
 import { GenerateContentRequestInterface, GenerateContentResponseInterface } from '@/dtos/generate';
-import { AbstractBaseLLMService, LLMRequestOptions } from '../provider/base-llm.abstract';
 
 export interface GenerationOptions {
   model?: string;
@@ -24,7 +21,7 @@ export interface ITextFormatGenerateService extends IGenerativeService {
 }
 
 export abstract class BaseGenerativeService implements IGenerativeService {
-  private readonly openai: OpenAIService;
+  private openai: OpenAIService;
 
   constructor() {
     this.openai = new OpenAIService();
@@ -49,6 +46,18 @@ export abstract class BaseGenerativeService implements IGenerativeService {
 
   protected async updateStatusLLMRateLimit() {
     return await this.openai.canLLMProcess();
+  }
+
+  public getModel() {
+    return this.openai.getModel();
+  }
+
+  public getApiKey() {
+    return this.openai.getApiKey();
+  }
+
+  public getProviderBaseUrl() {
+    return this.openai.getProviderBaseUrl();
   }
 
   /**

@@ -3,7 +3,7 @@ import {
   ChatCompletionCreateParamsStreaming,
   ChatCompletionMessageParam,
 } from 'openai/resources/chat';
-import { AbstractBaseLLMService, LLMRequestOptions } from '../base-llm.abstract';
+import { AbstractBaseLLMService } from '../base-llm.abstract';
 import logger from '@/utils/logger';
 
 // const DEFAULT_MODEL = 'gemini-2.0-flash';
@@ -23,6 +23,7 @@ export class OpenAIService extends AbstractBaseLLMService {
    * @returns true if initialization was successful, false otherwise
    */
   private async initializeOpenAI(): Promise<boolean> {
+    await this.initial();
     try {
       if (!this.apiKey) {
         logger.warn('Missing API key for OpenAI initialization');
@@ -40,7 +41,7 @@ export class OpenAIService extends AbstractBaseLLMService {
       });
 
       this.isClientInitialized = true;
-      // logger.info('OpenAI client initialized successfully');
+      logger.info('OpenAI client initialized successfully');
       return true;
     } catch (error) {
       logger.error(
@@ -56,6 +57,18 @@ export class OpenAIService extends AbstractBaseLLMService {
    */
   public isAvailable(): boolean {
     return this.isClientInitialized && this.openai instanceof OpenAI;
+  }
+
+  public getModel() {
+    return this.model;
+  }
+
+  public getApiKey() {
+    return this.apiKey;
+  }
+
+  public getProviderBaseUrl() {
+    return this.baseURL;
   }
 
   public getOpenAI(): OpenAI | undefined {

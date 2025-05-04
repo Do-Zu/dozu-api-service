@@ -10,7 +10,7 @@ import {
   JobStatusResponseInterface,
 } from '@/dtos/generate';
 
-export class GenerateController {
+class GenerateController {
   constructor() {}
 
   async generateContent(req: Request<{}, {}, GenerateContentRequestInterface>, res: Response) {
@@ -50,3 +50,5 @@ export class GenerateController {
     SuccessResponse.ok(res, result);
   }
 }
+
+export const generateController = new GenerateController();

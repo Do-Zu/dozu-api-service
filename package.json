@@ -28,8 +28,8 @@
     "lambda:clean": "rimraf dist-lambda",
     "lambda:build": "node scripts/build-lambda.js",
     "lambda:package": "node scripts/package-lambda.js",
-    "lambda:deploy": "aws lambda update-function-code --function-name gen-content-lambda --zip-file fileb://dist-lambda/function.zip",
-    "lambda:update-config": "aws lambda update-function-configuration --function-name gen-content-lambda --handler index.handler --runtime nodejs18.x --timeout 60 --memory-size 256",
+    "lambda:deploy": "aws lambda update-function-code --function-name handle-gen-content-api-integrate --zip-file fileb://dist-lambda/function.zip",
+    "lambda:update-config": "aws lambda update-function-configuration --function-name handle-gen-content-api-integrate --handler index.handler --runtime nodejs20.x --timeout 60",
     "lambda:all": "npm run lambda:clean && npm run lambda:build && npm run lambda:package && npm run lambda:deploy && npm run lambda:update-config"
   },
   "engines": {

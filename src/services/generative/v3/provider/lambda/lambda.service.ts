@@ -25,7 +25,8 @@ export interface LambdaTriggerResult {
 
 export class LambdaService {
   private readonly lambdaClient: LambdaClient;
-  private readonly FUNCTION_NAME_GEN_CONTENT = 'gen-content-lambda';
+  private readonly FUNCTION_NAME_GEN_CONTENT = 'handle-gen-content-api-integrate';
+
   constructor(
     region: string = process.env.AWS_REGION || 'ap-southeast-1',
     accessKeyId: string = process.env.ACCESS_KEY_ID_AWS || '',
@@ -67,7 +68,6 @@ export class LambdaService {
     functionName: string,
     payload: Record<string, any>
   ): Promise<T | null> {
-    console.log({ payload });
     const result = await this.trigger({
       functionName,
       payload,
