@@ -30,7 +30,6 @@ export class GenerateController {
       res,
       {
         ...jobInfo,
-        // Include instructions for WebSocket connection
         sse: {
           event: 'register',
         },

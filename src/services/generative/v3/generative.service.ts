@@ -1,13 +1,13 @@
-import { Worker, Job, tryCatch } from 'bullmq';
+import { Worker, Job } from 'bullmq';
 import { bullMQService as queue } from '@/libs/bullmq/bullmq';
 import { BaseGenerativeService } from './base/base.abstract';
 import { convertJsonToArray, generatePromptText, TYPE_PROMPT } from '@/utils/prompt';
 import { v4 as uuidv4 } from 'uuid';
 import logger from '@/utils/logger';
-import { redisInstance } from '@/libs/redis/redis.connect';
-import { lambdaService } from './provider/lambda.service';
+import { redis, redisInstance } from '@/libs/redis/redis.connect';
+import { lambdaService } from './provider/lambda/lambda.service';
 import { sseManager } from '@/services/sse/sse.service';
-import { ContentGenerationJobDataInterface, IBodyRequestGenContent } from './types';
+import { ContentGenerationJobDataInterface } from './types';
 import { STATUS_GEN } from './utils/constant';
 import {
   GenerateContentRequestInterface,
@@ -75,6 +75,11 @@ class GenerativeService extends BaseGenerativeService {
     }
   }
 
+  /**
+   * @description Store data in Redis with a TTL
+   * @param data The data to store
+   * @param jobId The job ID for tracking
+   */
   private async storeData(data: any, jobId: string) {
     const key = `flashcard:result:${jobId}`;
     await redisInstance.set(key, data, this.RESULT_TTL);
@@ -85,7 +90,7 @@ class GenerativeService extends BaseGenerativeService {
    * @param requestData The content generation request
    * @returns Object with jobId for tracking
    */
-  public async registerGenerateContentByLLM(
+  public override async registerGenerateContentByLLM(
     requestData: GenerateContentRequestInterface
   ): Promise<GenerateContentResponseInterface> {
     const { content, type } = requestData;
@@ -110,9 +115,12 @@ class GenerativeService extends BaseGenerativeService {
       type: typeSending,
     };
 
+    //Check rate limit and update remaining requests for model
+    await this.updateStatusLLMRateLimit();
+
     // BUG: LAMBDA FUNCTION PROCESS
-    //return await this.processWithLambda(dataSend);
-    //TEMP
+    // return await this.processWithLambda(dataSend);
+    // Fallback to handle lambda failure
     return await this.processWithQueue(dataSend);
   }
 
@@ -121,7 +129,7 @@ class GenerativeService extends BaseGenerativeService {
    * @param content The content to generate flashcards from
    * @returns list flashcards
    */
-  private async generateContentByLLMBackGround(content: string): Promise<any> {
+  protected override async generateContentByLLMBackGround(content: string): Promise<any> {
     const prompt = generatePromptText(content, 'FLASH_CARD');
 
     let fullContent = '';
@@ -178,26 +186,7 @@ class GenerativeService extends BaseGenerativeService {
   }
 
   /**
-   * Maps BullMQ job states to our status constants
-   */
-  private mapBullMQStateToStatus(state: string): string {
-    switch (state) {
-      case 'waiting':
-      case 'delayed':
-        return STATUS_GEN.register;
-      case 'active':
-        return STATUS_GEN.success;
-      case 'completed':
-        return STATUS_GEN.completed;
-      case 'failed':
-        return STATUS_GEN.fail;
-      default:
-        return STATUS_GEN.register;
-    }
-  }
-
-  /**
-   * Lambda-based content generation processing
+   * @description Lambda-based content generation processing
    *
    * This approach sends content to AWS Lambda for processing, which is good for:
    * - Scalable, serverless processing of content generation requests
@@ -252,7 +241,7 @@ class GenerativeService extends BaseGenerativeService {
   }
 
   /**
-   * Queue-based content generation processing
+   * @description Queue-based content generation processing
    *
    * This approach uses a local queue system (BullMQ) to process content generation, which is good for:
    * - Controlled resource utilization on your own infrastructure
@@ -281,6 +270,27 @@ class GenerativeService extends BaseGenerativeService {
       timestamp: new Date().toISOString(),
       status: STATUS_GEN.register,
     };
+  }
+
+  /**
+   * @description Map BullMQ job state to custom status
+   * @param state The state of the job from BullMQ
+   * @returns The mapped status string
+   */
+  private mapBullMQStateToStatus(state: string): string {
+    switch (state) {
+      case 'waiting':
+      case 'delayed':
+        return STATUS_GEN.register;
+      case 'active':
+        return STATUS_GEN.success;
+      case 'completed':
+        return STATUS_GEN.completed;
+      case 'failed':
+        return STATUS_GEN.fail;
+      default:
+        return STATUS_GEN.register;
+    }
   }
 }
 
