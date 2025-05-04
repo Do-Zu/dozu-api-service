@@ -5,7 +5,7 @@ import { convertJsonToArray, generatePromptText, TYPE_PROMPT } from '@/utils/pro
 import { v4 as uuidv4 } from 'uuid';
 import logger from '@/utils/logger';
 import { redisInstance } from '@/libs/redis/redis.connect';
-import { lambdaService } from './provider/lambda/lambda.service';
+import { lambdaService } from './lambda/lambda.service';
 import { sseManager } from '@/services/sse/sse.service';
 import { BadRequest, InternalServerError, PayloadTooLarge, ServiceUnavailable } from '@/core/error';
 

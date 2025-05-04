@@ -1,5 +1,5 @@
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
-import { OpenAIService } from '../provider/llm/openai.service';
+import { OpenAIService } from '../llm/strategies/providers/openai/openai.service';
 import { GenerateContentRequestInterface, GenerateContentResponseInterface } from '@/dtos/generate';
 
 /**
@@ -116,40 +116,6 @@ export abstract class BaseGenerativeService implements IGenerativeService {
   }
 
   /**
-   * Create a generator for streaming content from Google Studio through OpenAI
-   * This provides a standardized way to handle streaming generation
-   *
-   * @param prompt The prompt to generate from
-   * @yields Chunks of generated content
-   */
-  protected async *streamContentFromGoogleStudio(
-    prompt: string,
-    options?: Omit<GenerationOptions, 'responseFormat'>
-  ): AsyncGenerator<string, void, unknown> {
-    // Configure generation context
-    const messages: ChatCompletionMessageParam[] = [
-      {
-        role: 'system',
-        content: 'You are an expert at creating educational content from academic content.',
-      },
-      { role: 'user', content: prompt },
-    ];
-
-    // Create streaming response
-    const stream = await this.llmProvider.createStream(messages);
-
-    if (!stream) return;
-
-    // Yield content chunks as they arrive
-    for await (const chunk of stream) {
-      const content = chunk.choices[0]?.delta?.content;
-      if (content) {
-        yield content;
-      }
-    }
-  }
-
-  /**
    * Generate content with standard error handling and retries
    * This provides a robust wrapper around the stream generation process
    *
@@ -169,7 +135,7 @@ export abstract class BaseGenerativeService implements IGenerativeService {
     while (retries <= maxRetries) {
       try {
         // Generate content using stream
-        for await (const chunk of this.streamContentFromGoogleStudio(prompt, options)) {
+        for await (const chunk of this.llmProvider.handleProcessStreamContent(prompt, options)) {
           fullContent += chunk;
         }
 
