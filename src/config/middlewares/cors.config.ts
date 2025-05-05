@@ -14,7 +14,13 @@ const corsConfig = () => {
   };
 
   const productionOptions = {
-    origin: ['https://dozu.blog', 'https://dev.web.dozu.blog', 'http://localhost:3000'],
+    origin: [
+      'https://dozu.blog',
+      'https://dev.web.dozu.blog',
+      'https://api.stream.dozu.blog',
+      'https://dev.api.stream.dozu.blog',
+      'http://192.168.1.6:3000',
+    ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
