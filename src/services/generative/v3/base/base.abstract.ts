@@ -1,7 +1,6 @@
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { OpenAIService } from '../provider/llm/openai.service';
-import { InvokeCommand, LambdaClient } from '@aws-sdk/client-lambda';
-import logger from '@/utils/logger';
+import { GenerateContentRequestInterface, GenerateContentResponseInterface } from '@/dtos/generate';
 
 export interface GenerationOptions {
   model?: string;
@@ -21,13 +20,45 @@ export interface ITextFormatGenerateService extends IGenerativeService {
   generateContentStream(prompt: string, options?: GenerationOptions): Promise<unknown>;
 }
 
-export abstract class BaseGenerativeService extends OpenAIService implements IGenerativeService {
+export abstract class BaseGenerativeService implements IGenerativeService {
+  private openai: OpenAIService;
+
   constructor() {
-    super();
+    this.openai = new OpenAIService();
   }
 
   //TODO : handle  methods update change model and api key when rate-limit for open api integrate
   //....................................................
+
+  /**
+   * @description register generate content
+   * @param content
+   */
+  public abstract registerGenerateContentByLLM(
+    requestData: GenerateContentRequestInterface
+  ): Promise<GenerateContentResponseInterface>;
+
+  /**
+   * @description generate content by LLM
+   * @param content
+   */
+  protected abstract generateContentByLLMBackGround(content: string): Promise<unknown>;
+
+  protected async updateStatusLLMRateLimit() {
+    return await this.openai.canLLMProcess();
+  }
+
+  public getModel() {
+    return this.openai.getModel();
+  }
+
+  public getApiKey() {
+    return this.openai.getApiKey();
+  }
+
+  public getProviderBaseUrl() {
+    return this.openai.getProviderBaseUrl();
+  }
 
   /**
    * @description create stream handler generate content from google studio by gemini
@@ -44,7 +75,7 @@ export abstract class BaseGenerativeService extends OpenAIService implements IGe
       { role: 'user', content: prompt },
     ];
 
-    const stream = await this.createStream(messages);
+    const stream = await this.openai.createStream(messages);
 
     if (!stream) return;
 

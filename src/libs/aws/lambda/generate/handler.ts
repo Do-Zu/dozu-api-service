@@ -1,8 +1,9 @@
 import { ChatCompletionMessageParam } from 'openai/resources/chat';
-import { OpenAIService } from '../../../../services/generative/v3/provider/llm/openai.service';
 import { convertJsonToArray, generatePromptText, TYPE_PROMPT } from '../../../../utils/prompt';
-import { Queue, QueueEvents, Worker, ConnectionOptions } from 'bullmq';
+import { decompressContent } from '../../../../utils/compress';
+import { Queue } from 'bullmq';
 import Redis from 'ioredis';
+import OpenAI from 'openai';
 
 // Configure Redis connection
 const REDIS_HOST = process.env.REDIS_HOST || 'localhost';
@@ -49,19 +50,46 @@ export const handler = async (event: any) => {
   try {
     console.log({ event });
 
-    const { jobId, content, queue_name, type, job_name } = event?.data;
-
-    console.log({ dataReceive: { jobId, content, queue_name, type } });
-
-    if (!jobId || !content || !queue_name || !type) {
+    if (!event || !event.data) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ message: 'Missing param' }),
+        body: JSON.stringify({
+          message: 'Missing event data structure',
+        }),
       };
     }
 
+    const { jobId, content, queue_name, type, job_name, model, apiKey, providerBaseUrl } =
+      event?.data;
+
+    if (!jobId || !content || !queue_name || !type || !model || !apiKey || !providerBaseUrl) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({
+          message: 'Missing required parameters',
+          details: {
+            jobId: !jobId ? 'missing' : 'ok',
+            content: content === undefined ? 'missing' : 'ok',
+            queue_name: !queue_name ? 'missing' : 'ok',
+            type: !type ? 'missing' : 'ok',
+          },
+        }),
+      };
+    }
+
+    const contentDecompressed = decompressContent(content);
+
+    console.log({
+      jobId,
+      content,
+      queue_name,
+      type,
+      job_name,
+      contentDecompressed,
+    });
+
     //generate content
-    const result = await generateContent(content, type);
+    const result = await generateContent(contentDecompressed, type, apiKey, providerBaseUrl, model);
 
     const queue = createQueue(queue_name);
 
@@ -76,17 +104,11 @@ export const handler = async (event: any) => {
           delay: 1000,
         },
         removeOnComplete: true,
-        removeOnFail: 5000,
+        removeOnFail: 5,
       }
     );
 
     console.log(`Job added to queue ${queue_name}, job ID: ${job.id}`);
-
-    // // Store the result with proper key format
-    // await queue.addJob(queue_name, job_name, { data: result, jobId, type });
-
-    // //disconnect with redis
-    // await queue.disconnect();
 
     if (redisConnection) {
       await redisConnection.quit();
@@ -123,23 +145,34 @@ export const handler = async (event: any) => {
 };
 
 // Generate content using OpenAI
-async function generateContent(content: string, type: TYPE_PROMPT): Promise<any> {
+async function generateContent(
+  content: string,
+  type: TYPE_PROMPT,
+  apiKey: string,
+  baseURL: string,
+  model: string
+): Promise<any> {
+  console.log(`Starting content generation with type: ${type}`);
+
   try {
-    const openAIService = new OpenAIService();
-    const isModelAvailable = openAIService.isAvailable();
+    // Initialize OpenAI with proper credentials from parameters
+    const openai = new OpenAI({
+      apiKey: apiKey,
+      baseURL: baseURL,
+    });
 
-    if (!isModelAvailable) {
-      throw new Error('OpenAI model not available');
-    }
+    console.log('OpenAI client initialized');
 
+    // Generate the appropriate prompt for the requested content type
     const prompt = generatePromptText(content, type);
+    console.log(`Generated prompt (first 100 chars): ${prompt.substring(0, 100)}...`);
 
-    let fullContent = '';
-
+    // Set up messages for the chat completion
     const messages: ChatCompletionMessageParam[] = [
       {
         role: 'system',
-        content: 'You are a helpful assistant that generates educational content.',
+        content:
+          'You are a helpful assistant that generates educational content in valid JSON format.',
       },
       {
         role: 'user',
@@ -147,50 +180,70 @@ async function generateContent(content: string, type: TYPE_PROMPT): Promise<any>
       },
     ];
 
-    // Stream the content from OpenAI
-    const stream = await openAIService.createStream(messages);
+    let fullContent = '';
+    let chunkCount = 0;
 
-    if (!stream) return undefined;
+    console.log('Creating OpenAI stream...');
 
+    // Create a streaming chat completion
+    const stream = await openai.chat.completions.create({
+      model,
+      messages: messages,
+      stream: true,
+      temperature: 0.5,
+      max_tokens: 8000,
+      response_format: {
+        type: 'json_object',
+      },
+    });
+
+    console.log('Stream created, processing chunks...');
+
+    // Process the stream chunks
     for await (const chunk of stream) {
-      const content = chunk.choices[0]?.delta?.content || '';
+      const content = chunk.choices?.[0]?.delta?.content || '';
       fullContent += content;
+      chunkCount++;
     }
 
-    // Parse the result
-    const data = convertJsonToArray(fullContent || '[]');
+    if (fullContent.trim().length === 0) {
+      console.warn('Warning: Received empty content from OpenAI');
+      return {
+        data: [],
+        rawText: '',
+        timestamp: new Date().toISOString(),
+      };
+    }
 
-    return {
-      content: data,
-      rawText: fullContent,
-      timestamp: new Date().toISOString(),
-    };
+    // Parse the generated content
+    try {
+      const data = convertJsonToArray(fullContent);
+      console.log(
+        `Successfully parsed JSON data, items: ${Array.isArray(data) ? data.length : 'not an array'}`
+      );
+
+      return {
+        data,
+        rawText: fullContent,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (parseError) {
+      console.error('Error parsing response as JSON:', parseError);
+
+      // Return the raw text and error information if parsing fails
+      return {
+        content: [],
+        rawText: fullContent,
+        error: 'Failed to parse LLM response as JSON',
+        timestamp: new Date().toISOString(),
+      };
+    }
   } catch (error) {
+    console.error('OpenAI API error:', error);
+
+    // Properly format and return the error
     throw new Error(
       `Failed to generate content: ${error instanceof Error ? error.message : String(error)}`
     );
   }
 }
-
-// Notify client through WebSocket (implementation would depend on your WebSocket setup)
-// async function notifyClientThroughWebSocket(jobId: string, result: any): Promise<void> {
-//   try {
-//     // This is a placeholder - actual implementation would depend on your WebSocket service
-//     // For example, using AWS ApiGatewayManagementApi:
-//     /*
-//     const connections = await getActiveConnections(jobId);
-//     for (const connectionId of connections) {
-//       await apiGateway.postToConnection({
-//         ConnectionId: connectionId,
-//         Data: JSON.stringify({
-//           type: 'CONTENT_READY',
-//           jobId,
-//           result
-//         })
-//       }).promise();
-//     }
-//     */
-//   } catch (error) {
-//     // Log but don't throw - WebSocket notification failure shouldn't fail the whole process
-//   }
-// }

@@ -68,16 +68,19 @@ class SSEManager {
     }
   }
 
-  public sendEvent(jobId: string, data: any): boolean {
+  public sendEvent(jobId: string, data: any, isError = false): boolean {
     const client = this.clients.get(jobId);
+
     if (!client) {
       return false;
     }
 
+    const status = isError ? 'error' : 'completed';
+
     const eventData = JSON.stringify({
       jobId,
       timestamp: new Date().toISOString(),
-      status: 'completed',
+      status,
       data,
     });
 

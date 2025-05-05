@@ -3,7 +3,7 @@ import {
   ChatCompletionCreateParamsStreaming,
   ChatCompletionMessageParam,
 } from 'openai/resources/chat';
-import { AbstractBaseLLMService, LLMRequestOptions } from './base-llm.abstract';
+import { AbstractBaseLLMService } from '../base-llm.abstract';
 import logger from '@/utils/logger';
 
 // const DEFAULT_MODEL = 'gemini-2.0-flash';
@@ -15,9 +15,7 @@ export class OpenAIService extends AbstractBaseLLMService {
 
   constructor() {
     super();
-    this.initialize().catch(error => {
-      logger.warn(`OpenAI service initialization failed: ${error.message}`);
-    });
+    this.initializeOpenAI();
   }
 
   /**
@@ -25,6 +23,7 @@ export class OpenAIService extends AbstractBaseLLMService {
    * @returns true if initialization was successful, false otherwise
    */
   private async initializeOpenAI(): Promise<boolean> {
+    await this.initial();
     try {
       if (!this.apiKey) {
         logger.warn('Missing API key for OpenAI initialization');
@@ -42,7 +41,7 @@ export class OpenAIService extends AbstractBaseLLMService {
       });
 
       this.isClientInitialized = true;
-      // logger.info('OpenAI client initialized successfully');
+      logger.info('OpenAI client initialized successfully');
       return true;
     } catch (error) {
       logger.error(
@@ -53,25 +52,6 @@ export class OpenAIService extends AbstractBaseLLMService {
     }
   }
 
-  protected override async initialize(): Promise<void> {
-    try {
-      const apiKey = await this.getApiKey();
-      const model = await this.getModelAvailable();
-      const baseURL = await this.getBaseURL();
-      super.initialize(model, apiKey, baseURL);
-
-      await this.initializeOpenAI();
-    } catch (error) {
-      logger.warn(
-        `Error during OpenAI initialization: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
-  }
-
-  public getNameModel() {
-    return this.model;
-  }
-
   /**
    * Check if the service is ready to handle requests
    */
@@ -79,12 +59,20 @@ export class OpenAIService extends AbstractBaseLLMService {
     return this.isClientInitialized && this.openai instanceof OpenAI;
   }
 
-  public getOpenAI(): OpenAI | undefined {
-    return this.openai;
+  public getModel() {
+    return this.model;
   }
 
-  protected generateContent(option?: LLMRequestOptions): Promise<unknown> {
-    throw new Error('Method not implemented.');
+  public getApiKey() {
+    return this.apiKey;
+  }
+
+  public getProviderBaseUrl() {
+    return this.baseURL;
+  }
+
+  public getOpenAI(): OpenAI | undefined {
+    return this.openai;
   }
 
   public async createStream(
@@ -92,6 +80,7 @@ export class OpenAIService extends AbstractBaseLLMService {
     config?: Omit<ChatCompletionCreateParamsStreaming, 'model'>
   ) {
     if (!this.isAvailable()) return undefined;
+    // GET model/api-key doesn't rate limit available for user
 
     return await this.openai!.chat.completions.create({
       model: this.model!,
