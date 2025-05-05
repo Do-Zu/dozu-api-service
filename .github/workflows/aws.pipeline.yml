@@ -44,7 +44,25 @@ jobs:
 
   #     - name: Run ESLint
   #       run: npm run lint
+  check-connection:
+    name: Check EC2 Connection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Add EC2 host to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Check connection to EC2 and root access
+        run: |
+          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "echo 'Connection successful!' && echo 'Checking sudo access:' && sudo -n echo 'Sudo access confirmed'"
   build:
+    needs: check-connection
     name: build
     runs-on: ubuntu-latest
 
