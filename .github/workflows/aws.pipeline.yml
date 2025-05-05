@@ -26,6 +26,43 @@ env:
   PROJECT_DIR: '/projects/dozu-api-service'
 
 jobs:
+  # lint:
+  #   name: Lint
+  #   runs-on: ubuntu-latest
+
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v2
+
+  #     - name: Set up Node.js
+  #       uses: actions/setup-node@v2
+  #       with:
+  #         node-version: ${{ env.NODE_VERSION }}
+
+  #     - name: Install dependencies
+  #       run: npm ci
+
+  #     - name: Run ESLint
+  #       run: npm run lint
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
   deploy-ec2:
     name: Deploy to EC2
     runs-on: ubuntu-latest
