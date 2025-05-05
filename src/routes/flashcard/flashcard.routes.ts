@@ -1,7 +1,7 @@
 import { globalAsyncHandler } from "@/middleware/handler/handler.v2";
 import { Request, Response, Router } from "express";
 import { registerRoute } from "@/routes/register.routes"; 
-import flashcardController from "@/controllers/flashcard.controller";
+import flashcardController from "@/controllers/flashcard/flashcard.controller";
 import { validateUser } from "@/middleware/validations/validator";
 import { validateFlashcardsAdded, validateFlashcardsBatch, validateTopicId } from "@/middleware/validations/flashcard.validation";
 
