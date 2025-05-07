@@ -6,9 +6,7 @@ const appPassword = process.env.MAIL_APP_PASSWORD;
 
 export const nodemailerTransporter = nodemailer.createTransport({
   service: 'gmail',
-  // host: host,
-  // port: 465,
-  // secure: true, // true for port 465, false for other ports
+
   auth: {
     user: mailUser,
     pass: appPassword,
