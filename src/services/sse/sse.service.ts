@@ -1,9 +1,10 @@
 import { Response } from 'express';
 import logger from '@/utils/logger';
-import { STATUS_GEN } from '../generative/v3/utils/constant';
+// import { STATUS_GEN } from '../generative/v3/utils/constant';
 
 class SSEManager {
   private clients: Map<string, Response> = new Map();
+  // eslint-disable-next-line no-undef
   private clientHeartbeatIntervals: Map<string, NodeJS.Timeout> = new Map();
   private readonly HEARTBEAT_INTERVAL = 30000; // 30 seconds
 
@@ -68,16 +69,19 @@ class SSEManager {
     }
   }
 
-  public sendEvent(jobId: string, data: any): boolean {
+  public sendEvent(jobId: string, data: unknown, isError = false): boolean {
     const client = this.clients.get(jobId);
+
     if (!client) {
       return false;
     }
 
+    const status = isError ? 'error' : 'completed';
+
     const eventData = JSON.stringify({
       jobId,
       timestamp: new Date().toISOString(),
-      status: 'completed',
+      status,
       data,
     });
 

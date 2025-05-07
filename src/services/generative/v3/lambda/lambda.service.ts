@@ -6,6 +6,7 @@ import {
 } from '@aws-sdk/client-lambda';
 import logger from '@/utils/logger';
 import { TYPE_PROMPT } from '@/utils/prompt';
+import { HTTP_STATUS } from '@/constants/index.constant';
 
 export interface LambdaTriggerOptions {
   functionName: string;
@@ -24,7 +25,8 @@ export interface LambdaTriggerResult {
 
 export class LambdaService {
   private readonly lambdaClient: LambdaClient;
-  private readonly FUNCTION_NAME_GEN_CONTENT = '';
+  private readonly FUNCTION_NAME_GEN_CONTENT = 'handle-gen-content-api-integrate';
+
   constructor(
     region: string = process.env.AWS_REGION || 'ap-southeast-1',
     accessKeyId: string = process.env.ACCESS_KEY_ID_AWS || '',
@@ -45,12 +47,15 @@ export class LambdaService {
    * @param payload Data to pass to the lambda function
    * @returns Promise resolving to true if successfully triggered, false otherwise
    */
-  public async triggerAsync(functionName: string, payload: Record<string, any>): Promise<boolean> {
-    return this.trigger({
+  public async triggerAsync(
+    functionName: string,
+    payload: Record<string, any>
+  ): Promise<LambdaTriggerResult> {
+    return await this.trigger({
       functionName,
       payload,
-      invocationType: 'Event', // Asynchronous invocation
-    }).then(result => result.success);
+      invocationType: 'Event',
+    });
   }
 
   /**
@@ -63,7 +68,6 @@ export class LambdaService {
     functionName: string,
     payload: Record<string, any>
   ): Promise<T | null> {
-    console.log({ payload });
     const result = await this.trigger({
       functionName,
       payload,
@@ -180,7 +184,8 @@ export class LambdaService {
       logger.error(`Error triggering Lambda function ${functionName}:`, error);
       return {
         success: false,
-        error: error instanceof Error ? error : String(error),
+        error: error instanceof Error ? error.message : String(error),
+        statusCode: HTTP_STATUS.INTERNAL_SERVER,
       };
     }
   }
@@ -190,8 +195,11 @@ export class LambdaService {
    * @param jobId Unique job identifier
    * @returns Promise resolving to true if successfully triggered, false otherwise
    */
-  public async triggerContentGeneration(data: object, type: TYPE_PROMPT): Promise<boolean> {
-    return this.triggerAsync('gen-content-lambda', {
+  public async triggerContentGeneration(
+    data: object,
+    type: TYPE_PROMPT
+  ): Promise<LambdaTriggerResult> {
+    return this.triggerAsync(this.FUNCTION_NAME_GEN_CONTENT, {
       data,
       type,
     });
@@ -203,7 +211,7 @@ export class LambdaService {
    * @returns Promise resolving to true if successfully triggered, false otherwise
    */
   public async triggerContentGenerationSync(data: object, type: TYPE_PROMPT): Promise<any> {
-    return this.triggerSync('gen-content-lambda', {
+    return this.triggerSync(this.FUNCTION_NAME_GEN_CONTENT, {
       data,
       type,
     });
