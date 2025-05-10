@@ -16,6 +16,7 @@ export const questionStatusEnum = pgEnum('question_status', ['new', 'learning', 
 export const questionsTable = pgTable('questions', {
   questionId: serial('question_id').primaryKey(),
   topicId: integer('topic_id').references(() => topicsTable.topicId, { onDelete: 'set null' }),
+  questionText: text('question_text').notNull().default(''),
   choices: text('choices').array(),
   correctIndex: integer('correct_index'),
   repetitionNumber: integer('repetition_number').default(0),

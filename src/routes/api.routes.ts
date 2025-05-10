@@ -13,6 +13,7 @@ import './sse/sse.routes';
 import './flashcard/flashcard.routes';
 import './auth/auth.routes';
 import './recommendation/recommendation.routes';
+import './question/question.routes';
 
 // Apply global async handler to router
 globalAsyncHandler(router);

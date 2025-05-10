@@ -1,0 +1,1 @@
+ALTER TABLE "questions" ADD COLUMN "question_text" text DEFAULT '' NOT NULL;
