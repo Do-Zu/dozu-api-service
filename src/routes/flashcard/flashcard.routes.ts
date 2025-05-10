@@ -1,9 +1,11 @@
 import { globalAsyncHandler } from "@/middleware/handler/handler.v2";
 import { Request, Response, Router } from "express";
 import { registerRoute } from "@/routes/register.routes"; 
-import flashcardController from "@/controllers/flashcard/flashcard.controller";
+import flashcardController, { getDate, updateDate } from "@/controllers/flashcard/flashcard.controller";
 import { validateUser } from "@/middleware/validations/validator";
 import { validateFlashcardsAdded, validateFlashcardsBatch, validateTopicId } from "@/middleware/validations/flashcard.validation";
+import flashcardRepo from "@/repositories/flashcard.repo";
+import logger from "@/utils/logger";
 
 const router = Router();
 
@@ -18,6 +20,23 @@ router.put('/', flashcardController.handleUpdateSingleFlashcardForTopic);
 
 router.get('/test', validateUser(), (req, res) => {
     res.json({ message: 'Success' });
+})
+
+router.get('/test-date', getDate);
+router.put('/test-date', updateDate);
+router.put('/:flashcardId/track', flashcardController.handleTrackSingleFlashcard);
+
+router.get('/practice', flashcardController.handleGetFlashcardsPracticed);
+router.put('/:flashcardId/put-to-practice', flashcardController.handlePutFlashcardToPractice);
+
+router.put('/test-update', async(req, res, next) => {
+    const flashcard = { flashcardId: 22, front: 'Pen', back: 'Cây bút' };
+    try {
+        const flashcardUpdated = await flashcardRepo.handleUpdateSingleFlashcardForTopic(flashcard);
+        logger.info(flashcardUpdated);
+    } catch(err) {
+        next(err);
+    }
 })
 
 registerRoute('/flashcards', router, {
