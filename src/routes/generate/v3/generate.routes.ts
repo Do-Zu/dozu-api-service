@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { GenerateController } from '@/controllers/generate/v3/generate.controller';
+import { generateController } from '@/controllers/generate/v3/generate.controller';
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 import { registerRoute } from '../../register.routes';
 
@@ -7,13 +7,9 @@ const router = Router();
 
 globalAsyncHandler(router);
 
-const generateController = new GenerateController();
+router.post('/text/llm', generateController.generateContent);
 
-router.post('/text/llm', (req, res) => generateController.generateContent(req, res));
-
-router.post('/text/llm/status', (req, res) =>
-  generateController.getGenerateContentStatus(req, res)
-);
+router.post('/text/llm/status', generateController.getGenerateContentStatus);
 
 registerRoute('/generate/v3/', router, {
   version: 'v3',

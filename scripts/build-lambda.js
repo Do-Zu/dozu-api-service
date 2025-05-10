@@ -21,7 +21,7 @@ async function bundleLambda() {
       bundle: true,
       minify: true,
       platform: 'node',
-      target: 'node18',
+      target: 'node20',
       outfile: path.join(outputDir, 'index.js'),
       external: ['aws-sdk', '@aws-sdk/*'], // AWS Lambda includes these packages
       sourcemap: false,

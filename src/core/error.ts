@@ -63,6 +63,20 @@ class BadRequest extends AppError {
   }
 }
 
+class PayloadTooLarge extends AppError {
+  constructor(message = 'Payload Too Large') {
+    super(message, 413);
+    this.name = 'PayloadTooLarge';
+  }
+}
+
+class Forbidden extends AppError {
+  constructor(message = 'Forbidden') {
+    super(message, 403);
+    this.name = 'Forbidden';
+  }
+}
+
 class InternalServerError extends AppError {
   constructor(message = 'Internal Server Error') {
     super(message, 500);
@@ -70,6 +84,12 @@ class InternalServerError extends AppError {
   }
 }
 
+class ServiceUnavailable extends AppError {
+  constructor(message = 'Service Unavailable') {
+    super(message, 503);
+    this.name = 'ServiceUnavailable';
+  }
+}
 /**
  *
  * Global error handler middleware
@@ -170,7 +190,10 @@ export {
   NotFoundError,
   DatabaseError,
   BadRequest,
+  PayloadTooLarge,
+  Forbidden,
   InternalServerError,
+  ServiceUnavailable,
   handleError,
   setupGlobalErrorHandlers,
 };
