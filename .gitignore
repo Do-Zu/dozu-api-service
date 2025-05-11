@@ -20,8 +20,8 @@ dist-*/
 
 # Environment and local config
 .env
-# .env.*
-!.env.development
+.env.*
+# !.env.development
 !.env.local
 .npmrc
 .yarnrc

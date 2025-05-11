@@ -82,7 +82,7 @@ class InternalServerError extends AppError {
     super(message, 500);
     this.name = 'InternalServerError';
   }
-}
+} //todo: check if appropriately done
 
 class ServiceUnavailable extends AppError {
   constructor(message = 'Service Unavailable') {
