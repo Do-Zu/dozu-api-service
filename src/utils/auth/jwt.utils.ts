@@ -1,4 +1,5 @@
 import { SelectUser } from '@/models';
+import { SanitizedUser } from '@/types/auth/sanitizedUser.auth';
 import jwt from 'jsonwebtoken';
 
 const jwtSecretKey = process.env.JWT_SECRET || 'dev-secret'; //todo:check types better
@@ -14,8 +15,7 @@ type GoogleIdTokenPayload = {
 };
 //todo:consider relocating if reused
 
-export const signAccessJwtToken = (user: SelectUser): string => {
-  console.log(jwtSecretKey);
+export const signAccessJwtToken = (user: SanitizedUser): string => {
   const token = jwt.sign({ user }, jwtSecretKey, {
     algorithm: 'HS256',
     allowInsecureKeySizes: true,
@@ -30,7 +30,7 @@ export const verifyJwtToken = (token: string) => {
   return decoded;
 };
 
-export const decodeJwtToken = (token: string):GoogleIdTokenPayload => {
+export const decodeJwtToken = (token: string): GoogleIdTokenPayload => {
   const decoded = jwt.decode(token);
   if (
     !decoded ||
