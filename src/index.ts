@@ -12,14 +12,14 @@ import cors from './config/middlewares/cors.config';
 import rateLimit from './config/middlewares/rate-limit.config';
 import { db } from './libs/drizzleClient.lib';
 // import { redisInstance } from './libs/redis/redis.connect';
-import { createServer } from 'http';
-import { webSocketService } from './libs/websocket/socket.io';
+// import { createServer } from 'http';
+// import { webSocketService } from './libs/websocket/socket.io';
 
 setupGlobalErrorHandlers();
 
 const app: Application = express();
 
-const httpServer = createServer(app);
+// const httpServer = createServer(app);
 
 const { host, port } = config.server;
 
@@ -38,7 +38,7 @@ if (config.isProduction) {
   app.use(rateLimit());
 }
 
-webSocketService.initialize(httpServer);
+// webSocketService.initialize(httpServer);
 
 // Apply success handler middleware request
 app.use(successHandler);
