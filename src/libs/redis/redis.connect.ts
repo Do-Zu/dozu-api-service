@@ -1,32 +1,29 @@
 import logger from '@/utils/logger';
 import EventEmitter from 'events';
 import Redis from 'ioredis';
+import { REDIS_INSTANCES, RedisInstanceType, RedisInstanceConfig } from './redis.instances';
 
 export class RedisManager {
   private static instance: RedisManager;
   private events: EventEmitter;
-  private redis: Redis | null = null;
+  private redisConnections: Map<RedisInstanceType, Redis | null> = new Map();
+  private connectionAttempts: Map<RedisInstanceType, number> = new Map();
   private readonly retryStrategy = {
     maxRetryTime: 10 * 1000, //~10s
     retryDelay: 500, //~500ms
   };
-  private connectionAttempts = 0;
   private readonly maxConnectionAttempts = 3;
 
-  private constructor(
-    private host: string = process.env.REDIS_HOST || 'localhost',
-    private port: number = parseInt(process.env.REDIS_PORT || '6379'),
-    private password: string = process.env.REDIS_PASSWORD || '',
-    private db: number = parseInt(process.env.REDIS_DB || '0'),
-    private username: string = process.env.REDIS_USERNAME || 'default'
-  ) {
-    console.info({
-      host: this.host,
-      port: this.port,
-      db: this.db,
+  private constructor() {
+    this.events = new EventEmitter();
+
+    // Initialize connection attempts counter for each instance type
+    Object.keys(REDIS_INSTANCES).forEach(instanceType => {
+      this.connectionAttempts.set(instanceType as RedisInstanceType, 0);
     });
 
-    this.events = new EventEmitter();
+    // Log available Redis configurations
+    logger.info('Available Redis configurations:', Object.keys(REDIS_INSTANCES));
   }
 
   public static getInstance(): RedisManager {
@@ -36,91 +33,134 @@ export class RedisManager {
     return RedisManager.instance;
   }
 
-  public connect(): Redis {
+  public connect(instanceType: RedisInstanceType = 'DEFAULT'): Redis {
     try {
-      if (this.redis && this.redis.status === 'ready') return this.redis;
+      // If already connected and ready, return the existing connection
+      const existingConnection = this.redisConnections.get(instanceType);
+      if (existingConnection && existingConnection.status === 'ready') return existingConnection;
 
-      if (this.connectionAttempts >= this.maxConnectionAttempts) {
+      // Get connection attempts for this instance
+      const attempts = this.connectionAttempts.get(instanceType) || 0;
+
+      if (attempts >= this.maxConnectionAttempts) {
         logger.error(
-          `Failed to connect to Redis after ${this.maxConnectionAttempts} attempts. Using fallback strategy.`
+          `Failed to connect to Redis (${instanceType}) after ${this.maxConnectionAttempts} attempts. Using fallback strategy.`
         );
-        this.events.emit('max_retries_exceeded');
+        this.events.emit('max_retries_exceeded', instanceType);
 
         // Return a dummy Redis client that logs operations but doesn't crash
-        return this.createFallbackClient();
+        return this.createFallbackClient(instanceType);
       }
 
-      this.connectionAttempts++;
-      console.info(
-        `Connecting to Redis (attempt ${this.connectionAttempts} of ${this.maxConnectionAttempts})...`
+      // Increment connection attempts
+      this.connectionAttempts.set(instanceType, attempts + 1);
+
+      logger.info(
+        `Connecting to Redis (${instanceType}) (attempt ${attempts + 1} of ${this.maxConnectionAttempts})...`
       );
 
-      this.redis = new Redis({
-        host: this.host,
-        port: this.port,
-        username: this.username,
-        password: this.password || undefined,
-        enableReadyCheck: true,
-        maxRetriesPerRequest: null,
-        connectTimeout: 5000, //5s
-        retryStrategy: times => {
-          if (times * this.retryStrategy.retryDelay > this.retryStrategy.maxRetryTime) {
-            // Stop retrying after maxRetryTime
-            return null;
-          }
-          return Math.min(times * 100, 3000); // Exponential backoff with max 3s delay
-        },
-        reconnectOnError: error => {
-          const targetErrors = ['READONLY', 'ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED'];
-          if (targetErrors.includes(error.message)) {
-            return true;
-          }
-          return false;
-        },
+      // Get config for this instance type
+      const config = REDIS_INSTANCES[instanceType];
+      logger.debug(`Redis ${instanceType} config:`, {
+        host: config.host,
+        port: config.port,
+        db: config.db,
       });
-      this.setupListeners();
-      return this.redis;
+
+      // Create the Redis connection
+      const redisConnection = this.createRedisConnection(config, instanceType);
+
+      // Store the connection
+      this.redisConnections.set(instanceType, redisConnection);
+
+      return redisConnection;
     } catch (error) {
-      logger.error('Failed to initialize Redis connection:', error);
-      if (this.connectionAttempts < this.maxConnectionAttempts) {
-        console.info('Retrying Redis connection...');
-        return this.connect();
+      logger.error(`Failed to initialize Redis connection (${instanceType}):`, error);
+
+      const attempts = this.connectionAttempts.get(instanceType) || 0;
+      if (attempts < this.maxConnectionAttempts) {
+        logger.info(`Retrying Redis connection for ${instanceType}...`);
+        return this.connect(instanceType);
       }
-      return this.createFallbackClient();
+
+      return this.createFallbackClient(instanceType);
     }
   }
 
-  private setupListeners(): void {
-    if (!this.redis) return;
-    this.redis.on('error', error => {
-      console.error('Redis connection error:', error);
-      logger.error('Redis connection error:', error);
-      this.events.emit('error', error);
+  private createRedisConnection(
+    config: RedisInstanceConfig,
+    instanceType: RedisInstanceType
+  ): Redis {
+    const redisConnection = new Redis({
+      host: config.host,
+      port: config.port,
+      username: config.username,
+      password: config.password || undefined,
+      db: config.db,
+      enableReadyCheck: true,
+      maxRetriesPerRequest: null,
+      connectTimeout: 5000, //5s
+      retryStrategy: times => {
+        if (times * this.retryStrategy.retryDelay > this.retryStrategy.maxRetryTime) {
+          // Stop retrying after maxRetryTime
+          return null;
+        }
+        return Math.min(times * 100, 3000); // Exponential backoff with max 3s delay
+      },
+      reconnectOnError: error => {
+        const targetErrors = ['READONLY', 'ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED'];
+        if (targetErrors.includes(error.message)) {
+          return true;
+        }
+        return false;
+      },
     });
 
-    this.redis.on('ready', () => {
-      logger.info('Redis connection established');
-      this.events.emit('ready');
+    this.setupListeners(redisConnection, instanceType);
+    return redisConnection;
+  }
+
+  private setupListeners(redisConnection: Redis, instanceType: RedisInstanceType): void {
+    if (!redisConnection) return;
+
+    redisConnection.on('error', error => {
+      logger.error(`Redis connection error (${instanceType}):`, error);
+      this.events.emit('error', { instanceType, error });
     });
 
-    this.redis.on('reconnecting', () => {
-      console.log('Redis reconnecting...');
-      this.events.emit('reconnecting');
+    redisConnection.on('ready', () => {
+      logger.info(`Redis connection established (${instanceType})`);
+      this.events.emit('ready', instanceType);
     });
 
-    this.redis.on('close', () => {
-      console.log('Redis connection closed');
-      this.events.emit('close');
+    redisConnection.on('reconnecting', () => {
+      logger.info(`Redis reconnecting (${instanceType})...`);
+      this.events.emit('reconnecting', instanceType);
+    });
+
+    redisConnection.on('close', () => {
+      logger.info(`Redis connection closed (${instanceType})`);
+      this.events.emit('close', instanceType);
     });
   }
 
-  public async get(key: string) {
-    const data = await this.connect().get(key);
+  // Helper methods for each Redis instance
+  private getRedisClient(instanceType: RedisInstanceType = 'DEFAULT'): Redis {
+    return this.connect(instanceType);
+  }
+
+  public async get(key: string, instanceType: RedisInstanceType = 'DEFAULT') {
+    const data = await this.getRedisClient(instanceType).get(key);
     return data ? JSON.parse(data) : null;
   }
 
-  public async set(key: string, value: unknown, ttlSeconds?: number): Promise<'OK'> {
-    const redis = this.connect();
+  public async set(
+    key: string,
+    value: unknown,
+    ttlSeconds?: number,
+    instanceType: RedisInstanceType = 'DEFAULT'
+  ): Promise<'OK'> {
+    const redis = this.getRedisClient(instanceType);
     const dataParse = JSON.stringify(value);
     if (ttlSeconds) {
       return redis.set(key, dataParse, 'EX', ttlSeconds);
@@ -128,76 +168,157 @@ export class RedisManager {
     return redis.set(key, dataParse);
   }
 
-  public async del(...keys: string[]): Promise<number> {
-    return this.connect().del(...keys);
+  public async del(keys: string[], instanceType: RedisInstanceType = 'DEFAULT'): Promise<number> {
+    return this.getRedisClient(instanceType).del(...keys);
   }
 
-  public async exists(...keys: string[]): Promise<number> {
-    return this.connect().exists(...keys);
+  public async exists(
+    keys: string[],
+    instanceType: RedisInstanceType = 'DEFAULT'
+  ): Promise<number> {
+    return this.getRedisClient(instanceType).exists(...keys);
   }
 
-  public async expire(key: string, seconds: number): Promise<number> {
-    return this.connect().expire(key, seconds);
+  public async expire(
+    key: string,
+    seconds: number,
+    instanceType: RedisInstanceType = 'DEFAULT'
+  ): Promise<number> {
+    return this.getRedisClient(instanceType).expire(key, seconds);
   }
 
-  public async hget(key: string, field: string): Promise<string | null> {
-    return this.connect().hget(key, field);
+  public async hget(
+    key: string,
+    field: string,
+    instanceType: RedisInstanceType = 'DEFAULT'
+  ): Promise<string | null> {
+    return this.getRedisClient(instanceType).hget(key, field);
   }
 
-  public async hset(key: string, field: string, value: string): Promise<number> {
-    return this.connect().hset(key, field, value);
+  public async hset(
+    key: string,
+    field: string,
+    value: string,
+    instanceType: RedisInstanceType = 'DEFAULT'
+  ): Promise<number> {
+    return this.getRedisClient(instanceType).hset(key, field, value);
   }
 
-  public async hmset(key: string, hash: Record<string, string>): Promise<'OK'> {
-    return this.connect().hmset(key, hash);
+  public async hmset(
+    key: string,
+    hash: Record<string, string>,
+    instanceType: RedisInstanceType = 'DEFAULT'
+  ): Promise<'OK'> {
+    return this.getRedisClient(instanceType).hmset(key, hash);
   }
 
-  public async hgetall(key: string): Promise<Record<string, string>> {
-    return this.connect().hgetall(key);
+  public async hgetall(
+    key: string,
+    instanceType: RedisInstanceType = 'DEFAULT'
+  ): Promise<Record<string, string>> {
+    return this.getRedisClient(instanceType).hgetall(key);
   }
 
-  public async flushdb(): Promise<'OK'> {
-    return this.connect().flushdb();
+  public async flushdb(instanceType: RedisInstanceType = 'DEFAULT'): Promise<'OK'> {
+    return this.getRedisClient(instanceType).flushdb();
   }
 
-  public async disconnect(): Promise<void> {
-    if (this.redis) {
-      await this.redis.quit();
-      this.redis = null;
+  public async disconnect(instanceType?: RedisInstanceType): Promise<void> {
+    if (instanceType) {
+      // Disconnect specific instance
+      const redis = this.redisConnections.get(instanceType);
+      if (redis) {
+        await redis.quit();
+        this.redisConnections.set(instanceType, null);
+      }
+    } else {
+      // Disconnect all instances
+      const disconnectPromises: Promise<void>[] = [];
+
+      this.redisConnections.forEach((redis, type) => {
+        if (redis) {
+          disconnectPromises.push(
+            redis.quit().then(() => {
+              this.redisConnections.set(type, null);
+            })
+          );
+        }
+      });
+
+      await Promise.all(disconnectPromises);
     }
   }
-  private createFallbackClient(): Redis {
-    logger.warn('Using Redis fallback mode - operations will be logged but not executed');
+
+  private createFallbackClient(instanceType: RedisInstanceType): Redis {
+    logger.warn(
+      `Using Redis fallback mode for ${instanceType} - operations will be logged but not executed`
+    );
 
     // Create a proxy object with the same API as Redis
     const fallbackClient = {
       status: 'fallback',
 
       get: async (key: string) => {
-        console.debug(`[Redis Fallback] GET ${key}`);
+        logger.debug(`[Redis Fallback ${instanceType}] GET ${key}`);
         return null;
       },
 
       set: async (key: string, value: string) => {
-        console.debug(`[Redis Fallback] SET ${key} ${value?.substring(0, 20)}...`);
+        logger.debug(`[Redis Fallback ${instanceType}] SET ${key} ${value?.substring(0, 20)}...`);
         return 'OK';
       },
 
-      // Add other required Redis methods here
       del: async (...keys: string[]) => {
-        console.debug(`[Redis Fallback] DEL ${keys.join(', ')}`);
+        logger.debug(`[Redis Fallback ${instanceType}] DEL ${keys.join(', ')}`);
         return 0;
       },
 
+      exists: async (...keys: string[]) => {
+        logger.debug(`[Redis Fallback ${instanceType}] EXISTS ${keys.join(', ')}`);
+        return 0;
+      },
+
+      expire: async (key: string, seconds: number) => {
+        logger.debug(`[Redis Fallback ${instanceType}] EXPIRE ${key} ${seconds}`);
+        return 0;
+      },
+
+      hget: async (key: string, field: string) => {
+        logger.debug(`[Redis Fallback ${instanceType}] HGET ${key} ${field}`);
+        return null;
+      },
+
+      hset: async (key: string, field: string, value: string) => {
+        logger.debug(
+          `[Redis Fallback ${instanceType}] HSET ${key} ${field} ${value?.substring(0, 20)}...`
+        );
+        return 0;
+      },
+      hmset: async (key: string, hash: Record<string, string>) => {
+        logger.debug(
+          `[Redis Fallback ${instanceType}] HMSET ${key} ${Object.keys(hash).length} fields`
+        );
+        return 'OK';
+      },
+
+      hgetall: async (key: string) => {
+        logger.debug(`[Redis Fallback ${instanceType}] HGETALL ${key}`);
+        return {};
+      },
+
+      flushdb: async () => {
+        logger.debug(`[Redis Fallback ${instanceType}] FLUSHDB`);
+        return 'OK';
+      },
+
       // Handle events
-      on: (event: string, callback: Function) => {
-        console.debug(`[Redis Fallback] Registered event handler for ${event}`);
+      on: (event: string) => {
+        logger.debug(`[Redis Fallback ${instanceType}] Registered event handler for ${event}`);
         return fallbackClient;
       },
 
-      // Add other required methods
       quit: async () => {
-        console.debug('[Redis Fallback] QUIT');
+        logger.debug(`[Redis Fallback ${instanceType}] QUIT`);
         return 'OK';
       },
     };
@@ -205,12 +326,21 @@ export class RedisManager {
     // Return the proxy object cast as Redis
     return fallbackClient as unknown as Redis;
   }
-
-  public onEvent(event: string, callback: (...args: any[]) => void): void {
+  public onEvent(event: string, callback: (...args: unknown[]) => void): void {
     this.events.on(event, callback);
   }
 }
 
-export const redisInstance = RedisManager.getInstance();
+export const redisManager = RedisManager.getInstance();
 
-export const redis = redisInstance.connect();
+// Export convenience functions to access different Redis instances
+export const getRedis = (instanceType: RedisInstanceType = 'DEFAULT'): Redis => {
+  return redisManager.connect(instanceType);
+};
+
+// Default Redis instance (for backward compatibility)
+export const redis = getRedis('DEFAULT');
+
+// Specific Redis instances
+export const redisPubSub = getRedis('PUBSUB');
+export const redisRecommendation = getRedis('RECOMMENDATION');

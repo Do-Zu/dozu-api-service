@@ -13,14 +13,18 @@ export abstract class AbstractRedisManager implements IRedisManager {
 
   protected connectionAttempts = 0;
   protected readonly maxConnectionAttempts = 3;
+  private host: string = 'localhost';
+  private port: number = 6379;
+  private password: string = '';
+  private db: number = 0;
+  private username: string = 'default';
 
-  protected host: string = 'localhost';
-  protected port: number = 6379;
-  protected password: string = '';
-  protected db: number = 0;
-  protected username: string = 'default';
-
-  constructor() {
+  constructor(host: string, port: number, password: string, db: number, username: string) {
+    this.host = host;
+    this.port = port;
+    this.password = password;
+    this.db = db;
+    this.username = username;
     this.events = new EventEmitter();
   }
 
