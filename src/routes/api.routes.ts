@@ -12,6 +12,7 @@ import './generate/v3/generate.routes';
 import './sse/sse.routes';
 import './flashcard/flashcard.routes';
 import './topic/topic.routes';
+import './auth/auth.routes';
 
 // Apply global async handler to router
 globalAsyncHandler(router);

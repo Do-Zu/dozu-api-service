@@ -1,3 +1,4 @@
+//general
 export * from '@/models/user.model';
 
 export * from '@/models/topic.model';
@@ -23,3 +24,8 @@ export * from '@/models/studySlotLearningMethod.model';
 export * from '@/models/reminder.model';
 
 export * from '@/models/taskProgress.model';
+
+//auth
+export * from '@/models/auth/emailVerificationCode.model';
+
+export * from '@/models/auth/authAccount.model';
