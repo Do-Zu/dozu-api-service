@@ -81,8 +81,8 @@ export function clientTimestampToUTC(data: { timestamp: string; timezone: string
  * @param clientTimezone - Client's timezone
  * @returns Object with ISO timestamp with offset and timezone
  */
-export function utcToClientTimestamp(
-  utcDate: Date,
+export function generateTimestampWithTimezone(
+  utcDate: Date = new Date(),
   clientTimezone: string
 ): {
   timestamp: string;
@@ -150,7 +150,7 @@ export function retrieveTimestampForClient(
     throw new Error('Invalid database timestamp');
   }
 
-  return utcToClientTimestamp(dbTimestamp, clientTimezone);
+  return generateTimestampWithTimezone(dbTimestamp, clientTimezone);
 }
 
 /**
