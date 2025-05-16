@@ -1,8 +1,8 @@
 import { flashcardsTable } from "@/models";
-import { InferSelectModel } from "drizzle-orm";
+import { IQualityResponse } from "@/services/spaced-repetition-system/super-memo-2/superMemo2.origin.class.service";
 import { z } from "zod"
 
-export interface IFlashcardReturned {
+export interface IBasicFlashcardReturned {
     topicId: number,
     flashcardId: number,
     front: string,
@@ -70,6 +70,20 @@ export type IFlashcardFieldsReturned = {
     status?: typeof flashcardsTable.status
 }
 
+export type IFlashcardReturned = {
+    flashcardId?: number
+    topicId?: number
+    front?: string
+    back?: string
+
+    repetitionNumber?: number
+    easinessFactor?: string
+    reviewInterval?: number
+    lastReviewed?: string | null
+    nextReview?: string | null
+    status?: string
+}
+
 export interface IFlashcardPracticed {
     flashcardId: number
     topicId: number
@@ -83,4 +97,16 @@ export interface IFlashcardPracticed {
     reviewInterval: number
     easinessFactor: string
     repetitionNumber: number
+}
+
+export interface IQualityResponseNextReviewInterval {
+    qualityResponse: IQualityResponse
+    nextReviewInterval: number
+}
+
+export interface IFlashcardSuperMemo extends IBasicFlashcardReturned {
+    topicName?: string
+    status: string | null
+    nextReview?: string | null
+    qualityResponsesNextReviewInterval?: IQualityResponseNextReviewInterval[]
 }
