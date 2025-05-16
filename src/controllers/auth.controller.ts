@@ -1,7 +1,6 @@
 import { Response, Request } from 'express';
 import { SuccessResponse } from '@/core/success';
 import {
-  
   googleOAuthLoginService,
   loginService,
   registerUserService,
@@ -9,8 +8,8 @@ import {
 } from '@/services/auth.service';
 
 import { AuthenticationError, BadRequest } from '@/core/error';
-import {  signAccessJwtToken } from '@/utils/auth/jwt.utils';
-import { sanitizeUserObject } from '@/utils/auth/autheHelpers.utils';
+import { signAccessJwtToken } from '@/utils/auth/jwt.utils';
+import { sanitizeUserObject } from '@/utils/auth/authHelpers.utils';
 
 const frontEndBaseUrl = process.env.FRONTEND_BASE_URL;
 
@@ -24,9 +23,10 @@ export const registerUserController = async (req: Request, res: Response) => {
     throw new BadRequest('Username, password and email are required');
   }
   const data = await registerUserService(req.body.username, req.body.password, req.body.email);
-  const accessToken = signAccessJwtToken(data.user);
+  const sanitizedUser = sanitizeUserObject(data.user);
+  const accessToken = signAccessJwtToken(sanitizedUser);
 
-  const returnData: any = sanitizeUserObject(data);
+  const returnData: any = sanitizedUser;
   returnData.accessToken = accessToken;
   SuccessResponse.created(res, returnData);
 };
@@ -43,9 +43,10 @@ export const loginController = async (req: Request, res: Response) => {
     throw new BadRequest(data.reason);
   } else {
     //add cookie and more
-    const accessToken = signAccessJwtToken(data.user);
+    const sanitizedUser = sanitizeUserObject(data.user);
+    const accessToken = signAccessJwtToken(sanitizedUser);
     res.cookie('accessToken', accessToken, { httpOnly: true }); //todo: temp setting cookie, change to using cookie for refresh and memory for access
-    const returnData: any = sanitizeUserObject(data);
+    const returnData: any = sanitizedUser;
     returnData.accessToken = accessToken;
     SuccessResponse.ok(res, returnData);
   }
@@ -94,7 +95,8 @@ export const googleOAuthRedirectController = async (req: Request, res: Response)
   const data = await googleOAuthLoginService(code);
 
   if (data.success) {
-    const accessToken = signAccessJwtToken(data.user);
+    const sanitizedUser = sanitizeUserObject(data.user);
+    const accessToken = signAccessJwtToken(sanitizedUser);
     res.redirect(`${frontEndBaseUrl}/?token=${accessToken}`);
 
     //todo: includes token of some kind for FE & handle on frontend
