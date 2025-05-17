@@ -10,5 +10,5 @@ export const studySlotLearningMethodsTable = pgTable('study_slots_learning_metho
   methodId: integer('method_id')
     .notNull()
     .references(() => learningMethodsTable.id, { onDelete: 'cascade' }),
-  createdAt: timestamp('created_at').defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });

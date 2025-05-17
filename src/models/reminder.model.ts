@@ -16,8 +16,8 @@ export const remindersTable = pgTable('reminders', {
   newScheduleId: integer('new_schedule_id').references(() => schedulesTable.id, {
     onDelete: 'set null',
   }),
-  newSuggestedTime: timestamp('new_suggested_time').notNull(),
+  newSuggestedTime: timestamp('new_suggested_time', { withTimezone: true }).notNull(),
   overdue: boolean('overdue').default(false),
   status: reminderStatusEnum('status').default('pending'),
-  createdAt: timestamp('created_at').defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });

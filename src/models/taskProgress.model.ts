@@ -8,5 +8,5 @@ export const taskProgressTable = pgTable('task_progress', {
     .references(() => studySlotTable.id, { onDelete: 'cascade' }),
   percentComplete: doublePrecision('percent_complete'),
   completed: boolean('completed').default(false),
-  updatedAt: timestamp('updated_at').defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
