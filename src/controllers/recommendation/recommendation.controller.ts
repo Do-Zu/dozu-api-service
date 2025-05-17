@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { recommendationService } from '@/services/recommendation/recommendation.service';
 import { SuccessResponse } from '@/core/success';
 import { BadRequest } from '@/core/error';
+import { documentEmbeddingService } from '@/services/embedding/documentEmbedding.service';
 
 /**
  * Controller class for Recommendation functionality
@@ -34,6 +35,44 @@ class RecommendationController {
       parsedLimit,
       parsedExcludeIds
     );
+
+    SuccessResponse.ok(res, recommendations);
+  }
+
+  public async embeddingContent(req: Request, res: Response) {
+    const { content, title, description, topicId } = req.body;
+
+    // const userId = req.user?.userId;
+    //TODO: Get userId from request context or session
+    const userId = 1;
+
+    if (!userId) {
+      throw new BadRequest('Identify user from request');
+    }
+
+    if (!content || typeof content !== 'string') {
+      throw new BadRequest('Content is required and must be a string');
+    }
+
+    const embedding = await documentEmbeddingService.processDocument({
+      userId,
+      topicId,
+      content,
+      title,
+      description,
+    });
+
+    SuccessResponse.ok(res, embedding);
+  }
+
+  public async getContentRecommendation(req: Request, res: Response) {
+    const { content } = req.body;
+
+    if (!content || typeof content !== 'string') {
+      throw new BadRequest('Content is required and must be a string');
+    }
+
+    const recommendations = await documentEmbeddingService.findSimilarDocuments(content);
 
     SuccessResponse.ok(res, recommendations);
   }

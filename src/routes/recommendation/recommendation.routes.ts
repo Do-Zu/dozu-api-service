@@ -10,6 +10,8 @@ globalAsyncHandler(router);
 
 // Define routes
 router.get('/test-content-based', recommendationController.testContentBasedRecommendations);
+router.post('/content/embedding', recommendationController.embeddingContent);
+router.post('/content', recommendationController.getContentRecommendation);
 
 // Register the router
 registerRoute('/recommendation', router, {
