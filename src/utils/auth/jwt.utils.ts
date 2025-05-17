@@ -1,10 +1,11 @@
 import { SelectUser } from '@/models';
-import { SanitizedUser } from '@/types/auth/sanitizedUser.auth';
+import { SanitizedUser } from '@/types/auth/sanitizedUser.type';
 import jwt from 'jsonwebtoken';
 
 const jwtSecretKey = process.env.JWT_SECRET || 'dev-secret'; //todo:check types better
 
 const expiresIn = 86400; //Seconds until expiration - 86400= 1 day
+const refreshExpiresIn = 604800; //7 days
 
 type GoogleIdTokenPayload = {
   sub: string;
@@ -20,6 +21,15 @@ export const signAccessJwtToken = (user: SanitizedUser): string => {
     algorithm: 'HS256',
     allowInsecureKeySizes: true,
     expiresIn: expiresIn,
+  });
+  return token;
+};
+
+export const signRefreshJwtToken = (user: SanitizedUser): string => {
+  const token = jwt.sign({ user }, jwtSecretKey, {
+    algorithm: 'HS256',
+    allowInsecureKeySizes: true,
+    expiresIn: refreshExpiresIn,
   });
   return token;
 };

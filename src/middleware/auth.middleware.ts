@@ -11,7 +11,6 @@ import { sanitizeUserObject } from '@/utils/auth/authHelpers.utils';
 const SECRET = process.env.JWT_SECRET || 'dev-secret'; // make sure to use env vars in production
 
 export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
-  // const accessToken = req.cookies.accessToken;
   const authHeader = req.headers['authorization'];
   const accessToken = authHeader && authHeader.split(' ')[1]; // Bearer <token>
 
@@ -32,6 +31,5 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
     console.log(error);
     logger.warn('Invalid token');
     throw new BadRequest('Unauthorized: Invalid token');
-    // return res.status(401).json({ message: 'Unauthorized: Invalid token' });
   }
 };

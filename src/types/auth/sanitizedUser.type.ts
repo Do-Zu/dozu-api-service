@@ -1,7 +1,7 @@
 export interface SanitizedUser {
-  userId: string;
+  userId: number;
   username: string;
   email: string;
-  fullName: string|null;
+  fullName: string | null;
   avatarUrl: string;
 }
