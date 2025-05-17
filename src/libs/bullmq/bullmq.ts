@@ -1,5 +1,5 @@
 import { Queue, Worker, Job, QueueEvents } from 'bullmq';
-import { RedisManager } from '../redis/redis.connect';
+import { RedisPubSubManager } from '../redis/pub-sub/redisPubsub.connect';
 import logger from '@/utils/logger';
 import Redis from 'ioredis';
 
@@ -25,7 +25,7 @@ class BullMQService {
 
   private constructor() {
     // this.redisManager = RedisManager.getInstance();
-    this.redis = RedisManager.getInstance().connect();
+    this.redis = RedisPubSubManager.getInstance().connect();
   }
 
   public static getInstance(): BullMQService {

@@ -4,7 +4,7 @@ import { BaseGenerativeService } from './base/base.abstract';
 import { convertJsonToArray, generatePromptText, TYPE_PROMPT } from '@/utils/prompt';
 import { v4 as uuidv4 } from 'uuid';
 import logger from '@/utils/logger';
-import { redisInstance } from '@/libs/redis/redis.connect';
+import { redisInstance } from '@/libs/redis/pub-sub/redisPubsub.connect';
 import { lambdaService } from './lambda/lambda.service';
 import { sseManager } from '@/services/sse/sse.service';
 import { BadRequest, InternalServerError, PayloadTooLarge, ServiceUnavailable } from '@/core/error';
@@ -148,9 +148,9 @@ class GenerativeService extends BaseGenerativeService {
   /**
    * Store data in Redis with a TTL
    */
-  private async storeData(data: any, jobId: string): Promise<void> {
+  private async storeData(data: unknown, jobId: string): Promise<void> {
     const key = `flashcard:result:${jobId}`;
-    await redisInstance.set(key, JSON.stringify(data), this.RESULT_TTL);
+    await redisInstance.set(key, data, this.RESULT_TTL);
   }
 
   /**
@@ -275,7 +275,7 @@ class GenerativeService extends BaseGenerativeService {
 
       // Handle Lambda errors
       if (lambdaTriggered && !lambdaTriggered.success) {
-        return this.handleLambdaError(lambdaTriggered, jobId);
+        return this.handleLambdaError(lambdaTriggered);
       }
 
       // If Lambda call succeeded, return success response
@@ -302,10 +302,11 @@ class GenerativeService extends BaseGenerativeService {
   /**
    * Handle specific Lambda error cases
    */
-  private handleLambdaError(
-    lambdaResult: { success: boolean; statusCode?: number; error?: string | unknown },
-    jobId: string
-  ): never {
+  private handleLambdaError(lambdaResult: {
+    success: boolean;
+    statusCode?: number;
+    error?: string | unknown;
+  }): never {
     // Service unavailable (overloaded)
     if (lambdaResult.statusCode === 503) {
       throw new ServiceUnavailable('Server is currently overloaded. Please try again later.');
