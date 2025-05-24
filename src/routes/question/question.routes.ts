@@ -1,6 +1,6 @@
 // src/routes/questions/question.routes.ts
 import express from 'express';
-import { questionController } from '@/controllers/question/questions.controller';
+import { questionController } from '@/controllers/question/question.controller';
 import { validateCreateQuestion, validateUpdateQuestion, validateSubmitQuizResult } from '@/middleware/validations/question.validaton';
 import { registerRoute } from '@/routes/register.routes';
 
