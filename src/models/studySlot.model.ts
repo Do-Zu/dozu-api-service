@@ -15,6 +15,6 @@ export const studySlotTable = pgTable('study_slots', {
   difficultyLevel: interval('difficulty_level'),
   assignedDuration: interval('assigned_duration').notNull(),
   estimatedTime: interval('estimated_time'),
-  deadline: timestamp('deadline').notNull(),
-  createdAt: timestamp('created_at').defaultNow(),
+  deadline: timestamp('deadline', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });

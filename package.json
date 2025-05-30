@@ -30,7 +30,13 @@
     "lambda:package": "node scripts/package-lambda.js",
     "lambda:deploy": "aws lambda update-function-code --function-name handle-gen-content-api-integrate --zip-file fileb://dist-lambda/function.zip",
     "lambda:update-config": "aws lambda update-function-configuration --function-name handle-gen-content-api-integrate --handler index.handler --runtime nodejs20.x --timeout 60",
-    "lambda:all": "npm run lambda:clean && npm run lambda:build && npm run lambda:package && npm run lambda:deploy && npm run lambda:update-config"
+    "lambda:all": "npm run lambda:clean && npm run lambda:build && npm run lambda:package && npm run lambda:deploy && npm run lambda:update-config",
+    "docker:up:db:postgres": "docker-compose -f containers/database/postgres/docker-compose.yml up -d",
+    "docker:down:db:postgres": "docker-compose -f containers/database/postgres/docker-compose.yml down",
+    "docker:build:db:postgres": "docker-compose -f containers/database/postgres/docker-compose.yml build",
+    "docker:logs:db:postgres": "docker-compose -f containers/database/postgres/docker-compose.yml logs -f postgres",
+    "docker:restart:db:postgres": "docker-compose -f containers/database/postgres/docker-compose.yml restart",
+    "docker:clean:db:postgres": "docker-compose -f containers/database/postgres/docker-compose.yml down -v --remove-orphans"
   },
   "engines": {
     "node": ">=20"

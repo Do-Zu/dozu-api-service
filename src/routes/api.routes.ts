@@ -1,6 +1,6 @@
 import express, { Router } from 'express';
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
-import { getRoutes, registerRoute } from './register.routes';
+import { getRoutes } from './register.routes';
 import logger from '@/utils/logger';
 
 const router: Router = express.Router();
@@ -12,6 +12,7 @@ import './generate/v3/generate.routes';
 import './sse/sse.routes';
 import './flashcard/flashcard.routes';
 import './auth/auth.routes';
+import './recommendation/recommendation.routes';
 
 // Apply global async handler to router
 globalAsyncHandler(router);
