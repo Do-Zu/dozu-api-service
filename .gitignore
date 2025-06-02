@@ -57,3 +57,6 @@ ehthumbs.db
 Thumbs.db
 
 uploads/*
+
+#migrate db
+drizzle/

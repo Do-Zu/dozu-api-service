@@ -1,5 +1,5 @@
 import { DatabaseError, InternalServerError } from '@/core/error';
-import { redis, redisInstance } from '@/libs/redis/redis.connect';
+import { redisInstance, redis } from '@/libs/redis/pub-sub/redisPubsub.connect';
 import {
   getAllProviderAvailable,
   getAvailableModels,
@@ -53,14 +53,14 @@ interface IProvidersLLM {
 /**
  * Represents API key information for an LLM provider
  */
-interface IApiKeyProviderLLM {
-  status: 'active' | 'inactive' | 'expired' | 'rate_limited';
-  isDefault: boolean;
-  index: number;
-  keyId: number;
-  keyValue: string;
-  keyType: 'free' | 'paid';
-}
+// interface IApiKeyProviderLLM {
+//   status: 'active' | 'inactive' | 'expired' | 'rate_limited';
+//   isDefault: boolean;
+//   index: number;
+//   keyId: number;
+//   keyValue: string;
+//   keyType: 'free' | 'paid';
+// }
 
 /**
  * Abstract base class for LLM service implementations

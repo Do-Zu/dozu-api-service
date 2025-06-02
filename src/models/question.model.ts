@@ -24,5 +24,5 @@ export const questionsTable = pgTable('questions', {
   lastReviewed: date('last_reviewed'),
   nextReview: date('next_review'),
   status: questionStatusEnum('status').default('new'),
-  createdAt: timestamp('created_at').defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
