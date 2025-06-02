@@ -1,4 +1,4 @@
-import { SanitizedUser } from '@/types/auth/sanitizedUser.auth';
+import { SanitizedUser } from '@/types/auth/sanitizedUser.type';
 import { Request } from 'express';
 
 export const sanitizeUserObject = (userData: any): SanitizedUser => {
