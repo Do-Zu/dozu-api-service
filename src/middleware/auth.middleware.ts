@@ -3,12 +3,11 @@ import { NextFunction, Request, Response } from 'express';
 //attaches user object to request
 
 import jwt from 'jsonwebtoken';
-import { asyncHandler } from './handler/handler.v2';
 import logger from '@/utils/logger';
 import { BadRequest } from '@/core/error';
 import { sanitizeUserObject } from '@/utils/auth/authHelpers.utils';
 
-const SECRET = process.env.JWT_SECRET || 'dev-secret'; // make sure to use env vars in production
+const SECRET = process.env.JWT_SECRET; // make sure to use env vars in production
 
 export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
@@ -16,6 +15,9 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
 
   if (!accessToken) {
     throw new BadRequest('Access token is required');
+  }
+  if (!SECRET) {
+    throw new Error('JWT_SECRET is not defined in environment variables');
   }
 
   try {

@@ -13,7 +13,7 @@ import { sanitizeUserObject } from '@/utils/auth/authHelpers.utils';
 import jwt from 'jsonwebtoken';
 
 const frontEndBaseUrl = process.env.FRONTEND_BASE_URL;
-const SECRET = process.env.JWT_SECRET || 'dev-secret';
+const SECRET = process.env.JWT_SECRET;
 
 export const testingAuthPath = async (req: Request, res: Response) => {
   // const data = await handleServiceDemo(req.body);
@@ -70,7 +70,9 @@ export const refreshTokenController = async (req: Request, res: Response) => {
   //?Consider blacklist if more security is wanted
   //todo:delete refresh token when it is implemented
   const refreshToken = req.cookies.refreshToken;
-  console.log(req.cookies);
+  if (!SECRET) {
+    throw new Error('JWT_SECRET is not defined in environment variables');
+  }
   if (!refreshToken) {
     throw new BadRequest('Refresh token is required');
   }
