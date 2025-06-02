@@ -7,7 +7,7 @@ import { config } from '../env.config';
  */
 const corsConfig = () => {
   const developmentOptions = {
-    origin: '*', // Allow all origins in development
+   origin: 'http://localhost:3000', // Allow UI origins in development
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
@@ -20,6 +20,7 @@ const corsConfig = () => {
       'https://api.stream.dozu.blog',
       'https://dev.api.stream.dozu.blog',
       'http://192.168.1.6:3000',
+
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],

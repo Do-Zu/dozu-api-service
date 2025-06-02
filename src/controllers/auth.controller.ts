@@ -1,7 +1,6 @@
 import { Response, Request } from 'express';
 import { SuccessResponse } from '@/core/success';
 import {
-  
   googleOAuthLoginService,
   loginService,
   registerUserService,
@@ -9,10 +8,12 @@ import {
 } from '@/services/auth.service';
 
 import { AuthenticationError, BadRequest } from '@/core/error';
-import {  signAccessJwtToken } from '@/utils/auth/jwt.utils';
-import { sanitizeUserObject } from '@/utils/auth/autheHelpers.utils';
+import { signAccessJwtToken, signRefreshJwtToken } from '@/utils/auth/jwt.utils';
+import { sanitizeUserObject } from '@/utils/auth/authHelpers.utils';
+import jwt from 'jsonwebtoken';
 
 const frontEndBaseUrl = process.env.FRONTEND_BASE_URL;
+const SECRET = process.env.JWT_SECRET;
 
 export const testingAuthPath = async (req: Request, res: Response) => {
   // const data = await handleServiceDemo(req.body);
@@ -24,9 +25,10 @@ export const registerUserController = async (req: Request, res: Response) => {
     throw new BadRequest('Username, password and email are required');
   }
   const data = await registerUserService(req.body.username, req.body.password, req.body.email);
-  const accessToken = signAccessJwtToken(data.user);
+  const sanitizedUser = sanitizeUserObject(data.user);
+  const accessToken = signAccessJwtToken(sanitizedUser);
 
-  const returnData: any = sanitizeUserObject(data);
+  const returnData: any = sanitizedUser;
   returnData.accessToken = accessToken;
   SuccessResponse.created(res, returnData);
 };
@@ -43,9 +45,16 @@ export const loginController = async (req: Request, res: Response) => {
     throw new BadRequest(data.reason);
   } else {
     //add cookie and more
-    const accessToken = signAccessJwtToken(data.user);
-    res.cookie('accessToken', accessToken, { httpOnly: true }); //todo: temp setting cookie, change to using cookie for refresh and memory for access
-    const returnData: any = sanitizeUserObject(data);
+    const sanitizedUser = sanitizeUserObject(data.user);
+    const accessToken = signAccessJwtToken(sanitizedUser);
+    const refreshToken = signRefreshJwtToken(sanitizedUser);
+
+    res.cookie('refreshToken', refreshToken, {
+      // httpOnly: true,
+      // secure: false, // ❌ Set to true in production (HTTPS)
+      // sameSite: 'none',
+    });
+    const returnData: any = sanitizedUser;
     returnData.accessToken = accessToken;
     SuccessResponse.ok(res, returnData);
   }
@@ -53,9 +62,35 @@ export const loginController = async (req: Request, res: Response) => {
 
 export const logoutController = async (req: Request, res: Response) => {
   //?Consider blacklist if more security is wanted
-  //todo:delete refresh token when it is implemented
-  res.clearCookie('accessToken');
+  res.clearCookie('refreshToken');
   SuccessResponse.ok(res, {}); //todo:check if empty data is ok
+};
+
+export const refreshTokenController = async (req: Request, res: Response) => {
+  //?Consider blacklist if more security is wanted
+  //todo:delete refresh token when it is implemented
+  const refreshToken = req.cookies.refreshToken;
+  if (!SECRET) {
+    throw new Error('JWT_SECRET is not defined in environment variables');
+  }
+  if (!refreshToken) {
+    throw new BadRequest('Refresh token is required');
+  }
+  try {
+    const decoded: any = jwt.verify(refreshToken, SECRET);
+
+    const sanitizedUser = sanitizeUserObject(decoded.user);
+    //.verify Validates expiration by default
+    //todo: enforce type for decoded
+    //todo: requery by userId
+    const accessToken = signAccessJwtToken(sanitizedUser);
+    const returnData: any = sanitizedUser;
+    returnData.accessToken = accessToken;
+    SuccessResponse.ok(res, returnData);
+  } catch {
+    throw new BadRequest('Unauthorized: Invalid token');
+  }
+  // SuccessResponse.ok(res, {}); //todo:check if empty data is ok
 };
 
 export const verifyEmailController = async (req: Request, res: Response) => {
@@ -94,7 +129,8 @@ export const googleOAuthRedirectController = async (req: Request, res: Response)
   const data = await googleOAuthLoginService(code);
 
   if (data.success) {
-    const accessToken = signAccessJwtToken(data.user);
+    const sanitizedUser = sanitizeUserObject(data.user);
+    const accessToken = signAccessJwtToken(sanitizedUser);
     res.redirect(`${frontEndBaseUrl}/?token=${accessToken}`);
 
     //todo: includes token of some kind for FE & handle on frontend

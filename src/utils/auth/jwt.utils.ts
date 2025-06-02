@@ -1,9 +1,10 @@
-import { SelectUser } from '@/models';
+import { SanitizedUser } from '@/types/auth/sanitizedUser.type';
 import jwt from 'jsonwebtoken';
 
-const jwtSecretKey = process.env.JWT_SECRET || 'dev-secret'; //todo:check types better
+const jwtSecretKey = process.env.JWT_SECRET; //todo:check types better
 
 const expiresIn = 86400; //Seconds until expiration - 86400= 1 day
+const refreshExpiresIn = 604800; //7 days
 
 type GoogleIdTokenPayload = {
   sub: string;
@@ -14,8 +15,10 @@ type GoogleIdTokenPayload = {
 };
 //todo:consider relocating if reused
 
-export const signAccessJwtToken = (user: SelectUser): string => {
-  console.log(jwtSecretKey);
+export const signAccessJwtToken = (user: SanitizedUser): string => {
+  if (!jwtSecretKey) {
+    throw new Error('JWT_SECRET is not defined in environment variables');
+  }
   const token = jwt.sign({ user }, jwtSecretKey, {
     algorithm: 'HS256',
     allowInsecureKeySizes: true,
@@ -24,13 +27,28 @@ export const signAccessJwtToken = (user: SelectUser): string => {
   return token;
 };
 
+export const signRefreshJwtToken = (user: SanitizedUser): string => {
+  if (!jwtSecretKey) {
+    throw new Error('JWT_SECRET is not defined in environment variables');
+  }
+  const token = jwt.sign({ user }, jwtSecretKey, {
+    algorithm: 'HS256',
+    allowInsecureKeySizes: true,
+    expiresIn: refreshExpiresIn,
+  });
+  return token;
+};
+
 export const verifyJwtToken = (token: string) => {
+  if (!jwtSecretKey) {
+    throw new Error('JWT_SECRET is not defined in environment variables');
+  }
   const decoded: any = jwt.verify(token, jwtSecretKey);
   //todo: consider type checking and error handling
   return decoded;
 };
 
-export const decodeJwtToken = (token: string):GoogleIdTokenPayload => {
+export const decodeJwtToken = (token: string): GoogleIdTokenPayload => {
   const decoded = jwt.decode(token);
   if (
     !decoded ||
