@@ -4,6 +4,7 @@ import { IBasicTopic, ITopic } from "@/types/topic/topic.type";
 import logger from "@/utils/logger";
 import { Request, Response } from "express";
 import TopicService from "@/services/topic/topic.service";
+import { getUserFromRequest } from "@/utils/auth/authHelpers.utils";
 
 const topicService = new TopicService();
 
@@ -32,8 +33,12 @@ class TopicController {
     }
 
     public async handleGetAllTopicsForUser(req: Request, res: Response) : Promise<void> {
-        let { userId } = req.query as { userId: string | number };
+        // logger.info('Go');
+        // const user = getUserFromRequest(req);
+        // logger.info(user.userId);
+        // let { userId } = req.query as { userId: string | number };
 
+        let userId : string | number = '2';
         userId = parseInt(userId as string);
 
         if(isNaN(userId)) {
