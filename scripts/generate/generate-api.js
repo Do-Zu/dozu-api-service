@@ -16,8 +16,7 @@ const SRC_PATH = path.join(__dirname, '../../src');
 // Templates
 const controllerTemplate = serviceName => `import { Request, Response } from 'express';
 import { ${toCamelCase(serviceName)}Service } from '@/services/${toKebabCase(serviceName)}/${toCamelCase(serviceName)}.service';
-import { HTTP_STATUS } from '@/constants/index.constant';
-import successHandler from '@/core/success';
+import { SuccessResponse } from '@/core/success';
 
 /**
  * Controller class for ${serviceName} functionality
