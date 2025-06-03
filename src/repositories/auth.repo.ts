@@ -111,6 +111,13 @@ export const findByProviderId = async (provider: string, providerId: string) => 
 export const insertAuthAccountObject = async (
   newAuthAccount: InsertAuthAccount
 ): Promise<SelectAuthAccount> => {
-  const [insertedAuthAccount] = await db.insert(authAccountsTable).values(newAuthAccount).returning();
+  const [insertedAuthAccount] = await db
+    .insert(authAccountsTable)
+    .values(newAuthAccount)
+    .returning();
   return insertedAuthAccount;
+};
+
+export const updateLastLoginAt = async (userId: number) => {
+  await db.update(usersTable).set({ lastLoginAt: new Date() }).where(eq(usersTable.userId, userId));
 };

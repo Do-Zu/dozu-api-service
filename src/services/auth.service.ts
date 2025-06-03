@@ -1,4 +1,5 @@
 import { BadRequest } from '@/core/error';
+
 import { getOAuthToken } from '@/libs/googleOAuth2Client';
 import { sendVerificationLinkEmail } from '@/libs/nodeMailerTransporter.lib';
 import { InsertAuthAccount } from '@/models';
@@ -13,20 +14,29 @@ import {
   queryVerificationCode,
   selectOneUserById,
   selectOneUserByUsername,
+  updateLastLoginAt,
   updateUserIsVerified,
 } from '@/repositories/auth.repo';
 import { hashPassword, verifyPassword } from '@/utils/auth/hash.utils';
 import { decodeJwtToken } from '@/utils/auth/jwt.utils';
-
 
 type LoginResult = { success: true; user: SelectUser } | { success: false; reason: string }; //todo:reformat as template type for every services
 export const loginService = async (username: string, password: string): Promise<LoginResult> => {
   const userData = await selectOneUserByUsername(username);
   if (!userData) return { success: false, reason: 'Username does not exist' };
   if (!userData.passwordHash) return { success: false, reason: 'Password is not set up' };
+
   const isCorrectPassword = await verifyPassword(password, userData.passwordHash);
-  if (isCorrectPassword) return { success: true, user: userData };
-  else return { success: false, reason: 'Username or password is not correct' };
+  if (isCorrectPassword) {
+    await updateLastLoginAt(userData.userId);
+    const updatedUser = await selectOneUserByUsername(userData.username);
+    return {
+      success: true,
+      user: updatedUser,
+    };
+  } else {
+    return { success: false, reason: 'Username or password is not correct' };
+  }
 };
 
 //todo:format response with types
@@ -62,7 +72,7 @@ export const getOAuthJwtTokenService = async (code: string) => {
   return result;
 };
 
-export const googleOAuthLoginService = async (code: string): Promise<LoginResult>  => {
+export const googleOAuthLoginService = async (code: string): Promise<LoginResult> => {
   const googleTokens = await getOAuthJwtTokenService(code);
   const decoded = decodeJwtToken(googleTokens); // contains sub, email, etc.
   //add type of decoded
