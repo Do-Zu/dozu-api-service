@@ -8,7 +8,7 @@ export const rolePermissionsTable = pgTable(
     roleId: integer('role_id')
       .notNull()
       .references(() => rolesTable.roleId, { onDelete: 'cascade' }),
-    permissionId: integer('role_id')
+    permissionId: integer('permission_id')
       .notNull()
       .references(() => permissionsTable.permissionId, { onDelete: 'cascade' }),
   },

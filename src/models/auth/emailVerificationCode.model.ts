@@ -1,7 +1,7 @@
 import { pgTable, serial, text, timestamp, integer } from 'drizzle-orm/pg-core';
 import { usersTable } from '../user.model';
 
-export const emailVerificationCodesTable = pgTable('email_verification_code', {
+export const emailVerificationCodesTable = pgTable('email_verification_codes', {
   emailVerificationCodeId: serial('email_verification_code_id').primaryKey(),
   userId: integer('user_id')
     .notNull()

@@ -2,7 +2,7 @@ import { pgTable, text, timestamp, unique, serial, integer } from 'drizzle-orm/p
 import { usersTable } from '../user.model';
 
 export const authAccountsTable = pgTable(
-  'auth_account',
+  'auth_accounts',
   {
     authAccountId: serial('auth_account_id').primaryKey(),
     userId: integer('user_id')
