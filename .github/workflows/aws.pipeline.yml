@@ -117,13 +117,13 @@ jobs:
           ACCESS_KEY_ID_AWS="${12}"
           SECRET_ACCESS_KEY_AWS="${13}"
           FRONTEND_BASE_URL="${14}"
-          MAIL_HOST="${15}"
-          MAIL_USERNAME="${16}"
-          MAIL_APP_PASSWORD="${17}"
-          JWT_SECRET="${18}"
-          GOOGLE_CLIENT_ID="${19}"
-          GOOGLE_CLIENT_SECRET="${20}"
-          GOOGLE_REDIRECT_URI="${21}"
+          BACKEND_BASE_URL="${15}"
+          MAIL_HOST="${16}"
+          MAIL_USERNAME="${17}"
+          MAIL_APP_PASSWORD="${18}"
+          JWT_SECRET="${19}"
+          GOOGLE_CLIENT_ID="${20}"
+          GOOGLE_CLIENT_SECRET="${21}"
 
           # Determine which env file to use
           if [ "$ENV" = "production" ]; then
@@ -202,6 +202,7 @@ jobs:
           echo "ACCESS_KEY_ID_AWS: $(mask_value "$ACCESS_KEY_ID_AWS")"
           echo "SECRET_ACCESS_KEY_AWS: $(mask_value "$SECRET_ACCESS_KEY_AWS")"
           echo "FRONTEND_BASE_URL: $FRONTEND_BASE_URL"
+          echo "BACKEND_BASE_URL: $BACKEND_BASE_URL"
           echo "MAIL_HOST: $MAIL_HOST"
           echo "MAIL_USERNAME: $MAIL_USERNAME"
           echo "MAIL_APP_PASSWORD: $(mask_value "$MAIL_APP_PASSWORD")"
@@ -221,13 +222,14 @@ jobs:
           update_env_var "ACCESS_KEY_ID_AWS" "$ACCESS_KEY_ID_AWS"
           update_env_var "SECRET_ACCESS_KEY_AWS" "$SECRET_ACCESS_KEY_AWS"
           update_env_var "FRONTEND_BASE_URL" "$FRONTEND_BASE_URL"
+          update_env_var "BACKEND_BASE_URL" "$BACKEND_BASE_URL"
           update_env_var "MAIL_HOST" "$MAIL_HOST"
           update_env_var "MAIL_USERNAME" "$MAIL_USERNAME"
           update_env_var "MAIL_APP_PASSWORD" "$MAIL_APP_PASSWORD"
           update_env_var "JWT_SECRET" "$JWT_SECRET"
           update_env_var "GOOGLE_CLIENT_ID" "$GOOGLE_CLIENT_ID"
           update_env_var "GOOGLE_CLIENT_SECRET" "$GOOGLE_CLIENT_SECRET"
-          update_env_var "GOOGLE_REDIRECT_URI" "$GOOGLE_REDIRECT_URI"
+         
 
           # Start Docker with the appropriate env file
           echo "Starting Docker services with $ENV_FILE..."
@@ -263,13 +265,13 @@ jobs:
           '${{ secrets.ACCESS_KEY_ID_AWS }}' \
           '${{ secrets.SECRET_ACCESS_KEY_AWS }}' \
           '${{ secrets.FRONTEND_BASE_URL }}' \
+          '${{ secrets.BACKEND_BASE_URL }}' \
           '${{ secrets.MAIL_HOST }}' \
           '${{ secrets.MAIL_USERNAME }}' \
           '${{ secrets.MAIL_APP_PASSWORD }}' \
           '${{ secrets.JWT_SECRET }}' \
           '${{ secrets.GOOGLE_CLIENT_ID }}' \
-          '${{ secrets.GOOGLE_CLIENT_SECRET }}' \
-          '${{ secrets.GOOGLE_REDIRECT_URI }}'"
+          '${{ secrets.GOOGLE_CLIENT_SECRET }}'"
       - name: Cleanup script
         run: |
           ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "rm -f ~/deploy.sh"
