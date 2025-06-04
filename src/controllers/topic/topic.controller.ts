@@ -1,127 +1,131 @@
-import { BadRequest, DatabaseError } from "@/core/error";
-import { SuccessResponse } from "@/core/success";
-import { IBasicTopic, ITopic } from "@/types/topic/topic.type";
-import logger from "@/utils/logger";
-import { Request, Response } from "express";
-import TopicService from "@/services/topic/topic.service";
-import { getUserFromRequest } from "@/utils/auth/authHelpers.utils";
+import { BadRequest, DatabaseError } from '@/core/error';
+import { SuccessResponse } from '@/core/success';
+import { IBasicTopic, ITopic } from '@/types/topic/topic.type';
+import logger from '@/utils/logger';
+import { Request, Response } from 'express';
+import TopicService from '@/services/topic/topic.service';
+import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 
 const topicService = new TopicService();
 
 class TopicController {
-    constructor() {}
+  constructor() {}
 
-    public async handleGetSingleTopic(req: Request, res: Response) : Promise<void> {
-        let { topicId } = req.params as { topicId: string | number }; 
+  public async handleGetSingleTopic(req: Request, res: Response): Promise<void> {
+    let { topicId } = req.params as { topicId: string | number };
 
-        topicId = parseInt(topicId as string);
+    topicId = parseInt(topicId as string);
 
-        if(isNaN(topicId)) {
-            throw new BadRequest('Invalid param, cannot get topic');
-        }
-
-        let topic: Pick<ITopic, 'topicId' | 'name' | 'description'> | undefined;
-
-        try {
-            topic = await topicService.handleGetSingleTopic(topicId);
-        } catch(err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
-        }
-
-        SuccessResponse.ok(res, { topic });
+    if (isNaN(topicId)) {
+      throw new BadRequest('Invalid param, cannot get topic');
     }
 
-    public async handleGetAllTopicsForUser(req: Request, res: Response) : Promise<void> {
-        // logger.info('Go');
-        // const user = getUserFromRequest(req);
-        // logger.info(user.userId);
-        // let { userId } = req.query as { userId: string | number };
+    let topic: Pick<ITopic, 'topicId' | 'name' | 'description'> | undefined;
 
-        let userId : string | number = '2';
-        userId = parseInt(userId as string);
-
-        if(isNaN(userId)) {
-            throw new BadRequest('Invalid param, cannot get topics');
-        }
-        
-        let topics: IBasicTopic[];
-        try {
-            topics = await topicService.handleGetAllTopicsForUser(userId);   
-        } catch(err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
-        }
-
-        SuccessResponse.ok(res, { topics });
+    try {
+      topic = await topicService.handleGetSingleTopic(topicId);
+    } catch (err) {
+      logger.error(err);
+      throw new DatabaseError('Something went wrong');
     }
 
-    public async handleInsertSingleTopicForUser(req: Request, res: Response) : Promise<void> {
-        let { userId } = req.query as { userId: string | number };
+    SuccessResponse.ok(res, { topic });
+  }
 
-        userId = parseInt(userId as string);
-
-        if(isNaN(userId)) {
-            throw new BadRequest('Invalid param, cannot insert topic');
-        }
-
-        const { topicName, topicDescription } = req.body as { topicName: string, topicDescription: string };
-        const topicAddedValue : Pick<ITopic, 'userId' | 'name' | 'description'> = { userId, name: topicName, description: topicDescription };
-
-        let topicAdded: Pick<ITopic, 'topicId' | 'name' | 'description'>;
-        try {
-            topicAdded = await topicService.handleInsertSingleTopicForUser(topicAddedValue);
-        } catch(err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
-        }
-
-        SuccessResponse.ok(res, { topic: topicAdded });
+  public async handleGetAllTopicsForUser(req: Request, res: Response): Promise<void> {
+    const userId = getUserIdFromRequest(req);
+    if (isNaN(userId)) {
+      throw new BadRequest('Invalid param, cannot get topics');
     }
 
-    public async handleUpdateSingleTopic(req: Request, res: Response) : Promise<void> {
-        let { topicId } = req.params as { topicId: string | number };
-
-        topicId = parseInt(topicId as string);
-
-        if(isNaN(topicId)) {
-            throw new BadRequest('Invalid param, cannot update topic');
-        }
-
-        const { topicName, topicDescription } = req.body as { topicName: string, topicDescription: string };
-        const topicUpdatedValue : Pick<ITopic, 'name' | 'description'> = { name: topicName, description: topicDescription };
-
-        let topicUpdated: Pick<ITopic, 'topicId' | 'name' | 'description'>;
-        try {
-            topicUpdated = await topicService.handleUpdateSingleTopic(topicId, topicUpdatedValue);
-        } catch(err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
-        }
-        
-        SuccessResponse.ok(res, { topic: topicUpdated });
+    let topics: IBasicTopic[];
+    try {
+      topics = await topicService.handleGetAllTopicsForUser(userId);
+    } catch (err) {
+      logger.error(err);
+      throw new DatabaseError('Something went wrong');
     }
 
-    // còn flashcards -> vẫn xóa topic
-    public async handleDeleteSingleTopicForUser(req: Request, res: Response) : Promise<void> {
-        let { topicId } = req.params as { topicId: string | number };
+    SuccessResponse.ok(res, { topics });
+  }
 
-        topicId = parseInt(topicId as string);
+  public async handleInsertSingleTopicForUser(req: Request, res: Response): Promise<void> {
+    const userId = getUserIdFromRequest(req);
 
-        if(isNaN(topicId)) {
-            throw new BadRequest('Invalid param, cannot update topic');
-        }
-
-        // let topicsDeleted : Pick<ITopic, 'topicId'>[];
-        try {
-            // topicsDeleted = await db
-            await topicService.handleDeleteSingleTopic(topicId);
-        } catch(err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
-        }
-        SuccessResponse.noContent(res);
+    if (isNaN(userId)) {
+      throw new BadRequest('Invalid param, cannot insert topic');
     }
+
+    const { topicName, topicDescription } = req.body as {
+      topicName: string;
+      topicDescription: string;
+    };
+    const topicAddedValue: Pick<ITopic, 'userId' | 'name' | 'description'> = {
+      userId,
+      name: topicName,
+      description: topicDescription,
+    };
+
+    let topicAdded: Pick<ITopic, 'topicId' | 'name' | 'description'>;
+    try {
+      topicAdded = await topicService.handleInsertSingleTopicForUser(topicAddedValue);
+    } catch (err) {
+      logger.error(err);
+      throw new DatabaseError('Something went wrong');
+    }
+
+    SuccessResponse.ok(res, { topic: topicAdded });
+  }
+
+  public async handleUpdateSingleTopic(req: Request, res: Response): Promise<void> {
+    let { topicId } = req.params as { topicId: string | number };
+
+    topicId = parseInt(topicId as string);
+
+    if (isNaN(topicId)) {
+      throw new BadRequest('Invalid param, cannot update topic');
+    }
+
+    const { topicName, topicDescription } = req.body as {
+      topicName: string;
+      topicDescription: string;
+    };
+    const topicUpdatedValue: Pick<ITopic, 'name' | 'description'> = {
+      name: topicName,
+      description: topicDescription,
+    };
+
+    let topicUpdated: Pick<ITopic, 'topicId' | 'name' | 'description'>;
+    try {
+      topicUpdated = await topicService.handleUpdateSingleTopic(topicId, topicUpdatedValue);
+    } catch (err) {
+      logger.error(err);
+      throw new DatabaseError('Something went wrong');
+    }
+
+    SuccessResponse.ok(res, { topic: topicUpdated });
+  }
+
+  // còn flashcards -> vẫn xóa topic
+  public async handleDeleteSingleTopicForUser(req: Request, res: Response): Promise<void> {
+    let { topicId } = req.params as { topicId: string | number };
+
+    topicId = parseInt(topicId as string);
+
+    if (isNaN(topicId)) {
+      throw new BadRequest('Invalid param, cannot update topic');
+    }
+
+    // let topicsDeleted : Pick<ITopic, 'topicId'>[];
+    try {
+      // topicsDeleted = await db
+      await topicService.handleDeleteSingleTopic(topicId);
+    } catch (err) {
+      logger.error(err);
+      throw new DatabaseError('Something went wrong');
+    }
+    SuccessResponse.noContent(res);
+  }
 }
 
 export default TopicController;
