@@ -117,13 +117,13 @@ jobs:
           ACCESS_KEY_ID_AWS="${12}"
           SECRET_ACCESS_KEY_AWS="${13}"
           FRONTEND_BASE_URL="${14}"
-          MAIL_HOST="${15}"
-          MAIL_USERNAME="${16}"
-          MAIL_APP_PASSWORD="${17}"
-          JWT_SECRET="${18}"
-          GOOGLE_CLIENT_ID="${19}"
-          GOOGLE_CLIENT_SECRET="${20}"
-          GOOGLE_REDIRECT_URI="${21}"
+          BACKEND_BASE_URL="${15}"
+          MAIL_HOST="${16}"
+          MAIL_USERNAME="${17}"
+          MAIL_APP_PASSWORD="${18}"
+          JWT_SECRET="${19}"
+          GOOGLE_CLIENT_ID="${20}"
+          GOOGLE_CLIENT_SECRET="${21}"
 
           # Determine which env file to use
           if [ "$ENV" = "production" ]; then
@@ -263,13 +263,13 @@ jobs:
           '${{ secrets.ACCESS_KEY_ID_AWS }}' \
           '${{ secrets.SECRET_ACCESS_KEY_AWS }}' \
           '${{ secrets.FRONTEND_BASE_URL }}' \
+          '${{ secrets.BACKEND_BASE_URL }}' \
           '${{ secrets.MAIL_HOST }}' \
           '${{ secrets.MAIL_USERNAME }}' \
           '${{ secrets.MAIL_APP_PASSWORD }}' \
           '${{ secrets.JWT_SECRET }}' \
           '${{ secrets.GOOGLE_CLIENT_ID }}' \
-          '${{ secrets.GOOGLE_CLIENT_SECRET }}' \
-          '${{ secrets.GOOGLE_REDIRECT_URI }}'"
+          '${{ secrets.GOOGLE_CLIENT_SECRET }}'"
       - name: Cleanup script
         run: |
           ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "rm -f ~/deploy.sh"
