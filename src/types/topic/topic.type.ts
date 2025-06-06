@@ -6,4 +6,6 @@ export interface ITopic {
     createdAt: Date
 }
 
-export type IBasicTopic = Pick<ITopic, 'topicId' | 'name' | 'description'> & { flashcardsCount?: number };
+export type ITopicBasic = Pick<ITopic, 'topicId' | 'name' | 'description'>;
+export type ITopicAdded = Pick<ITopic, 'userId' | 'name' | 'description'>;
+export type ITopicUpdated = Pick<ITopic, 'name' | 'description'>;
