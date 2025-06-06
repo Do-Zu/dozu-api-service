@@ -1,10 +1,11 @@
 import { BadRequest, DatabaseError } from '@/core/error';
 import { SuccessResponse } from '@/core/success';
-import { IBasicTopic, ITopic } from '@/types/topic/topic.type';
+import { ITopicBasic, ITopicAdded, ITopicUpdated } from '@/types/topic/topic.type';
 import logger from '@/utils/logger';
 import { Request, Response } from 'express';
 import TopicService from '@/services/topic/topic.service';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
+import { ITopicsForUserReturned } from '@/repositories/topic.repo';
 
 const topicService = new TopicService();
 
@@ -20,7 +21,7 @@ class TopicController {
       throw new BadRequest('Invalid param, cannot get topic');
     }
 
-    let topic: Pick<ITopic, 'topicId' | 'name' | 'description'> | undefined;
+    let topic: ITopicBasic | undefined;
 
     try {
       topic = await topicService.handleGetSingleTopic(topicId);
@@ -29,7 +30,7 @@ class TopicController {
       throw new DatabaseError('Something went wrong');
     }
 
-    SuccessResponse.ok(res, { topic });
+    SuccessResponse.ok(res, topic);
   }
 
   public async handleGetAllTopicsForUser(req: Request, res: Response): Promise<void> {
@@ -38,7 +39,7 @@ class TopicController {
       throw new BadRequest('Invalid param, cannot get topics');
     }
 
-    let topics: IBasicTopic[];
+    let topics: ITopicsForUserReturned;
     try {
       topics = await topicService.handleGetAllTopicsForUser(userId);
     } catch (err) {
@@ -46,7 +47,7 @@ class TopicController {
       throw new DatabaseError('Something went wrong');
     }
 
-    SuccessResponse.ok(res, { topics });
+    SuccessResponse.ok(res, topics);
   }
 
   public async handleInsertSingleTopicForUser(req: Request, res: Response): Promise<void> {
@@ -60,21 +61,20 @@ class TopicController {
       topicName: string;
       topicDescription: string;
     };
-    const topicAddedValue: Pick<ITopic, 'userId' | 'name' | 'description'> = {
+    const topicAddedValue: ITopicAdded = {
       userId,
       name: topicName,
       description: topicDescription,
     };
 
-    let topicAdded: Pick<ITopic, 'topicId' | 'name' | 'description'>;
     try {
-      topicAdded = await topicService.handleInsertSingleTopicForUser(topicAddedValue);
+      await topicService.handleInsertSingleTopicForUser(topicAddedValue);
     } catch (err) {
       logger.error(err);
       throw new DatabaseError('Something went wrong');
     }
 
-    SuccessResponse.ok(res, { topic: topicAdded });
+    SuccessResponse.ok(res, {});
   }
 
   public async handleUpdateSingleTopic(req: Request, res: Response): Promise<void> {
@@ -90,20 +90,19 @@ class TopicController {
       topicName: string;
       topicDescription: string;
     };
-    const topicUpdatedValue: Pick<ITopic, 'name' | 'description'> = {
+    const topicUpdatedValue: ITopicUpdated = {
       name: topicName,
       description: topicDescription,
     };
 
-    let topicUpdated: Pick<ITopic, 'topicId' | 'name' | 'description'>;
     try {
-      topicUpdated = await topicService.handleUpdateSingleTopic(topicId, topicUpdatedValue);
+      await topicService.handleUpdateSingleTopic(topicId, topicUpdatedValue);
     } catch (err) {
       logger.error(err);
       throw new DatabaseError('Something went wrong');
     }
 
-    SuccessResponse.ok(res, { topic: topicUpdated });
+    SuccessResponse.ok(res, {});
   }
 
   // còn flashcards -> vẫn xóa topic
@@ -116,9 +115,7 @@ class TopicController {
       throw new BadRequest('Invalid param, cannot update topic');
     }
 
-    // let topicsDeleted : Pick<ITopic, 'topicId'>[];
     try {
-      // topicsDeleted = await db
       await topicService.handleDeleteSingleTopic(topicId);
     } catch (err) {
       logger.error(err);
