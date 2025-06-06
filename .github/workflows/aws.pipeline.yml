@@ -108,22 +108,25 @@ jobs:
           ENV="$3"
           OPENAI_KEY="$4"
           GOOGLE_KEY="$5"
-          REDIS_HOST="$6"
-          REDIS_PORT="$7"
-          REDIS_PASSWORD="$8"
-          REDIS_DB="$9"
-          REDIS_USERNAME="${10}"
-          AWS_REGION="${11}"
-          ACCESS_KEY_ID_AWS="${12}"
-          SECRET_ACCESS_KEY_AWS="${13}"
-          FRONTEND_BASE_URL="${14}"
-          MAIL_HOST="${15}"
-          MAIL_USERNAME="${16}"
-          MAIL_APP_PASSWORD="${17}"
-          JWT_SECRET="${18}"
-          GOOGLE_CLIENT_ID="${19}"
-          GOOGLE_CLIENT_SECRET="${20}"
-          GOOGLE_REDIRECT_URI="${21}"
+          REDIS_REC_HOST="$6"
+          REDIS_REC_PORT="$7"
+          REDIS_REC_PASSWORD="$8"
+          REDIS_REC_DB="$9"
+          REDIS_REC_USERNAME="${10}"
+          REDIS_PUBSUB_HOST="${11}"
+          REDIS_PUBSUB_PORT="${12}"
+          REDIS_PUBSUB_PASSWORD="${13}"
+          REDIS_PUBSUB_DB="${14}"
+          AWS_REGION="${15}"
+          ACCESS_KEY_ID_AWS="${16}"
+          SECRET_ACCESS_KEY_AWS="${17}"
+          FRONTEND_BASE_URL="${18}"
+          MAIL_HOST="${19}"
+          MAIL_USERNAME="${20}"
+          MAIL_APP_PASSWORD="${21}"
+          JWT_SECRET="${22}"
+          GOOGLE_CLIENT_ID="${23}"
+          GOOGLE_CLIENT_SECRET="${24}"
 
           # Determine which env file to use
           if [ "$ENV" = "production" ]; then
@@ -178,45 +181,50 @@ jobs:
           echo "Environment: $ENV"
 
           # Print all variables with masked sensitive values
-          # mask_value() {
-          #   if [ -z "$1" ]; then
-          #     echo "[EMPTY]"
-          #   else
-          #     local length=${#1}
-          #     if [ "$length" -gt 8 ]; then
-          #       echo "${1:0:4}...${1:$(($length - 4))}"
-          #     else
-          #       echo "$1"
-          #     fi
-          #   fi
-          # }
+          mask_value() {
+            if [ -z "$1" ]; then
+              echo "[EMPTY]"
+            else
+              local length=${#1}
+              if [ "$length" -gt 8 ]; then
+                echo "${1:0:4}...${1:$(($length - 4))}"
+              else
+                echo "$1"
+              fi
+            fi
+          }
             
-          # echo "OPENAI_API_KEY: $(mask_value "$OPENAI_KEY")"
-          # echo "GOOGLE_STUDIO_API_KEY: $(mask_value "$GOOGLE_KEY")"
-          # echo "REDIS_HOST: $REDIS_HOST"
-          # echo "REDIS_PORT: $REDIS_PORT"
-          # echo "REDIS_PASSWORD: $(mask_value "$REDIS_PASSWORD")"
-          # echo "REDIS_DB: $REDIS_DB"
-          # echo "REDIS_USERNAME: $REDIS_USERNAME"
-          # echo "AWS_REGION: $AWS_REGION"
-          # echo "ACCESS_KEY_ID_AWS: $(mask_value "$ACCESS_KEY_ID_AWS")"
-          # echo "SECRET_ACCESS_KEY_AWS: $(mask_value "$SECRET_ACCESS_KEY_AWS")"
-          # echo "FRONTEND_BASE_URL: $FRONTEND_BASE_URL"
-          # echo "MAIL_HOST: $MAIL_HOST"
-          # echo "MAIL_USERNAME: $MAIL_USERNAME"
-          # echo "MAIL_APP_PASSWORD: $(mask_value "$MAIL_APP_PASSWORD")"
-          # echo "JWT_SECRET: $(mask_value "$JWT_SECRET")"
-          # echo "GOOGLE_CLIENT_ID: $GOOGLE_CLIENT_ID"
-          # echo "GOOGLE_CLIENT_SECRET: $(mask_value "$GOOGLE_CLIENT_SECRET")"
-          # echo "GOOGLE_REDIRECT_URI: $GOOGLE_REDIRECT_URI"
+          echo "OPENAI_API_KEY: $(mask_value "$OPENAI_KEY")"
+          echo "GOOGLE_STUDIO_API_KEY: $(mask_value "$GOOGLE_KEY")"
+          echo "REDIS_HOST: $REDIS_HOST"
+          echo "REDIS_PORT: $REDIS_PORT"
+          echo "REDIS_PASSWORD: $(mask_value "$REDIS_PASSWORD")"
+          echo "REDIS_DB: $REDIS_DB"
+          echo "REDIS_USERNAME: $REDIS_USERNAME"
+          echo "AWS_REGION: $AWS_REGION"
+          echo "ACCESS_KEY_ID_AWS: $(mask_value "$ACCESS_KEY_ID_AWS")"
+          echo "SECRET_ACCESS_KEY_AWS: $(mask_value "$SECRET_ACCESS_KEY_AWS")"
+          echo "FRONTEND_BASE_URL: $FRONTEND_BASE_URL"
+          echo "BACKEND_BASE_URL: $BACKEND_BASE_URL"
+          echo "MAIL_HOST: $MAIL_HOST"
+          echo "MAIL_USERNAME: $MAIL_USERNAME"
+          echo "MAIL_APP_PASSWORD: $(mask_value "$MAIL_APP_PASSWORD")"
+          echo "JWT_SECRET: $(mask_value "$JWT_SECRET")"
+          echo "GOOGLE_CLIENT_ID: $GOOGLE_CLIENT_ID"
+          echo "GOOGLE_CLIENT_SECRET: $(mask_value "$GOOGLE_CLIENT_SECRET")"
+          echo "GOOGLE_REDIRECT_URI: $GOOGLE_REDIRECT_URI"
 
           update_env_var "OPENAI_API_KEY" "$OPENAI_KEY"
           update_env_var "GOOGLE_STUDIO_API_KEY" "$GOOGLE_KEY"
-          update_env_var "REDIS_HOST" "$REDIS_HOST"
-          update_env_var "REDIS_PORT" "$REDIS_PORT"
-          update_env_var "REDIS_PASSWORD" "$REDIS_PASSWORD"
-          update_env_var "REDIS_DB" "$REDIS_DB"
-          update_env_var "REDIS_USERNAME" "$REDIS_USERNAME"
+          update_env_var "REDIS_RECOMMENDATION_HOST" "$REDIS_REC_HOST"
+          update_env_var "REDIS_RECOMMENDATION_PORT" "$REDIS_REC_PORT"
+          update_env_var "REDIS_RECOMMENDATION_PASSWORD" "$REDIS_REC_PASSWORD"
+          update_env_var "REDIS_RECOMMENDATION_DB" "$REDIS_REC_DB"
+          update_env_var "REDIS_RECOMMENDATION_USERNAME" "$REDIS_REC_USERNAME"
+          update_env_var "REDIS_PUBSUB_HOST" "$REDIS_PUBSUB_HOST"
+          update_env_var "REDIS_PUBSUB_PORT" "$REDIS_PUBSUB_PORT"
+          update_env_var "REDIS_PUBSUB_PASSWORD" "$REDIS_PUBSUB_PASSWORD"
+          update_env_var "REDIS_PUBSUB_DB" "$REDIS_PUBSUB_DB"
           update_env_var "AWS_REGION" "$AWS_REGION"
           update_env_var "ACCESS_KEY_ID_AWS" "$ACCESS_KEY_ID_AWS"
           update_env_var "SECRET_ACCESS_KEY_AWS" "$SECRET_ACCESS_KEY_AWS"
@@ -227,7 +235,7 @@ jobs:
           update_env_var "JWT_SECRET" "$JWT_SECRET"
           update_env_var "GOOGLE_CLIENT_ID" "$GOOGLE_CLIENT_ID"
           update_env_var "GOOGLE_CLIENT_SECRET" "$GOOGLE_CLIENT_SECRET"
-          update_env_var "GOOGLE_REDIRECT_URI" "$GOOGLE_REDIRECT_URI"
+
 
           # Start Docker with the appropriate env file
           echo "Starting Docker services with $ENV_FILE..."
@@ -254,11 +262,15 @@ jobs:
           '${{ github.event.inputs.environment }}' \
           '${{ secrets.OPENAI_API_KEY }}' \
           '${{ secrets.GOOGLE_STUDIO_API_KEY }}' \
-          '${{ secrets.REDIS_HOST }}' \
-          '${{ secrets.REDIS_PORT }}' \
-          '${{ secrets.REDIS_PASSWORD }}' \
-          '${{ secrets.REDIS_DB }}' \
-          '${{ secrets.REDIS_USERNAME }}' \
+          '${{ secrets.REDIS_RECOMMENDATION_HOST }}' \
+          '${{ secrets.REDIS_RECOMMENDATION_PORT }}' \
+          '${{ secrets.REDIS_RECOMMENDATION_PASSWORD }}' \
+          '${{ secrets.REDIS_RECOMMENDATION_DB }}' \
+          '${{ secrets.REDIS_RECOMMENDATION_USERNAME }}' \
+          '${{ secrets.REDIS_PUBSUB_HOST }}' \
+          '${{ secrets.REDIS_PUBSUB_PORT }}' \
+          '${{ secrets.REDIS_PUBSUB_PASSWORD }}' \
+          '${{ secrets.REDIS_PUBSUB_DB }}' \
           '${{ secrets.AWS_REGION }}' \
           '${{ secrets.ACCESS_KEY_ID_AWS }}' \
           '${{ secrets.SECRET_ACCESS_KEY_AWS }}' \
@@ -268,8 +280,7 @@ jobs:
           '${{ secrets.MAIL_APP_PASSWORD }}' \
           '${{ secrets.JWT_SECRET }}' \
           '${{ secrets.GOOGLE_CLIENT_ID }}' \
-          '${{ secrets.GOOGLE_CLIENT_SECRET }}' \
-          '${{ secrets.GOOGLE_REDIRECT_URI }}'"
+          '${{ secrets.GOOGLE_CLIENT_SECRET }}'"
       - name: Cleanup script
         run: |
           ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "rm -f ~/deploy.sh"
