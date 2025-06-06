@@ -9,6 +9,7 @@ import {
   primaryKey,
 } from 'drizzle-orm/pg-core';
 import { usersTable } from '@/models/user.model';
+import { topicsTable } from '../topic.model';
 
 export const itemSpacedRepetitionTrackingTable = pgTable(
   'item_spaced_repetition_tracking',
@@ -17,14 +18,17 @@ export const itemSpacedRepetitionTrackingTable = pgTable(
     userId: integer('user_id')
       .notNull()
       .references(() => usersTable.userId, { onDelete: 'cascade' }),
+    topicId: integer('topic_id')
+      .notNull()
+      .references(() => topicsTable.topicId, { onDelete: 'cascade' }),
     type: text('type').notNull(), // 'flashcard' or 'question'
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-    repetitionNumber: integer('repetition_number').default(0),
-    easinessFactor: decimal('easiness_factor', { precision: 3, scale: 2 }).default('2.5'),
-    interval: integer('interval').default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    repetitionNumber: integer('repetition_number').notNull().default(0),
+    easinessFactor: decimal('easiness_factor', { precision: 3, scale: 2 }).notNull().default('2.5'),
+    reviewInterval: integer('review_interval').notNull().default(0),
     lastReviewed: date('last_reviewed'),
     nextReview: date('next_review'),
-    status: varchar('status', { length: 10 }).default('new'), // 'new', 'learning', 'review'
+    status: varchar('status', { length: 10 }).notNull().default('new'), // 'new', 'learning', 'review'
   },
   table => ({
     pk: primaryKey({ columns: [table.itemId, table.userId, table.type] }),
