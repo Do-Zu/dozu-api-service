@@ -145,15 +145,13 @@ jobs:
 
           if [ -d .git ]; then
             echo "Git repository exists, fetching changes..."
-            git fetch --all
             git checkout "$BRANCH" || git checkout -b "$BRANCH" "origin/$BRANCH"
             git pull origin "$BRANCH"
           else
             echo "Cloning fresh repository..."
             rm -rf * .[!.]* ..?*
             git init
-            git remote add origin https://github.com/your-org/dozu-api-service.git
-            git fetch --all
+            git remote add origin https://github.com/perinst/dozu-api-service.git
             git checkout -b "$BRANCH" "origin/$BRANCH"
           fi
 
