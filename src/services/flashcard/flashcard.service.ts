@@ -1,183 +1,141 @@
-import { flashcardsTable } from '@/models';
-import FlashcardRepo from '@/repositories/flashcard.repo';
+import FlashcardRepo, {
+  IFlashcardAddedArgument,
+  IPutFlashcardToLearningArgumentDate,
+  IFlashcardsForTopicReturned,
+  IFlashcardsLearningForUserReturned,
+  IFlashcardSpacedRepetitionReturned,
+  IApplyFlashcardSM2ArgumentSM2,
+} from '@/repositories/flashcard.repo';
 import {
-  IBasicFlashcardReturned,
   IFlashcardAdded,
   IFlashcardDeleted,
-  IFlashcardFieldsReturned,
-  IFlashcardPracticed,
-  IFlashcardProgressUpdated,
-  IFlashcardReturned,
+  IFlashcardFull,
   IFlashcardsBatch,
-  IFlashcardSuperMemo,
   IFlashcardUpdated,
+  IQualityResponseNextReviewInterval,
 } from '@/types/flashcard/flashcard.type';
-import { IQualityResponse } from '../spaced-repetition-system/super-memo-2/superMemo2.origin.class.service';
-import { getDateAdded } from '@/utils/date';
-// import { sm2 } from "../spaced-repetition-system/super-memo-2/superMemo2.origin.service";
-import SuperMemo2 from '../spaced-repetition-system/super-memo-2/superMemo2.origin.class.service';
+import { IQualityResponse } from '../spaced-repetition-system/super-memo-2/superMemo2.origin';
+import { getDateAdded, getDateFormatted } from '@/utils/date';
+import SuperMemo2 from '../spaced-repetition-system/super-memo-2/superMemo2.origin';
 
 const flashcardRepo = new FlashcardRepo();
+
+export type IFlashcardNextReviewReturned = Pick<
+  IFlashcardFull,
+  'flashcardId' | 'front' | 'back' | 'topicName'
+> & { qualityResponsesNextReviewInterval: IQualityResponseNextReviewInterval[] };
+
+export type IFlashcardNextReviewArgumentFlashcards = Omit<IFlashcardFull, 'lastReviewed'>[];
 
 class FlashcardService {
   constructor() {}
 
-  public async handleGetFlashcardProgress(flashcardId: number) {
-    const fieldsReturned: IFlashcardFieldsReturned = {
-      flashcardId: flashcardsTable.flashcardId,
-      reviewInterval: flashcardsTable.reviewInterval,
-      easinessFactor: flashcardsTable.easinessFactor,
-      repetitionNumber: flashcardsTable.repetitionNumber,
-      lastReviewed: flashcardsTable.lastReviewed,
-    };
-    const flashcard = await flashcardRepo.handleGetSingleFlashcard(flashcardId, fieldsReturned);
+  public async handleGetFlashcardSpacedRepetition(
+    flashcardId: number
+  ): Promise<IFlashcardSpacedRepetitionReturned> {
+    const flashcard = await flashcardRepo.handleGetFlashcardSpacedRepetition(flashcardId);
     return flashcard;
   }
 
   public async handleGetAllFlashcardsForTopic(
     topicId: number
-  ): Promise<(IBasicFlashcardReturned & { status: string })[]> {
+  ): Promise<IFlashcardsForTopicReturned> {
     const flashcards = await flashcardRepo.handleGetAllFlashcardsForTopic(topicId);
     return flashcards;
   }
 
   public async handleInsertFlashcardsForTopic(
+    userId: number,
     topicId: number,
     flashcards: IFlashcardAdded[]
-  ): Promise<IBasicFlashcardReturned[]> {
-    let flashcardsFormatted = flashcards.map(flashcard => {
+  ): Promise<void> {
+    let flashcardsFormatted: IFlashcardAddedArgument = flashcards.map(flashcard => {
       return { topicId: topicId, front: flashcard.front, back: flashcard.back };
     });
 
-    let flashcardsAdded = await flashcardRepo.handleInsertFlashcardsForTopic(flashcardsFormatted);
-    return flashcardsAdded;
+    await flashcardRepo.handleInsertFlashcardsForTopic(userId, flashcardsFormatted);
   }
 
-  public async handleUpdateFlashcardsForTopic(
-    flashcards: IFlashcardUpdated[]
-  ): Promise<IBasicFlashcardReturned[]> {
-    const flashcardsUpdated = await flashcardRepo.handleUpdateFlashcardsForTopic(flashcards);
-    return flashcardsUpdated;
+  public async handleUpdateFlashcardsForTopic(flashcards: IFlashcardUpdated[]): Promise<void> {
+    await flashcardRepo.handleUpdateFlashcardsForTopic(flashcards);
   }
 
-  public async handleUpdateSingleFlashcardForTopic(
-    flashcard: IFlashcardUpdated
-  ): Promise<IBasicFlashcardReturned> {
-    const flashcardUpdated = await flashcardRepo.handleUpdateSingleFlashcardForTopic(flashcard);
-    return flashcardUpdated;
-  }
-
-  public async handleDeleteFlashcardsForTopic(
-    flashcardsIds: IFlashcardDeleted[]
-  ): Promise<number[]> {
-    let flashcardsDeleted = await flashcardRepo.handleDeleteFlashcardsForTopic(flashcardsIds);
-    return flashcardsDeleted;
+  public async handleDeleteFlashcardsForTopic(flashcardsIds: IFlashcardDeleted[]): Promise<void> {
+    await flashcardRepo.handleDeleteFlashcardsForTopic(flashcardsIds);
   }
 
   public async handleBatchFlashcardsForTopic(
+    userId: number,
     topicId: number,
     { flashcardsAdded, flashcardsUpdated, flashcardsDeleted }: IFlashcardsBatch
-  ): Promise<{
-    flashcardsAdded?: IBasicFlashcardReturned[];
-    flashcardsUpdated?: IBasicFlashcardReturned[];
-    flashcardsDeleted?: number[];
-  }> {
-    let flashcardsAddedReturned, flashcardsUpdatedReturned, flashcardsDeletedReturned;
-
+  ): Promise<void> {
     if (flashcardsAdded && flashcardsAdded.length > 0) {
-      flashcardsAddedReturned = await this.handleInsertFlashcardsForTopic(topicId, flashcardsAdded);
+      await this.handleInsertFlashcardsForTopic(userId, topicId, flashcardsAdded);
     }
 
     if (flashcardsUpdated && flashcardsUpdated.length > 0) {
-      flashcardsUpdatedReturned = await this.handleUpdateFlashcardsForTopic(flashcardsUpdated);
+      await this.handleUpdateFlashcardsForTopic(flashcardsUpdated);
     }
 
     if (flashcardsDeleted && flashcardsDeleted.length > 0) {
-      flashcardsDeletedReturned = await this.handleDeleteFlashcardsForTopic(flashcardsDeleted);
+      await this.handleDeleteFlashcardsForTopic(flashcardsDeleted);
     }
-
-    return {
-      flashcardsAdded: flashcardsAddedReturned,
-      flashcardsUpdated: flashcardsUpdatedReturned,
-      flashcardsDeleted: flashcardsDeletedReturned,
-    };
   }
 
-  public async handlePutFlashcardToPractice(flashcardId: number): Promise<{ status?: string }> {
+  public async handlePutFlashcardToLearning(flashcardId: number): Promise<void> {
     const currentDate = new Date(Date.now());
     const tommorow = getDateAdded(currentDate, 1);
 
-    const infoUpdated: IFlashcardProgressUpdated = {
-      status: 'practice',
-      lastReviewed: currentDate,
-      nextReview: tommorow,
+    const date: IPutFlashcardToLearningArgumentDate = {
+      lastReviewed: getDateFormatted(currentDate),
+      nextReview: getDateFormatted(tommorow),
     };
 
-    const fieldsReturned: IFlashcardFieldsReturned = {
-      status: flashcardsTable.status,
-    };
-
-    const flashcardUpdated = await flashcardRepo.handleUpdateFlashcardProgress(
-      flashcardId,
-      infoUpdated,
-      fieldsReturned
-    );
-    return flashcardUpdated;
+    await flashcardRepo.handlePutFlashcardToLearning(flashcardId, date);
   }
 
   public async handleApplyFlashcardSM2(
     flashcardId: number,
-    sm2Info: IFlashcardProgressUpdated
-  ): Promise<IFlashcardReturned> {
-    const fieldsReturned: IFlashcardFieldsReturned = {
-      repetitionNumber: flashcardsTable.repetitionNumber,
-      easinessFactor: flashcardsTable.easinessFactor,
-      reviewInterval: flashcardsTable.reviewInterval,
-      lastReviewed: flashcardsTable.lastReviewed,
-      nextReview: flashcardsTable.nextReview,
-    };
-
-    const flashcardUpdated = await flashcardRepo.handleUpdateFlashcardProgress(
-      flashcardId,
-      sm2Info,
-      fieldsReturned
-    );
-    return flashcardUpdated;
+    sm2: IApplyFlashcardSM2ArgumentSM2
+  ): Promise<void> {
+    await flashcardRepo.handleApplyFlashcardSM2(flashcardId, sm2);
   }
 
-  public async handleGetFlashcardsPracticedForUser(userId: number): Promise<IFlashcardPracticed[]> {
+  public async handleGetFlashcardsLearningForUser(
+    userId: number
+  ): Promise<IFlashcardsLearningForUserReturned> {
     const currentDate = new Date(Date.now());
-    const flashcards = await flashcardRepo.handleGetFlashcardsPracticedForUser(userId, currentDate);
+    const flashcards = await flashcardRepo.handleGetFlashcardsLearningForUser(userId, currentDate);
     return flashcards;
   }
 
+  // done check type
   public async handleGetNextReviewIntervalsForAllQualityResponses(
-    flashcards: IFlashcardPracticed[]
-  ): Promise<IFlashcardSuperMemo[]> {
-    let flashcardsReturned: IFlashcardSuperMemo[] = [];
+    flashcards: IFlashcardNextReviewArgumentFlashcards
+  ): Promise<IFlashcardNextReviewReturned[]> {
+    let flashcardsReturned: IFlashcardNextReviewReturned[] = [];
 
     for (const flashcard of flashcards) {
       const { reviewInterval, easinessFactor, repetitionNumber } = flashcard;
       let qualityResponse = 0;
-      let flashcardReturned: IFlashcardSuperMemo = {
+      let flashcardReturned: IFlashcardNextReviewReturned & {
+        qualityResponsesNextReviewInterval: IQualityResponseNextReviewInterval[];
+      } = {
         flashcardId: flashcard.flashcardId,
-        topicId: flashcard.topicId,
         topicName: flashcard.topicName,
         front: flashcard.front,
         back: flashcard.back,
-        status: flashcard.status,
-        nextReview: flashcard.nextReview,
         qualityResponsesNextReviewInterval: [],
       };
       for (; qualityResponse <= 5; ++qualityResponse) {
         const superMemo2 = new SuperMemo2(
-          easinessFactor!,
-          reviewInterval!,
-          repetitionNumber!,
+          easinessFactor,
+          reviewInterval,
+          repetitionNumber,
           qualityResponse as IQualityResponse
         );
         const info = superMemo2.calc();
-        flashcardReturned.qualityResponsesNextReviewInterval?.push({
+        flashcardReturned.qualityResponsesNextReviewInterval.push({
           qualityResponse: qualityResponse as IQualityResponse,
           nextReviewInterval: info.reviewInterval,
         });
