@@ -1,5 +1,5 @@
-import TopicRepo from '@/repositories/topic.repo';
-import { IBasicTopic, ITopic } from '@/types/topic/topic.type';
+import TopicRepo, { ITopicsForUserReturned } from '@/repositories/topic.repo';
+import { ITopicBasic, ITopicAdded, ITopicUpdated } from '@/types/topic/topic.type';
 
 const topicRepo = new TopicRepo();
 
@@ -11,41 +11,32 @@ class TopicService {
 
   public async handleGetSingleTopic(
     topicId: number
-  ): Promise<Pick<ITopic, 'topicId' | 'name' | 'description'> | undefined> {
+  ): Promise<ITopicBasic | undefined> {
     const topic = await topicRepo.handleGetSingleTopic(topicId);
     return topic;
   }
 
-  public async handleGetAllTopicsForUser(userId: number): Promise<IBasicTopic[]> {
+  public async handleGetAllTopicsForUser(userId: number): Promise<ITopicsForUserReturned> {
     const topics = await topicRepo.handleGetAllTopicsForUser(userId);
     return topics;
   }
 
   public async handleInsertSingleTopicForUser(
-    topic: Pick<ITopic, 'userId' | 'name' | 'description'>
-  ): Promise<Pick<ITopic, 'topicId' | 'name' | 'description'>> {
-    const topicAdded = await topicRepo.handleInsertSingleTopicForUser(topic);
-    return topicAdded;
+    topic: ITopicAdded
+  ): Promise<void> {
+    await topicRepo.handleInsertSingleTopicForUser(topic);
   }
 
   public async handleUpdateSingleTopic(
     topicId: number,
-    topic: Pick<ITopic, 'name' | 'description'>
-  ): Promise<Pick<ITopic, 'topicId' | 'name' | 'description'>> {
-    const topicUpdated = await topicRepo.handleUpdateSingleTopic(topicId, topic);
-    return topicUpdated;
+    topic: ITopicUpdated
+  ): Promise<void> {
+    await topicRepo.handleUpdateSingleTopic(topicId, topic);
   }
 
   public async handleDeleteSingleTopic(topicId: number): Promise<void> {
     await topicRepo.handleDeleteSingleTopic(topicId);
   }
 }
-
-// const handleIsExistedTopic = async(topicId: number) => {
-//     const topic = await topicRepo.handleIsExistedTopic(topicId);
-//     return topic ? true : false;
-// }
-
-// const topicService = { handleIsExistedTopic };
 
 export default TopicService;
