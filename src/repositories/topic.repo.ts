@@ -1,12 +1,15 @@
 import db from '@/libs/drizzleClient.lib';
 import { flashcardsTable, topicsTable } from '@/models';
-import { IBasicTopic, ITopic } from '@/types/topic/topic.type';
+import { ITopicBasic, ITopicAdded, ITopicUpdated } from '@/types/topic/topic.type';
 import { count, eq } from 'drizzle-orm';
+
+export type ITopicForUser = ITopicBasic & { flashcardsCount? : number };
+export type ITopicsForUserReturned = ITopicForUser[];
 
 class TopicRepo {
   public async handleGetSingleTopic(
     topicId: number
-  ): Promise<Pick<ITopic, 'topicId' | 'name' | 'description'> | undefined> {
+  ): Promise<ITopicBasic | undefined> {
     const topic = await db.query.topicsTable.findFirst({
       where: eq(topicsTable.topicId, topicId),
       columns: {
@@ -18,19 +21,18 @@ class TopicRepo {
     return topic;
   }
 
-  public async handleGetAllTopicsForUser(userId: number): Promise<IBasicTopic[]> {
-    let topics: IBasicTopic[] = await db
+  public async handleGetAllTopicsForUser(userId: number): Promise<ITopicsForUserReturned> {
+    let topics: ITopicForUser[] = await db
       .select({
         topicId: topicsTable.topicId,
         name: topicsTable.name,
         description: topicsTable.description,
       })
       .from(topicsTable)
-      // .innerJoin(flashcardsTable, eq(flashcardsTable.topicId, topicsTable.topicId))
       .where(eq(topicsTable.userId, userId));
 
     for (let i = 0; i < topics.length; ++i) {
-      let topic = topics[i];
+      let topic = topics[i] as ITopicForUser;
       const result = await db
         .select({
           flashcardsCount: count(),
@@ -39,7 +41,7 @@ class TopicRepo {
         .innerJoin(flashcardsTable, eq(flashcardsTable.topicId, topicsTable.topicId))
         .where(eq(topicsTable.topicId, topic.topicId));
 
-      const { flashcardsCount }: { flashcardsCount: number } = result[0];
+      const { flashcardsCount } : { flashcardsCount: number } = result[0];
 
       topic['flashcardsCount'] = flashcardsCount;
       topics[i] = topic;
@@ -49,37 +51,23 @@ class TopicRepo {
   }
 
   public async handleInsertSingleTopicForUser(
-    topic: Pick<ITopic, 'userId' | 'name' | 'description'>
-  ): Promise<Pick<ITopic, 'topicId' | 'name' | 'description'>> {
-    const topicsAdded = await db.insert(topicsTable).values(topic).returning({
-      topicId: topicsTable.topicId,
-      name: topicsTable.name,
-      description: topicsTable.description,
-    });
-    return topicsAdded[0];
+    topic: ITopicAdded
+  ): Promise<void> {
+    await db.insert(topicsTable).values(topic);
   }
 
   public async handleUpdateSingleTopic(
     topicId: number,
-    topic: Pick<ITopic, 'name' | 'description'>
-  ): Promise<Pick<ITopic, 'topicId' | 'name' | 'description'>> {
-    const topicsUpdated = await db
+    topic: ITopicUpdated
+  ): Promise<void> {
+    await db
       .update(topicsTable)
       .set(topic)
-      .where(eq(topicsTable.topicId, topicId))
-      .returning({
-        topicId: topicsTable.topicId,
-        name: topicsTable.name,
-        description: topicsTable.description,
-      });
-    return topicsUpdated[0];
+      .where(eq(topicsTable.topicId, topicId));
   }
 
   public async handleDeleteSingleTopic(topicId: number): Promise<void> {
     await db.delete(topicsTable).where(eq(topicsTable.topicId, topicId));
-    // .returning({
-    //     topicId: topicsTable.topicId
-    // })
   }
 }
 
