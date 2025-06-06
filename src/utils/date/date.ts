@@ -80,6 +80,21 @@ export function getDateFormattedWithTimeZone(
 }
 
 /**
+ * Formats a date to a string in HH:MM format (24-hour clock).
+ * Uses locale settings for consistent formatting.
+ *
+ * @param date - The date to format
+ * @returns A string in HH:MM format
+ */
+export function formatTimeToHHMM(date: Date): string {
+  return date.toLocaleTimeString('en-US', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/**
  * Extracts and formats only the time portion of a date in the specified timezone.
  * Returns time in 24-hour format with hours, minutes, and seconds.
  *
