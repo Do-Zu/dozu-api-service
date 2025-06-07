@@ -74,7 +74,7 @@ const DEFINE_DEFAULT_FREE_TIME: FreeTimeSlotDays = {
   Sunday: [],
 };
 
-const USER_PRIORITY_DAY_SESSION_LEARNING = 'morning';
+const USER_PREFERRED_SESSION_LEARNING = 'morning';
 
 /**
  * Service class for Schedule functionality
@@ -82,7 +82,7 @@ const USER_PRIORITY_DAY_SESSION_LEARNING = 'morning';
 class ScheduleService {
   private readonly DEFAULT_FREE_TIME: FreeTimeSlotDays = DEFINE_DEFAULT_FREE_TIME;
   private readonly DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM = 1;
-  private readonly DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION = 10;
+  private readonly DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION = 5;
   /**
    * Retrieves the schedule for the current week.
    * @returns An array of time slots for the current week or an empty array if not implemented.
@@ -261,8 +261,6 @@ class ScheduleService {
 
       const listFreeTimeSlotsOfDay = freeTimeSlotPerDay[dateOfWeek];
 
-      // const listItemScheduleGenerated: IItemScheduleGenerated[] = [];
-
       const schedulePriorityQueuePerDate = new SchedulePriorityQueue<IItemScheduleGenerated>(
         (topic1, topic2) => topic1.priority - topic2.priority
       );
@@ -332,14 +330,15 @@ class ScheduleService {
           if (!highestPriorityTopicToLearn) {
             break;
           }
-          const minutesEstimateToStudy =
-            highestPriorityTopicToLearn.amountItem * this.DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM;
 
+          const minutesEstimateToStudy =
+            highestPriorityTopicToLearn.amountItem * this.DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM +
+            this.DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION;
+
+          const timeAvailable = endTime.getTime() - startTime.getTime();
+          const timeNeeded = convertMinuteToMillisecond(minutesEstimateToStudy);
           // If the item cannot fit in the current time slot, skip to the next item
-          if (
-            startTime.getTime() - endTime.getTime() <
-            convertMinuteToMillisecond(minutesEstimateToStudy)
-          ) {
+          if (timeAvailable < timeNeeded) {
             let isFindSuitableSlot = false;
 
             // Find all free time slots that can fit the item
@@ -351,13 +350,14 @@ class ScheduleService {
 
               // If the item can fit in the free time slot, update the start and end time
               if (
-                freeStartTime.getTime() - freeEndTime.getTime() >
+                freeEndTime.getTime() - freeStartTime.getTime() >
                 convertMinuteToMillisecond(minutesEstimateToStudy)
               ) {
                 highestPriorityTopicToLearn.startTime = freeStartTime;
                 highestPriorityTopicToLearn.endTime = new Date(
                   freeStartTime.getTime() + convertMinuteToMillisecond(minutesEstimateToStudy)
                 );
+
                 const slideStartTimeForAfterFillTopic = new Date(
                   freeStartTime.getTime() + convertMinuteToMillisecond(minutesEstimateToStudy)
                 );
@@ -382,7 +382,7 @@ class ScheduleService {
           // When the item can fit in the current time slot
           // Assign the time slot to the item
           highestPriorityTopicToLearn.startTime = startTime;
-          highestPriorityTopicToLearn.endTime = endTime;
+          highestPriorityTopicToLearn.endTime = new Date(startTime.getTime() + timeNeeded);
 
           // Slide the start time by the estimated study time plus break time
           const slidingStartTimeInSlot =
@@ -430,8 +430,7 @@ class ScheduleService {
     return {
       schedules: scheduleGenerateFollowFreeTimeSlotPerDay,
       waitingTopics,
-      freeTimeSlots: freeTimeSlotPerDay,
-      userPriorityDaySessionLearning: USER_PRIORITY_DAY_SESSION_LEARNING,
+      preferredTime: USER_PREFERRED_SESSION_LEARNING,
     };
   }
 }
