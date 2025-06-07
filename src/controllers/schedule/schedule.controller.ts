@@ -24,10 +24,12 @@ class ScheduleController {
    * @param res - Express response object
    */
   async generateSchedule(req: Request, res: Response) {
-    const { userId, fromDate, toDate, timezone } = req.body;
+    
+    const { userId } = req.currentUser;
+    const { fromDate, toDate, timezone } = req.body;
 
     if (!userId) {
-      throw new BadRequest('user is required');
+      throw new BadRequest('Unauthorized!');
     }
 
     if (!fromDate || !toDate) {
