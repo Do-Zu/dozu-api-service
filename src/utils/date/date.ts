@@ -1,3 +1,7 @@
+import { isValidTimezone } from './validate';
+
+type DateFormatType = 'ISO' | 'US' | 'EU' | 'CUSTOM';
+
 /**
  * Formats a Date object to a YYYY-MM-DD string.
  * Uses ISO string and truncates time portion.
@@ -24,21 +28,70 @@ export function getDateAdded(date: Date | string, days: number): Date {
 }
 
 /**
- * Formats a date showing year, month, and day according to the specified timezone.
+ * Formats a date showing year, month, and day according to the specified timezone and format.
  * Uses 2-digit padding for month and day.
  *
  * @param date - The date to format
  * @param timeZone - The timezone to use for formatting (defaults to UTC)
- * @returns A formatted date string like "MM/DD/YYYY"
+ * @param formatType - The format type: 'ISO' (YYYY-MM-DD), 'US' (MM/DD/YYYY), 'EU' (DD/MM/YYYY), 'CUSTOM'
+ * @param customLocale - Custom locale when formatType is 'CUSTOM' (defaults to 'en-US')
+ * @returns A formatted date string in the specified format
+ * @throws Error if the date is invalid
  */
-export function getDateFormattedWithTimeZone(date: Date, timeZone: string = 'UTC'): string {
+export function getDateFormattedWithTimeZone(
+  date: Date | string,
+  timeZone: string = 'UTC',
+  formatType: DateFormatType = 'ISO',
+  customLocale?: string
+): string {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+
+  if (isNaN(dateObj.getTime())) {
+    throw new Error(`Invalid date: ${date}`);
+  }
+
   const options: Intl.DateTimeFormatOptions = {
     timeZone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
   };
-  return new Intl.DateTimeFormat('en-US', options).format(date);
+
+  let locale: string;
+
+  switch (formatType) {
+    case 'ISO':
+      locale = 'en-CA'; // Returns YYYY-MM-DD format
+      break;
+    case 'US':
+      locale = 'en-US'; // Returns MM/DD/YYYY format
+      break;
+    case 'EU':
+      locale = 'en-GB'; // Returns DD/MM/YYYY format
+      break;
+    case 'CUSTOM':
+      locale = customLocale || 'en-US';
+      break;
+    default:
+      locale = 'en-CA'; // Default to ISO format
+  }
+
+  return new Intl.DateTimeFormat(locale, options).format(dateObj);
+}
+
+/**
+ * Formats a date to a string in HH:MM format (24-hour clock).
+ * Uses locale settings for consistent formatting.
+ *
+ * @param date - The date to format
+ * @returns A string in HH:MM format
+ */
+export function formatTimeToHHMM(date: Date): string {
+  return date.toLocaleTimeString('en-US', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 /**
@@ -265,5 +318,60 @@ export function differenceInTime(
       return Math.floor(diffMs / 1000);
     default:
       return diffMs;
+  }
+}
+
+/**
+ * Gets the day of the week from a date with comprehensive validation
+ * @param date - The date to get the day of the week from (Date object, string, or number timestamp)
+ * @param locale - Optional locale for localized day names (defaults to 'en-US')
+ * @param timeZone - Optional timezone to consider when determining the day (defaults to 'UTC')
+ * @returns string - The name of the day of the week
+ * @throws Error if the date is invalid or cannot be parsed
+ */
+export function getDayOfWeek(
+  date: Date | string | number,
+  locale: string = 'en-US',
+  timeZone: string = 'UTC'
+): string {
+  let dateObj: Date;
+
+  try {
+    if (typeof date === 'string') {
+      if (date.trim() === '') {
+        throw new Error('Empty string is not a valid date');
+      }
+      dateObj = new Date(date);
+    } else if (typeof date === 'number') {
+      // Handle timestamp (both seconds and milliseconds)
+      // If number is less than year 2001 in milliseconds, assume it's in seconds
+      const timestamp = date < 1000000000000 ? date * 1000 : date;
+      dateObj = new Date(timestamp);
+    } else if (date instanceof Date) {
+      dateObj = new Date(date.getTime());
+    } else {
+      throw new Error(`Invalid date type: expected Date, string, or number, got ${typeof date}`);
+    }
+
+    if (isNaN(dateObj.getTime())) {
+      throw new Error(`Invalid date value: "${date}" could not be parsed as a valid date`);
+    }
+
+    if (!isValidTimezone(timeZone)) {
+      throw new Error(`Invalid timezone: "${timeZone}"`);
+    }
+
+    // Use Intl.DateTimeFormat for timezone-aware day calculation
+    const formatter = new Intl.DateTimeFormat(locale, {
+      weekday: 'long',
+      timeZone: timeZone,
+    });
+
+    return formatter.format(dateObj);
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(`Failed to get day of week: ${error.message}`);
+    }
+    throw new Error(`Failed to get day of week for date: ${date}`);
   }
 }
