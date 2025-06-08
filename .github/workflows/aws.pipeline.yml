@@ -108,22 +108,25 @@ jobs:
           ENV="$3"
           OPENAI_KEY="$4"
           GOOGLE_KEY="$5"
-          REDIS_HOST="$6"
-          REDIS_PORT="$7"
-          REDIS_PASSWORD="$8"
-          REDIS_DB="$9"
-          REDIS_USERNAME="${10}"
-          AWS_REGION="${11}"
-          ACCESS_KEY_ID_AWS="${12}"
-          SECRET_ACCESS_KEY_AWS="${13}"
-          FRONTEND_BASE_URL="${14}"
-          BACKEND_BASE_URL="${15}"
-          MAIL_HOST="${16}"
-          MAIL_USERNAME="${17}"
-          MAIL_APP_PASSWORD="${18}"
-          JWT_SECRET="${19}"
-          GOOGLE_CLIENT_ID="${20}"
-          GOOGLE_CLIENT_SECRET="${21}"
+          REDIS_REC_HOST="$6"
+          REDIS_REC_PORT="$7"
+          REDIS_REC_PASSWORD="$8"
+          REDIS_REC_DB="$9"
+          REDIS_REC_USERNAME="${10}"
+          REDIS_PUBSUB_HOST="${11}"
+          REDIS_PUBSUB_PORT="${12}"
+          REDIS_PUBSUB_PASSWORD="${13}"
+          REDIS_PUBSUB_DB="${14}"
+          AWS_REGION="${15}"
+          ACCESS_KEY_ID_AWS="${16}"
+          SECRET_ACCESS_KEY_AWS="${17}"
+          FRONTEND_BASE_URL="${18}"
+          MAIL_HOST="${19}"
+          MAIL_USERNAME="${20}"
+          MAIL_APP_PASSWORD="${21}"
+          JWT_SECRET="${22}"
+          GOOGLE_CLIENT_ID="${23}"
+          GOOGLE_CLIENT_SECRET="${24}"
 
           # Determine which env file to use
           if [ "$ENV" = "production" ]; then
@@ -142,15 +145,13 @@ jobs:
 
           if [ -d .git ]; then
             echo "Git repository exists, fetching changes..."
-            git fetch --all
             git checkout "$BRANCH" || git checkout -b "$BRANCH" "origin/$BRANCH"
             git pull origin "$BRANCH"
           else
             echo "Cloning fresh repository..."
             rm -rf * .[!.]* ..?*
             git init
-            git remote add origin https://github.com/your-org/dozu-api-service.git
-            git fetch --all
+            git remote add origin https://github.com/perinst/dozu-api-service.git
             git checkout -b "$BRANCH" "origin/$BRANCH"
           fi
 
@@ -213,23 +214,26 @@ jobs:
 
           update_env_var "OPENAI_API_KEY" "$OPENAI_KEY"
           update_env_var "GOOGLE_STUDIO_API_KEY" "$GOOGLE_KEY"
-          update_env_var "REDIS_HOST" "$REDIS_HOST"
-          update_env_var "REDIS_PORT" "$REDIS_PORT"
-          update_env_var "REDIS_PASSWORD" "$REDIS_PASSWORD"
-          update_env_var "REDIS_DB" "$REDIS_DB"
-          update_env_var "REDIS_USERNAME" "$REDIS_USERNAME"
+          update_env_var "REDIS_RECOMMENDATION_HOST" "$REDIS_REC_HOST"
+          update_env_var "REDIS_RECOMMENDATION_PORT" "$REDIS_REC_PORT"
+          update_env_var "REDIS_RECOMMENDATION_PASSWORD" "$REDIS_REC_PASSWORD"
+          update_env_var "REDIS_RECOMMENDATION_DB" "$REDIS_REC_DB"
+          update_env_var "REDIS_RECOMMENDATION_USERNAME" "$REDIS_REC_USERNAME"
+          update_env_var "REDIS_PUBSUB_HOST" "$REDIS_PUBSUB_HOST"
+          update_env_var "REDIS_PUBSUB_PORT" "$REDIS_PUBSUB_PORT"
+          update_env_var "REDIS_PUBSUB_PASSWORD" "$REDIS_PUBSUB_PASSWORD"
+          update_env_var "REDIS_PUBSUB_DB" "$REDIS_PUBSUB_DB"
           update_env_var "AWS_REGION" "$AWS_REGION"
           update_env_var "ACCESS_KEY_ID_AWS" "$ACCESS_KEY_ID_AWS"
           update_env_var "SECRET_ACCESS_KEY_AWS" "$SECRET_ACCESS_KEY_AWS"
           update_env_var "FRONTEND_BASE_URL" "$FRONTEND_BASE_URL"
-          update_env_var "BACKEND_BASE_URL" "$BACKEND_BASE_URL"
           update_env_var "MAIL_HOST" "$MAIL_HOST"
           update_env_var "MAIL_USERNAME" "$MAIL_USERNAME"
           update_env_var "MAIL_APP_PASSWORD" "$MAIL_APP_PASSWORD"
           update_env_var "JWT_SECRET" "$JWT_SECRET"
           update_env_var "GOOGLE_CLIENT_ID" "$GOOGLE_CLIENT_ID"
           update_env_var "GOOGLE_CLIENT_SECRET" "$GOOGLE_CLIENT_SECRET"
-         
+
 
           # Start Docker with the appropriate env file
           echo "Starting Docker services with $ENV_FILE..."
@@ -256,16 +260,19 @@ jobs:
           '${{ github.event.inputs.environment }}' \
           '${{ secrets.OPENAI_API_KEY }}' \
           '${{ secrets.GOOGLE_STUDIO_API_KEY }}' \
-          '${{ secrets.REDIS_HOST }}' \
-          '${{ secrets.REDIS_PORT }}' \
-          '${{ secrets.REDIS_PASSWORD }}' \
-          '${{ secrets.REDIS_DB }}' \
-          '${{ secrets.REDIS_USERNAME }}' \
+          '${{ secrets.REDIS_RECOMMENDATION_HOST }}' \
+          '${{ secrets.REDIS_RECOMMENDATION_PORT }}' \
+          '${{ secrets.REDIS_RECOMMENDATION_PASSWORD }}' \
+          '${{ secrets.REDIS_RECOMMENDATION_DB }}' \
+          '${{ secrets.REDIS_RECOMMENDATION_USERNAME }}' \
+          '${{ secrets.REDIS_PUBSUB_HOST }}' \
+          '${{ secrets.REDIS_PUBSUB_PORT }}' \
+          '${{ secrets.REDIS_PUBSUB_PASSWORD }}' \
+          '${{ secrets.REDIS_PUBSUB_DB }}' \
           '${{ secrets.AWS_REGION }}' \
           '${{ secrets.ACCESS_KEY_ID_AWS }}' \
           '${{ secrets.SECRET_ACCESS_KEY_AWS }}' \
           '${{ secrets.FRONTEND_BASE_URL }}' \
-          '${{ secrets.BACKEND_BASE_URL }}' \
           '${{ secrets.MAIL_HOST }}' \
           '${{ secrets.MAIL_USERNAME }}' \
           '${{ secrets.MAIL_APP_PASSWORD }}' \

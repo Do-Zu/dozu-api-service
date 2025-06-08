@@ -71,3 +71,15 @@ export function isValidISOWithOffset(timestamp: string): boolean {
   const date = new Date(timestamp);
   return !isNaN(date.getTime());
 }
+
+/**
+ * Helper function to validate timezone
+ */
+export function isValidTimezone(timeZone: string): boolean {
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone }).format(new Date());
+    return true;
+  } catch {
+    return false;
+  }
+}

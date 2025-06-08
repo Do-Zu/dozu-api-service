@@ -4,7 +4,6 @@ import { sql } from 'drizzle-orm';
 import db from '@/libs/drizzleClient.lib';
 import { embeddingGenerator } from './utils/embeddingGenerator';
 import { topicsTable } from '@/models';
-import { QueryResult } from 'pg';
 import { cosineSimilarity, similarityFilter } from '@/utils/pgvector';
 
 export class DocumentEmbeddingService {
@@ -79,7 +78,7 @@ export class DocumentEmbeddingService {
     title: string;
     description?: string;
     content: string;
-  }): Promise<QueryResult> {
+  }): Promise<number> {
     // Update global word frequencies
     await this.updateGlobalWordFrequencies(document.content);
 
@@ -104,7 +103,9 @@ export class DocumentEmbeddingService {
       embedding,
     });
 
-    return rs;
+    if (!rs.rowCount) return -1;
+
+    return rs.rowCount;
   }
 
   /**

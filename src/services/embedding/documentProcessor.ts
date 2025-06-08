@@ -22,6 +22,7 @@ export async function processBulkDocuments(
     const batch = documents.slice(i, i + batchSize);
     const promises = batch.map(doc => documentEmbeddingService.processDocument(doc));
     const batchResults = await Promise.all(promises);
+
     results.push(...batchResults);
   }
 
@@ -38,7 +39,7 @@ export function processDocument(document: {
   description?: string;
   contentType?: string;
   content: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, object>;
 }): Promise<number> {
   return documentEmbeddingService.processDocument(document);
 }

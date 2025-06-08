@@ -250,3 +250,16 @@ export function toISOStringWithTimezone(date: Date, timeZone: string = 'UTC'): s
   const tzDate = convertTimezone(date, Intl.DateTimeFormat().resolvedOptions().timeZone, timeZone);
   return tzDate.toISOString();
 }
+
+/**
+ * Converts seconds to milliseconds
+ *
+ * @param seconds - Number of seconds to convert
+ * @returns Equivalent milliseconds
+ */
+export function convertMinuteToMillisecond(minutes: number): number {
+  if (typeof minutes !== 'number' || isNaN(minutes) || minutes < 0) {
+    throw new Error('Invalid input: minutes must be a non-negative number');
+  }
+  return minutes * 60 * 1000;
+}
