@@ -53,7 +53,7 @@ class FlashcardService {
       return { topicId: topicId, front: flashcard.front, back: flashcard.back };
     });
 
-    await flashcardRepo.handleInsertFlashcardsForTopic(userId, flashcardsFormatted);
+    await flashcardRepo.handleInsertFlashcardsForTopic(userId, topicId, flashcardsFormatted);
   }
 
   public async handleUpdateFlashcardsForTopic(flashcards: IFlashcardUpdated[]): Promise<void> {

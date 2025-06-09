@@ -134,6 +134,7 @@ class FlashcardRepo {
   // done check type
   public async handleInsertFlashcardsForTopic(
     userId: number,
+    topicId: number,
     flashcards: IFlashcardAddedArgument
   ): Promise<void> {
     let flashcardsAdded = await db.insert(flashcardsTable).values(flashcards).returning({
@@ -142,6 +143,7 @@ class FlashcardRepo {
     const flashcardIds = flashcardsAdded.map(flashcard => flashcard.flashcardId);
     await itemSpacedRepetitionTrackingRepo.handleInsertDefaultFlashcardSpacedRepetitions(
       userId,
+      topicId,
       flashcardIds
     );
   }
