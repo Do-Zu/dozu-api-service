@@ -119,5 +119,10 @@ export const insertAuthAccountObject = async (
 };
 
 export const updateLastLoginAt = async (userId: number) => {
-  await db.update(usersTable).set({ lastLoginAt: new Date() }).where(eq(usersTable.userId, userId));
+  const  [result] = await db
+    .update(usersTable)
+    .set({ lastLoginAt: new Date() })
+    .where(eq(usersTable.userId, userId))
+    .returning();
+  return result;
 };

@@ -28,8 +28,8 @@ export const loginService = async (username: string, password: string): Promise<
 
   const isCorrectPassword = await verifyPassword(password, userData.passwordHash);
   if (isCorrectPassword) {
-    await updateLastLoginAt(userData.userId);
-    const updatedUser = await selectOneUserByUsername(userData.username);
+    const updatedUser = await updateLastLoginAt(userData.userId);
+
     return {
       success: true,
       user: updatedUser,
