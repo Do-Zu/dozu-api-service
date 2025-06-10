@@ -19,3 +19,10 @@ export const sanitizeUserObject = (userData: any): SanitizedUser => {
 export const getUserFromRequest = (request: Request): SanitizedUser => {
   return request.currentUser;
 };
+
+export const getUserIdFromRequest = (req: Request) : number => {
+  const user = getUserFromRequest(req);
+  let { userId } = user as { userId: string | number };
+  userId = parseInt(userId as string);
+  return userId;
+}

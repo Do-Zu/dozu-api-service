@@ -20,7 +20,6 @@ RUN npm ci --omit=dev
 COPY --from=builder /app/dist ./dist
 
 COPY --from=builder /app/.env.production ./.env.production
-COPY --from=builder /app/.env.development ./.env.development
 
 EXPOSE 3333
 

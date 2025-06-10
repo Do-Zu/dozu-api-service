@@ -1,5 +1,8 @@
-import { IQualityResponse } from "./super-memo-2/superMemo2.origin.class.service"; 
-
+export interface ISuperMemo2 {
+    easinessFactor: string
+    reviewInterval: number
+    repetitionNumber: number
+}
 export default abstract class SuperMemo<QualityResponse> {
     public easinessFactor: number;
     public reviewInterval: number;
@@ -18,7 +21,7 @@ export default abstract class SuperMemo<QualityResponse> {
         this.qualityResponse = qualityResponse;
     }
 
-    abstract calc() : { easinessFactor: number, reviewInterval: number, repetitionNumber: number };
+    abstract calc() : ISuperMemo2;
 
     static getNextReview(lastReviewed: Date | string, reviewInterval: number) : string {
         throw new Error('getNextReview() must be implemented by the implementation class');

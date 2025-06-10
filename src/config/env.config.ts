@@ -55,7 +55,7 @@ export const config: AppConfig = {
   isProduction: environment === 'production',
   isDevelopment: environment === 'development',
   server: {
-    port: parseInt(process.env.PORT || '3000', 10),
+    port: parseInt(process.env.PORT || '3333', 10),
     host: process.env.HOST || 'localhost',
   },
 };
