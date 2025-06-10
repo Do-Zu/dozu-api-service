@@ -36,3 +36,12 @@ export * from '@/models/tracking/taskProgress.model';
 export * from '@/models/auth/emailVerificationCode.model';
 
 export * from '@/models/auth/authAccount.model';
+
+
+export * from '@/models/auth/role.model';
+
+export * from '@/models/auth/userRole.model';
+
+export * from '@/models/auth/permission.model';
+
+export * from '@/models/auth/rolePermission.model';

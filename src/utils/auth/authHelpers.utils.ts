@@ -8,6 +8,10 @@ export const sanitizeUserObject = (userData: any): SanitizedUser => {
     email: userData.email,
     fullName: userData.fullName,
     avatarUrl: userData.avatarUrl,
+    isNewUser: userData.isNewUser,
+    hasCompletedOnboarding: userData.hasCompletedOnboarding,
+    createdAt: userData.createdAt,
+    lastLoginAt: userData.lastLoginAt,
   };
   return returnData;
 };
