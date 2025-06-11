@@ -3,7 +3,7 @@
 import db from '@/libs/drizzleClient.lib';
 import { and, eq, lte, gte } from 'drizzle-orm';
 import { itemSpacedRepetitionTrackingTable, topicsTable } from '@/models';
-import { ItemTrackingWithTopic } from '@/services/schedule/types';
+import { ItemTrackingWithTopic } from '@/services/schedule/types/schedule.index';
 
 /**
  * Repository for Schedule data access operations

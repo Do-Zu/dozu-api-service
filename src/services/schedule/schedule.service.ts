@@ -1,8 +1,7 @@
-// import logger from '@/utils/logger';
 import { scheduleRepo } from '@/repositories/schedule/schedule.repo';
 import { FreeTimeSlotDays } from '@/repositories/user/type';
 import { userRepository } from '@/repositories/user/user.repo';
-import { ItemTrackingWithTopic } from './types';
+import { IGroupTopic, IItemScheduleGenerated, ItemTrackingWithTopic } from './types/schedule.index';
 import {
   convertMinuteToMillisecond,
   formatTimeToHHMM,
@@ -10,41 +9,6 @@ import {
   getDayOfWeek,
 } from '@/utils/date';
 import { SchedulePriorityQueue } from '@/utils/queue/schedule.queue';
-
-export interface IScheduleTopicReview {
-  topicId: number;
-  topicTitle: string;
-  topicDescription: string | null;
-  reviewDate: Date;
-  status: string;
-  priority: number;
-  type: string;
-  startTime: Date;
-  endTime: Date;
-}
-
-interface IGroupTopic {
-  topicId: number;
-  topicTitle: string;
-  topicDescription: string | null;
-  easinessFactor: string;
-  reviewInterval: number;
-  repetition: number;
-  lastReviewed: string | null;
-  reviewDate: Date;
-  status: string;
-  type: string;
-}
-interface IItemScheduleGenerated {
-  topicId: number;
-  priority: number;
-  startTime: Date;
-  endTime: Date;
-  title: string;
-  description: string | null;
-  type: string;
-  amountItem: number;
-}
 
 const DEFINE_DEFAULT_FREE_TIME: FreeTimeSlotDays = {
   Monday: [
