@@ -56,8 +56,8 @@ export const decodeJwtToken = (token: string): GoogleIdTokenPayload => {
     typeof decoded.sub !== 'string' ||
     typeof decoded.email !== 'string'
   ) {
+    console.log('google token:', token);
     throw new Error('Invalid token payload');
-    //todo:check if error thrown correctly
   }
   return decoded as GoogleIdTokenPayload;
 };
