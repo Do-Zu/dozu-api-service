@@ -121,12 +121,13 @@ jobs:
           ACCESS_KEY_ID_AWS="${16}"
           SECRET_ACCESS_KEY_AWS="${17}"
           FRONTEND_BASE_URL="${18}"
-          MAIL_HOST="${19}"
-          MAIL_USERNAME="${20}"
-          MAIL_APP_PASSWORD="${21}"
-          JWT_SECRET="${22}"
-          GOOGLE_CLIENT_ID="${23}"
-          GOOGLE_CLIENT_SECRET="${24}"
+          BACKEND_BASE_URL="${19}" 
+          MAIL_HOST="${20}"
+          MAIL_USERNAME="${21}"
+          MAIL_APP_PASSWORD="${22}"
+          JWT_SECRET="${23}"
+          GOOGLE_CLIENT_ID="${24}"
+          GOOGLE_CLIENT_SECRET="${25}"
 
           # Determine which env file to use
           if [ "$ENV" = "production" ]; then
@@ -227,6 +228,7 @@ jobs:
           update_env_var "ACCESS_KEY_ID_AWS" "$ACCESS_KEY_ID_AWS"
           update_env_var "SECRET_ACCESS_KEY_AWS" "$SECRET_ACCESS_KEY_AWS"
           update_env_var "FRONTEND_BASE_URL" "$FRONTEND_BASE_URL"
+          update_env_var "BACKEND_BASE_URL" "$BACKEND_BASE_URL"
           update_env_var "MAIL_HOST" "$MAIL_HOST"
           update_env_var "MAIL_USERNAME" "$MAIL_USERNAME"
           update_env_var "MAIL_APP_PASSWORD" "$MAIL_APP_PASSWORD"
@@ -273,6 +275,7 @@ jobs:
           '${{ secrets.ACCESS_KEY_ID_AWS }}' \
           '${{ secrets.SECRET_ACCESS_KEY_AWS }}' \
           '${{ secrets.FRONTEND_BASE_URL }}' \
+          '${{ secrets.BACKEND_BASE_URL }}' \
           '${{ secrets.MAIL_HOST }}' \
           '${{ secrets.MAIL_USERNAME }}' \
           '${{ secrets.MAIL_APP_PASSWORD }}' \
