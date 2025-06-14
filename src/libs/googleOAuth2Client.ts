@@ -27,6 +27,8 @@ export const getOAuthToken = async (code: any) => {
       }),
     }).then(res => res.json());
 
+    console.log('google oauth response', response);
+
     // The `response` object contains id_token which is a jwt token with the payload of the user information. If you have existing application authorization logic
     // you can use it here by checking if the email address in the jwt payload exists in your database and return the authorization token to the user.
     // In this article we are using the id_token provided by google as the authorization token.
