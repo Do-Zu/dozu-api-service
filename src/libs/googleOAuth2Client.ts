@@ -13,6 +13,16 @@ export const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 export const getOAuthToken = async (code: any) => {
   try {
+    console.log(
+      'google request body:',
+      JSON.stringify({
+        code,
+        client_id: GOOGLE_CLIENT_ID,
+        client_secret: GOOGLE_CLIENT_SECRET,
+        redirect_uri: GOOGLE_REDIRECT_URI,
+        grant_type: 'authorization_code',
+      })
+    );
     const response = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: {
