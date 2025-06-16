@@ -121,7 +121,7 @@ jobs:
           ACCESS_KEY_ID_AWS="${16}"
           SECRET_ACCESS_KEY_AWS="${17}"
           FRONTEND_BASE_URL="${18}"
-           BACKEND_BASE_URL="${19}" 
+          BACKEND_BASE_URL="${19}" 
           MAIL_HOST="${20}"
           MAIL_USERNAME="${21}"
           MAIL_APP_PASSWORD="${22}"
