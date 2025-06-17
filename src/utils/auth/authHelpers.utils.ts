@@ -12,6 +12,8 @@ export const sanitizeUserObject = (userData: any): SanitizedUser => {
     hasCompletedOnboarding: userData.hasCompletedOnboarding,
     createdAt: userData.createdAt,
     lastLoginAt: userData.lastLoginAt,
+    permissions: [],
+    roles: userData.roles,
   };
   return returnData;
 };
@@ -20,9 +22,9 @@ export const getUserFromRequest = (request: Request): SanitizedUser => {
   return request.currentUser;
 };
 
-export const getUserIdFromRequest = (req: Request) : number => {
+export const getUserIdFromRequest = (req: Request): number => {
   const user = getUserFromRequest(req);
   let { userId } = user as { userId: string | number };
   userId = parseInt(userId as string);
   return userId;
-}
+};

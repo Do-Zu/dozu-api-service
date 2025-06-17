@@ -1,6 +1,15 @@
 import { VERIFICATION_TOKEN_DURATION_MINUTES } from '@/constants/auth.constant';
 import db from '@/libs/drizzleClient.lib';
-import { authAccountsTable, InsertAuthAccount, SelectAuthAccount, usersTable } from '@/models';
+import {
+  authAccountsTable,
+  InsertAuthAccount,  InsertUserRolesPermission,
+  InsertRole,
+
+  rolesTable,
+  SelectAuthAccount,
+  userRolesTable,
+  usersTable,
+} from '@/models';
 import {
   emailVerificationCodesTable,
   InsertEmailVerificationCode,
@@ -118,11 +127,58 @@ export const insertAuthAccountObject = async (
   return insertedAuthAccount;
 };
 
+export const addUserRole =async(userId:number)=>{
+  //  const newUserRole: InsertUserRolesPermission = {
+  //   userId: userId,
+  //   // verificationCode: verificationCode,
+  //   // expiration: expirationDate,
+  // };
+  // const [insertedVerificationCode] = await db
+  //   .insert(emailVerificationCodesTable)
+  //   .values(newVerificationCode)
+  //   .returning();
+  // return insertedVerificationCode;
+}
+
 export const updateLastLoginAt = async (userId: number) => {
-  const  [result] = await db
+  const [result] = await db
     .update(usersTable)
     .set({ lastLoginAt: new Date() })
     .where(eq(usersTable.userId, userId))
     .returning();
   return result;
+};
+
+export const getUserRoles = async (userId: number) => {
+  const result = await db.select().from(userRolesTable).where(eq(userRolesTable.userId, userId));
+  return result;
+};
+
+export const getRoles = async () => {
+  const result = await db.select().from(rolesTable);
+  return result;
+};
+
+export const getUserRoleId = async (): Promise<number> => {
+  let userRoleId = -1;
+  const [result] = await db.select().from(rolesTable).where(eq(rolesTable.name, 'user'));
+  if (!result) {
+    const userRole: InsertRole = {
+      name: 'user',
+      description: 'Basic user',
+    };
+    const [insertedRole] = await db.insert(rolesTable).values(userRole).returning();
+    userRoleId = insertedRole.roleId;
+  } else {
+    userRoleId = result.roleId;
+  }
+  return userRoleId;
+};
+
+export const addRole = async (userRoleId: number, userId: number): Promise<void> => {
+  const userRole: InsertUserRolesPermission = {
+    roleId: userRoleId,
+    userId: userId,
+  };
+  await db.insert(userRolesTable).values(userRole);
 };
