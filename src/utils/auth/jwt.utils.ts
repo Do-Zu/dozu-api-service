@@ -19,11 +19,15 @@ export const signAccessJwtToken = (user: SanitizedUser): string => {
   if (!jwtSecretKey) {
     throw new Error('JWT_SECRET is not defined in environment variables');
   }
-  const token = jwt.sign({ user }, jwtSecretKey, {
-    algorithm: 'HS256',
-    allowInsecureKeySizes: true,
-    expiresIn: expiresIn,
-  });
+  const token = jwt.sign(
+    { userId: user.userId, roles: user.roles, email: user.email },
+    jwtSecretKey,
+    {
+      algorithm: 'HS256',
+      allowInsecureKeySizes: true,
+      expiresIn: expiresIn,
+    }
+  );
   return token;
 };
 
