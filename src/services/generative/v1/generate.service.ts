@@ -1,212 +1,359 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { BaseGenerativeService, IFileGenerationService } from '../v3/base/base.abstract';
+import {
+  GenerateContentRequestInterface,
+  GenerateContentResponseInterface,
+  FileUploadRequestInterface,
+} from '@/dtos/generate';
 import {
   FileMetadata,
-  ProcessingResult,
   FileProcessingStatus,
+  ProcessingResult,
 } from '@/types/generate/generate.type';
-import { generateConfig } from '@/config/generate.config';
-import { convertJsonToArray, generatePromptText } from '@/utils/prompt';
-import * as fsPromise from 'fs/promises';
-import pdfParse from 'pdf-parse';
-import { generateFlashcards } from '../provider/generate.algorithm.service';
-import { streamContentFromGoogleStudio } from '../provider/googlestudio.service';
+import { ProcessingProgress } from '@/types/generate/large-file.type';
+import { MindmapData } from '@/models/mindmap/mindmap.model';
+import logger from '@/utils/logger';
 
-import { OpenAIService } from '../provider/openai.service';
-
-const processingJobs = new Map<string, ProcessingResult>();
-
-class GenerateService {
-  private openAiService: OpenAIService;
+class GenerateService extends BaseGenerativeService implements IFileGenerationService {
+  private processingResults = new Map<string, ProcessingResult>();
 
   constructor() {
-    this.openAiService = new OpenAIService();
+    super();
   }
 
-  async startProcessing(file: Express.Multer.File): Promise<string> {
-    const processingId = uuidv4();
-    const metadata = this.getFileMetadata(file);
-
-    processingJobs.set(processingId, {
-      id: processingId,
-      status: FileProcessingStatus.PROCESSING,
-      metadata,
-      startTime: Date.now(),
-    });
-
-    return processingId;
-  }
-
-  async getProcessingStatus(id: string): Promise<ProcessingResult> {
-    const status = processingJobs.get(id);
-    if (!status) {
-      throw new Error(`No processing job found with id ${id}`);
-    }
-    return status;
-  }
-
-  private async processFileAsync(filePath: string, processingId: string): Promise<void> {
-    const job = processingJobs.get(processingId);
-    let totalProcessed = 0;
+  /**
+   * Register a content generation request from uploaded file
+   */
+  public async registerGenerateContentByLLM(
+    requestData: GenerateContentRequestInterface
+  ): Promise<GenerateContentResponseInterface> {
+    const jobId = uuidv4();
 
     try {
-      // const readStream = fs.createReadStream(filePath);
-      // const processingStream = new Transform({
-      //   transform(chunk, encoding, callback) {
-      //     try {
-      //       // Process each chunk of data
-      //       totalProcessed += chunk.length;
-      //       // Example transformation - in real world, implement your business logic here
-      //       this.push(chunk);
-      //       callback();
-      //     } catch (error) {
-      //       callback(error);
-      //     }
-      //   },
-      // });
+      // Create initial processing result
+      const processingResult: ProcessingResult = {
+        id: jobId,
+        status: FileProcessingStatus.PROCESSING,
+        metadata: {
+          originalName: 'content.txt',
+          size: Buffer.byteLength(requestData.content, 'utf-8'),
+          mimeType: 'text/plain',
+          path: '',
+          uploadedAt: new Date(),
+        },
+        startTime: Date.now(),
+      };
 
-      const outputPath = path.join(
-        generateConfig.uploadDir,
-        `processed-${path.basename(filePath)}`
-      );
-      const writeStream = fs.createWriteStream(outputPath);
+      this.processingResults.set(jobId, processingResult); // Start background processing (don't await)
+      this.generateContentByLLMBackGround(requestData.content)
+        .then(result => {
+          const existingResult = this.processingResults.get(jobId);
+          if (existingResult) {
+            existingResult.status = FileProcessingStatus.COMPLETED;
+            existingResult.endTime = Date.now();
+            existingResult.resultPath = JSON.stringify(result);
+          }
+        })
+        .catch(error => {
+          const existingResult = this.processingResults.get(jobId);
+          if (existingResult) {
+            existingResult.status = FileProcessingStatus.FAILED;
+            existingResult.endTime = Date.now();
+            existingResult.error = error instanceof Error ? error.message : String(error);
+          }
+        });
 
-      //await pipelineAsync(readStream, processingStream, writeStream);
-
-      // Update job status to completed
-      // processingJobs.set(processingId, {
-      //   ...job,
-      //   status: FileProcessingStatus.COMPLETED,
-      //   resultPath: outputPath,
-      //   processedBytes: totalProcessed,
-      //   endTime: Date.now(),
-      // });
+      return {
+        jobId,
+        status: FileProcessingStatus.PROCESSING,
+      };
     } catch (error) {
+      logger.error(
+        `Error registering content generation: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return {
+        jobId,
+        status: FileProcessingStatus.FAILED,
+      };
+    }
+  }
+
+  /**
+   * Process content generation in the background
+   */
+  protected async generateContentByLLMBackGround(content: string): Promise<MindmapData | null> {
+    try {
+      // If content is a file path, read the file
+      if (fs.existsSync(content)) {
+        const fileContent = await this.processUploadedFile(content);
+        if (!fileContent) {
+          throw new Error('Failed to extract content from file');
+        }
+
+        // Generate mindmap from file content
+        const metadata: FileMetadata = {
+          originalName: path.basename(content),
+          size: fs.statSync(content).size,
+          mimeType: 'text/plain',
+          path: content,
+          uploadedAt: new Date(),
+        };
+
+        return await this.generateMindmapFromFile(content, metadata);
+      } else {
+        // Content is text, use it directly
+        return await this.generateMindmapFromText(content);
+      }
+    } catch (error) {
+      logger.error(
+        `Error in background processing: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Generate mindmap from uploaded file
+   */
+  public async generateMindmapFromFile(
+    filePath: string,
+    metadata: FileMetadata,
+    customPrompt?: string
+  ): Promise<MindmapData | null> {
+    return await super.generateMindmapFromFile(filePath, metadata, customPrompt);
+  }
+
+  /**
+   * Process uploaded file and extract content
+   */
+  public async processUploadedFile(filePath: string): Promise<string | null> {
+    return await super.processUploadedFile(filePath);
+  }
+
+  /**
+   * Generate mindmap from text content directly
+   */
+  private async generateMindmapFromText(content: string): Promise<MindmapData | null> {
+    try {
+      // Create a temporary file to use existing file-based method
+      const tempFilePath = path.join(process.cwd(), 'uploads', `temp_${uuidv4()}.txt`);
+
+      // Ensure uploads directory exists
+      const uploadsDir = path.dirname(tempFilePath);
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+
+      // Write content to temporary file
+      fs.writeFileSync(tempFilePath, content, 'utf-8');
+
+      const metadata: FileMetadata = {
+        originalName: 'text_content.txt',
+        size: Buffer.byteLength(content, 'utf-8'),
+        mimeType: 'text/plain',
+        path: tempFilePath,
+        uploadedAt: new Date(),
+      };
+
+      // Generate mindmap
+      const result = await this.generateMindmapFromFile(tempFilePath, metadata);
+
+      // Clean up temporary file
+      try {
+        fs.unlinkSync(tempFilePath);
+      } catch {
+        // Ignore cleanup errors
+      }
+
+      return result;
+    } catch (error) {
+      logger.error(
+        `Error generating mindmap from text: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Process file upload request and generate mindmap
+   */
+  public async processFileUploadForMindmap(
+    request: FileUploadRequestInterface
+  ): Promise<MindmapData | null> {
+    try {
+      if (request.filePath) {
+        // Process file upload
+        const metadata: FileMetadata = {
+          originalName: request.fileName || path.basename(request.filePath),
+          size: fs.existsSync(request.filePath) ? fs.statSync(request.filePath).size : 0,
+          mimeType: request.mimeType || 'text/plain',
+          path: request.filePath,
+          uploadedAt: new Date(),
+        };
+
+        return await this.generateMindmapFromFile(request.filePath, metadata, request.customPrompt);
+      } else if (request.content) {
+        // Process direct content
+        return await this.generateMindmapFromText(request.content);
+      }
+
+      return null;
+    } catch (error) {
+      logger.error(
+        `Error processing file upload: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Get processing result by job ID
+   */
+  public getProcessingResult(jobId: string): ProcessingResult | undefined {
+    return this.processingResults.get(jobId);
+  }
+
+  /**
+   * Get all processing results
+   */
+  public getAllProcessingResults(): ProcessingResult[] {
+    return Array.from(this.processingResults.values());
+  }
+
+  /**
+   * Clear completed processing results
+   */
+  public clearCompletedResults(): void {
+    for (const [jobId, result] of this.processingResults.entries()) {
+      if (
+        result.status === FileProcessingStatus.COMPLETED ||
+        result.status === FileProcessingStatus.FAILED
+      ) {
+        this.processingResults.delete(jobId);
+      }
+    }
+  }
+
+  /**
+   * Get file processing progress (for large files)
+   */
+  public getFileProcessingProgress(jobId: string): ProcessingProgress | undefined {
+    // Try to get progress from the base LLM provider
+    try {
+      logger.info(`Checking progress for job: ${jobId}`);
+      // const baseService = this as BaseGenerativeService;
+      // const llmProvider = (baseService as Record<string, unknown>)?.llmProvider as {
+      //   getProgress?: (id: string) => ProcessingProgress | undefined;
+      // };
+      // return llmProvider?.getProgress?.(jobId);
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Start large file processing in background
+   */
+  public async startLargeFileProcessing(request: FileUploadRequestInterface): Promise<string> {
+    const jobId = uuidv4();
+
+    try {
+      // Start processing in background (don't await)
+      this.processLargeFileInBackground(request, jobId).catch(error => {
+        logger.error(
+          `Background processing failed for job ${jobId}: ${error instanceof Error ? error.message : String(error)}`
+        );
+      });
+
+      return jobId;
+    } catch (error) {
+      logger.error(
+        `Error starting large file processing: ${error instanceof Error ? error.message : String(error)}`
+      );
       throw error;
     }
   }
 
-  getFileMetadata(file: Express.Multer.File): FileMetadata {
-    return {
-      originalName: file.originalname,
-      size: file.size,
-      mimeType: file.mimetype,
-      path: file.path,
-      uploadedAt: new Date(),
-    };
-  }
-
   /**
-   * @description Generates quizzes using the OpenAI API LLM
-   * @param content The content to generate quizzes from
-   * @returns
+   * Process large file in background
    */
-  public async generateQuizzesLLM(content: string): Promise<any> {
-    return await this.generateQuizzesLLMStream(content);
-  }
+  private async processLargeFileInBackground(
+    request: FileUploadRequestInterface,
+    jobId: string
+  ): Promise<void> {
+    try {
+      if (!request.filePath) {
+        throw new Error('File path is required for large file processing');
+      }
 
-  /**
-   *
-   * @description Generates quizzes using the OpenAI API LLM streaming method
-   * @param content The content to generate quizzes from
-   * @returns list quizzes
-   */
-  private async generateQuizzesLLMStream(content: string): Promise<any> {
-    const prompt = generatePromptText(content, 'MULTIPLE_CHOICE');
+      const metadata: FileMetadata = {
+        originalName: request.fileName || path.basename(request.filePath),
+        size: fs.existsSync(request.filePath) ? fs.statSync(request.filePath).size : 0,
+        mimeType: request.mimeType || 'text/plain',
+        path: request.filePath,
+        uploadedAt: new Date(),
+      };
 
-    let fullContent = '';
-    for await (const chunk of streamContentFromGoogleStudio(prompt)) {
-      fullContent += chunk;
+      logger.info(`Starting background processing for large file: ${metadata.originalName}`);
+
+      const result = await this.generateMindmapFromFile(
+        request.filePath,
+        metadata,
+        request.customPrompt
+      );
+
+      if (result) {
+        // Store result temporarily (in a real app, you'd use a database)
+        const processingResult: ProcessingResult = {
+          id: jobId,
+          status: FileProcessingStatus.COMPLETED,
+          metadata,
+          startTime: Date.now(),
+          endTime: Date.now(),
+          resultPath: JSON.stringify(result),
+        };
+
+        this.processingResults.set(jobId, processingResult);
+        logger.info(`Large file processing completed for job: ${jobId}`);
+      } else {
+        throw new Error('Failed to generate mindmap from large file');
+      }
+
+      // Clean up file after processing
+      try {
+        if (fs.existsSync(request.filePath)) {
+          fs.unlinkSync(request.filePath);
+          logger.info(`Cleaned up uploaded file: ${request.filePath}`);
+        }
+      } catch (error) {
+        logger.warn(
+          `Failed to clean up file: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    } catch (error) {
+      logger.error(
+        `Error in background processing: ${error instanceof Error ? error.message : String(error)}`
+      );
+
+      const errorResult: ProcessingResult = {
+        id: jobId,
+        status: FileProcessingStatus.FAILED,
+        metadata: {
+          originalName: request.fileName || 'unknown',
+          size: 0,
+          mimeType: request.mimeType || 'text/plain',
+          path: request.filePath || '',
+          uploadedAt: new Date(),
+        },
+        startTime: Date.now(),
+        endTime: Date.now(),
+        error: error instanceof Error ? error.message : String(error),
+      };
+
+      this.processingResults.set(jobId, errorResult);
     }
-
-    const data = convertJsonToArray(fullContent || '[]');
-
-    return {
-      quizzes: data,
-      text: fullContent,
-    };
-  }
-
-  /**
-   *
-   * @description Generates flashcards using the OpenAI API non-streaming method
-   * @param content The content to generate flashcards from
-   * @returns list flashcards
-   */
-  public async generateFlashcardsLLM(content: string): Promise<any> {
-    return await this.generateFlashcardsLLMStream(content);
-  }
-
-  /**
-   * @description Generates flashcards using the OpenAI API streaming method
-   * @param content The content to generate flashcards from
-   * @returns list flashcards
-   */
-  private async generateFlashcardsLLMStream(content: string): Promise<any> {
-    const prompt = generatePromptText(content, 'FLASH_CARD');
-
-    let fullContent = '';
-
-    for await (const chunk of streamContentFromGoogleStudio(prompt)) {
-      fullContent += chunk;
-    }
-
-    const data = convertJsonToArray(fullContent || '[]');
-
-    return {
-      quizzes: data,
-      text: fullContent,
-    };
-  }
-
-  /**
-   * @param content The content to generate flashcards from
-   * @returns list flashcards
-   * @description Generates flashcards using the algorithm service
-   */
-  public async generateFlashcardsAlgo(content: string): Promise<any> {
-    const flashcards = generateFlashcards(content);
-    return Promise.resolve(flashcards);
-  }
-
-  /**
-   * Generates flashcards from a PDF file
-   * @param pdfPath Path to the PDF file
-   * @param maxContentLength Optional maximum content length to process (to avoid token limits)
-   * @returns Object containing the generated flashcards array
-   */
-  async generateFlashcardsWithPDF(
-    pdfPath: string,
-    maxContentLength = 10000
-  ): Promise<{
-    flashcards: any[];
-    pageCount?: number;
-    processedPages?: number;
-  }> {
-    // Load and parse the PDF file
-    const pdfBuffer = await fsPromise.readFile(pdfPath);
-    const pdfData = await pdfParse(pdfBuffer);
-
-    //Get PDF metadata
-    const { numpages, text } = pdfData;
-
-    // TODO: Truncate content if it's too large to avoid token limits
-
-    // Call the AI model with the extracted text
-    const response = await this.generateFlashcardsLLM(text);
-
-    const dataResponse = response?.choices[0]?.message?.content;
-    const flashcards = convertJsonToArray(dataResponse || '[]');
-
-    return {
-      flashcards,
-      pageCount: numpages,
-      processedPages:
-        text.length > maxContentLength
-          ? Math.ceil((maxContentLength / text.length) * numpages)
-          : numpages,
-    };
   }
 }
 
