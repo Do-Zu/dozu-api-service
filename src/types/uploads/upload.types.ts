@@ -5,7 +5,17 @@
 /**
  * Supported file upload encodings
  */
-export type FileEncoding = 'utf8' | 'ascii' | 'utf-8' | 'utf16le' | 'ucs2' | 'ucs-2' | 'base64' | 'latin1' | 'binary' | 'hex';
+export type FileEncoding =
+  | 'utf8'
+  | 'ascii'
+  | 'utf-8'
+  | 'utf16le'
+  | 'ucs2'
+  | 'ucs-2'
+  | 'base64'
+  | 'latin1'
+  | 'binary'
+  | 'hex';
 
 /**
  * File upload status
@@ -14,7 +24,7 @@ export enum UploadStatus {
   PENDING = 'pending',
   PROCESSING = 'processing',
   COMPLETED = 'completed',
-  FAILED = 'failed'
+  FAILED = 'failed',
 }
 
 /**
@@ -25,7 +35,7 @@ export enum FileCategory {
   IMAGE = 'image',
   TEXT = 'text',
   ARCHIVE = 'archive',
-  OTHER = 'other'
+  OTHER = 'other',
 }
 
 /**
@@ -256,7 +266,7 @@ export interface UploadConfigPreset {
 }
 
 /**
- * Common upload configuration presets  
+ * Common upload configuration presets
  */
 export const UPLOAD_PRESETS: Record<string, UploadConfigPreset> = {
   DOCUMENT: {
@@ -268,46 +278,34 @@ export const UPLOAD_PRESETS: Record<string, UploadConfigPreset> = {
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'text/plain'
+      'text/plain',
     ],
     allowedExtensions: ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.txt'],
     processingOptions: {
       extractMetadata: true,
-      convertToText: true
-    }
+      convertToText: true,
+    },
   },
   IMAGE: {
     name: 'Image Upload',
     maxFileSize: 10 * 1024 * 1024, // 10MB
-    allowedMimeTypes: [
-      'image/jpeg',
-      'image/png',
-      'image/gif',
-      'image/bmp',
-      'image/webp'
-    ],
+    allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/webp'],
     allowedExtensions: ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'],
     processingOptions: {
       generateThumbnail: true,
       extractMetadata: true,
-      compressImages: true
-    }
+      compressImages: true,
+    },
   },
   TEXT: {
     name: 'Text File Upload',
     maxFileSize: 5 * 1024 * 1024, // 5MB
-    allowedMimeTypes: [
-      'text/plain',
-      'text/csv',
-      'text/markdown',
-      'application/json',
-      'text/html'
-    ],
+    allowedMimeTypes: ['text/plain', 'text/csv', 'text/markdown', 'application/json', 'text/html'],
     allowedExtensions: ['.txt', '.csv', '.md', '.json', '.html'],
     processingOptions: {
       extractMetadata: true,
-      convertToText: true
-    }
+      convertToText: true,
+    },
   },
   ARCHIVE: {
     name: 'Archive Upload',
@@ -315,12 +313,35 @@ export const UPLOAD_PRESETS: Record<string, UploadConfigPreset> = {
     allowedMimeTypes: [
       'application/zip',
       'application/x-rar-compressed',
-      'application/x-7z-compressed'
+      'application/x-7z-compressed',
     ],
     allowedExtensions: ['.zip', '.rar', '.7z'],
     processingOptions: {
       extractMetadata: true,
-      virusScan: true
-    }
-  }
+      virusScan: true,
+    },
+  },
 };
+
+/**
+ * Presigned URL request interface
+ */
+export interface PresignedUrlRequest {
+  fileName: string;
+  fileSize: number;
+  fileType: string;
+  contentType: string;
+}
+
+/**
+ * Presigned URL response interface
+ */
+export interface PresignedUrlResponse {
+  uploadUrl: string;
+  fileId: string;
+  expiresIn: number; // seconds
+  conditions?: {
+    maxFileSize: number;
+    allowedContentTypes: string[];
+  };
+}

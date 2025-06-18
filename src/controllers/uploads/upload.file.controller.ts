@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import { SuccessResponse } from '@/core/success';
 import { BadRequest, InternalServerError } from '@/core/error';
 import { uploadFileService, FileUploadConfig } from '@/services/uploads/files/upload.file.service';
+import { PresignedUrlRequest, PresignedUrlResponse } from '@/types/uploads/upload.types';
 import logger from '@/utils/logger';
 
 /**
@@ -19,6 +20,7 @@ class UploadFileController {
   public async uploadSingleFile(req: Request, res: Response): Promise<void> {
     try {
       const file = req.file;
+
       if (!file) {
         throw new BadRequest('No file uploaded');
       }
@@ -132,31 +134,6 @@ class UploadFileController {
       } else {
         throw new InternalServerError('Failed to get file information');
       }
-    }
-  }
-
-  /**
-   * Get all files
-   * GET /api/upload
-   */
-  public async getAllFiles(req: Request, res: Response): Promise<void> {
-    try {
-      const files = uploadFileService.getAllFiles();
-      const stats = uploadFileService.getUploadStats();
-
-      SuccessResponse.ok(
-        res,
-        {
-          files,
-          statistics: stats,
-        },
-        'Files retrieved successfully'
-      );
-    } catch (error) {
-      logger.error(
-        `Error getting all files: ${error instanceof Error ? error.message : String(error)}`
-      );
-      throw new InternalServerError('Failed to get files');
     }
   }
 
@@ -348,49 +325,14 @@ class UploadFileController {
   }
 
   /**
-   * Move file to different directory
-   * PUT /api/upload/:fileId/move
-   */
-  public async moveFile(req: Request, res: Response): Promise<void> {
-    try {
-      const { fileId } = req.params;
-      const { newDirectory } = req.body;
-
-      if (!fileId) {
-        throw new BadRequest('File ID is required');
-      }
-
-      if (!newDirectory) {
-        throw new BadRequest('New directory is required');
-      }
-
-      const success = await uploadFileService.moveFile(fileId, newDirectory);
-      if (!success) {
-        throw new BadRequest('File not found or could not be moved');
-      }
-
-      const updatedFileInfo = uploadFileService.getFileById(fileId);
-
-      SuccessResponse.ok(res, updatedFileInfo, 'File moved successfully');
-    } catch (error) {
-      logger.error(`Error moving file: ${error instanceof Error ? error.message : String(error)}`);
-      if (error instanceof BadRequest) {
-        throw error;
-      } else {
-        throw new InternalServerError('Failed to move file');
-      }
-    }
-  }
-
-  /**
    * Get upload statistics
    * GET /api/upload/stats
    */
   public async getUploadStats(req: Request, res: Response): Promise<void> {
     try {
-      const stats = uploadFileService.getUploadStats();
+      //   const stats = uploadFileService.getUploadStats();
 
-      SuccessResponse.ok(res, stats, 'Upload statistics retrieved successfully');
+      SuccessResponse.ok(res, {}, 'Upload statistics retrieved successfully');
     } catch (error) {
       logger.error(
         `Error getting upload stats: ${error instanceof Error ? error.message : String(error)}`
@@ -415,6 +357,187 @@ class UploadFileController {
     config?: FileUploadConfig
   ) {
     return uploadFileService.getMultipleFilesUploadMiddleware(fieldName, maxCount, config);
+  }
+
+  /**
+   * Generate presigned URL for file upload
+   * POST /api/upload/presigned-url
+   */
+  public async generatePresignedUrl(req: Request, res: Response): Promise<void> {
+    try {
+      const { fileName, fileSize, fileType, contentType } = req.body as PresignedUrlRequest;
+
+      if (!fileName || !fileSize || !fileType || !contentType) {
+        throw new BadRequest('fileName, fileSize, fileType, and contentType are required');
+      }
+
+      const request: PresignedUrlRequest = {
+        fileName,
+        fileSize,
+        fileType,
+        contentType,
+      };
+      const DEFAULT_EXPIRATION = 60; //60s
+      const result: PresignedUrlResponse = uploadFileService.generatePresignedUrl(
+        request,
+        DEFAULT_EXPIRATION
+      );
+
+      logger.info(`Generated presigned URL for file: ${fileName}`);
+
+      SuccessResponse.created(res, result, 'Presigned URL generated successfully');
+    } catch (error) {
+      logger.error(
+        `Error generating presigned URL: ${error instanceof Error ? error.message : String(error)}`
+      );
+      if (error instanceof BadRequest) {
+        throw error;
+      } else {
+        throw new InternalServerError('Failed to generate presigned URL');
+      }
+    }
+  }
+
+  /**
+   * Upload file using presigned URL
+   * POST /api/upload/presigned/:fileId
+   */
+  public async uploadWithPresignedUrl(req: Request, res: Response): Promise<void> {
+    try {
+      const { fileId } = req.params;
+      const file = req.file;
+
+      if (!fileId) {
+        throw new BadRequest('File ID is required');
+      }
+
+      if (!file) {
+        throw new BadRequest('No file uploaded');
+      }
+
+      // Process the uploaded file
+      const result = await uploadFileService.processSingleFile(file);
+
+      // Update the file with the original file ID from presigned URL
+      result.id = fileId;
+
+      logger.info(`File uploaded successfully using presigned URL: ${file.originalname}`);
+
+      SuccessResponse.created(res, result, 'File uploaded successfully');
+    } catch (error) {
+      logger.error(
+        `Error uploading with presigned URL: ${error instanceof Error ? error.message : String(error)}`
+      );
+
+      // Clean up file if processing failed
+      if (req.file?.path) {
+        try {
+          const fs = require('fs');
+          if (fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+          }
+        } catch (cleanupError) {
+          logger.warn(
+            `Failed to clean up file: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
+          );
+        }
+      }
+
+      if (error instanceof BadRequest) {
+        throw error;
+      } else {
+        throw new InternalServerError('Failed to upload file');
+      }
+    }
+  }
+
+  /**
+   * Get presigned URL information
+   * GET /api/upload/presigned/:fileId/info
+   */
+  public async getPresignedUrlInfo(req: Request, res: Response): Promise<void> {
+    try {
+      const { fileId } = req.params;
+
+      if (!fileId) {
+        throw new BadRequest('File ID is required');
+      }
+
+      const info = uploadFileService.getPresignedUrlInfo(fileId);
+      if (!info) {
+        throw new BadRequest('Presigned URL not found');
+      }
+
+      SuccessResponse.ok(
+        res,
+        {
+          fileId,
+          fileName: info.request.fileName,
+          fileSize: info.request.fileSize,
+          contentType: info.request.contentType,
+          expiresAt: info.expiresAt,
+          used: info.used,
+          isExpired: new Date() > info.expiresAt,
+        },
+        'Presigned URL information retrieved'
+      );
+    } catch (error) {
+      logger.error(
+        `Error getting presigned URL info: ${error instanceof Error ? error.message : String(error)}`
+      );
+      if (error instanceof BadRequest) {
+        throw error;
+      } else {
+        throw new InternalServerError('Failed to get presigned URL information');
+      }
+    }
+  }
+
+  /**
+   * Get all active presigned URLs
+   * GET /api/upload/presigned/active
+   */
+  public async getActivePresignedUrls(req: Request, res: Response): Promise<void> {
+    try {
+      const activeUrls = uploadFileService.getActivePresignedUrls();
+
+      SuccessResponse.ok(
+        res,
+        {
+          presignedUrls: activeUrls,
+          count: activeUrls.length,
+        },
+        'Active presigned URLs retrieved'
+      );
+    } catch (error) {
+      logger.error(
+        `Error getting active presigned URLs: ${error instanceof Error ? error.message : String(error)}`
+      );
+      throw new InternalServerError('Failed to get active presigned URLs');
+    }
+  }
+
+  /**
+   * Clean up expired presigned URLs
+   * POST /api/upload/presigned/cleanup
+   */
+  public async cleanupExpiredPresignedUrls(req: Request, res: Response): Promise<void> {
+    try {
+      const cleanedCount = uploadFileService.cleanupExpiredPresignedUrls();
+
+      SuccessResponse.ok(
+        res,
+        {
+          cleanedCount,
+        },
+        `Cleaned up ${cleanedCount} expired presigned URLs`
+      );
+    } catch (error) {
+      logger.error(
+        `Error cleaning up expired presigned URLs: ${error instanceof Error ? error.message : String(error)}`
+      );
+      throw new InternalServerError('Failed to cleanup expired presigned URLs');
+    }
   }
 }
 

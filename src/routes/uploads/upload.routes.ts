@@ -2,15 +2,16 @@ import { Router } from 'express';
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 import { registerRoute } from '../register.routes';
 import { uploadFileController } from '@/controllers/uploads/upload.file.controller';
-import { authMiddleware } from '@/middleware/auth.middleware';
+// import { authMiddleware } from '@/middleware/auth.middleware';
 import {
   validateFileId,
   validateFileIds,
-  validateMoveFileRequest,
   validateCleanupRequest,
   validateTextEncoding,
   validateSingleFileUpload,
   validateMultipleFilesUpload,
+  validatePresignedUrlRequest,
+  validatePresignedUpload,
 } from '@/middleware/validations/upload.validation';
 
 const router = Router();
@@ -19,14 +20,14 @@ const router = Router();
 globalAsyncHandler(router);
 
 // Apply authentication middleware to all routes
-router.use(authMiddleware);
+// router.use(authMiddleware);
 
 // Single file upload routes
 router.post(
   '/single',
   uploadFileController.getSingleUploadMiddleware('file'),
   validateSingleFileUpload(),
-  uploadFileController.uploadSingleFile.bind(uploadFileController)
+  uploadFileController.uploadSingleFile
 );
 
 // Multiple files upload routes
@@ -50,6 +51,7 @@ router.get(
   validateFileId(),
   uploadFileController.downloadFile.bind(uploadFileController)
 );
+
 router.get(
   '/:fileId/text',
   validateFileId(),
@@ -68,18 +70,49 @@ router.delete(
   validateFileIds(),
   uploadFileController.deleteMultipleFiles.bind(uploadFileController)
 );
-router.put(
-  '/:fileId/move',
-  validateFileId(),
-  validateMoveFileRequest(),
-  uploadFileController.moveFile.bind(uploadFileController)
-);
+
+// router.put(
+//   '/:fileId/move',
+//   validateFileId(),
+//   validateMoveFileRequest(),
+//   uploadFileController.moveFile.bind(uploadFileController)
+// );
 
 // Cleanup operations
 router.post(
   '/cleanup',
   validateCleanupRequest(),
   uploadFileController.cleanupOldFiles.bind(uploadFileController)
+);
+
+// Presigned URL routes
+router.post(
+  '/presigned-url',
+  validatePresignedUrlRequest(),
+  uploadFileController.generatePresignedUrl.bind(uploadFileController)
+);
+
+router.post(
+  '/presigned/:fileId',
+  uploadFileController.getSingleUploadMiddleware('file'),
+  validatePresignedUpload(),
+  uploadFileController.uploadWithPresignedUrl.bind(uploadFileController)
+);
+
+router.get(
+  '/presigned/:fileId/info',
+  validateFileId(),
+  uploadFileController.getPresignedUrlInfo.bind(uploadFileController)
+);
+
+router.get(
+  '/presigned/active',
+  uploadFileController.getActivePresignedUrls.bind(uploadFileController)
+);
+
+router.post(
+  '/presigned/cleanup',
+  uploadFileController.cleanupExpiredPresignedUrls.bind(uploadFileController)
 );
 
 // Register the route

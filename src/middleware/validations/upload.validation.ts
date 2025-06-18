@@ -192,3 +192,66 @@ export const validateMultipleFilesUpload = () => {
     next();
   };
 };
+
+/**
+ * Validate presigned URL request body
+ */
+export const validatePresignedUrlRequest = () => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const { fileName, fileSize, fileType, contentType } = req.body;
+
+    if (!fileName || typeof fileName !== 'string' || fileName.trim() === '') {
+      throw new BadRequest('fileName is required and must be a non-empty string');
+    }
+
+    if (!fileSize || typeof fileSize !== 'number' || fileSize <= 0) {
+      throw new BadRequest('fileSize is required and must be a positive number');
+    }
+
+    if (!fileType || typeof fileType !== 'string' || fileType.trim() === '') {
+      throw new BadRequest('fileType is required and must be a non-empty string');
+    }
+
+    if (!contentType || typeof contentType !== 'string' || contentType.trim() === '') {
+      throw new BadRequest('contentType is required and must be a non-empty string');
+    }
+
+    // Basic filename validation
+    const invalidChars = /[<>:"/\\|?*]/;
+    if (invalidChars.test(fileName)) {
+      throw new BadRequest('fileName contains invalid characters');
+    }
+
+    // File size limit (100MB)
+    const maxFileSize = 100 * 1024 * 1024;
+    if (fileSize > maxFileSize) {
+      throw new BadRequest(`fileSize exceeds maximum limit of ${maxFileSize / 1024 / 1024}MB`);
+    }
+
+    next();
+  };
+};
+
+/**
+ * Validate presigned upload request
+ */
+export const validatePresignedUpload = () => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const { fileId } = req.params;
+    const file = req.file;
+
+    if (!fileId || fileId.trim() === '') {
+      throw new BadRequest('File ID is required');
+    }
+
+    if (!file) {
+      throw new BadRequest('No file uploaded');
+    }
+
+    if (file.size === 0) {
+      throw new BadRequest('Uploaded file is empty');
+    }
+
+    next();
+  };
+};

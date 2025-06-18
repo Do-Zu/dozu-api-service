@@ -1,24 +1,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { Express } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import multer from 'multer';
 import { generateConfig } from '@/config/generate.config';
 import { BadRequest, InternalServerError } from '@/core/error';
 import logger from '@/utils/logger';
 import { FileProcessingStatus } from '@/types/generate/generate.type';
-
-// Define types for better TypeScript support
-interface MulterFile {
-  fieldname: string;
-  originalname: string;
-  encoding: string;
-  mimetype: string;
-  size: number;
-  destination: string;
-  filename: string;
-  path: string;
-  buffer: Buffer;
-}
+import { PresignedUrlRequest, PresignedUrlResponse } from '@/types/uploads/upload.types';
 
 /**
  * File upload configuration interface
@@ -72,6 +61,7 @@ interface FileValidationResult {
  */
 export class UploadFileService {
   private uploadedFiles = new Map<string, FileUploadResult>();
+
   private defaultConfig: FileUploadConfig;
 
   constructor(config?: Partial<FileUploadConfig>) {
@@ -94,12 +84,12 @@ export class UploadFileService {
         'text/html',
         'text/xml',
         // Images
-        'image/jpeg',
-        'image/png',
-        'image/gif',
-        'image/bmp',
-        'image/webp',
-        'image/svg+xml',
+        // 'image/jpeg',
+        // 'image/png',
+        // 'image/gif',
+        // 'image/bmp',
+        // 'image/webp',
+        // 'image/svg+xml',
         // Archives
         'application/zip',
         'application/x-rar-compressed',
@@ -108,33 +98,7 @@ export class UploadFileService {
         'application/gzip',
       ],
       uploadDir: config?.uploadDir || generateConfig.uploadDir,
-      allowedExtensions: config?.allowedExtensions || [
-        '.pdf',
-        '.doc',
-        '.docx',
-        '.xls',
-        '.xlsx',
-        '.ppt',
-        '.pptx',
-        '.txt',
-        '.csv',
-        '.md',
-        '.json',
-        '.html',
-        '.xml',
-        '.jpg',
-        '.jpeg',
-        '.png',
-        '.gif',
-        '.bmp',
-        '.webp',
-        '.svg',
-        '.zip',
-        '.rar',
-        '.7z',
-        '.tar',
-        '.gz',
-      ],
+      allowedExtensions: config?.allowedExtensions || ['.pdf', '.doc', '.docx', '.txt', '.md'],
     };
 
     // Ensure upload directory exists
@@ -165,7 +129,7 @@ export class UploadFileService {
    * @param config - Optional custom configuration
    * @private
    */
-  private validateFile(file: MulterFile, config?: FileUploadConfig): FileValidationResult {
+  private validateFile(file: Express.Multer.File, config?: FileUploadConfig): FileValidationResult {
     const currentConfig = { ...this.defaultConfig, ...config };
 
     // Check file size
@@ -288,7 +252,10 @@ export class UploadFileService {
    * @param file - Multer file object
    * @param _userId - Optional user ID (unused but kept for future extension)
    */
-  public async processSingleFile(file: MulterFile, _userId?: string): Promise<FileUploadResult> {
+  public async processSingleFile(
+    file: Express.Multer.File,
+    _userId?: string
+  ): Promise<FileUploadResult> {
     try {
       const fileId = uuidv4();
 
@@ -342,7 +309,7 @@ export class UploadFileService {
    * @param _userId - Optional user ID (unused but kept for future extension)
    */
   public async processMultipleFiles(
-    files: MulterFile[],
+    files: Express.Multer.File[],
     _userId?: string
   ): Promise<MultipleFileUploadResult> {
     const successful: FileUploadResult[] = [];
@@ -514,66 +481,134 @@ export class UploadFileService {
   }
 
   /**
-   * Move file to a different directory
-   * @param fileId - File ID
-   * @param newDirectory - New directory path
+   * Generate presigned URL for file upload
+   * @param request - Presigned URL request
+   * @param expiresInMinutes - URL expiration time in minutes (default: 60)
    */
-  public async moveFile(fileId: string, newDirectory: string): Promise<boolean> {
+  public generatePresignedUrl(
+    request: PresignedUrlRequest,
+    expiresInMinutes: number
+  ): PresignedUrlResponse {
     try {
-      const fileInfo = this.uploadedFiles.get(fileId);
-      if (!fileInfo || !fs.existsSync(fileInfo.filePath)) {
-        return false;
-      }
+      // Validate request
+      this.validatePresignedUrlRequest(request);
 
-      // Ensure new directory exists
-      if (!fs.existsSync(newDirectory)) {
-        fs.mkdirSync(newDirectory, { recursive: true });
-      }
+      const fileId = uuidv4();
 
-      const newFilePath = path.join(newDirectory, fileInfo.fileName);
+      const expiresIn = expiresInMinutes * 60; // Convert to seconds
 
-      // Move file
-      fs.renameSync(fileInfo.filePath, newFilePath);
+      // Store presigned URL info
 
-      // Update file info
-      fileInfo.filePath = newFilePath;
-      this.uploadedFiles.set(fileId, fileInfo);
+      // Generate upload URL (in a real implementation, this would be a secure URL)
+      const uploadUrl = `/upload/single`;
 
-      logger.info(`Moved file ${fileId} to ${newFilePath}`);
-      return true;
+      const response: PresignedUrlResponse = {
+        uploadUrl,
+        fileId,
+        expiresIn,
+        conditions: {
+          maxFileSize: this.defaultConfig.maxFileSize!,
+          allowedContentTypes: this.defaultConfig.allowedMimeTypes!,
+        },
+      };
+
+      //   logger.info(
+      //     `Generated presigned URL for file: ${request.fileName}, expires in ${expiresInMinutes} minutes`
+      //   );
+
+      return response;
     } catch (error) {
       logger.error(
-        `Error moving file ${fileId}: ${error instanceof Error ? error.message : String(error)}`
+        `Error generating presigned URL: ${error instanceof Error ? error.message : String(error)}`
       );
-      return false;
+      throw error;
     }
   }
 
   /**
-   * Get upload statistics
+   * Validate presigned URL request
+   * @param request - Presigned URL request
+   * @private
    */
-  public getUploadStats(): {
-    totalFiles: number;
-    totalSize: number;
-    avgFileSize: number;
-    fileTypes: Record<string, number>;
-  } {
-    const files = Array.from(this.uploadedFiles.values());
-    const totalFiles = files.length;
-    const totalSize = files.reduce((sum, file) => sum + file.size, 0);
-    const avgFileSize = totalFiles > 0 ? totalSize / totalFiles : 0;
+  private validatePresignedUrlRequest(request: PresignedUrlRequest): void {
+    if (!request.fileName || request.fileName.trim() === '') {
+      throw new BadRequest('fileName is required');
+    }
 
-    const fileTypes: Record<string, number> = {};
-    files.forEach(file => {
-      fileTypes[file.mimeType] = (fileTypes[file.mimeType] || 0) + 1;
-    });
+    if (!request.fileSize || request.fileSize <= 0) {
+      throw new BadRequest('fileSize must be a positive number');
+    }
 
-    return {
-      totalFiles,
-      totalSize,
-      avgFileSize,
-      fileTypes,
-    };
+    if (!request.fileType || request.fileType.trim() === '') {
+      throw new BadRequest('fileType is required');
+    }
+
+    if (!request.contentType || request.contentType.trim() === '') {
+      throw new BadRequest('contentType is required');
+    }
+
+    // Validate file size
+    if (request.fileSize > this.defaultConfig.maxFileSize!) {
+      throw new BadRequest(
+        `File size ${(request.fileSize / 1024 / 1024).toFixed(2)}MB exceeds maximum allowed size of ${(this.defaultConfig.maxFileSize! / 1024 / 1024).toFixed(2)}MB`
+      );
+    }
+
+    // Validate content type
+    if (
+      this.defaultConfig.allowedMimeTypes &&
+      !this.defaultConfig.allowedMimeTypes.includes(request.contentType)
+    ) {
+      throw new BadRequest(
+        `Content type ${request.contentType} is not allowed. Allowed types: ${this.defaultConfig.allowedMimeTypes.join(', ')}`
+      );
+    }
+
+    // Validate file extension
+    const fileExtension = path.extname(request.fileName).toLowerCase();
+    if (
+      this.defaultConfig.allowedExtensions &&
+      !this.defaultConfig.allowedExtensions.includes(fileExtension)
+    ) {
+      throw new BadRequest(
+        `File extension ${fileExtension} is not allowed. Allowed extensions: ${this.defaultConfig.allowedExtensions.join(', ')}`
+      );
+    }
+  }
+
+  /**
+   * Get presigned URL info by file ID
+   * @param fileId - File ID
+   */
+  public getPresignedUrlInfo(
+    fileId: string
+  ): { request: PresignedUrlRequest; expiresAt: Date; used: boolean } | null {
+    if (!fileId) {
+      throw new BadRequest('File ID is required');
+    }
+    return null;
+  }
+
+  /**
+   * Clean up expired presigned URLs
+   */
+  public cleanupExpiredPresignedUrls(): number {
+    let cleanedCount = 0;
+
+    return cleanedCount;
+  }
+
+  /**
+   * Get all active presigned URLs
+   */
+  public getActivePresignedUrls(): Array<{
+    fileId: string;
+    fileName: string;
+    expiresAt: Date;
+    used: boolean;
+  }> {
+    const active: Array<{ fileId: string; fileName: string; expiresAt: Date; used: boolean }> = [];
+    return active;
   }
 }
 
