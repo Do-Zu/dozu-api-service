@@ -30,3 +30,5 @@ export const getUserIdFromRequest = (req: Request): number => {
   userId = parseInt(userId as string);
   return userId;
 };
+
+};
