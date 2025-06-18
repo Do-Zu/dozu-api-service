@@ -2,7 +2,7 @@ import { OAuth2Client } from 'google-auth-library';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const GOOGLE_REDIRECT_URI = `${process.env.BACKEND_BASE_URL}/api/auth/google`;
+const GOOGLE_REDIRECT_URI = `${process.env.FRONTEND_BASE_URL}/auth/login`;
 
 // if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_REDIRECT_URI) {
 //   throw new InternalServerError('Missing required environment variables for Google OAuth.');
