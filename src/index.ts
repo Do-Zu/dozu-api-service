@@ -16,11 +16,14 @@ import { db } from './libs/drizzleClient.lib';
 // import { createServer } from 'http';
 // import { webSocketService } from './libs/websocket/socket.io';
 
-
-
 setupGlobalErrorHandlers();
 
 const app: Application = express();
+
+// Configure trust proxy for rate limiting and IP detection
+// This allows Express to trust reverse proxy headers like X-Forwarded-For
+// Essential for apps running behind reverse proxies.
+app.set('trust proxy', config.trustProxy);
 
 // const httpServer = createServer(app);
 

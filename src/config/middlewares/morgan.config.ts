@@ -1,5 +1,4 @@
 import morgan, { StreamOptions } from 'morgan';
-import { Request, Response } from 'express';
 import logger from '@/utils/logger';
 import { config } from '@/config/env.config';
 
