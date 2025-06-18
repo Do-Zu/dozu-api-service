@@ -1,0 +1,92 @@
+import { Router } from 'express';
+import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
+import { registerRoute } from '../register.routes';
+import { uploadFileController } from '@/controllers/uploads/upload.file.controller';
+import { authMiddleware } from '@/middleware/auth.middleware';
+import {
+  validateFileId,
+  validateFileIds,
+  validateMoveFileRequest,
+  validateCleanupRequest,
+  validateTextEncoding,
+  validateSingleFileUpload,
+  validateMultipleFilesUpload,
+} from '@/middleware/validations/upload.validation';
+
+const router = Router();
+
+// Apply global async handler
+globalAsyncHandler(router);
+
+// Apply authentication middleware to all routes
+router.use(authMiddleware);
+
+// Single file upload routes
+router.post(
+  '/single',
+  uploadFileController.getSingleUploadMiddleware('file'),
+  validateSingleFileUpload(),
+  uploadFileController.uploadSingleFile.bind(uploadFileController)
+);
+
+// Multiple files upload routes
+router.post(
+  '/multiple',
+  uploadFileController.getMultipleUploadMiddleware('files', 10),
+  validateMultipleFilesUpload(),
+  uploadFileController.uploadMultipleFiles.bind(uploadFileController)
+);
+
+// File management routes
+// router.get('/', uploadFileController.getAllFiles.bind(uploadFileController));
+router.get('/stats', uploadFileController.getUploadStats.bind(uploadFileController));
+router.get(
+  '/:fileId',
+  validateFileId(),
+  uploadFileController.getFileInfo.bind(uploadFileController)
+);
+router.get(
+  '/:fileId/download',
+  validateFileId(),
+  uploadFileController.downloadFile.bind(uploadFileController)
+);
+router.get(
+  '/:fileId/text',
+  validateFileId(),
+  validateTextEncoding(),
+  uploadFileController.getFileAsText.bind(uploadFileController)
+);
+
+// File operations
+router.delete(
+  '/:fileId',
+  validateFileId(),
+  uploadFileController.deleteFile.bind(uploadFileController)
+);
+router.delete(
+  '/batch',
+  validateFileIds(),
+  uploadFileController.deleteMultipleFiles.bind(uploadFileController)
+);
+router.put(
+  '/:fileId/move',
+  validateFileId(),
+  validateMoveFileRequest(),
+  uploadFileController.moveFile.bind(uploadFileController)
+);
+
+// Cleanup operations
+router.post(
+  '/cleanup',
+  validateCleanupRequest(),
+  uploadFileController.cleanupOldFiles.bind(uploadFileController)
+);
+
+// Register the route
+registerRoute('/upload', router, {
+  description: 'File upload and management API endpoints',
+  version: 'v1',
+  isEnabled: true,
+});
+
+export default router;
