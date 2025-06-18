@@ -13,16 +13,6 @@ export const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 export const getOAuthToken = async (code: any) => {
   try {
-    console.log(
-      'google request body:',
-      JSON.stringify({
-        code,
-        client_id: GOOGLE_CLIENT_ID,
-        client_secret: GOOGLE_CLIENT_SECRET,
-        redirect_uri: GOOGLE_REDIRECT_URI,
-        grant_type: 'authorization_code',
-      })
-    );
     const response = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: {
@@ -36,8 +26,6 @@ export const getOAuthToken = async (code: any) => {
         grant_type: 'authorization_code',
       }),
     }).then(res => res.json());
-
-    console.log('google oauth response', response);
 
     // The `response` object contains id_token which is a jwt token with the payload of the user information. If you have existing application authorization logic
     // you can use it here by checking if the email address in the jwt payload exists in your database and return the authorization token to the user.

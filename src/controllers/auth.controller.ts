@@ -129,10 +129,10 @@ export const googleOAuthRedirectController = async (req: Request, res: Response)
   const data: any = await googleOAuthLoginService(code);
 
   if (data.success) {
-    const sanitizedUser = sanitizeUserObject(data.user);
+    const sanitizedUser: any = sanitizeUserObject(data.user);
     const accessToken = signAccessJwtToken(sanitizedUser);
-    data.accessToken = accessToken;
-    SuccessResponse.ok(res, data);
+    sanitizedUser.accessToken = accessToken;
+    SuccessResponse.ok(res, sanitizedUser);
 
     //todo: includes token of some kind for FE & handle on frontend
   } else {
