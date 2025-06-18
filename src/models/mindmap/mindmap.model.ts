@@ -1,18 +1,13 @@
-import {
-  pgTable,
-  uuid,
-  varchar,
-  jsonb,
-  timestamp,
-  serial,
-} from "drizzle-orm/pg-core";
-import { usersTable } from "../user.model";
+import { pgTable,  varchar, jsonb, timestamp, serial, integer } from 'drizzle-orm/pg-core';
+
+import { topicsTable } from '../topic.model';
 
 type NodeData = {
   id: string;
   position: { x: number; y: number };
   data: {
     label: string;
+    isRoot: boolean;
   };
 };
 
@@ -27,12 +22,15 @@ export type MindmapData = {
   edges: EdgeData[];
 };
 
-export const mindmaps = pgTable("mindmaps", {
+export const mindmapsTable = pgTable('mindmaps', {
   mindmapId: serial('mindmap_id').primaryKey(),
-  userId: uuid("user_id")
+  topicId: integer('topic_id')
     .notNull()
-    .references(() => usersTable.userId, { onDelete: "cascade" }), 
-  title: varchar("title", { length: 255 }).notNull(),
-  mindmapData: jsonb("mindmap_data").$type<MindmapData>(),
+    .references(() => topicsTable.topicId, { onDelete: 'cascade' }),
+  title: varchar('title', { length: 255 }).default('New mind map'),
+  mindmapData: jsonb('mindmap_data').$type<MindmapData>(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
+
+export type SelectMindmap = typeof mindmapsTable.$inferSelect;
+export type InsertMindmap = typeof mindmapsTable.$inferInsert;
