@@ -1,5 +1,5 @@
 export type SanitizedUser = {
-  userId: string;
+  userId: number;
   username: string;
   email: string;
   fullName: string;
