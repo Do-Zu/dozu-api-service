@@ -90,7 +90,12 @@ class GenerateController {
 
     // Clean up uploaded file
     try {
-      fs.unlinkSync(file.path);
+      const normalizedPath = path.resolve(file.path);
+      if (normalizedPath.startsWith(uploadDir)) {
+        fs.unlinkSync(normalizedPath);
+      } else {
+        logger.warn(`Attempted to delete a file outside the upload directory: ${file.path}`);
+      }
     } catch (error) {
       logger.warn(
         `Failed to clean up uploaded file: ${error instanceof Error ? error.message : String(error)}`
