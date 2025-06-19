@@ -46,7 +46,8 @@ class GenerateService extends BaseGenerativeService implements IFileGenerationSe
         startTime: Date.now(),
       };
 
-      this.processingResults.set(jobId, processingResult); // Start background processing (don't await)
+      this.processingResults.set(jobId, processingResult);
+      // Start background processing (don't await)
       this.generateContentByLLMBackGround(requestData.content)
         .then(result => {
           const existingResult = this.processingResults.get(jobId);
