@@ -297,7 +297,10 @@ class GenerativeService extends BaseGenerativeService {
         } catch (error) {
             // Handle unexpected errors
             logger.error(`Exception triggering Lambda: ${error instanceof Error ? error.message : String(error)}`);
-            return await this.processWithQueue(dataSend);
+            return this.handleLambdaError({
+                success: false,
+                error,
+            });
         }
     }
 
@@ -326,8 +329,9 @@ class GenerativeService extends BaseGenerativeService {
             );
         }
 
-        // Generic error
-        throw new InternalServerError(`Failed to process request: ${lambdaResult.error || 'Unknown error'}`);
+        logger.error(`Lambda processing error: ${lambdaResult.error || 'Unknown error'}`);
+
+        throw new InternalServerError();
     }
 
     /**
