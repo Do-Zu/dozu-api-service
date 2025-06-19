@@ -247,6 +247,8 @@ jobs:
                   sudo docker-compose ps
                   sudo docker-compose logs --tail=20
 
+                  echo "Cleaning up old Docker images unused"
+                  sudo docker image prune -a -f
 
                   EOL
 
