@@ -54,119 +54,80 @@ class GenerateController {
    * Upload file and generate mindmap
    */
   public async uploadAndGenerateMindmap(req: Request, res: Response): Promise<void> {
-    try {
-      const file = req.file;
-      if (!file) {
-        throw new BadRequest('No file uploaded');
-      }
+    const file = req.file;
 
-      const { customPrompt, userId } = req.body;
-
-      const request: FileUploadRequestInterface = {
-        filePath: file.path,
-        fileName: file.originalname,
-        mimeType: file.mimetype,
-        type: 'mindmap',
-        customPrompt,
-        userId,
-      };
-
-      logger.info(`Processing file upload for mindmap generation: ${file.originalname}`);
-
-      // Process the file and generate mindmap
-      const mindmapData = await generateService.processFileUploadForMindmap(request);
-
-      if (!mindmapData) {
-        throw new BadRequest('Failed to generate mindmap from uploaded file');
-      }
-
-      const response: MindmapGenerationResponseInterface = {
-        jobId: `mindmap_${Date.now()}`,
-        status: 'completed',
-        message: 'Mindmap generated successfully',
-        mindmapData,
-        timestamp: new Date().toISOString(),
-      };
-
-      // Clean up uploaded file
-      try {
-        fs.unlinkSync(file.path);
-      } catch (error) {
-        logger.warn(
-          `Failed to clean up uploaded file: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
-
-      SuccessResponse.ok(res, response, 'Mindmap generated successfully');
-    } catch (error) {
-      logger.error(
-        `Error in uploadAndGenerateMindmap: ${error instanceof Error ? error.message : String(error)}`
-      );
-
-      // Clean up uploaded file in case of error
-      if (req.file) {
-        try {
-          fs.unlinkSync(req.file.path);
-        } catch {
-          // Ignore cleanup errors
-        }
-      }
-
-      if (error instanceof BadRequest) {
-        throw new BadRequest(error.message);
-      } else {
-        throw new InternalServerError();
-      }
+    if (!file) {
+      throw new BadRequest('No file uploaded');
     }
+
+    const { customPrompt, userId } = req.body;
+
+    const request: FileUploadRequestInterface = {
+      filePath: file.path,
+      fileName: file.originalname,
+      mimeType: file.mimetype,
+      type: 'mindmap',
+      customPrompt,
+      userId,
+    };
+
+    logger.info(`Processing file upload for mindmap generation: ${file.originalname}`);
+
+    // Process the file and generate mindmap
+    const mindmapData = await generateService.processFileUploadForMindmap(request);
+
+    if (!mindmapData) {
+      throw new BadRequest('Failed to generate mindmap from uploaded file');
+    }
+
+    const response: MindmapGenerationResponseInterface = {
+      jobId: `mindmap_${Date.now()}`,
+      status: 'completed',
+      message: 'Mindmap generated successfully',
+      mindmapData,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Clean up uploaded file
+    try {
+      fs.unlinkSync(file.path);
+    } catch (error) {
+      logger.warn(
+        `Failed to clean up uploaded file: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+
+    SuccessResponse.ok(res, response, 'Mindmap generated successfully');
   }
 
   /**
    * Generate mindmap from text content
    */
   public async generateMindmapFromText(req: Request, res: Response): Promise<void> {
-    try {
-      const { content, customPrompt, userId } = req.body;
+    const { content, customPrompt } = req.body;
+    const { userId } = req.currentUser;
 
-      if (!content) {
-        throw new BadRequest('Content is required');
-      }
-
-      const request: FileUploadRequestInterface = {
-        content,
-        type: 'mindmap',
-        customPrompt,
-        userId,
-      };
-
-      logger.info('Processing text content for mindmap generation');
-
-      // Process the content and generate mindmap
-      const mindmapData = await generateService.processFileUploadForMindmap(request);
-
-      if (!mindmapData) {
-        throw new BadRequest('Failed to generate mindmap from text content');
-      }
-
-      const response: MindmapGenerationResponseInterface = {
-        jobId: `mindmap_text_${Date.now()}`,
-        status: 'completed',
-        message: 'Mindmap generated successfully from text',
-        mindmapData,
-        timestamp: new Date().toISOString(),
-      };
-
-      SuccessResponse.ok(res, response, 'Mindmap generated successfully');
-    } catch (error) {
-      logger.error(
-        `Error in generateMindmapFromText: ${error instanceof Error ? error.message : String(error)}`
-      );
-
-      if (error instanceof BadRequest) {
-        res.status(400).json({ error: error.message });
-      } else {
-        res.status(500).json({ error: 'Internal server error' });
-      }
+    if (!content) {
+      throw new BadRequest('Content is required');
     }
+
+    const request: FileUploadRequestInterface = {
+      content,
+      type: 'mindmap',
+      customPrompt,
+      userId,
+    };
+
+    logger.info('Processing text content for mindmap generation');
+
+    // Process the content and generate mindmap
+    const mindmapData = await generateService.processFileUploadForMindmap(request);
+
+    if (!mindmapData) {
+      throw new InternalServerError('Failed to generate mindmap from text content');
+    }
+
+    SuccessResponse.ok(res, mindmapData, 'Mindmap generated successfully');
   }
 
   /**

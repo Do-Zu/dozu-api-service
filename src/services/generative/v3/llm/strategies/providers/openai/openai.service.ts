@@ -254,7 +254,9 @@ export class OpenAIService extends BaseLLMProvider {
         yield content;
       }
     }
-  } /**
+  }
+
+  /**
    * Generate mindmap from file content using OpenAI API
    * Delegates to the dedicated MindmapGenerateService
    * @param filePath Path to the uploaded file
