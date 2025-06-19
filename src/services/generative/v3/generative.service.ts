@@ -273,9 +273,11 @@ class GenerativeService extends BaseGenerativeService {
             providerBaseUrl: this.getProviderBaseUrl(),
         };
 
+        let lambdaTriggered;
+
         try {
             // Trigger Lambda function
-            const lambdaTriggered = await lambdaService.triggerContentGeneration(dataSendOnLambda, type);
+            lambdaTriggered = await lambdaService.triggerContentGeneration(dataSendOnLambda, type);
 
             // Handle Lambda errors
             if (lambdaTriggered && !lambdaTriggered.success) {
@@ -299,7 +301,8 @@ class GenerativeService extends BaseGenerativeService {
             logger.error(`Exception triggering Lambda: ${error instanceof Error ? error.message : String(error)}`);
             return this.handleLambdaError({
                 success: false,
-                error,
+                statusCode: lambdaTriggered ? lambdaTriggered.statusCode : 500,
+                error: lambdaTriggered ? lambdaTriggered.error : error instanceof Error ? error.message : String(error),
             });
         }
     }
