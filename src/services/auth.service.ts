@@ -5,14 +5,18 @@ import { sendVerificationLinkEmail } from '@/libs/nodeMailerTransporter.lib';
 import { InsertAuthAccount } from '@/models';
 import { InsertUser, SelectUser } from '@/models/user.model';
 import {
+  addRole,
   deleteVerificationCodeByEmailVerificationId,
   findByProviderId,
+  getRoles,
+  getUserRoleId,
+  getUserRoles,
   insertAuthAccountObject,
   insertUser,
   insertUserObject,
   insertVerificationCode,
   queryVerificationCode,
-  selectOneUserById,
+
   selectOneUserByUsername,
   updateLastLoginAt,
   updateUserIsVerified,
@@ -21,6 +25,26 @@ import { hashPassword, verifyPassword } from '@/utils/auth/hash.utils';
 import { decodeJwtToken } from '@/utils/auth/jwt.utils';
 
 type LoginResult = { success: true; user: SelectUser } | { success: false; reason: string }; //todo:reformat as template type for every services
+
+const getLoginData = async (userId: number) => {
+  const updatedUser: any = await updateLastLoginAt(userId);
+  const roles = await getRoles(); //get all roles in system from db
+  const userRoleEntries = await getUserRoles(userId); //get all roles of user
+  const userRoles = [];
+  for (let roleEntry of userRoleEntries) {
+    const role = roles.find(role => role.roleId === roleEntry.roleId);
+    userRoles.push(role?.name);
+  }
+  updatedUser.roles = userRoles;
+  return updatedUser;
+};
+
+const addRoleUserForAccount = async (userId: number) => {
+  //add the role 'user' for account with userId, create user record if not exist
+  const userRoleId = await getUserRoleId();
+  await addRole(userRoleId, userId);
+};
+
 export const loginService = async (username: string, password: string): Promise<LoginResult> => {
   const userData = await selectOneUserByUsername(username);
   if (!userData) return { success: false, reason: 'Username does not exist' };
@@ -28,7 +52,7 @@ export const loginService = async (username: string, password: string): Promise<
 
   const isCorrectPassword = await verifyPassword(password, userData.passwordHash);
   if (isCorrectPassword) {
-    const updatedUser = await updateLastLoginAt(userData.userId);
+    const updatedUser: any = await getLoginData(userData.userId);
 
     return {
       success: true,
@@ -51,8 +75,9 @@ export const registerUserService = async (username: string, password: string, em
     verificationCodeData.verificationCode as string
   );
   // const data = hashedPassword;
-
-  return { success: true, user: newUserData };
+  const returnUserData = getLoginData(newUserData.userId);
+  await addRoleUserForAccount(newUserData.userId);
+  return { success: true, user: returnUserData };
 };
 
 export const verifyEmailService = async (email: any, verificationCode: any) => {
@@ -85,7 +110,7 @@ export const googleOAuthLoginService = async (code: string): Promise<LoginResult
   let user;
   if (existingAuthAccount) {
     //checks if user exist
-    user = await selectOneUserById(existingAuthAccount.userId);
+    user = await getLoginData(existingAuthAccount.userId);
     //continues with login
     return { success: true, user: user };
   } else {
@@ -107,8 +132,10 @@ export const googleOAuthLoginService = async (code: string): Promise<LoginResult
       providerId: decoded.sub,
     };
     const newAuthAccountData = await insertAuthAccountObject(newAuthAccount);
+    await addRoleUserForAccount(newUserData.userId);
+    const returnUserData = await getLoginData(newUserData.userId);
 
-    return { success: true, user: newUserData };
+    return { success: true, user: returnUserData };
   }
 };
 

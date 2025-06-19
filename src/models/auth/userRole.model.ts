@@ -15,5 +15,5 @@ export const userRolesTable = pgTable(
   table => [unique().on(table.userId, table.roleId)]
 );
 
-export type SelectUserRolePermission = typeof userRolesTable.$inferSelect;
-export type InsertUserRolePermission = typeof userRolesTable.$inferInsert;
+export type SelectUserRolesPermission = typeof userRolesTable.$inferSelect;
+export type InsertUserRolesPermission = typeof userRolesTable.$inferInsert;

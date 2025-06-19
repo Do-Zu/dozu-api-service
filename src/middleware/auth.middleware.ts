@@ -22,11 +22,10 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
 
   try {
     const decoded: any = jwt.verify(accessToken, SECRET);
-    const sanitizedUser = sanitizeUserObject(decoded.user);
     //.verify Validates expiration by default
-    //todo: enforce type for decoded
+    // const sanitizedUser = sanitizeUserObject(decoded.user);
 
-    req.currentUser = sanitizedUser; // add `user` to Request via type augmentation
+    req.currentUser = decoded; // add `user` to Request via type augmentation
 
     next();
   } catch (error) {
