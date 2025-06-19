@@ -6,6 +6,7 @@ import { ProcessingProgress, LargeFileProcessingConfig } from '@/types/generate/
 import * as fs from 'fs';
 import { readFileContent } from '@/utils/file/file.util';
 import { createLargeFileMindmapPrompt, createMindmapPrompt } from '@/utils/prompt/mindmap.prompt';
+import { GenerationOptions } from './base/base.abstract';
 
 /**
  * Dedicated service for mindmap generation from files using OpenAI API
@@ -429,7 +430,10 @@ export class MindmapGenerateService {
   /**
    * Generate mindmap content using OpenAI API
    */
-  private async generateMindmapContent(prompt: string): Promise<MindmapData | null> {
+  private async generateMindmapContent(
+    prompt: string,
+    config?: GenerationOptions
+  ): Promise<MindmapData | null> {
     try {
       const messages: ChatCompletionMessageParam[] = [
         {
@@ -446,8 +450,8 @@ export class MindmapGenerateService {
       const response = await this.openai.chat.completions.create({
         model: this.model,
         messages,
-        max_tokens: 4000,
-        temperature: 0.3,
+        max_tokens: config?.maxTokens ?? 20000,
+        temperature: config?.temperature ?? 1,
         response_format: { type: 'json_object' },
       });
 
