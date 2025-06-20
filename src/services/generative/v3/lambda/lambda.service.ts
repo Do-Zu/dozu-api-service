@@ -2,6 +2,7 @@ import { LambdaClient, InvokeCommand, InvocationResponse, InvokeCommandInput } f
 import logger from '@/utils/logger';
 import { TYPE_PROMPT } from '@/utils/prompt';
 import { HTTP_STATUS } from '@/constants/index.constant';
+import { config } from '@/config/env.config';
 
 export interface LambdaTriggerOptions {
     functionName: string;
@@ -20,7 +21,12 @@ export interface LambdaTriggerResult {
 
 export class LambdaService {
     private readonly lambdaClient: LambdaClient;
-    private readonly FUNCTION_NAME_GEN_CONTENT = 'handle-gen-content-api-integrate';
+    private readonly FUNCTION_NAME_GEN_CONTENT_PRODUCTION = 'handle-gen-content-api-integrate';
+    private readonly FUNCTION_NAME_GEN_CONTENT_DEVELOPMENT = 'handle-gen-content-api-integrate-development';
+
+    private readonly FUNCTION_NAME_GEN_CONTENT = config.isProduction
+        ? this.FUNCTION_NAME_GEN_CONTENT_PRODUCTION
+        : this.FUNCTION_NAME_GEN_CONTENT_DEVELOPMENT;
 
     constructor(
         region: string = process.env.AWS_REGION || 'ap-southeast-1',
