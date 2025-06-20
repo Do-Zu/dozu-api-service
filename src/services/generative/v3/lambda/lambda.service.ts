@@ -21,7 +21,7 @@ export interface LambdaTriggerResult {
 
 export class LambdaService {
     private readonly lambdaClient: LambdaClient;
-    private readonly FUNCTION_NAME_GEN_CONTENT_PRODUCTION = 'handle-gen-content-api-integrate';
+    private readonly FUNCTION_NAME_GEN_CONTENT_PRODUCTION = 'handle-gen-content-api-integrate-product';
     private readonly FUNCTION_NAME_GEN_CONTENT_DEVELOPMENT = 'handle-gen-content-api-integrate-development';
 
     private readonly FUNCTION_NAME_GEN_CONTENT = config.isProduction
