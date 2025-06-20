@@ -93,18 +93,16 @@ class GenerativeService extends BaseGenerativeService {
      * This is the main worker function that handles content generation jobs
      */
     private async processor(job: Job): Promise<void> {
-        const { jobId, data } = job.data;
+        const { jobId, data: dataGenerated } = job.data;
 
         try {
-            logger.info(`Processing job ${jobId}`);
-
-            if (!job || !data || !jobId) {
+            if (!job || !dataGenerated || !jobId) {
                 throw new PayloadTooLarge();
             }
 
             // Send data to client via SSE if connected
             if (sseManager.isClientConnected(jobId)) {
-                const clientNotified = sseManager.sendEvent(jobId, data);
+                const clientNotified = sseManager.sendEvent(jobId, dataGenerated);
                 if (clientNotified) {
                     logger.info(`Data sent to client for job ${jobId}`);
                 }
@@ -113,7 +111,8 @@ class GenerativeService extends BaseGenerativeService {
             }
 
             // Store result in Redis for later retrieval
-            await this.storeData(data, jobId);
+            logger.info(`Storing result in Redis for job ${jobId}`);
+            await this.storeData(dataGenerated, jobId);
         } catch (error) {
             this.handleProcessorError(error, jobId);
         }
