@@ -309,11 +309,18 @@ export class UploadFileService {
    * @param _userId - Optional user ID (unused but kept for future extension)
    */
   public async processMultipleFiles(
-    files: Express.Multer.File[],
+    files: unknown,
     _userId?: string
   ): Promise<MultipleFileUploadResult> {
     const successful: FileUploadResult[] = [];
     const failed: Array<{ originalName: string; error: string }> = [];
+    if (
+      !Array.isArray(files) ||
+      files.some(file => !(file && typeof file === 'object' && 'originalname' in file && 'path' in file))
+    ) {
+      throw new BadRequest('Invalid files array');
+    }
+
     for (const file of files) {
       try {
         const result = await this.processSingleFile(file, _userId);
