@@ -8,6 +8,9 @@ import { BaseLLMProvider } from '../../../core/baseLLM.abstract';
 import logger from '@/utils/logger';
 import { GenerationOptions } from '@/services/generative/v3/base/base.abstract';
 import { APIPromise } from 'openai/core';
+import { MindmapData } from '@/models/mindmap/mindmap.model';
+import { MindmapGenerateService } from '../../../../mindmap.generate.service';
+import { ProcessingProgress } from '@/types/generate/large-file.type';
 
 /**
  * Implements AbstractBaseLLMService for OpenAI API
@@ -16,12 +19,12 @@ import { APIPromise } from 'openai/core';
 export class OpenAIService extends BaseLLMProvider {
   private openai: OpenAI | undefined;
   private isClientInitialized = false;
+  private mindmapService: MindmapGenerateService | undefined;
 
   constructor() {
     super();
     this.initialize();
   }
-
   /**
    * Initializes the OpenAI client if API key and base URL are available
    * @returns true if initialization was successful, false otherwise
@@ -41,6 +44,11 @@ export class OpenAIService extends BaseLLMProvider {
         apiKey: this.apiKey!,
         baseURL: this.baseURL!,
       });
+
+      // Initialize mindmap service
+      if (this.openai && this.model) {
+        this.mindmapService = new MindmapGenerateService(this.openai, this.model);
+      }
 
       this.isClientInitialized = true;
       logger.info('OpenAI client initialized successfully');
@@ -115,7 +123,7 @@ export class OpenAIService extends BaseLLMProvider {
 
   public override async generate(
     prompt: string,
-    options?: any
+    options?: GenerationOptions
   ): Promise<APIPromise<ChatCompletion> | undefined> {
     return await this.createCompletion(prompt, options);
   }
@@ -138,6 +146,7 @@ export class OpenAIService extends BaseLLMProvider {
 
     // Check rate limits
     const canProcess = await this.canLLMProcess();
+
     if (!canProcess) {
       logger.warn('Rate limits exceeded for OpenAI streaming request');
       return undefined;
@@ -163,7 +172,6 @@ export class OpenAIService extends BaseLLMProvider {
       return undefined;
     }
   }
-
   /**
    * Creates a non-streaming chat completion
    * @param messages The messages to send to the API
@@ -172,7 +180,7 @@ export class OpenAIService extends BaseLLMProvider {
    */
   private async createCompletion(
     prompt: string,
-    config?: Omit<ChatCompletionCreateParamsStreaming, 'model' | 'stream'>,
+    config?: GenerationOptions,
     messages?: Array<ChatCompletionMessageParam>
   ) {
     // Check if service is available
@@ -183,6 +191,7 @@ export class OpenAIService extends BaseLLMProvider {
 
     // Check rate limits
     const canProcess = await this.canLLMProcess();
+
     if (!canProcess) {
       logger.warn('Rate limits exceeded for OpenAI completion request');
       return undefined;
@@ -203,9 +212,9 @@ export class OpenAIService extends BaseLLMProvider {
       return await this.openai!.chat.completions.create({
         model: this.model!,
         messages,
-        max_tokens: config?.max_tokens ?? 8000,
+        max_tokens: config?.maxTokens ?? 8000,
         temperature: config?.temperature ?? 0.1,
-        ...config,
+        top_p: config?.topP,
       });
     } catch (error) {
       logger.error(
@@ -221,10 +230,8 @@ export class OpenAIService extends BaseLLMProvider {
    *
    * @param prompt The prompt to generate from
    * @yields Chunks of generated content
-   */
-  public async *handleProcessStreamContent(
-    prompt: string,
-    options?: Omit<GenerationOptions, 'responseFormat'>
+   */ public async *handleProcessStreamContent(
+    prompt: string
   ): AsyncGenerator<string, void, unknown> {
     // Configure generation context
     const messages: ChatCompletionMessageParam[] = [
@@ -247,5 +254,37 @@ export class OpenAIService extends BaseLLMProvider {
         yield content;
       }
     }
+  }
+
+  /**
+   * Generate mindmap from file content using OpenAI API
+   * Delegates to the dedicated MindmapGenerateService
+   * @param filePath Path to the uploaded file
+   * @param fileName Original file name
+   * @param customPrompt Optional custom prompt to override default
+   * @returns Mindmap data structure
+   */
+  public async generateMindmapFromFile(
+    filePath: string,
+    fileName: string,
+    customPrompt?: string
+  ): Promise<MindmapData | null> {
+    if (!this.isAvailable()) {
+      logger.warn('OpenAI service unavailable for mindmap generation');
+      return null;
+    }
+
+    if (!this.mindmapService) {
+      logger.error('Mindmap service not initialized');
+      return null;
+    }
+
+    return await this.mindmapService.generateMindmapFromFile(filePath, fileName, customPrompt);
+  }
+  /**
+   * Get progress for mindmap processing job
+   */
+  public getProgress(jobId: string): ProcessingProgress | undefined {
+    return this.mindmapService?.getProgress(jobId);
   }
 }
