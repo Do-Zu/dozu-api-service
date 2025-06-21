@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import multer from 'multer';
-import * as path from 'path';
 import { generateConfig } from '@/config/generate.config';
 
 // Ensure upload directory exists

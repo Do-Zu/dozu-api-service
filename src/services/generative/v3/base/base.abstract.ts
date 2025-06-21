@@ -1,6 +1,7 @@
-import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { OpenAIService } from '../llm/strategies/providers/openai/openai.service';
 import { GenerateContentRequestInterface, GenerateContentResponseInterface } from '@/dtos/generate';
+import { MindmapData } from '@/models/mindmap/mindmap.model';
+import { FileMetadata } from '@/types/generate/generate.type';
 
 /**
  * Configuration options for content generation
@@ -46,6 +47,31 @@ export interface ITextFormatGenerateService extends IGenerativeService {
    * @returns Stream of generated content
    */
   generateContentStream(prompt: string, options?: GenerationOptions): Promise<unknown>;
+}
+
+/**
+ * Interface for file-based generation services
+ */
+export interface IFileGenerationService extends IGenerativeService {
+  /**
+   * Generate mindmap from uploaded file
+   * @param filePath Path to the uploaded file
+   * @param metadata File metadata
+   * @param customPrompt Optional custom prompt
+   * @returns Generated mindmap data
+   */
+  generateMindmapFromFile(
+    filePath: string,
+    metadata: FileMetadata,
+    customPrompt?: string
+  ): Promise<MindmapData | null>;
+
+  /**
+   * Process uploaded file and extract content
+   * @param filePath Path to the uploaded file
+   * @returns Extracted text content
+   */
+  processUploadedFile(filePath: string): Promise<string | null>;
 }
 
 /**
@@ -135,7 +161,7 @@ export abstract class BaseGenerativeService implements IGenerativeService {
     while (retries <= maxRetries) {
       try {
         // Generate content using stream
-        for await (const chunk of this.llmProvider.handleProcessStreamContent(prompt, options)) {
+        for await (const chunk of this.llmProvider.handleProcessStreamContent(prompt)) {
           fullContent += chunk;
         }
 
@@ -146,7 +172,7 @@ export abstract class BaseGenerativeService implements IGenerativeService {
 
         // Otherwise, retry
         retries++;
-      } catch (error) {
+      } catch {
         retries++;
         // Wait before retrying (exponential backoff)
         if (retries <= maxRetries) {
@@ -157,5 +183,52 @@ export abstract class BaseGenerativeService implements IGenerativeService {
 
     // Return what we have, even if incomplete
     return fullContent;
+  }
+  /**
+   * Generate mindmap from uploaded file using LLM
+   * This method handles file processing and mindmap generation
+   *
+   * @param filePath Path to the uploaded file
+   * @param metadata File metadata information
+   * @param customPrompt Optional custom prompt to override default
+   * @returns Generated mindmap data or null if failed
+   */
+  protected async generateMindmapFromFile(
+    filePath: string,
+    metadata: FileMetadata,
+    customPrompt?: string
+  ): Promise<MindmapData | null> {
+    try {
+      // Check rate limits before processing
+      const canProcess = await this.updateStatusLLMRateLimit();
+      if (!canProcess) {
+        return null;
+      }
+
+      // Generate mindmap using the LLM provider
+      return await this.llmProvider.generateMindmapFromFile(
+        filePath,
+        metadata.originalName,
+        customPrompt
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Process uploaded file and extract readable content
+   * @param filePath Path to the uploaded file
+   * @returns Extracted content or null if failed
+   */
+  protected async processUploadedFile(filePath: string): Promise<string | null> {
+    try {
+      // This method should extract text content, not generate mindmap
+      // We need to add a separate method for content extraction
+      const fs = await import('fs');
+      return fs.readFileSync(filePath, 'utf-8');
+    } catch {
+      return null;
+    }
   }
 }
