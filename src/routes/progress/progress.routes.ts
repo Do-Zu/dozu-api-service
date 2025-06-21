@@ -24,14 +24,20 @@ router.get('/auth-test', authMiddleware, (req, res) => {
 // Protected routes
 router.use(authMiddleware);
 
-router.get('/statistics', progressController.getStatistics.bind(progressController));
-router.get('/dashboard', progressController.getDashboardStatistics.bind(progressController));
+// CRUD operations for progress
+router.get('/', progressController.getAllProgress.bind(progressController));
+router.get('/:id', progressController.getProgressById.bind(progressController));
+router.post('/', progressController.createProgress.bind(progressController));
+router.put('/:id', progressController.updateProgress.bind(progressController));
+router.delete('/:id', progressController.deleteProgress.bind(progressController));
 
-// New endpoints for client data
-router.get('/daily-study', progressController.getDailyStudyRecords.bind(progressController));
-router.get('/learning-methods', progressController.getLearningMethodsDistribution.bind(progressController));
-router.get('/weekly-comparison', progressController.getWeeklyComparison.bind(progressController));
-router.get('/completed-topics', progressController.getCompletedTopics.bind(progressController));
+// Statistics and analytics endpoints (implemented)
+router.get('/stats/overview', progressController.getStatistics.bind(progressController));
+router.get('/stats/dashboard', progressController.getDashboardStatistics.bind(progressController));
+router.get('/stats/daily-study', progressController.getDailyStudyRecords.bind(progressController));
+router.get('/stats/learning-methods', progressController.getLearningMethodsDistribution.bind(progressController));
+router.get('/stats/weekly-comparison', progressController.getWeeklyComparison.bind(progressController));
+router.get('/stats/completed-topics', progressController.getCompletedTopics.bind(progressController));
 
 registerRoute('/progress', router, {
   description: 'Progress API for learning statistics',
