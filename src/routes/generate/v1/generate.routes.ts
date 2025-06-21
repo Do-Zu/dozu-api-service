@@ -1,6 +1,5 @@
 import { Router } from 'express';
-import { GenerateController } from '@/controllers/generate/v1/generate.controller';
-import { uploadMiddleware } from '@/middleware/upload.middleware';
+import { generateController } from '@/controllers/generate/v1/generate.controller';
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 import { registerRoute } from '../../register.routes';
 
@@ -8,32 +7,22 @@ const router = Router();
 
 globalAsyncHandler(router);
 
-const generateController = new GenerateController();
-
-router.post('/upload', uploadMiddleware.single('file'), (req, res) =>
-  generateController.handleFileUpload(req, res)
-);
-
-router.post('/text/llm/flashcards', (req, res) =>
-  generateController.handleGenerateFlashCardLLM(req, res)
-);
-
-router.post('/text/llm/quizzes', (req, res) =>
-  generateController.handleGenerateQuizzesLLM(req, res)
-);
-
-router.post('/text/algo/flashcards', (req, res) =>
-  generateController.handleGenerateFlashCardAlgo(req, res)
-);
-
+// File upload and mindmap generation routes
 router.post(
-  '/pdf/flashcards',
-  uploadMiddleware.single('file'),
-  generateController.handleGenerateContentPdf.bind(generateController)
+  '/mindmap/upload',
+  generateController.getUploadMiddleware(),
+  generateController.uploadAndGenerateMindmap.bind(generateController)
 );
 
-// Route for checking processing status
-router.get('/status/:id', (req, res) => generateController.getProcessingStatus(req, res));
+router.post('/mindmap/text', generateController.generateMindmapFromText.bind(generateController));
+
+router.get('/status/:jobId', generateController.getProcessingStatus.bind(generateController));
+
+// Large file processing with progress tracking
+router.get(
+  '/progress/:jobId',
+  generateController.getFileProcessingProgress.bind(generateController)
+);
 
 registerRoute('/generate/v1/', router, {
   version: 'v1',
