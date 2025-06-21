@@ -1,4 +1,5 @@
 import db from '@/libs/drizzleClient.lib';
+import { flashcardsTable } from '@/models';
 import { InsertMindmap, mindmapsTable, SelectMindmap } from '@/models/mindmap/mindmap.model';
 import { eq } from 'drizzle-orm';
 
@@ -12,6 +13,11 @@ export const getMindmapByTopicId = async (topicId: number): Promise<SelectMindma
   return result;
 };
 
+export const getAllMindmapNodesByTopicId = async (topicId: number) => {
+  const [result] = await db.select().from(mindmapsTable).where(eq(mindmapsTable.topicId, topicId));
+  return result?.mindmapData?.nodes;
+};
+
 export const updateMindmapByTopicId = async (
   topicId: number,
   inputMindmap: InsertMindmap
@@ -21,5 +27,10 @@ export const updateMindmapByTopicId = async (
     .set(inputMindmap)
     .where(eq(mindmapsTable.topicId, topicId))
     .returning();
+  return result;
+};
+
+export const getFlashcardsByNodeId = async (nodeId: string) => {
+  const result = await db.select().from(flashcardsTable).where(eq(flashcardsTable.nodeId, nodeId));
   return result;
 };

@@ -31,4 +31,3 @@ export const getUserIdFromRequest = (req: Request): number => {
   return userId;
 };
 
-};
