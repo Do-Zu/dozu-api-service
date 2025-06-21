@@ -1,3 +1,5 @@
+import { createCustomMindmapPrompt } from './prompt/mindmap.prompt';
+
 const PROMPT_TEMPLATE_FLASHCARD = `Create flashcards from the following content.
   - Focus on essential concepts and key points only
   - Aim for the smallest effective set, not exceeding 40 flashcards
@@ -18,27 +20,19 @@ const PROMPT_TEMPLATE_QUIZ_MULTIPLE_CHOICE = `Create a quizzes from the followin
 - Output should be in only one array
 `;
 
-const PROMPT_TEMPLATE_FLASHCARD_UPGRADE = `Create flashcards from the following content.
-- Aim for the smallest effective set , not exceeding 30 flashcards, focus on the most important concepts
-- Keep definitions clear
-- Ensure accuracy and educational value
-- Responses follow template: [{"q": "your term/question", "a": "your define/answer"}, {"q": "your term/question", "a": ""your define/answer"}] 
-  Note: q: is question or term, a: is answer or define.
-- Create a variety type for flashcard include: True/False, Fill To Blank, OPEN-ENDED QUESTIONS, CLOSED-ENDED QUESTIONS, INVESTIGATION QUESTIONS, DIRECTIONAL QUESTIONS, REVERSE QUESTIONS
-- Output should be in only one array
-`;
-
-export type TYPE_PROMPT = 'FLASH_CARD' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'FILL_BANK';
+export type TYPE_PROMPT = 'FLASH_CARD' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'FILL_BANK' | 'MIND_MAP';
 
 const generatePromptText = (content: string, type: TYPE_PROMPT = 'FLASH_CARD'): string => {
-  switch (type) {
-    case 'MULTIPLE_CHOICE':
-      return `${PROMPT_TEMPLATE_QUIZ_MULTIPLE_CHOICE} 
+    switch (type) {
+        case 'MULTIPLE_CHOICE':
+            return `${PROMPT_TEMPLATE_QUIZ_MULTIPLE_CHOICE} 
                 Content: ${content}`;
-    default:
-      return `${PROMPT_TEMPLATE_FLASHCARD} 
+        case 'MIND_MAP':
+            return createCustomMindmapPrompt(content);
+        default:
+            return `${PROMPT_TEMPLATE_FLASHCARD} 
                 Content: ${content}`;
-  }
+    }
 };
 
 /**
@@ -48,31 +42,31 @@ const generatePromptText = (content: string, type: TYPE_PROMPT = 'FLASH_CARD'): 
  * @returns An array of quiz questions/flashcards
  */
 function convertJsonToArray(jsonString: string): any[] {
-  // Remove code block markers if present
-  const cleanedString = jsonString
-    .replace(/^```json\n/, '')
-    .replace(/\n```$/, '')
-    .trim();
+    // Remove code block markers if present
+    const cleanedString = jsonString
+        .replace(/^```json\n/, '')
+        .replace(/\n```$/, '')
+        .trim();
 
-  try {
-    // Try to parse the cleaned string
-    return JSON.parse(cleanedString);
-  } catch (error) {
-    console.error('Error parsing JSON string:', error);
-
-    // If direct parsing fails, try to extract array portion
     try {
-      const arrayMatch = cleanedString.match(/\[\s*{[\s\S]*}\s*\]/);
-      if (arrayMatch && arrayMatch[0]) {
-        return JSON.parse(arrayMatch[0]);
-      }
-    } catch (innerError) {
-      console.error('Failed to extract array from string:', innerError);
-    }
+        // Try to parse the cleaned string
+        return JSON.parse(cleanedString);
+    } catch (error) {
+        console.error('Error parsing JSON string:', error);
 
-    // Return empty array if all parsing attempts fail
-    return [];
-  }
+        // If direct parsing fails, try to extract array portion
+        try {
+            const arrayMatch = cleanedString.match(/\[\s*{[\s\S]*}\s*\]/);
+            if (arrayMatch && arrayMatch[0]) {
+                return JSON.parse(arrayMatch[0]);
+            }
+        } catch (innerError) {
+            console.error('Failed to extract array from string:', innerError);
+        }
+
+        // Return empty array if all parsing attempts fail
+        return [];
+    }
 }
 
 export { generatePromptText, convertJsonToArray };

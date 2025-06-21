@@ -59,7 +59,7 @@ export const handler = async (event: any) => {
             };
         }
 
-        const { jobId, content, queue_name, type, job_name, model, apiKey, providerBaseUrl } = event?.data;
+        const { jobId, content, queue_name, type, job_name, model, apiKey, providerBaseUrl, isRawText } = event.data;
 
         if (!jobId || !content || !queue_name || !type || !model || !apiKey || !providerBaseUrl) {
             return {
@@ -76,7 +76,7 @@ export const handler = async (event: any) => {
             };
         }
 
-        const contentDecompressed = decompressContent(content);
+        const contentDecompressed = isRawText ? content : decompressContent(content);
 
         console.log({
             jobId,
@@ -164,6 +164,7 @@ async function generateContent(
 
         // Generate the appropriate prompt for the requested content type
         const prompt = generatePromptText(content, type);
+
         console.log(`Generated prompt (first 100 chars): ${prompt.substring(0, 100)}...`);
 
         // Set up messages for the chat completion

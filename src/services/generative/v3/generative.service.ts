@@ -17,6 +17,7 @@ import {
 } from '@/dtos/generate';
 import { ContentGenerationJobDataInterface } from './types';
 import { STATUS_GEN } from './utils/constant';
+import { JOB_NAME, WORKER_NAME } from '../constants/constant';
 
 /**
  * Main generative service implementation
@@ -31,8 +32,6 @@ import { STATUS_GEN } from './utils/constant';
 class GenerativeService extends BaseGenerativeService {
     // BullMQ Worker configuration
     private worker: Worker;
-    private readonly WORKER_NAME: string = 'WORKER_OPEN_API_INTEGRATE_GEN_CONTENT';
-    private readonly JOB_NAME: string = 'GENERATE_FLASHCARD';
     private readonly RESULT_TTL: number = 60 * 5; // 5 minutes (300 seconds)
     private readonly MAX_JOB_RETRIES: number = 3;
     private readonly DEFAULT_MAX_TOKEN_CONFIG = 8000;
@@ -42,7 +41,7 @@ class GenerativeService extends BaseGenerativeService {
         super();
 
         // Initialize worker with concurrency of 2
-        this.worker = queue.createWorker(this.WORKER_NAME, this.processor.bind(this), 2);
+        this.worker = queue.createWorker(WORKER_NAME, this.processor.bind(this), 2);
 
         // Set up error handling for worker
         this.setupWorkerErrorHandlers();
@@ -185,8 +184,8 @@ class GenerativeService extends BaseGenerativeService {
         const dataSend: ContentGenerationJobDataInterface = {
             jobId,
             content,
-            queue_name: this.WORKER_NAME,
-            job_name: this.JOB_NAME,
+            queue_name: WORKER_NAME,
+            job_name: JOB_NAME,
             type: typeSending,
         };
 
@@ -236,7 +235,7 @@ class GenerativeService extends BaseGenerativeService {
         }
 
         // If not in cache, check job status from queue
-        const job = await queue.getJob(this.WORKER_NAME, jobId);
+        const job = await queue.getJob(WORKER_NAME, jobId);
 
         // If job doesn't exist, it's an error
         if (!job) {
@@ -276,7 +275,7 @@ class GenerativeService extends BaseGenerativeService {
 
         try {
             // Trigger Lambda function
-            lambdaTriggered = await lambdaService.triggerContentGeneration(dataSendOnLambda, type);
+            lambdaTriggered = await lambdaService.triggerContentGenerationAsync(dataSendOnLambda, type);
 
             // Handle Lambda errors
             if (lambdaTriggered && !lambdaTriggered.success) {
@@ -344,11 +343,11 @@ class GenerativeService extends BaseGenerativeService {
         dataSend: ContentGenerationJobDataInterface
     ): Promise<GenerateContentResponseInterface> {
         const { jobId } = dataSend;
-        const jobName = `${this.JOB_NAME}:${jobId}`;
+        const jobName = `${JOB_NAME}:${jobId}`;
 
         try {
             // Add job to queue with configuration
-            const job = await queue.addJob(this.WORKER_NAME, jobName, dataSend, {
+            const job = await queue.addJob(WORKER_NAME, jobName, dataSend, {
                 removeOnComplete: true, // Remove job when complete to save space
                 removeOnFail: this.MAX_JOB_RETRIES, // Keep failed jobs for debugging, but not indefinitely
                 attempts: this.MAX_JOB_RETRIES, // Retry a few times before giving up

@@ -62,7 +62,7 @@ export class LambdaService {
      * @param payload Data to pass to the lambda function
      * @returns Promise resolving to lambda function result or null if error occurred
      */
-    public async triggerSync<T = any>(functionName: string, payload: Record<string, any>): Promise<T | null> {
+    public async triggerSync<T>(functionName: string, payload: Record<string, unknown>): Promise<T | null> {
         const result = await this.trigger({
             functionName,
             payload,
@@ -188,7 +188,7 @@ export class LambdaService {
      * @param jobId Unique job identifier
      * @returns Promise resolving to true if successfully triggered, false otherwise
      */
-    public async triggerContentGeneration(data: object, type: TYPE_PROMPT): Promise<LambdaTriggerResult> {
+    public async triggerContentGenerationAsync(data: object, type: TYPE_PROMPT): Promise<LambdaTriggerResult> {
         return this.triggerAsync(this.FUNCTION_NAME_GEN_CONTENT, {
             data,
             type,
