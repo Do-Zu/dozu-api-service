@@ -8,6 +8,6 @@ export const topicsTable = pgTable('topics', {
     .references(() => usersTable.userId, { onDelete: 'cascade' }),
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
-  // embedding: vector('embedding', { dimensions: 384 }),
+  embedding: vector('embedding', { dimensions: 384 }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });

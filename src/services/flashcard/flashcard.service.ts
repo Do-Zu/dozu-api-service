@@ -17,7 +17,6 @@ import {
 import { IQualityResponse } from '../spaced-repetition-system/super-memo-2/superMemo2.origin';
 import { getDateAdded, getDateFormatted } from '@/utils/date';
 import SuperMemo2 from '../spaced-repetition-system/super-memo-2/superMemo2.origin';
-import { FlashcardItemInterface } from '@/dtos/generate';
 
 const flashcardRepo = new FlashcardRepo();
 
@@ -48,14 +47,10 @@ class FlashcardService {
   public async handleInsertFlashcardsForTopic(
     userId: number,
     topicId: number,
-    flashcards: IFlashcardAdded[] | FlashcardItemInterface[]
+    flashcards: IFlashcardAdded[]
   ): Promise<void> {
     let flashcardsFormatted: IFlashcardAddedArgument = flashcards.map(flashcard => {
-      if('front' in flashcard && 'back' in flashcard) {
-        return { topicId: topicId, front: flashcard.front, back: flashcard.back };
-      } else {
-        return { topicId, front: flashcard.q, back: flashcard.a };
-      }
+      return { topicId: topicId, front: flashcard.front, back: flashcard.back };
     });
 
     await flashcardRepo.handleInsertFlashcardsForTopic(userId, topicId, flashcardsFormatted);

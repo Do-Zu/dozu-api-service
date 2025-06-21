@@ -3,11 +3,13 @@ import { flashcardsTable, topicsTable } from '@/models';
 import { ITopicBasic, ITopicAdded, ITopicUpdated } from '@/types/topic/topic.type';
 import { count, eq } from 'drizzle-orm';
 
-export type ITopicForUser = ITopicBasic & { flashcardsCount?: number };
+export type ITopicForUser = ITopicBasic & { flashcardsCount? : number };
 export type ITopicsForUserReturned = ITopicForUser[];
 
 class TopicRepo {
-  public async handleGetSingleTopic(topicId: number): Promise<ITopicBasic | undefined> {
+  public async handleGetSingleTopic(
+    topicId: number
+  ): Promise<ITopicBasic | undefined> {
     const topic = await db.query.topicsTable.findFirst({
       where: eq(topicsTable.topicId, topicId),
       columns: {
@@ -39,7 +41,7 @@ class TopicRepo {
         .innerJoin(flashcardsTable, eq(flashcardsTable.topicId, topicsTable.topicId))
         .where(eq(topicsTable.topicId, topic.topicId));
 
-      const { flashcardsCount }: { flashcardsCount: number } = result[0];
+      const { flashcardsCount } : { flashcardsCount: number } = result[0];
 
       topic['flashcardsCount'] = flashcardsCount;
       topics[i] = topic;
@@ -48,27 +50,20 @@ class TopicRepo {
     return topics;
   }
 
-  public async handleInsertSingleTopicForUser(topic: ITopicAdded): Promise<ITopicForUser> {
-    const result = await db
-      .insert(topicsTable)
-      .values(topic)
-      .returning({ 
-        topicId: topicsTable.topicId,
-        name: topicsTable.name,
-        description: topicsTable.description,
-      });
-    
-    let ret = result[0] as ITopicForUser;
-    return ret;
+  public async handleInsertSingleTopicForUser(
+    topic: ITopicAdded
+  ): Promise<void> {
+    await db.insert(topicsTable).values(topic);
   }
 
-  public async handleUpdateSingleTopic(topicId: number, topic: ITopicUpdated): Promise<ITopicForUser> {
-    const [ret] = await db.update(topicsTable).set(topic).where(eq(topicsTable.topicId, topicId)).returning({
-      topicId: topicsTable.topicId,
-      name: topicsTable.name,
-      description: topicsTable.description,    
-    });
-    return ret;
+  public async handleUpdateSingleTopic(
+    topicId: number,
+    topic: ITopicUpdated
+  ): Promise<void> {
+    await db
+      .update(topicsTable)
+      .set(topic)
+      .where(eq(topicsTable.topicId, topicId));
   }
 
   public async handleDeleteSingleTopic(topicId: number): Promise<void> {
