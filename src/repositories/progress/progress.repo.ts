@@ -17,11 +17,11 @@ import {
 } from '@/types/progress/progress.type';
 import logger from '@/utils/logger';
 import { progressTable } from '@/models/progress/progress.model';
-import { dailyStudyRecordsTable } from '@/models/progress/dailystudy.model';
+import { dailyStudyRecordsTable, DailyStudyRecord } from '@/models/progress/dailyStudy.model';
 
 class ProgressRepository {
   async findAll(query: IProgressQuery = {}): Promise<IProgress[]> {
-    try {
+    
       const conditions = [];
       if (query.userId) conditions.push(eq(progressTable.userId, query.userId));
       if (query.contentType) conditions.push(eq(progressTable.contentType, query.contentType));
@@ -31,28 +31,21 @@ class ProgressRepository {
         .where(conditions.length ? and(...conditions) : undefined);
 
       return result as IProgress[];
-    } catch (error) {
-      logger.error('Error fetching progress:', error);
-      throw error;
-    }
+    
   }
   async findById(id: string): Promise<IProgress | undefined> {
-    try {
+    
       const result = await db
         .select()
         .from(progressTable)
         .where(eq(progressTable.id, id));
-
       return result[0] as IProgress;
-    } catch (error) {
-      logger.error('Error fetching progress by id:', error);
-      throw error;
-    }
+    
   }
   async create(data: IProgressCreate): Promise<IProgress> {
-    try {
+    
       const progressId = `progress_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-      
+
       const result = await db
         .insert(progressTable)
         .values({
@@ -66,14 +59,11 @@ class ProgressRepository {
         })        .returning();
 
       return result[0] as IProgress;
-    } catch (error) {
-      logger.error('Error creating progress:', error);
-      throw error;
-    }
+    
   }
 
   async update(id: string, data: IProgressUpdate): Promise<IProgress | undefined> {
-    try {
+    
       const result = await db
         .update(progressTable)
         .set({
@@ -83,27 +73,21 @@ class ProgressRepository {
         .where(eq(progressTable.id, id))        .returning();
 
       return result[0] as IProgress;
-    } catch (error) {
-      logger.error('Error updating progress:', error);
-      throw error;
-    }
+    
   }
 
   async delete(id: string): Promise<IProgress | undefined> {
-    try {
+   
       const result = await db
         .delete(progressTable)
         .where(eq(progressTable.id, id))        .returning();
 
       return result[0] as IProgress;
-    } catch (error) {
-      logger.error('Error deleting progress:', error);
-      throw error;
-    }
+   
   }
 
   async getCompletedTopicsCount(userId: string | number): Promise<number> {
-    try {
+    
       const result = await db
         .select({ count: count() })
         .from(progressTable)
@@ -115,13 +99,10 @@ class ProgressRepository {
         );
 
       return Number(result[0]?.count || 0);
-    } catch (error) {
-      logger.error('Error getting completed topics count:', error);
-      throw error;
-    }
+    
   }
   async getTotalStudyTime(userId: string | number, days: number = 7): Promise<number> {
-    try {
+    
       const fromDate = new Date();
       fromDate.setDate(fromDate.getDate() - days);
       const fromDateString = fromDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
@@ -138,13 +119,10 @@ class ProgressRepository {
 
       const minutes = Number(result[0]?.totalMinutes || 0);
       return Math.round((minutes / 60) * 10) / 10;
-    } catch (error) {
-      logger.error('Error getting total study time:', error);
-      throw error;
-    }
+    
   }
   async getDailyStudyHours(userId: string | number, days: number = 7): Promise<Array<{ day: string; hours: number; date: string }>> {
-    try {
+ 
       const fromDate = new Date();
       fromDate.setDate(fromDate.getDate() - days);
       const fromDateString = fromDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
@@ -168,14 +146,11 @@ class ProgressRepository {
         hours: Math.round((Number(row.totalMinutes) / 60) * 10) / 10,
         date: row.date, // row.date is already a string in YYYY-MM-DD format
       }));
-    } catch (error) {
-      logger.error('Error getting daily study hours:', error);
-      throw error;
-    }
+    
   }
 
   async getLearningMethodsDistribution(userId: string | number): Promise<Array<{ method: ContentType; count: number }>> {
-    try {
+    
       const result = await db
         .select({
           contentType: progressTable.contentType,
@@ -194,10 +169,7 @@ class ProgressRepository {
         method: row.contentType as ContentType,
         count: Number(row.count),
       }));
-    } catch (error) {
-      logger.error('Error getting learning methods distribution:', error);
-      throw error;
-    }
+    
   }
 
   async getProgressStatistics(userId: string | number): Promise<{
@@ -261,11 +233,78 @@ class ProgressRepository {
         notStartedContents: Number(notStarted[0]?.count || 0),
         averageScore: scoreResult[0]?.avgScore ? Math.round(Number(scoreResult[0].avgScore) * 10) / 10 : 0,
         totalTimeSpent: Number(totalTimeResult[0]?.totalMinutes || 0) * 60, // seconds
-      };
-    } catch (error) {
+      };    } catch (error) {
       logger.error('Error getting progress statistics:', error);
       throw error;
     }
+  }
+
+  // Daily Study Records CRUD operations
+  async createDailyStudyRecord(data: {
+    userId: string;
+    date: string; // YYYY-MM-DD format
+    totalMinutes: number;
+    sessionsCount?: number;
+  }): Promise<DailyStudyRecord> {
+    try {
+      const recordId = `daily_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+
+      const result = await db
+        .insert(dailyStudyRecordsTable)
+        .values({
+          id: recordId,
+          userId: data.userId,
+          date: data.date,
+          totalMinutes: data.totalMinutes,
+          sessionsCount: data.sessionsCount || 1,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+
+      return result[0] as DailyStudyRecord;
+    } catch (error) {
+      logger.error('Error creating daily study record:', error);
+      throw error;
+    }
+  }
+
+  async updateDailyStudyRecord(userId: string, date: string, additionalMinutes: number): Promise<DailyStudyRecord> {
+  
+      // Try to find existing record for this user and date
+      const existing = await db
+        .select()
+        .from(dailyStudyRecordsTable)
+        .where(
+          and(
+            eq(dailyStudyRecordsTable.userId, userId),
+            eq(dailyStudyRecordsTable.date, date)
+          )
+        );
+
+      if (existing.length > 0) {
+        // Update existing record
+        const result = await db
+          .update(dailyStudyRecordsTable)
+          .set({
+            totalMinutes: existing[0].totalMinutes + additionalMinutes,
+            sessionsCount: existing[0].sessionsCount + 1,
+            updatedAt: new Date(),
+          })
+          .where(eq(dailyStudyRecordsTable.id, existing[0].id))
+          .returning();
+
+        return result[0] as DailyStudyRecord;
+      } else {
+        // Create new record
+        return await this.createDailyStudyRecord({
+          userId,
+          date,
+          totalMinutes: additionalMinutes,
+          sessionsCount: 1,
+        });
+      }
+    
   }
 }
 

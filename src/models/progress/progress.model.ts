@@ -10,12 +10,11 @@ import {
 
 
 export const contentTypeEnum = pgEnum('content_type', [
-  'course',
-  'lesson',
+  'topic',
   'quiz',
   'flashcard',
   'video',
-  'article',
+  'note',
 ]);
 
 export const progressStatusEnum = pgEnum('progress_status', [
