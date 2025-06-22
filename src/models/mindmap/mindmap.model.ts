@@ -8,6 +8,8 @@ type NodeData = {
   data: {
     label: string;
     isRoot: boolean;
+    pageStartIndex?: number;
+    pageEndIndex?: number;
   };
 };
 

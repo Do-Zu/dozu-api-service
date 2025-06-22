@@ -1,4 +1,4 @@
-import TopicRepo, { ITopicsForUserReturned } from '@/repositories/topic.repo';
+import TopicRepo, { ITopicForUser, ITopicsForUserReturned } from '@/repositories/topic.repo';
 import { ITopicBasic, ITopicAdded, ITopicUpdated } from '@/types/topic/topic.type';
 
 const topicRepo = new TopicRepo();
@@ -23,15 +23,17 @@ class TopicService {
 
   public async handleInsertSingleTopicForUser(
     topic: ITopicAdded
-  ): Promise<void> {
-    await topicRepo.handleInsertSingleTopicForUser(topic);
+  ): Promise<ITopicForUser> {
+    const ret = await topicRepo.handleInsertSingleTopicForUser(topic);
+    return ret;
   }
 
   public async handleUpdateSingleTopic(
     topicId: number,
     topic: ITopicUpdated
-  ): Promise<void> {
-    await topicRepo.handleUpdateSingleTopic(topicId, topic);
+  ): Promise<ITopicForUser> {
+    const ret = await topicRepo.handleUpdateSingleTopic(topicId, topic);
+    return ret;
   }
 
   public async handleDeleteSingleTopic(topicId: number): Promise<void> {

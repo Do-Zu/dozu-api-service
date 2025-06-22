@@ -16,31 +16,32 @@ import './auth/auth.routes';
 import './mindmap/mindmap.routes'
 import './recommendation/recommendation.routes';
 import './schedule/schedule.routes';
+import './uploads/upload.routes';
 
 // Apply global async handler to router
 globalAsyncHandler(router);
 
 try {
-  const registeredRoutes = getRoutes();
+    const registeredRoutes = getRoutes();
 
-  if (registeredRoutes.length === 0) {
-    logger.warn('No routes registered with the API router');
-  }
-
-  registeredRoutes.forEach(({ path, router: moduleRouter }) => {
-    try {
-      router.use(path, moduleRouter);
-      logger.debug(`Mounted route: ${path}`);
-    } catch (error) {
-      logger.error(`Failed to mount route ${path}`, {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+    if (registeredRoutes.length === 0) {
+        logger.warn('No routes registered with the API router');
     }
-  });
+
+    registeredRoutes.forEach(({ path, router: moduleRouter }) => {
+        try {
+            router.use(path, moduleRouter);
+            logger.debug(`Mounted route: ${path}`);
+        } catch (error) {
+            logger.error(`Failed to mount route ${path}`, {
+                error: error instanceof Error ? error.message : 'Unknown error',
+            });
+        }
+    });
 } catch (error) {
-  logger.error('Error mounting API routes', {
-    error: error instanceof Error ? error.message : 'Unknown error',
-  });
+    logger.error('Error mounting API routes', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+    });
 }
 
 export default router;
