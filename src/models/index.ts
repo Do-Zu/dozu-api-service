@@ -32,11 +32,12 @@ export * from '@/models/schedule/reminder.model';
 
 export * from '@/models/tracking/taskProgress.model';
 
+export * from '@/models/mindmap/mindmap.model';
+
 //auth
 export * from '@/models/auth/emailVerificationCode.model';
 
 export * from '@/models/auth/authAccount.model';
-
 
 export * from '@/models/auth/role.model';
 
