@@ -16,6 +16,7 @@ import './auth/auth.routes';
 import './recommendation/recommendation.routes';
 import './schedule/schedule.routes';
 import './uploads/upload.routes';
+import './admin/admin.routes'
 
 // Apply global async handler to router
 globalAsyncHandler(router);
