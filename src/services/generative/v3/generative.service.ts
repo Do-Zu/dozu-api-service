@@ -38,6 +38,7 @@ class GenerativeService extends BaseGenerativeService {
     private readonly MAX_JOB_RETRIES: number = 3;
     private readonly DEFAULT_MAX_TOKEN_CONFIG = 8000;
     private readonly DEFAULT_TEMP = 0.2;
+    private readonly CLIENT_WAIT_TIMEOUT = 60 * 10; // 10 minutes max wait for client connection
 
     constructor() {
         super();
@@ -47,6 +48,9 @@ class GenerativeService extends BaseGenerativeService {
 
         // Set up error handling for worker
         this.setupWorkerErrorHandlers();
+
+        // Set up callback for when SSE clients connect to check for pending results
+        sseManager.setOnClientConnectCallback(this.checkAndSendPendingResults.bind(this));
     }
 
     /**
@@ -158,6 +162,29 @@ class GenerativeService extends BaseGenerativeService {
     }
 
     /**
+     * Enhanced method to store data with better organization
+     */
+    private async storeDataWithMetadata(
+        data: unknown,
+        jobId: string,
+        type: string,
+        metadata?: Record<string, unknown>
+    ): Promise<void> {
+        const key = `${type}:result:${jobId}`;
+        const dataWithMetadata = {
+            data,
+            metadata: {
+                timestamp: new Date().toISOString(),
+                type,
+                jobId,
+                ...metadata,
+            },
+        };
+        await redisInstance.set(key, dataWithMetadata, this.RESULT_TTL);
+        logger.info(`Stored result for job ${jobId} of type ${type} in Redis`);
+    }
+
+    /**
      * Register a content generation request
      * This is the main entry point for content generation
      */
@@ -197,20 +224,24 @@ class GenerativeService extends BaseGenerativeService {
         // Check rate limit and update remaining requests for model
         await this.updateStatusLLMRateLimit();
 
-        const isExceedSizePayload = validatePayloadSizeBuffer(dataSend);
+        const shouldUseSyncProcessing = validatePayloadSizeBuffer(dataSend);
 
-        if (isExceedSizePayload) {
+        if (shouldUseSyncProcessing) {
             return await this.processWithLambdaSync(dataSend);
         }
 
-        // Process with Lambda (or fallback to queue)
+        // Process with Lambda async (or fallback to queue)
         return await this.processWithLambdaAsync(dataSend);
     }
 
     /**
      * Generate content using LLM in background
      */
-    protected override async generateContentByLLMBackGround(content: string): Promise<any> {
+    protected override async generateContentByLLMBackGround(content: string): Promise<{
+        data: unknown[];
+        text: string;
+        status: string;
+    }> {
         // Generate prompt for flashcard creation
         const prompt = generatePromptText(content, 'FLASH_CARD');
 
@@ -331,18 +362,34 @@ class GenerativeService extends BaseGenerativeService {
 
         const dataSendOnLambda = {
             ...dataSend,
-
             model: this.getModel(),
             apiKey: this.getApiKey(),
             providerBaseUrl: this.getProviderBaseUrl(),
         };
+
         try {
             const result = await lambdaService.triggerContentGenerationSync(dataSendOnLambda, type);
 
             if (!result) {
                 throw new ServiceUnavailable();
             }
-            const { jobId, data } = result;
+
+            const { data, jobId } = result;
+
+            //TODO: Check for SSE client connection first or push to queue
+
+            // Check if SSE client is connected before deciding how to handle the result
+            // await this.storeDataWithMetadata(data, jobId, type, {
+            //     source: 'lambda_sync',
+            //     waitingForClient: true,
+            // });
+
+            // return {
+            //     jobId: jobId,
+            //     timestamp: new Date().toISOString(),
+            //     status: STATUS_GEN.completed,
+            // };
+
             const dataPushToQueue: IJobPushQueue = { type, jobId, data };
 
             return await this.processWithQueue(WORKER_NAME, dataPushToQueue);
@@ -436,6 +483,37 @@ class GenerativeService extends BaseGenerativeService {
                 return STATUS_GEN.fail;
             default:
                 return STATUS_GEN.register;
+        }
+    }
+
+    /**
+     * Check and send pending results when a client connects
+     * This method is called when SSE client connects to check if there are already processed results
+     */
+    private async checkAndSendPendingResults(jobId: string): Promise<void> {
+        try {
+            // Check all possible result types for this jobId
+            const resultTypes = ['FLASH_CARD', 'MULTIPLE_CHOICE', 'MIND_MAP'];
+
+            for (const type of resultTypes) {
+                const cachedResult = await redisInstance.get(`${type}:result:${jobId}`);
+                if (cachedResult) {
+                    logger.info(`Found pending result for job ${jobId} of type ${type}, sending to client`);
+
+                    // Send the cached result to the newly connected client
+                    const success = sseManager.sendEvent(jobId, cachedResult);
+                    if (success) {
+                        // Optionally remove the cached result since it's been delivered
+                        await redisInstance.del(`${type}:result:${jobId}`);
+                        logger.info(`Pending result delivered and cleaned up for job ${jobId}`);
+                    }
+                    break; // Found and sent result, no need to check other types
+                }
+            }
+        } catch (error) {
+            logger.error(
+                `Error checking pending results for job ${jobId}: ${error instanceof Error ? error.message : String(error)}`
+            );
         }
     }
 }
