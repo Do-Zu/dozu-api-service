@@ -1,13 +1,13 @@
 import { Worker, Job } from 'bullmq';
 import { bullMQService as queue } from '@/libs/bullmq/bullmq';
-import { BaseGenerativeService } from './base/base.abstract';
+import { BaseGenerativeService } from '../base/base.abstract';
 import { convertJsonToArray, generatePromptText, TYPE_PROMPT } from '@/utils/prompt';
 import { v4 as uuidv4 } from 'uuid';
 import logger from '@/utils/logger';
 import { redisInstance } from '@/libs/redis/pub-sub/redisPubsub.connect';
-import { lambdaService } from './lambda/lambda.service';
+import { lambdaService } from '../lambda/lambda.service';
 import { sseManager } from '@/services/sse/sse.service';
-import { BadRequest, InternalServerError, PayloadTooLarge, ServiceUnavailable } from '@/core/error';
+import { BadRequest, Forbidden, InternalServerError, PayloadTooLarge, ServiceUnavailable } from '@/core/error';
 
 // Types and Interfaces
 import {
@@ -16,8 +16,10 @@ import {
     JobStatusResponseInterface,
 } from '@/dtos/generate';
 import { ContentGenerationJobDataInterface } from './types';
-import { STATUS_GEN } from './utils/constant';
+import { STATUS_GEN } from '../utils/constant';
 import { JOB_NAME, WORKER_NAME } from '../constants/constant';
+import { HTTP_STATUS } from '@/constants/index.constant';
+import { validatePayloadSizeBuffer } from '../utils/validate';
 
 /**
  * Main generative service implementation
@@ -32,7 +34,7 @@ import { JOB_NAME, WORKER_NAME } from '../constants/constant';
 class GenerativeService extends BaseGenerativeService {
     // BullMQ Worker configuration
     private worker: Worker;
-    private readonly RESULT_TTL: number = 60 * 5; // 5 minutes (300 seconds)
+    private readonly RESULT_TTL: number = 60 * 5; // 5 minutes
     private readonly MAX_JOB_RETRIES: number = 3;
     private readonly DEFAULT_MAX_TOKEN_CONFIG = 8000;
     private readonly DEFAULT_TEMP = 0.2;
@@ -41,7 +43,7 @@ class GenerativeService extends BaseGenerativeService {
         super();
 
         // Initialize worker with concurrency of 2
-        this.worker = queue.createWorker(WORKER_NAME, this.processor.bind(this), 2);
+        this.worker = queue.createWorker(WORKER_NAME, this.processor.bind(this), 1);
 
         // Set up error handling for worker
         this.setupWorkerErrorHandlers();
@@ -116,6 +118,28 @@ class GenerativeService extends BaseGenerativeService {
             this.handleProcessorError(error, jobId);
         }
     }
+
+    // private async processorFallback(job: Job): Promise<void> {
+    //     const { jobId, data: dataSend, type } = job.data;
+    //     try {
+    //         if (!job || !dataSend || !jobId) {
+    //             throw new PayloadTooLarge();
+    //         }
+
+    //         // Process content generation in background
+    //         const result = await lambdaService.triggerContentGenerationSync(dataSend, type);
+
+    //         // Send result to client if connected
+    //         if (sseManager.isClientConnected(jobId)) {
+    //             sseManager.sendEvent(jobId, result);
+    //         } else {
+    //             // Store result in Redis for later retrieval
+    //             await this.storeData(result, jobId);
+    //         }
+    //     } catch (error) {
+    //         this.handleProcessorError(error, jobId);
+    //     }
+    // }
 
     /**
      * Handle errors in job processor
@@ -192,8 +216,14 @@ class GenerativeService extends BaseGenerativeService {
         // Check rate limit and update remaining requests for model
         await this.updateStatusLLMRateLimit();
 
+        const isExceedSizePayload = validatePayloadSizeBuffer(dataSend);
+
+        if (isExceedSizePayload) {
+            return await this.processWithLambdaSync(dataSend);
+        }
+
         // Process with Lambda (or fallback to queue)
-        return await this.processWithLambda(dataSend);
+        return await this.processWithLambdaAsync(dataSend);
     }
 
     /**
@@ -258,7 +288,7 @@ class GenerativeService extends BaseGenerativeService {
      * Process content generation using AWS Lambda
      * This approach allows for scalable, serverless processing
      */
-    private async processWithLambda(
+    private async processWithLambdaAsync(
         dataSend: ContentGenerationJobDataInterface
     ): Promise<GenerateContentResponseInterface> {
         const { jobId, type } = dataSend;
@@ -282,18 +312,26 @@ class GenerativeService extends BaseGenerativeService {
                 return this.handleLambdaError(lambdaTriggered);
             }
 
-            // If Lambda call succeeded, return success response
-            if (lambdaTriggered && lambdaTriggered.success) {
-                return {
-                    jobId: jobId,
-                    timestamp: new Date().toISOString(),
-                    status: STATUS_GEN.register,
-                };
+            if (!lambdaTriggered) {
+                throw new ServiceUnavailable();
             }
 
-            // If Lambda failed without specific error, use fallback
-            logger.warn(`Failed to trigger Lambda for job ${jobId}, will use fallback processing`);
-            return await this.processWithQueue(dataSend);
+            // If Lambda call succeeded, return success response
+            if (!lambdaTriggered.success) {
+                if (lambdaTriggered?.error instanceof Error) {
+                    throw lambdaTriggered.error;
+                } else if (typeof lambdaTriggered?.error === 'string') {
+                    throw new Forbidden(lambdaTriggered.error);
+                } else {
+                    throw new InternalServerError('Unknown error occurred during Lambda processing');
+                }
+            }
+
+            return {
+                jobId: jobId,
+                timestamp: new Date().toISOString(),
+                status: STATUS_GEN.register,
+            };
         } catch (error) {
             // Handle unexpected errors
             logger.error(`Exception triggering Lambda: ${error instanceof Error ? error.message : String(error)}`);
@@ -305,6 +343,39 @@ class GenerativeService extends BaseGenerativeService {
         }
     }
 
+    private async processWithLambdaSync(
+        dataSend: ContentGenerationJobDataInterface
+    ): Promise<GenerateContentResponseInterface> {
+        const { jobId, type } = dataSend;
+
+        const dataSendOnLambda = {
+            ...dataSend,
+
+            model: this.getModel(),
+            apiKey: this.getApiKey(),
+            providerBaseUrl: this.getProviderBaseUrl(),
+        };
+        try {
+            const result = await lambdaService.triggerContentGenerationSync(dataSendOnLambda, type);
+
+            if (!result) {
+                throw new ServiceUnavailable();
+            }
+
+            return {
+                jobId,
+                status: STATUS_GEN.completed,
+                ...result,
+            };
+        } catch (error) {
+            logger.error(`Exception triggering Lambda: ${error instanceof Error ? error.message : String(error)}`);
+            return this.handleLambdaError({
+                success: false,
+                statusCode: 500,
+                error: error instanceof Error ? error.message : String(error),
+            });
+        }
+    }
     /**
      * Handle specific Lambda error cases
      */
@@ -314,7 +385,7 @@ class GenerativeService extends BaseGenerativeService {
         error?: string | unknown;
     }): never {
         // Service unavailable (overloaded)
-        if (lambdaResult.statusCode === 503) {
+        if (lambdaResult.statusCode === HTTP_STATUS.SERVICE_UNAVAILABLE) {
             throw new ServiceUnavailable('Server is currently overloaded. Please try again later.');
         }
 
@@ -340,17 +411,18 @@ class GenerativeService extends BaseGenerativeService {
      * This is used as a fallback when Lambda processing fails
      */
     private async processWithQueue(
-        dataSend: ContentGenerationJobDataInterface
+        queueName: string,
+        data: ContentGenerationJobDataInterface
     ): Promise<GenerateContentResponseInterface> {
-        const { jobId } = dataSend;
+        const { jobId } = data;
         const jobName = `${JOB_NAME}:${jobId}`;
 
         try {
             // Add job to queue with configuration
-            const job = await queue.addJob(WORKER_NAME, jobName, dataSend, {
-                removeOnComplete: true, // Remove job when complete to save space
-                removeOnFail: this.MAX_JOB_RETRIES, // Keep failed jobs for debugging, but not indefinitely
-                attempts: this.MAX_JOB_RETRIES, // Retry a few times before giving up
+            const job = await queue.addJob(queueName, jobName, data, {
+                removeOnComplete: true,
+                removeOnFail: this.MAX_JOB_RETRIES,
+                attempts: this.MAX_JOB_RETRIES,
                 backoff: {
                     type: 'exponential',
                     delay: 5000, // Start with 5 second delay, then exponential backoff
