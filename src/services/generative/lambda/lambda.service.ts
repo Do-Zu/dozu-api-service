@@ -190,7 +190,7 @@ export class LambdaService {
      */
     public async triggerContentGenerationAsync(data: object, type: TYPE_PROMPT): Promise<LambdaTriggerResult> {
         return this.triggerAsync(this.FUNCTION_NAME_GEN_CONTENT, {
-            data,
+            data: { ...data, isAsync: true },
             type,
         });
     }
@@ -200,9 +200,9 @@ export class LambdaService {
      * @param jobId Unique job identifier
      * @returns Promise resolving to true if successfully triggered, false otherwise
      */
-    public async triggerContentGenerationSync(data: object, type: TYPE_PROMPT): Promise<any> {
+    public async triggerContentGenerationSync(data: object, type: TYPE_PROMPT): Promise<LambdaTriggerResult | null> {
         return this.triggerSync(this.FUNCTION_NAME_GEN_CONTENT, {
-            data,
+            data: { ...data, isAsync: false },
             type,
         });
     }
