@@ -35,13 +35,13 @@ class GenerateController {
     }
 
     async getGenerateContentStatus(req: Request, res: Response<JobStatusResponseInterface>) {
-        const { jobId } = req.body;
+        const { jobId, type } = req.body;
 
         if (!jobId) {
             throw new BadRequest('Job ID is required ');
         }
 
-        const result = await generativeService.getJobStatus(jobId);
+        const result = await generativeService.getJobStatus(jobId, type);
 
         SuccessResponse.ok(res, result);
     }

@@ -15,6 +15,12 @@ export type GenerateContentResponseInterface = {
      * Current status of the job.
      */
     status: string;
-
-    data?: object;
+    /**
+     * Optional type of the job, which can be used to categorize or identify the job.
+     */
+    type?: string;
+    /**
+     * Optional message providing additional information about the job status.
+     */
+    data?: object[] | object;
 };

@@ -15,7 +15,7 @@ import {
     GenerateContentResponseInterface,
     JobStatusResponseInterface,
 } from '@/dtos/generate';
-import { ContentGenerationJobDataInterface } from './types';
+import { ContentGenerationJobDataInterface, IJobPushQueue } from './types';
 import { STATUS_GEN } from '../utils/constant';
 import { JOB_NAME, WORKER_NAME } from '../constants/constant';
 import { HTTP_STATUS } from '@/constants/index.constant';
@@ -43,7 +43,7 @@ class GenerativeService extends BaseGenerativeService {
         super();
 
         // Initialize worker with concurrency of 2
-        this.worker = queue.createWorker(WORKER_NAME, this.processor.bind(this), 1);
+        this.worker = queue.createWorker(WORKER_NAME, this.processor.bind(this), 2);
 
         // Set up error handling for worker
         this.setupWorkerErrorHandlers();
@@ -94,7 +94,7 @@ class GenerativeService extends BaseGenerativeService {
      * This is the main worker function that handles content generation jobs
      */
     private async processor(job: Job): Promise<void> {
-        const { jobId, data: dataGenerated } = job.data;
+        const { jobId, data: dataGenerated, type } = job.data;
 
         try {
             if (!job || !dataGenerated || !jobId) {
@@ -113,33 +113,11 @@ class GenerativeService extends BaseGenerativeService {
 
             // Store result in Redis for later retrieval
             logger.info(`Storing result in Redis for job ${jobId}`);
-            await this.storeData(dataGenerated, jobId);
+            await this.storeData(dataGenerated, jobId, type);
         } catch (error) {
             this.handleProcessorError(error, jobId);
         }
     }
-
-    // private async processorFallback(job: Job): Promise<void> {
-    //     const { jobId, data: dataSend, type } = job.data;
-    //     try {
-    //         if (!job || !dataSend || !jobId) {
-    //             throw new PayloadTooLarge();
-    //         }
-
-    //         // Process content generation in background
-    //         const result = await lambdaService.triggerContentGenerationSync(dataSend, type);
-
-    //         // Send result to client if connected
-    //         if (sseManager.isClientConnected(jobId)) {
-    //             sseManager.sendEvent(jobId, result);
-    //         } else {
-    //             // Store result in Redis for later retrieval
-    //             await this.storeData(result, jobId);
-    //         }
-    //     } catch (error) {
-    //         this.handleProcessorError(error, jobId);
-    //     }
-    // }
 
     /**
      * Handle errors in job processor
@@ -164,7 +142,7 @@ class GenerativeService extends BaseGenerativeService {
                 sseManager.sendEvent(jobId, clientError, true);
             } else {
                 // Store error in Redis for later retrieval
-                this.storeData(clientError, jobId).catch(err => {
+                this.storeData(clientError, jobId, 'error').catch(err => {
                     logger.error(`Failed to store error in Redis: ${err.message}`);
                 });
             }
@@ -174,8 +152,8 @@ class GenerativeService extends BaseGenerativeService {
     /**
      * Store data in Redis with a TTL
      */
-    private async storeData(data: unknown, jobId: string): Promise<void> {
-        const key = `flashcard:result:${jobId}`;
+    private async storeData(data: unknown, jobId: string, type: string): Promise<void> {
+        const key = `${type}:result:${jobId}`;
         await redisInstance.set(key, data, this.RESULT_TTL);
     }
 
@@ -199,6 +177,9 @@ class GenerativeService extends BaseGenerativeService {
                 break;
             case 'quiz':
                 typeSending = 'MULTIPLE_CHOICE';
+                break;
+            case 'mind map':
+                typeSending = 'MIND_MAP';
                 break;
             default:
                 typeSending = 'FLASH_CARD';
@@ -251,9 +232,9 @@ class GenerativeService extends BaseGenerativeService {
     /**
      * Get job status and results
      */
-    public async getJobStatus(jobId: string): Promise<JobStatusResponseInterface> {
+    public async getJobStatus(jobId: string, type: TYPE_PROMPT): Promise<JobStatusResponseInterface> {
         // First try to get cached result from Redis
-        const cachedResult = await redisInstance.get(`flashcard:result:${jobId}`);
+        const cachedResult = await redisInstance.get(`${type}:result:${jobId}`);
 
         // If result is in cache, return it
         if (cachedResult) {
@@ -346,7 +327,7 @@ class GenerativeService extends BaseGenerativeService {
     private async processWithLambdaSync(
         dataSend: ContentGenerationJobDataInterface
     ): Promise<GenerateContentResponseInterface> {
-        const { jobId, type } = dataSend;
+        const { type } = dataSend;
 
         const dataSendOnLambda = {
             ...dataSend,
@@ -361,12 +342,10 @@ class GenerativeService extends BaseGenerativeService {
             if (!result) {
                 throw new ServiceUnavailable();
             }
+            const { jobId, data } = result;
+            const dataPushToQueue: IJobPushQueue = { type, jobId, data };
 
-            return {
-                jobId,
-                status: STATUS_GEN.completed,
-                ...result,
-            };
+            return await this.processWithQueue(WORKER_NAME, dataPushToQueue);
         } catch (error) {
             logger.error(`Exception triggering Lambda: ${error instanceof Error ? error.message : String(error)}`);
             return this.handleLambdaError({
@@ -410,10 +389,7 @@ class GenerativeService extends BaseGenerativeService {
      * Process content generation using local BullMQ queue
      * This is used as a fallback when Lambda processing fails
      */
-    private async processWithQueue(
-        queueName: string,
-        data: ContentGenerationJobDataInterface
-    ): Promise<GenerateContentResponseInterface> {
+    private async processWithQueue(queueName: string, data: IJobPushQueue): Promise<GenerateContentResponseInterface> {
         const { jobId } = data;
         const jobName = `${JOB_NAME}:${jobId}`;
 

@@ -136,7 +136,8 @@ export const handler = async (event: any) => {
                 message: 'Job processed',
                 jobId,
                 queueJobId: job?.id,
-                data: result,
+                type,
+                result,
             }),
         };
     } catch (error) {
@@ -245,7 +246,7 @@ async function generateContent(
 
             // Return the raw text and error information if parsing fails
             return {
-                content: [],
+                data: [],
                 rawText: fullContent,
                 error: 'Failed to parse LLM response as JSON',
                 timestamp: new Date().toISOString(),
