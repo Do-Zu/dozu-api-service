@@ -1,4 +1,4 @@
-import { BadRequest, InternalServerError, NotFoundError } from '@/core/error';
+import { InternalServerError, NotFoundError } from '@/core/error';
 import { progressRepository } from '@/repositories/progress/progress.repo';
 import {
   IProgress,
@@ -10,24 +10,12 @@ import {
 import { 
   createProgressSchema, 
   updateProgressSchema,
-  progressQuerySchema 
 } from '@/middleware/validations/progress.validation';
-import { ZodError } from 'zod';
 
 
 class ProgressService {
   async getAllProgress(query: IProgressQuery = {}): Promise<IProgress[]> {
-    // Validate query parameters using Zod schema
-    try {
-      const validatedQuery = progressQuerySchema.parse(query);
-      return await progressRepository.findAllProgress(validatedQuery);
-    } catch (error) {
-      if (error instanceof ZodError) {
-        const errorMessages = error.errors.map((err) => `${err.path.join('.')}: ${err.message}`).join(', ');
-        throw new BadRequest(`Query validation failed: ${errorMessages}`);
-      }
-      throw error;
-    }
+    return await progressRepository.findAllProgress(query);
   }
 
   async getProgressById(progressId: number): Promise<IProgress> {
@@ -39,40 +27,22 @@ class ProgressService {
   }
 
   async createProgress(data: IProgressCreate): Promise<IProgress> {
-    // Validate data using Zod schema
-    try {
-      const validatedData = createProgressSchema.parse(data);
-      return await progressRepository.createProgress(validatedData);
-    } catch (error) {
-      if (error instanceof ZodError) {
-        const errorMessages = error.errors.map((err) => `${err.path.join('.')}: ${err.message}`).join(', ');
-        throw new BadRequest(`Validation failed: ${errorMessages}`);
-      }
-      throw error;
-    }
+    const validatedData = createProgressSchema.parse(data);
+    return await progressRepository.createProgress(validatedData);
   }
   async updateProgress(progressId: number, data: IProgressUpdate): Promise<IProgress> {
-    // Validate data using Zod schema
-    try {
-      const validatedData = updateProgressSchema.parse(data);
-      
-      const existing = await progressRepository.findByIdProgress(progressId);
-      if (!existing) {
-        throw new NotFoundError('Progress not found');
-      }
-
-      const updated = await progressRepository.updateProgress(progressId, validatedData);
-      if (!updated) {
-        throw new InternalServerError('Failed to update progress');
-      }
-      return updated;
-    } catch (error) {
-      if (error instanceof ZodError) {
-        const errorMessages = error.errors.map((err) => `${err.path.join('.')}: ${err.message}`).join(', ');
-        throw new BadRequest(`Validation failed: ${errorMessages}`);
-      }
-      throw error;
+    const validatedData = updateProgressSchema.parse(data);
+    
+    const existing = await progressRepository.findByIdProgress(progressId);
+    if (!existing) {
+      throw new NotFoundError('Progress not found');
     }
+
+    const updated = await progressRepository.updateProgress(progressId, validatedData);
+    if (!updated) {
+      throw new InternalServerError('Failed to update progress');
+    }
+    return updated;
   }
 
   async deleteProgress(progressId: number): Promise<IProgress> {
