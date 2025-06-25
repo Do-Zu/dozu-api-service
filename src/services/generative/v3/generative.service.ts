@@ -497,14 +497,11 @@ class GenerativeService extends BaseGenerativeService {
             for (const type of resultTypes) {
                 const cachedResult = await redisInstance.get(`${type}:result:${jobId}`);
                 if (cachedResult) {
-                    console.log(`Found pending result for job ${jobId} of type ${type}, sending to client`);
-
                     // Send the cached result to the newly connected client
                     const success = sseManager.sendEvent(jobId, cachedResult);
                     if (success) {
                         // Optionally remove the cached result since it's been delivered
                         await redisInstance.del(`${type}:result:${jobId}`);
-                        console.log(`Pending result delivered and cleaned up for job ${jobId}`);
                     }
                     return true;
                 }
