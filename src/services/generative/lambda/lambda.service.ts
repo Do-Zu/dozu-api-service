@@ -19,6 +19,15 @@ export interface LambdaTriggerResult {
     error?: Error | string;
 }
 
+export interface LambdaSyncResponse {
+    message: string;
+    jobId: string;
+    data?: Array<object> | object;
+    rawText?: string;
+    error?: string;
+    timestamp?: Date;
+}
+
 export class LambdaService {
     private readonly lambdaClient: LambdaClient;
     private readonly FUNCTION_NAME_GEN_CONTENT_PRODUCTION = 'handle-gen-content-api-integrate-product';
@@ -103,7 +112,7 @@ export class LambdaService {
             }
 
             logger.debug('Lambda response successfully parsed', parsedResponse);
-            return parsedResponse as T;
+            return parsedResponse.body as T;
         } catch (error) {
             logger.error('Failed to parse Lambda response payload', error);
             return null;
@@ -190,7 +199,7 @@ export class LambdaService {
      */
     public async triggerContentGenerationAsync(data: object, type: TYPE_PROMPT): Promise<LambdaTriggerResult> {
         return this.triggerAsync(this.FUNCTION_NAME_GEN_CONTENT, {
-            data,
+            data: { ...data, isAsync: true },
             type,
         });
     }
@@ -200,9 +209,9 @@ export class LambdaService {
      * @param jobId Unique job identifier
      * @returns Promise resolving to true if successfully triggered, false otherwise
      */
-    public async triggerContentGenerationSync(data: object, type: TYPE_PROMPT): Promise<any> {
+    public async triggerContentGenerationSync(data: object, type: TYPE_PROMPT): Promise<LambdaSyncResponse | null> {
         return this.triggerSync(this.FUNCTION_NAME_GEN_CONTENT, {
-            data,
+            data: { ...data, isAsync: false },
             type,
         });
     }

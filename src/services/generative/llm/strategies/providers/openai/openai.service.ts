@@ -2,9 +2,9 @@ import OpenAI from 'openai';
 import { ChatCompletionCreateParamsStreaming, ChatCompletionMessageParam } from 'openai/resources/chat';
 import { BaseLLMProvider } from '../../../core/baseLLM.abstract';
 import logger from '@/utils/logger';
-import { GenerationOptions } from '@/services/generative/v3/base/base.abstract';
+import { GenerationOptions } from '@/services/generative/base/base.abstract';
 import { MindmapData } from '@/models/mindmap/mindmap.model';
-import { MindmapGenerateService } from '../../../../mindmap.generate.service';
+import { MindmapGenerateService } from '../../../../v3/mindmap.generate.service';
 import { ProcessingProgress } from '@/types/generate/large-file.type';
 
 /**

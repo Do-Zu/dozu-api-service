@@ -136,7 +136,7 @@ function buildMindmapPromptTemplate(
             : '';
 
     return `
-You are an expert at creating ${documentType} mindmaps from ${isLargeDocument ? 'large ' : ''}documents. Analyze the following content  and create a ${isLargeDocument ? 'detailed' : 'comprehensive'} mindmap structure${isLargeDocument ? ' that captures the main themes and relationships' : ''}.
+You are an expert at creating ${documentType} mind map from ${isLargeDocument ? 'large ' : ''}documents. Analyze the following content  and create a ${isLargeDocument ? 'detailed' : 'comprehensive'} mindmap structure${isLargeDocument ? ' that captures the main themes and relationships' : ''}.
 
 IMPORTANT: Return your response as valid JSON that matches this exact structure:
 {
@@ -169,6 +169,7 @@ ${isLargeDocument ? '5. Include cross-references between related concepts' : '5.
 ${isLargeDocument ? '6. Use clear, descriptive labels (' + labelWords + ' words per node)' : '6. Connect related concepts with edges'}
 ${isLargeDocument ? '7. Ensure comprehensive coverage of the document section' : '7. Use clear, concise labels (max ' + labelWords + ' words per node)'}
 ${isLargeDocument ? '8. Position nodes to avoid overlapping' : ''}
+9. Response must be follow language of the content
 
 Content to analyze${isLargeDocument ? ' (truncated for processing)' : ''}:
 ${truncatedContent} ${contentSuffix}

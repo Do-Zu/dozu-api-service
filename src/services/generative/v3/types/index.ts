@@ -24,3 +24,22 @@ export interface ContentGenerationJobDataInterface {
 
     isRawText?: boolean;
 }
+export interface IJobPushQueue {
+    type: TYPE_PROMPT;
+    jobId: string;
+    data: unknown;
+}
+
+export interface IDataResponseGenContent {
+    jobId: string;
+    timestamp?: string;
+    data?: object[] | object;
+}
+
+export interface IStoreCache {
+    message: string;
+    errorType: string;
+    errorCode: number;
+    errorDetails: string;
+    status: string;
+}

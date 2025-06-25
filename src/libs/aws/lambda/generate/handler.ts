@@ -59,7 +59,18 @@ export const handler = async (event: any) => {
             };
         }
 
-        const { jobId, content, queue_name, type, job_name, model, apiKey, providerBaseUrl, isRawText } = event.data;
+        const {
+            jobId,
+            content,
+            queue_name,
+            type,
+            job_name,
+            model,
+            apiKey,
+            providerBaseUrl,
+            isRawText = false,
+            isAsync = true,
+        } = event.data;
 
         if (!jobId || !content || !queue_name || !type || !model || !apiKey || !providerBaseUrl) {
             return {
@@ -90,29 +101,33 @@ export const handler = async (event: any) => {
         //generate content
         const result = await generateContent(contentDecompressed, type, apiKey, providerBaseUrl, model);
 
-        const queue = createQueue(queue_name);
+        let job;
 
-        // Add job to the queue
-        const job = await queue.add(
-            job_name,
-            { data: result, jobId, type },
-            {
-                attempts: 3,
-                backoff: {
-                    type: 'exponential',
-                    delay: 1000,
-                },
-                removeOnComplete: 5,
-                removeOnFail: 5,
+        if (isAsync) {
+            const queue = createQueue(queue_name);
+
+            // Add job to the queue
+            job = await queue.add(
+                job_name,
+                { data: result, jobId, type },
+                {
+                    attempts: 3,
+                    backoff: {
+                        type: 'exponential',
+                        delay: 1000,
+                    },
+                    removeOnComplete: 5,
+                    removeOnFail: 5,
+                }
+            );
+
+            console.log(`Job added to queue ${queue_name}, job ID: ${job.id}`);
+
+            if (redisConnection) {
+                await redisConnection.quit();
+                redisConnection = null;
+                console.log('Redis connection closed');
             }
-        );
-
-        console.log(`Job added to queue ${queue_name}, job ID: ${job.id}`);
-
-        if (redisConnection) {
-            await redisConnection.quit();
-            redisConnection = null;
-            console.log('Redis connection closed');
         }
 
         return {
@@ -120,7 +135,9 @@ export const handler = async (event: any) => {
             body: JSON.stringify({
                 message: 'Job processed',
                 jobId,
-                queueJobId: job.id,
+                queueJobId: job?.id,
+                type,
+                result,
             }),
         };
     } catch (error) {
@@ -229,7 +246,7 @@ async function generateContent(
 
             // Return the raw text and error information if parsing fails
             return {
-                content: [],
+                data: [],
                 rawText: fullContent,
                 error: 'Failed to parse LLM response as JSON',
                 timestamp: new Date().toISOString(),

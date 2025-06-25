@@ -6,7 +6,7 @@ import { ProcessingProgress, LargeFileProcessingConfig } from '@/types/generate/
 import * as fs from 'fs';
 import { readFileContent } from '@/utils/file/file.util';
 import { createLargeFileMindmapPrompt, createMindmapPrompt } from '@/utils/prompt/mindmap.prompt';
-import { GenerationOptions } from './base/base.abstract';
+import { GenerationOptions } from '../base/base.abstract';
 
 /**
  * Dedicated service for mindmap generation from files using OpenAI API

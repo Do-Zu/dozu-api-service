@@ -4,6 +4,7 @@ const PROMPT_TEMPLATE_FLASHCARD = `Create flashcards from the following content.
   - Focus on essential concepts and key points only
   - Aim for the smallest effective set, not exceeding 40 flashcards
   - Responses follow this format: [{"q": "your term/question", "a": "your definition/answer"}]
+  - Response follow language of the content
   - Create a variety format for flashcard: question,true/false,open-ended,multiple-choice,fill-in-the-blank styles
   - Output should be in only one array
 `;
@@ -17,20 +18,34 @@ const PROMPT_TEMPLATE_QUIZ_MULTIPLE_CHOICE = `Create a quizzes from the followin
 - Randomize the position of the correct answer within the options
   Note: q: is question, o: options, idx: index of the correct answer (0-3). For example:
 [{"q": "Your question here", "o": ["A", "B", "C", "D"], "idx": 1}]
+- Response follow language of the content
 - Output should be in only one array
 `;
 
-export type TYPE_PROMPT = 'FLASH_CARD' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'FILL_BANK' | 'MIND_MAP';
+const PROMPT_SUMMARY_CONTENT = `Create a summary of the following content.
+- Focus on essential concepts and key points only
+- Aim for the smallest effective set, not exceeding 5 sentences
+- Response follow language of the content
+- Output should be in only one string
+`;
 
-const generatePromptText = (content: string, type: TYPE_PROMPT = 'FLASH_CARD'): string => {
+export type TYPE_PROMPT = 'FLASH_CARD' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'FILL_BANK' | 'MIND_MAP' | 'QUIZ';
+
+const generatePromptText = (content: string, type: TYPE_PROMPT): string => {
     switch (type) {
+        case 'FLASH_CARD':
+            return `${PROMPT_TEMPLATE_FLASHCARD} 
+                Content: ${content}`;
         case 'MULTIPLE_CHOICE':
+        case 'TRUE_FALSE':
+        case 'FILL_BANK':
+        case 'QUIZ':
             return `${PROMPT_TEMPLATE_QUIZ_MULTIPLE_CHOICE} 
                 Content: ${content}`;
         case 'MIND_MAP':
             return createCustomMindmapPrompt(content);
         default:
-            return `${PROMPT_TEMPLATE_FLASHCARD} 
+            return `${PROMPT_SUMMARY_CONTENT} 
                 Content: ${content}`;
     }
 };

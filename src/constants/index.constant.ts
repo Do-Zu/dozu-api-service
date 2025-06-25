@@ -1,57 +1,61 @@
-type HttpStatusCode = 200 | 201 | 202 | 204 | 400 | 401 | 403 | 404 | 409 | 500;
+type HttpStatusCode = 200 | 201 | 202 | 204 | 400 | 401 | 403 | 404 | 409 | 500 | 503 | 504;
 type HttpResponse =
-  | 'OK'
-  | 'CREATED'
-  | 'ACCEPTED'
-  | 'NO_CONTENT'
-  | 'BAD_REQUEST'
-  | 'UNAUTHORIZED'
-  | 'FORBIDDEN'
-  | 'NOT_FOUND'
-  | 'CONFLICT'
-  | 'INTERNAL_SERVER';
+    | 'OK'
+    | 'CREATED'
+    | 'ACCEPTED'
+    | 'NO_CONTENT'
+    | 'BAD_REQUEST'
+    | 'UNAUTHORIZED'
+    | 'FORBIDDEN'
+    | 'NOT_FOUND'
+    | 'CONFLICT'
+    | 'INTERNAL_SERVER'
+    | 'SERVICE_UNAVAILABLE'
+    | 'GATEWAY_TIMEOUT';
 
 const HTTP_STATUS: Record<HttpResponse, HttpStatusCode> = {
-  OK: 200,
-  CREATED: 201,
-  ACCEPTED: 202,
-  NO_CONTENT: 204,
-  BAD_REQUEST: 400,
-  UNAUTHORIZED: 401,
-  FORBIDDEN: 403,
-  NOT_FOUND: 404,
-  CONFLICT: 409,
-  INTERNAL_SERVER: 500,
+    OK: 200,
+    CREATED: 201,
+    ACCEPTED: 202,
+    NO_CONTENT: 204,
+    BAD_REQUEST: 400,
+    UNAUTHORIZED: 401,
+    FORBIDDEN: 403,
+    NOT_FOUND: 404,
+    CONFLICT: 409,
+    INTERNAL_SERVER: 500,
+    SERVICE_UNAVAILABLE: 503,
+    GATEWAY_TIMEOUT: 504,
 };
 
 type UserRole = 'admin' | 'user' | 'guest';
 
 const USER_ROLES: Record<string, UserRole> = {
-  ADMIN: 'admin',
-  USER: 'user',
-  GUEST: 'guest',
+    ADMIN: 'admin',
+    USER: 'user',
+    GUEST: 'guest',
 };
 
 const AUTH: { [key: string]: string | number } = {
-  JWT_SECRET: process.env.JWT_SECRET || 'your-secret-key',
-  JWT_EXPIRES_IN: '24h',
-  SALT_ROUNDS: 10,
-  TOKEN_TYPE: 'Bearer',
+    JWT_SECRET: process.env.JWT_SECRET || 'your-secret-key',
+    JWT_EXPIRES_IN: '24h',
+    SALT_ROUNDS: 10,
+    TOKEN_TYPE: 'Bearer',
 };
 
 const MESSAGES: { [key: string]: string } = {
-  SUCCESS: 'Success',
-  ERROR: 'Error occurred',
-  NOT_FOUND: 'Resource not found',
-  UNAUTHORIZED: 'Unauthorized access',
-  INVALID_CREDENTIALS: 'Invalid credentials',
-  VALIDATION_ERROR: 'Validation error',
+    SUCCESS: 'Success',
+    ERROR: 'Error occurred',
+    NOT_FOUND: 'Resource not found',
+    UNAUTHORIZED: 'Unauthorized access',
+    INVALID_CREDENTIALS: 'Invalid credentials',
+    VALIDATION_ERROR: 'Validation error',
 };
 
 const UPLOAD = {
-  ALLOWED_FORMATS: ['image/jpeg', 'image/png', 'image/gif'],
-  MAX_FILES: 5,
-  UPLOAD_DIR: 'uploads/',
+    ALLOWED_FORMATS: ['image/jpeg', 'image/png', 'image/gif'],
+    MAX_FILES: 5,
+    UPLOAD_DIR: 'uploads/',
 };
 
 const METHODS: string[] = ['get', 'post', 'put', 'delete', 'patch', 'use'];
