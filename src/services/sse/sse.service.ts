@@ -8,7 +8,7 @@ class SSEManager {
     private clientHeartbeatIntervals: Map<string, NodeJS.Timeout> = new Map();
     private readonly HEARTBEAT_INTERVAL = 30000; // 30 seconds
     // Callback to notify when a client connects (for checking pending results)
-    private onClientConnectCallback?: (jobId: string) => Promise<void>;
+    private onClientConnectCallback?: (jobId: string) => Promise<boolean>;
 
     constructor() {
         logger.info('SSE Manager initialized');
@@ -18,7 +18,7 @@ class SSEManager {
      * Set callback to be executed when a client connects
      * This allows other services to check for pending results
      */
-    public setOnClientConnectCallback(callback: (jobId: string) => Promise<void>): void {
+    public setOnClientConnectCallback(callback: (jobId: string) => Promise<boolean>): void {
         this.onClientConnectCallback = callback;
     }
 

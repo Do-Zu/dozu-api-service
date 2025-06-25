@@ -101,6 +101,8 @@ class GenerativeService extends BaseGenerativeService {
         const { jobId, data: dataGenerated, type } = job.data;
 
         try {
+            console.warn('processor job', { type, jobId });
+
             if (!job || !dataGenerated || !jobId) {
                 throw new PayloadTooLarge();
             }
@@ -490,30 +492,33 @@ class GenerativeService extends BaseGenerativeService {
      * Check and send pending results when a client connects
      * This method is called when SSE client connects to check if there are already processed results
      */
-    private async checkAndSendPendingResults(jobId: string): Promise<void> {
+    private async checkAndSendPendingResults(jobId: string, type?: string): Promise<boolean> {
         try {
             // Check all possible result types for this jobId
-            const resultTypes = ['FLASH_CARD', 'MULTIPLE_CHOICE', 'MIND_MAP'];
+            const resultTypes = type ? [...type] : ['FLASH_CARD', 'MULTIPLE_CHOICE', 'MIND_MAP'];
 
             for (const type of resultTypes) {
                 const cachedResult = await redisInstance.get(`${type}:result:${jobId}`);
                 if (cachedResult) {
-                    logger.info(`Found pending result for job ${jobId} of type ${type}, sending to client`);
+                    console.log(`Found pending result for job ${jobId} of type ${type}, sending to client`);
 
                     // Send the cached result to the newly connected client
                     const success = sseManager.sendEvent(jobId, cachedResult);
                     if (success) {
                         // Optionally remove the cached result since it's been delivered
                         await redisInstance.del(`${type}:result:${jobId}`);
-                        logger.info(`Pending result delivered and cleaned up for job ${jobId}`);
+                        console.log(`Pending result delivered and cleaned up for job ${jobId}`);
                     }
-                    break; // Found and sent result, no need to check other types
+                    return true;
                 }
             }
+
+            return false;
         } catch (error) {
             logger.error(
                 `Error checking pending results for job ${jobId}: ${error instanceof Error ? error.message : String(error)}`
             );
+            return false;
         }
     }
 }
