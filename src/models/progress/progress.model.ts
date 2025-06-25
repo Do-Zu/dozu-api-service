@@ -52,7 +52,7 @@ export const progressTable = pgTable('progress', {
     notes?: string;
   }>(),
 
-  lastInteractionAt: timestamp('last_interaction_at', { withTimezone: false }).defaultNow(),
+  lastInteractionAt: timestamp('last_interaction_at', { withTimezone: true }).defaultNow(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
