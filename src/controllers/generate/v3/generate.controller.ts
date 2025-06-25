@@ -20,7 +20,7 @@ class GenerateController {
             throw new BadRequest('Type is required');
         }
 
-        const jobInfo = await generativeService.registerGenerateContentByLLM(req.body);
+        const jobInfo = await generativeService.registerGenerateContentByLLM({ content, type });
 
         SuccessResponse.accepted(
             res,

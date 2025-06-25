@@ -101,15 +101,14 @@ class GenerativeService extends BaseGenerativeService {
         const { jobId, data: dataGenerated, type } = job.data;
 
         try {
-            console.warn('processor job', { type, jobId });
-
             if (!job || !dataGenerated || !jobId) {
                 throw new PayloadTooLarge();
             }
 
             // Send data to client via SSE if connected
             if (sseManager.isClientConnected(jobId)) {
-                const clientNotified = sseManager.sendEvent(jobId, dataGenerated);
+                const dataResponse = { ...dataGenerated, type };
+                const clientNotified = sseManager.sendEvent(jobId, dataResponse);
                 if (clientNotified) {
                     logger.info(`Data sent to client for job ${jobId}`);
                 }
@@ -205,13 +204,11 @@ class GenerativeService extends BaseGenerativeService {
                 typeSending = 'FLASH_CARD';
                 break;
             case 'quiz':
-                typeSending = 'MULTIPLE_CHOICE';
+                typeSending = 'QUIZ';
                 break;
-            case 'mind map':
+            case 'mindmap':
                 typeSending = 'MIND_MAP';
                 break;
-            default:
-                typeSending = 'FLASH_CARD';
         }
 
         // Create job data

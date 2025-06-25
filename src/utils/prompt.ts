@@ -22,17 +22,30 @@ const PROMPT_TEMPLATE_QUIZ_MULTIPLE_CHOICE = `Create a quizzes from the followin
 - Output should be in only one array
 `;
 
-export type TYPE_PROMPT = 'FLASH_CARD' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'FILL_BANK' | 'MIND_MAP';
+const PROMPT_SUMMARY_CONTENT = `Create a summary of the following content.
+- Focus on essential concepts and key points only
+- Aim for the smallest effective set, not exceeding 5 sentences
+- Response follow language of the content
+- Output should be in only one string
+`;
 
-const generatePromptText = (content: string, type: TYPE_PROMPT = 'FLASH_CARD'): string => {
+export type TYPE_PROMPT = 'FLASH_CARD' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'FILL_BANK' | 'MIND_MAP' | 'QUIZ';
+
+const generatePromptText = (content: string, type: TYPE_PROMPT): string => {
     switch (type) {
+        case 'FLASH_CARD':
+            return `${PROMPT_TEMPLATE_FLASHCARD} 
+                Content: ${content}`;
         case 'MULTIPLE_CHOICE':
+        case 'TRUE_FALSE':
+        case 'FILL_BANK':
+        case 'QUIZ':
             return `${PROMPT_TEMPLATE_QUIZ_MULTIPLE_CHOICE} 
                 Content: ${content}`;
         case 'MIND_MAP':
             return createCustomMindmapPrompt(content);
         default:
-            return `${PROMPT_TEMPLATE_FLASHCARD} 
+            return `${PROMPT_SUMMARY_CONTENT} 
                 Content: ${content}`;
     }
 };
