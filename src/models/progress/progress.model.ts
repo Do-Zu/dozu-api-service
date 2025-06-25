@@ -6,15 +6,22 @@ import {
   doublePrecision,
   pgEnum,
   jsonb,
+  serial,
 } from 'drizzle-orm/pg-core';
+import { usersTable } from '../user.model';
+import { topicsTable } from '../topic.model';
+// import { quizzesTable } from '../quiz/quiz.model';
+// import { flashcardsTable } from '../flashcard/flashcard.model';
+// import { videosTable } from '../video/video.model';
+// import { notesTable } from '../note/note.model';
 
 
 export const contentTypeEnum = pgEnum('content_type', [
   'topic',
   'quiz',
   'flashcard',
-  'video',
-  'note',
+  // 'note',
+  // 'video',
 ]);
 
 export const progressStatusEnum = pgEnum('progress_status', [
@@ -26,9 +33,13 @@ export const progressStatusEnum = pgEnum('progress_status', [
 
 
 export const progressTable = pgTable('progress', {
-  id: varchar('id', { length: 50 }).primaryKey(),
-  userId: varchar('user_id', { length: 50 }).notNull(),
-  contentId: varchar('content_id', { length: 100 }).notNull(),
+  progressId: serial('progress_id').primaryKey(),
+  userId: integer('user_id')
+          .notNull()
+          .references(() => usersTable.userId, { onDelete: 'cascade' }),
+  topicId: integer('topic_id')
+  .notNull()
+  .references(() => topicsTable.topicId, { onDelete: 'cascade' }),
   contentType: contentTypeEnum('content_type').notNull(),
   completionPercentage: integer('completion_percentage').notNull().default(0),
   status: progressStatusEnum('status').notNull(),
@@ -42,8 +53,8 @@ export const progressTable = pgTable('progress', {
   }>(),
 
   lastInteractionAt: timestamp('last_interaction_at', { withTimezone: false }).defaultNow(),
-  createdAt: timestamp('created_at', { withTimezone: false }).defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: false }).defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
 // Export types

@@ -1,7 +1,7 @@
 export interface IProgress {
-  id: string;
-  userId: string;
-  contentId: string;  
+  progressId: number;
+  userId: number;
+  topicId: number;  
   contentType: ContentType; 
   completionPercentage: number; 
   status: ProgressStatus;
@@ -13,12 +13,11 @@ export interface IProgress {
 }
 
 export enum ContentType {
-  // COURSE = 'course',
-  // LESSON = 'lesson',
+  TOPIC = 'topic',
   QUIZ = 'quiz',
   FLASHCARD = 'flashcard',
-  VIDEO = 'video',
-  NOTE = 'note'
+  // VIDEO = 'video',
+  // NOTE = 'note'
 }
 
 export enum ProgressStatus {
@@ -37,8 +36,8 @@ export interface ProgressMetadata {
 }
 
 export interface IProgressCreate {
-  userId: string;
-  contentId: string;
+  userId: number;
+  topicId: number;
   contentType: ContentType;
   status?: ProgressStatus;
   completionPercentage?: number;
@@ -55,8 +54,8 @@ export interface IProgressUpdate {
 }
 
 export interface IProgressQuery {
-  userId?: string;
-  contentId?: string;
+  userId?: number;
+  topicId?: number;
   contentType?: ContentType;
   status?: ProgressStatus;
   fromDate?: Date;
@@ -101,7 +100,7 @@ export interface IDashboardStatistics {
 
 export interface IDailyStudyRecord {
   id: string;
-  userId: string;
+  userId: number;
   date: string; // YYYY-MM-DD
   totalMinutes: number;
   sessionsCount: number;

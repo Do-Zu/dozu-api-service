@@ -4,16 +4,18 @@ import {
   date,
   integer,
   timestamp,
+  serial
 } from 'drizzle-orm/pg-core';
+import { usersTable } from '../user.model';
 
 export const dailyStudyRecordsTable = pgTable('daily_study_records', {
-  id: varchar('id', { length: 50 }).primaryKey(),
-  userId: varchar('user_id', { length: 50 }).notNull(),
+  dailyStudyId: serial('daily_study_id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => usersTable.userId, { onDelete: 'cascade' }),
   date: date('date').notNull(), // yyyy-mm-dd
   totalMinutes: integer('total_minutes').notNull().default(0),
   sessionsCount: integer('sessions_count').notNull().default(1),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
 // Export types

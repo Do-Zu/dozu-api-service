@@ -1,4 +1,5 @@
 import db from '@/libs/drizzleClient.lib';
+
 import {
   eq,
   and,
@@ -16,163 +17,152 @@ import {
   ProgressStatus,
 } from '@/types/progress/progress.type';
 import logger from '@/utils/logger';
+import { getDateFormatted } from '@/utils/date/date';
+import { mapToDailyStudyHoursArray, minutesToHours } from '@/utils/progress/progressHelpers';
+
 import { progressTable } from '@/models/progress/progress.model';
 import { dailyStudyRecordsTable, DailyStudyRecord } from '@/models/progress/dailyStudy.model';
 
 class ProgressRepository {
-  async findAll(query: IProgressQuery = {}): Promise<IProgress[]> {
-    
-      const conditions = [];
-      if (query.userId) conditions.push(eq(progressTable.userId, query.userId));
-      if (query.contentType) conditions.push(eq(progressTable.contentType, query.contentType));
-      if (query.status) conditions.push(eq(progressTable.status, query.status));      const result = await db
-        .select()
-        .from(progressTable)
-        .where(conditions.length ? and(...conditions) : undefined);
+  async findAllProgress(query: IProgressQuery): Promise<IProgress[]> {
+    const conditions = [];
+    if (query.userId) conditions.push(eq(progressTable.userId, query.userId));
+    if (query.topicId) conditions.push(eq(progressTable.topicId, query.topicId));
+    if (query.contentType) conditions.push(eq(progressTable.contentType, query.contentType));
+    if (query.status) conditions.push(eq(progressTable.status, query.status));
+    const result = await db
+      .select()
+      .from(progressTable)
+      .where(conditions.length ? and(...conditions) : undefined);
 
-      return result as IProgress[];
-    
-  }
-  async findById(id: string): Promise<IProgress | undefined> {
-    
-      const result = await db
-        .select()
-        .from(progressTable)
-        .where(eq(progressTable.id, id));
-      return result[0] as IProgress;
-    
-  }
-  async create(data: IProgressCreate): Promise<IProgress> {
-    
-      const progressId = `progress_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-
-      const result = await db
-        .insert(progressTable)
-        .values({
-          id: progressId,
-          ...data,
-          completionPercentage: data.completionPercentage || 0,
-          status: data.status || ProgressStatus.NOT_STARTED,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          lastInteractionAt: new Date(),
-        })        .returning();
-
-      return result[0] as IProgress;
-    
+    return result as IProgress[];
   }
 
-  async update(id: string, data: IProgressUpdate): Promise<IProgress | undefined> {
-    
-      const result = await db
-        .update(progressTable)
-        .set({
-          ...data,
-          updatedAt: new Date(),
-        })
-        .where(eq(progressTable.id, id))        .returning();
-
-      return result[0] as IProgress;
-    
+  async findByIdProgress(progressId: number): Promise<IProgress | undefined> {
+    const result = await db
+      .select()
+      .from(progressTable)
+      .where(eq(progressTable.progressId, progressId));
+    return result[0] as IProgress;
   }
 
-  async delete(id: string): Promise<IProgress | undefined> {
-   
-      const result = await db
-        .delete(progressTable)
-        .where(eq(progressTable.id, id))        .returning();
+  async createProgress(data: IProgressCreate): Promise<IProgress> {
+    const result = await db
+      .insert(progressTable)
+      .values({
+        userId: data.userId,
+        topicId: data.topicId,
+        contentType: data.contentType,
+        status: data.status || ProgressStatus.NOT_STARTED,
+        completionPercentage: data.completionPercentage || 0,
+        score: data.score,
+        metadata: data.metadata,
+        updatedAt: new Date(),
+        lastInteractionAt: new Date(),
+      })
+      .returning();
 
-      return result[0] as IProgress;
-   
+    return result[0] as IProgress;
   }
 
-  async getCompletedTopicsCount(userId: string | number): Promise<number> {
-    
-      const result = await db
-        .select({ count: count() })
-        .from(progressTable)
-        .where(
-          and(
-            eq(progressTable.userId, String(userId)),
-            eq(progressTable.status, ProgressStatus.COMPLETED)
-          )
-        );
+  async updateProgress(progressId: number, data: IProgressUpdate): Promise<IProgress | undefined> {
+    const result = await db
+      .update(progressTable)
+      .set({
+        ...data,
+        updatedAt: new Date(),
+      })
+      .where(eq(progressTable.progressId, progressId))
+      .returning();
 
-      return Number(result[0]?.count || 0);
-    
+    return result[0] as IProgress;
   }
-  async getTotalStudyTime(userId: string | number, days: number = 7): Promise<number> {
-    
-      const fromDate = new Date();
-      fromDate.setDate(fromDate.getDate() - days);
-      const fromDateString = fromDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
 
-      const result = await db
-        .select({ totalMinutes: sum(dailyStudyRecordsTable.totalMinutes) })
-        .from(dailyStudyRecordsTable)
-        .where(
-          and(
-            eq(dailyStudyRecordsTable.userId, String(userId)),
-            gte(dailyStudyRecordsTable.date, fromDateString)
-          )
-        );
+  async deleteProgress(progressId: number): Promise<IProgress | undefined> {
+    const result = await db
+      .delete(progressTable)
+      .where(eq(progressTable.progressId, progressId))
+      .returning();
 
-      const minutes = Number(result[0]?.totalMinutes || 0);
-      return Math.round((minutes / 60) * 10) / 10;
-    
+    return result[0] as IProgress;
   }
-  async getDailyStudyHours(userId: string | number, days: number = 7): Promise<Array<{ day: string; hours: number; date: string }>> {
- 
-      const fromDate = new Date();
-      fromDate.setDate(fromDate.getDate() - days);
-      const fromDateString = fromDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
 
-      const result = await db
-        .select({
-          date: dailyStudyRecordsTable.date,
-          totalMinutes: sum(dailyStudyRecordsTable.totalMinutes),
-        })
-        .from(dailyStudyRecordsTable)
-        .where(
-          and(
-            eq(dailyStudyRecordsTable.userId, String(userId)),
-            gte(dailyStudyRecordsTable.date, fromDateString)
-          )
+  async getCompletedTopicsCount(userId: number): Promise<number> {
+    const result = await db
+      .select({ count: count() })
+      .from(progressTable)
+      .where(
+        and(
+          eq(progressTable.userId, userId),
+          eq(progressTable.status, ProgressStatus.COMPLETED)
         )
-        .groupBy(dailyStudyRecordsTable.date);
+      );
 
-      return result.map(row => ({
-        day: new Date(row.date).toLocaleDateString('en-US', { weekday: 'short' }),
-        hours: Math.round((Number(row.totalMinutes) / 60) * 10) / 10,
-        date: row.date, // row.date is already a string in YYYY-MM-DD format
-      }));
-    
+    return Number(result[0]?.count || 0);
   }
 
-  async getLearningMethodsDistribution(userId: string | number): Promise<Array<{ method: ContentType; count: number }>> {
-    
-      const result = await db
-        .select({
-          contentType: progressTable.contentType,
-          count: count(),
-        })
-        .from(progressTable)
-        .where(
-          and(
-            eq(progressTable.userId, String(userId)),
-            eq(progressTable.status, ProgressStatus.COMPLETED)
-          )
+  async getTotalStudyTime(userId: number, days: number = 7): Promise<number> {
+    const fromDate = new Date();
+    fromDate.setDate(fromDate.getDate() - days);
+    const fromDateString = getDateFormatted(fromDate);
+
+    const result = await db
+      .select({ totalMinutes: sum(dailyStudyRecordsTable.totalMinutes) })
+      .from(dailyStudyRecordsTable)
+      .where(
+        and(
+          eq(dailyStudyRecordsTable.userId, userId),
+          gte(dailyStudyRecordsTable.date, fromDateString)
         )
-        .groupBy(progressTable.contentType);
+      );
 
-      return result.map(row => ({
-        method: row.contentType as ContentType,
-        count: Number(row.count),
-      }));
-    
+    return minutesToHours(result[0]?.totalMinutes);
   }
 
-  async getProgressStatistics(userId: string | number): Promise<{
+  async getDailyStudyHours(userId: number, days: number = 7): Promise<Array<{ day: string; hours: number; date: string }>> {
+    const fromDate = new Date();
+    fromDate.setDate(fromDate.getDate() - days);
+    const fromDateString = getDateFormatted(fromDate);
+
+    const result = await db
+      .select({
+        date: dailyStudyRecordsTable.date,
+        totalMinutes: sum(dailyStudyRecordsTable.totalMinutes),
+      })
+      .from(dailyStudyRecordsTable)
+      .where(
+        and(
+          eq(dailyStudyRecordsTable.userId, userId),
+          gte(dailyStudyRecordsTable.date, fromDateString)
+        )
+      )
+      .groupBy(dailyStudyRecordsTable.date);
+
+    return mapToDailyStudyHoursArray(result);
+  }
+
+  async getLearningMethodsDistribution(userId: number): Promise<Array<{ method: ContentType; count: number }>> {
+    const result = await db
+      .select({
+        contentType: progressTable.contentType,
+        count: count(),
+      })
+      .from(progressTable)
+      .where(
+        and(
+          eq(progressTable.userId, userId),
+          eq(progressTable.status, ProgressStatus.COMPLETED)
+        )
+      )
+      .groupBy(progressTable.contentType);
+
+    return result.map(row => ({
+      method: row.contentType as ContentType,
+      count: Number(row.count),
+    }));
+  }
+
+  async getProgressStatistics(userId: number): Promise<{
     totalContents: number;
     completedContents: number;
     inProgressContents: number;
@@ -184,14 +174,14 @@ class ProgressRepository {
       const total = await db
         .select({ count: count() })
         .from(progressTable)
-        .where(eq(progressTable.userId, String(userId)));
+        .where(eq(progressTable.userId, userId));
 
       const completed = await db
         .select({ count: count() })
         .from(progressTable)
         .where(
           and(
-            eq(progressTable.userId, String(userId)),
+            eq(progressTable.userId, userId),
             eq(progressTable.status, ProgressStatus.COMPLETED)
           )
         );
@@ -201,7 +191,7 @@ class ProgressRepository {
         .from(progressTable)
         .where(
           and(
-            eq(progressTable.userId, String(userId)),
+            eq(progressTable.userId, userId),
             eq(progressTable.status, ProgressStatus.IN_PROGRESS)
           )
         );
@@ -211,7 +201,7 @@ class ProgressRepository {
         .from(progressTable)
         .where(
           and(
-            eq(progressTable.userId, String(userId)),
+            eq(progressTable.userId, userId),
             eq(progressTable.status, ProgressStatus.NOT_STARTED)
           )
         );
@@ -219,12 +209,12 @@ class ProgressRepository {
       const scoreResult = await db
         .select({ avgScore: avg(progressTable.score) })
         .from(progressTable)
-        .where(eq(progressTable.userId, String(userId)));
+        .where(eq(progressTable.userId, userId));
 
       const totalTimeResult = await db
         .select({ totalMinutes: sum(dailyStudyRecordsTable.totalMinutes) })
         .from(dailyStudyRecordsTable)
-        .where(eq(dailyStudyRecordsTable.userId, String(userId)));
+        .where(eq(dailyStudyRecordsTable.userId, userId));
 
       return {
         totalContents: Number(total[0]?.count || 0),
@@ -233,78 +223,67 @@ class ProgressRepository {
         notStartedContents: Number(notStarted[0]?.count || 0),
         averageScore: scoreResult[0]?.avgScore ? Math.round(Number(scoreResult[0].avgScore) * 10) / 10 : 0,
         totalTimeSpent: Number(totalTimeResult[0]?.totalMinutes || 0) * 60, // seconds
-      };    } catch (error) {
+      };
+    } catch (error) {
       logger.error('Error getting progress statistics:', error);
       throw error;
     }
   }
 
-  // Daily Study Records CRUD operations
+  // DAILY STUDY RECORDS
   async createDailyStudyRecord(data: {
-    userId: string;
-    date: string; // YYYY-MM-DD format
+    userId: number;
+    date?: string; // YYYY-MM-DD, optional - defaults to today
     totalMinutes: number;
     sessionsCount?: number;
   }): Promise<DailyStudyRecord> {
-    try {
-      const recordId = `daily_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+    const dateString = data.date || getDateFormatted(new Date());
 
+    const result = await db
+      .insert(dailyStudyRecordsTable)
+      .values({
+        userId: data.userId,
+        date: dateString,
+        totalMinutes: data.totalMinutes,
+        sessionsCount: data.sessionsCount || 1,
+        updatedAt: new Date(),
+      })
+      .returning();
+
+    return result[0] as DailyStudyRecord;
+  }
+
+  async updateDailyStudyRecord(userId: number, date: string, additionalMinutes: number): Promise<DailyStudyRecord> {
+    const existing = await db
+      .select()
+      .from(dailyStudyRecordsTable)
+      .where(
+        and(
+          eq(dailyStudyRecordsTable.userId, userId),
+          eq(dailyStudyRecordsTable.date, date)
+        )
+      );
+
+    if (existing.length > 0) {
       const result = await db
-        .insert(dailyStudyRecordsTable)
-        .values({
-          id: recordId,
-          userId: data.userId,
-          date: data.date,
-          totalMinutes: data.totalMinutes,
-          sessionsCount: data.sessionsCount || 1,
-          createdAt: new Date(),
+        .update(dailyStudyRecordsTable)
+        .set({
+          totalMinutes: existing[0].totalMinutes + additionalMinutes,
+          sessionsCount: existing[0].sessionsCount + 1,
           updatedAt: new Date(),
         })
+        .where(eq(dailyStudyRecordsTable.dailyStudyId, existing[0].dailyStudyId))
         .returning();
 
       return result[0] as DailyStudyRecord;
-    } catch (error) {
-      logger.error('Error creating daily study record:', error);
-      throw error;
+    } else {
+      return await this.createDailyStudyRecord({
+        userId,
+        date,
+        totalMinutes: additionalMinutes,
+        sessionsCount: 1,
+      });
     }
-  }
-
-  async updateDailyStudyRecord(userId: string, date: string, additionalMinutes: number): Promise<DailyStudyRecord> {
-  
-      // Try to find existing record for this user and date
-      const existing = await db
-        .select()
-        .from(dailyStudyRecordsTable)
-        .where(
-          and(
-            eq(dailyStudyRecordsTable.userId, userId),
-            eq(dailyStudyRecordsTable.date, date)
-          )
-        );
-
-      if (existing.length > 0) {
-        // Update existing record
-        const result = await db
-          .update(dailyStudyRecordsTable)
-          .set({
-            totalMinutes: existing[0].totalMinutes + additionalMinutes,
-            sessionsCount: existing[0].sessionsCount + 1,
-            updatedAt: new Date(),
-          })
-          .where(eq(dailyStudyRecordsTable.id, existing[0].id))
-          .returning();
-
-        return result[0] as DailyStudyRecord;
-      } else {
-        // Create new record
-        return await this.createDailyStudyRecord({
-          userId,
-          date,
-          totalMinutes: additionalMinutes,
-          sessionsCount: 1,
-        });
-      }
-    
   }
 }
 

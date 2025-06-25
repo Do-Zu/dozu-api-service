@@ -21,7 +21,7 @@ router.get('/completed-topics', progressController.getCompletedTopics.bind(progr
 router.get('/', progressController.getAllProgress.bind(progressController));
 router.get('/:id', progressController.getProgressById.bind(progressController));
 router.post('/', progressController.createProgress.bind(progressController));
-router.put('/:id', progressController.updateProgress.bind(progressController));
+router.put('/', progressController.updateProgress.bind(progressController));
 router.delete('/:id', progressController.deleteProgress.bind(progressController));
 
 registerRoute('/progress', router, {

@@ -4,7 +4,9 @@ import { BadRequest } from '@/core/error';
 import { progressService } from '@/services/progress/progress.service';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 
+
 class ProgressController {
+  private DAY_OF_WEEK = 7;
   private extractUserId(req: Request): number {
     const id = getUserIdFromRequest(req);
     const userId = typeof id === 'number' ? id : Number(id);
@@ -20,7 +22,7 @@ class ProgressController {
       const userId = this.extractUserId(req);
       // const userId = 1;
       const query = {
-        userId: String(userId),
+        userId: userId,
         ...req.query
       };
       
@@ -35,7 +37,10 @@ class ProgressController {
   public async getProgressById(req: Request, res: Response): Promise<void> {
    
       const { id } = req.params;
-      const progress = await progressService.getProgressById(id);
+      const progressId = Number(id);
+      if (isNaN(progressId)) throw new BadRequest('Invalid progress ID');
+      
+      const progress = await progressService.getProgressById(progressId);
       SuccessResponse.ok(res, progress);
    
   }
@@ -48,20 +53,20 @@ class ProgressController {
       const userId = this.extractUserId(req);
       const progressData = {
         ...req.body,
-        userId: String(userId)
+        userId: userId
       };
       const progress = await progressService.createProgress(progressData);
       SuccessResponse.created(res, progress);
     
   }
 
-  /**
-   * Update progress record
-   */
   public async updateProgress(req: Request, res: Response): Promise<void> {
    
-      const { id } = req.params;
-      const progress = await progressService.updateProgress(id, req.body);
+      const { progressId, ...updateData } = req.body;
+      const id = Number(progressId);
+      if (isNaN(id)) throw new BadRequest('Invalid progress ID');
+      
+      const progress = await progressService.updateProgress(id, updateData);
       SuccessResponse.ok(res, progress);
     
   }
@@ -72,7 +77,10 @@ class ProgressController {
   public async deleteProgress(req: Request, res: Response): Promise<void> {
     
       const { id } = req.params;
-      const progress = await progressService.deleteProgress(id);
+      const progressId = Number(id);
+      if (isNaN(progressId)) throw new BadRequest('Invalid progress ID');
+      
+      const progress = await progressService.deleteProgress(progressId);
       SuccessResponse.ok(res, progress);
     
   }
@@ -82,7 +90,7 @@ class ProgressController {
    */  public async getStatistics(req: Request, res: Response): Promise<void> {
     
       const userId = this.extractUserId(req);
-      const stats = await progressService.getProgressStatistics(String(userId));
+      const stats = await progressService.getProgressStatistics(userId);
       SuccessResponse.ok(res, stats);   
     
   }
@@ -99,11 +107,11 @@ class ProgressController {
         totalStudyTime,
         learningMethods
       ] = await Promise.all([
-        progressService.getProgressStatistics(String(userId)),
-        progressService.getCompletedTopicsCount(String(userId)),
-        progressService.getDailyStudyHours(String(userId), 7),
-        progressService.getTotalStudyTime(String(userId), 7),
-        progressService.getLearningMethodsDistribution(String(userId))
+        progressService.getProgressStatistics(userId),
+        progressService.getCompletedTopicsCount(userId),
+        progressService.getDailyStudyHours(userId, this.DAY_OF_WEEK),
+        progressService.getTotalStudyTime(userId, this.DAY_OF_WEEK),
+        progressService.getLearningMethodsDistribution(userId)
       ]);
 
       const dashboardStats = {
@@ -123,8 +131,8 @@ class ProgressController {
   public async getDailyStudyRecords(req: Request, res: Response): Promise<void> {
     
       const userId = this.extractUserId(req);
-      const days = req.query.days ? Number(req.query.days) : 7;
-      const records = await progressService.getDailyStudyHours(String(userId), days);
+      const days = req.query.days ? Number(req.query.days) : this.DAY_OF_WEEK;
+      const records = await progressService.getDailyStudyHours(userId, days);
       SuccessResponse.ok(res, records);
   
   }
@@ -135,7 +143,7 @@ class ProgressController {
   public async getLearningMethodsDistribution(req: Request, res: Response): Promise<void> {
   
       const userId = this.extractUserId(req);
-      const distribution = await progressService.getLearningMethodsDistribution(String(userId));
+      const distribution = await progressService.getLearningMethodsDistribution(userId);
       SuccessResponse.ok(res, distribution);
   
   }
@@ -148,8 +156,8 @@ class ProgressController {
       const userId = this.extractUserId(req);
       // Get current week and previous week data
       const [currentWeek, previousWeek] = await Promise.all([
-        progressService.getTotalStudyTime(String(userId), 7),
-        progressService.getTotalStudyTime(String(userId), 14)
+        progressService.getTotalStudyTime(userId, this.DAY_OF_WEEK),
+        progressService.getTotalStudyTime(userId, this.DAY_OF_WEEK + 7)
       ]);
       
       const previousWeekHours = previousWeek - currentWeek;
@@ -173,7 +181,7 @@ class ProgressController {
   public async getCompletedTopics(req: Request, res: Response): Promise<void> {
     
       const userId = this.extractUserId(req);
-      const completedTopics = await progressService.getCompletedTopicsCount(String(userId));
+      const completedTopics = await progressService.getCompletedTopicsCount(userId);
       SuccessResponse.ok(res, { completedTopics });
    
   }

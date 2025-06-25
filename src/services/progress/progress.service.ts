@@ -1,3 +1,4 @@
+import { BadRequest, InternalServerError, NotFoundError } from '@/core/error';
 import { progressRepository } from '@/repositories/progress/progress.repo';
 import {
   IProgress,
@@ -6,65 +7,98 @@ import {
   IProgressQuery,
   ContentType,
 } from '@/types/progress/progress.type';
+import { 
+  createProgressSchema, 
+  updateProgressSchema,
+  progressQuerySchema 
+} from '@/middleware/validations/progress.validation';
+import { ZodError } from 'zod';
+
 
 class ProgressService {
   async getAllProgress(query: IProgressQuery = {}): Promise<IProgress[]> {
-    return await progressRepository.findAll(query);
+    // Validate query parameters using Zod schema
+    try {
+      const validatedQuery = progressQuerySchema.parse(query);
+      return await progressRepository.findAllProgress(validatedQuery);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const errorMessages = error.errors.map((err) => `${err.path.join('.')}: ${err.message}`).join(', ');
+        throw new BadRequest(`Query validation failed: ${errorMessages}`);
+      }
+      throw error;
+    }
   }
 
-  async getProgressById(id: string): Promise<IProgress> {
-    const progress = await progressRepository.findById(id);
+  async getProgressById(progressId: number): Promise<IProgress> {
+    const progress = await progressRepository.findByIdProgress(progressId);
     if (!progress) {
-      throw new Error('Progress not found');
+      throw new NotFoundError('Progress not found');
     }
     return progress;
   }
 
   async createProgress(data: IProgressCreate): Promise<IProgress> {
-    // Optional: validate data before saving
-    if (!data.userId || !data.contentId || !data.contentType) {
-      throw new Error('Missing required progress fields');
+    // Validate data using Zod schema
+    try {
+      const validatedData = createProgressSchema.parse(data);
+      return await progressRepository.createProgress(validatedData);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const errorMessages = error.errors.map((err) => `${err.path.join('.')}: ${err.message}`).join(', ');
+        throw new BadRequest(`Validation failed: ${errorMessages}`);
+      }
+      throw error;
     }
-
-    return await progressRepository.create(data);
   }
-  async updateProgress(id: string, data: IProgressUpdate): Promise<IProgress> {
-    const existing = await progressRepository.findById(id);
-    if (!existing) {
-      throw new Error('Progress not found');
-    }
+  async updateProgress(progressId: number, data: IProgressUpdate): Promise<IProgress> {
+    // Validate data using Zod schema
+    try {
+      const validatedData = updateProgressSchema.parse(data);
+      
+      const existing = await progressRepository.findByIdProgress(progressId);
+      if (!existing) {
+        throw new NotFoundError('Progress not found');
+      }
 
-    const updated = await progressRepository.update(id, data);
-    if (!updated) {
-      throw new Error('Failed to update progress');
+      const updated = await progressRepository.updateProgress(progressId, validatedData);
+      if (!updated) {
+        throw new InternalServerError('Failed to update progress');
+      }
+      return updated;
+    } catch (error) {
+      if (error instanceof ZodError) {
+        const errorMessages = error.errors.map((err) => `${err.path.join('.')}: ${err.message}`).join(', ');
+        throw new BadRequest(`Validation failed: ${errorMessages}`);
+      }
+      throw error;
     }
-    return updated;
   }
 
-  async deleteProgress(id: string): Promise<IProgress> {
-    const deleted = await progressRepository.delete(id);
+  async deleteProgress(progressId: number): Promise<IProgress> {
+    const deleted = await progressRepository.deleteProgress(progressId);
     if (!deleted) {
-      throw new Error('Progress not found or already deleted');
+      throw new NotFoundError('Progress not found or already deleted');
     }
     return deleted;
   }
 
-  async getCompletedTopicsCount(userId: string): Promise<number> {
+  async getCompletedTopicsCount(userId: number): Promise<number> {
     return await progressRepository.getCompletedTopicsCount(userId);
   }
 
-  async getTotalStudyTime(userId: string, days = 7): Promise<number> {
+  async getTotalStudyTime(userId: number, days = 7): Promise<number> {
     return await progressRepository.getTotalStudyTime(userId, days);
   }
-  async getDailyStudyHours(userId: string, days = 7): Promise<Array<{ day: string; hours: number; date: string }>> {
+  async getDailyStudyHours(userId: number, days = 7): Promise<Array<{ day: string; hours: number; date: string }>> {
     return await progressRepository.getDailyStudyHours(userId, days);
   }
 
-  async getLearningMethodsDistribution(userId: string): Promise<Array<{ method: ContentType; count: number }>> {
+  async getLearningMethodsDistribution(userId: number): Promise<Array<{ method: ContentType; count: number }>> {
     return await progressRepository.getLearningMethodsDistribution(userId);
   }
 
-  async getProgressStatistics(userId: string): Promise<{
+  async getProgressStatistics(userId: number): Promise<{
     totalContents: number;
     completedContents: number;
     inProgressContents: number;
