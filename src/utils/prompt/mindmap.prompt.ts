@@ -2,12 +2,12 @@
  * Create a specialized prompt for mindmap generation
  */
 function createMindmapPrompt(content: string, fileName: string): string {
-  return buildMindmapPromptTemplate(content, fileName, {
-    maxCategories: '10',
-    maxSubtopics: '6',
-    maxLabelWords: '10',
-    contentTruncateLength: 8000,
-  });
+    return buildMindmapPromptTemplate(content, fileName, {
+        maxCategories: '10',
+        maxSubtopics: '6',
+        maxLabelWords: '10',
+        contentTruncateLength: 8000,
+    });
 }
 
 /**
@@ -18,19 +18,19 @@ function createMindmapPrompt(content: string, fileName: string): string {
  * @returns Formatted prompt string
  */
 function createCustomMindmapPrompt(
-  content: string,
-  fileName: string,
-  promptConfig: {
-    maxCategories?: string;
-    maxSubtopics?: string;
-    maxLabelWords?: string;
-    contentTruncateLength?: number;
-    pageInfo?: { start: number; end: number; total: number };
-    isLargeDocument?: boolean;
-    customInstructions?: string;
-  } = {}
+    content: string,
+    fileName?: string,
+    promptConfig: {
+        maxCategories?: string;
+        maxSubtopics?: string;
+        maxLabelWords?: string;
+        contentTruncateLength?: number;
+        pageInfo?: { start: number; end: number; total: number };
+        isLargeDocument?: boolean;
+        customInstructions?: string;
+    } = {}
 ): string {
-  return buildMindmapPromptTemplate(content, fileName, promptConfig);
+    return buildMindmapPromptTemplate(content, fileName, promptConfig);
 }
 
 /**
@@ -40,13 +40,13 @@ function createCustomMindmapPrompt(
  * @returns Formatted prompt string for simple mindmap generation
  */
 function createSimpleMindmapPrompt(content: string, fileName: string): string {
-  return buildMindmapPromptTemplate(content, fileName, {
-    maxCategories: '3-5',
-    maxSubtopics: '2-3',
-    maxLabelWords: '2-3',
-    contentTruncateLength: 5000,
-    isLargeDocument: false,
-  });
+    return buildMindmapPromptTemplate(content, fileName, {
+        maxCategories: '3-5',
+        maxSubtopics: '2-3',
+        maxLabelWords: '2-3',
+        contentTruncateLength: 5000,
+        isLargeDocument: false,
+    });
 }
 
 /**
@@ -57,38 +57,38 @@ function createSimpleMindmapPrompt(content: string, fileName: string): string {
  * @returns Formatted prompt string for detailed mindmap generation
  */
 function createDetailedMindmapPrompt(
-  content: string,
-  fileName: string,
-  pageInfo?: { start: number; end: number; total: number }
+    content: string,
+    fileName: string,
+    pageInfo?: { start: number; end: number; total: number }
 ): string {
-  return buildMindmapPromptTemplate(content, fileName, {
-    maxCategories: '7-10',
-    maxSubtopics: '4-6',
-    maxLabelWords: '4-8',
-    contentTruncateLength: 15000,
-    pageInfo,
-    isLargeDocument: true,
-    customInstructions:
-      'Focus on creating comprehensive coverage with detailed relationships between concepts. Include technical terminology where appropriate.',
-  });
+    return buildMindmapPromptTemplate(content, fileName, {
+        maxCategories: '7-10',
+        maxSubtopics: '4-6',
+        maxLabelWords: '4-8',
+        contentTruncateLength: 15000,
+        pageInfo,
+        isLargeDocument: true,
+        customInstructions:
+            'Focus on creating comprehensive coverage with detailed relationships between concepts. Include technical terminology where appropriate.',
+    });
 }
 
 /**
  * Enhanced mindmap prompt for large files with page information
  */
 function createLargeFileMindmapPrompt(
-  content: string,
-  fileName: string,
-  pageInfo?: { start: number; end: number; total: number }
+    content: string,
+    fileName: string,
+    pageInfo?: { start: number; end: number; total: number }
 ): string {
-  return buildMindmapPromptTemplate(content, fileName, {
-    maxCategories: '5-8',
-    maxSubtopics: '3-5',
-    maxLabelWords: '3-6',
-    contentTruncateLength: 12000,
-    pageInfo,
-    isLargeDocument: true,
-  });
+    return buildMindmapPromptTemplate(content, fileName, {
+        maxCategories: '5-8',
+        maxSubtopics: '3-5',
+        maxLabelWords: '3-6',
+        contentTruncateLength: 12000,
+        pageInfo,
+        isLargeDocument: true,
+    });
 }
 
 /**
@@ -99,47 +99,44 @@ function createLargeFileMindmapPrompt(
  * @returns Formatted prompt string
  */
 function buildMindmapPromptTemplate(
-  content: string,
-  fileName: string,
-  options: {
-    maxCategories?: string;
-    maxSubtopics?: string;
-    maxLabelWords?: string;
-    contentTruncateLength?: number;
-    pageInfo?: { start: number; end: number; total: number };
-    isLargeDocument?: boolean;
-    customInstructions?: string;
-  } = {}
+    content: string,
+    fileName?: string,
+    options: {
+        maxCategories?: string;
+        maxSubtopics?: string;
+        maxLabelWords?: string;
+        contentTruncateLength?: number;
+        pageInfo?: { start: number; end: number; total: number };
+        isLargeDocument?: boolean;
+        customInstructions?: string;
+    } = {}
 ): string {
-  const {
-    maxCategories = '3-7',
-    maxSubtopics = '2-4',
-    maxLabelWords = '3-4',
-    contentTruncateLength = 8000,
-    pageInfo,
-    isLargeDocument = false,
-    customInstructions,
-  } = options;
+    const {
+        maxCategories = '3-7',
+        maxSubtopics = '2-4',
+        maxLabelWords = '3-4',
+        contentTruncateLength = 8000,
+        isLargeDocument = false,
+        customInstructions,
+    } = options;
 
-  const pageText = pageInfo
-    ? ` (Pages ${pageInfo.start}-${pageInfo.end} of ${pageInfo.total})`
-    : '';
+    // const pageText = pageInfo ? ` (Pages ${pageInfo.start}-${pageInfo.end} of ${pageInfo.total})` : '';
 
-  const documentType = isLargeDocument ? 'comprehensive educational' : 'educational';
-  const categoryCount = isLargeDocument ? '5-8' : maxCategories;
-  const subtopicCount = isLargeDocument ? '3-5' : maxSubtopics;
-  const labelWords = isLargeDocument ? '3-6' : maxLabelWords;
+    const documentType = isLargeDocument ? 'comprehensive educational' : 'educational';
+    const categoryCount = isLargeDocument ? '5-8' : maxCategories;
+    const subtopicCount = isLargeDocument ? '3-5' : maxSubtopics;
+    const labelWords = isLargeDocument ? '3-6' : maxLabelWords;
 
-  const truncatedContent = content.substring(0, contentTruncateLength);
-  const contentSuffix =
-    content.length > contentTruncateLength
-      ? isLargeDocument
-        ? '...(content continues - this is a section of a larger document)'
-        : '...(content truncated)'
-      : '';
+    const truncatedContent = content.substring(0, contentTruncateLength);
+    const contentSuffix =
+        content.length > contentTruncateLength
+            ? isLargeDocument
+                ? '...(content continues - this is a section of a larger document)'
+                : '...(content truncated)'
+            : '';
 
-  return `
-You are an expert at creating ${documentType} mindmaps from ${isLargeDocument ? 'large ' : ''}documents. Analyze the following content from "${fileName}${pageText}" and create a ${isLargeDocument ? 'detailed' : 'comprehensive'} mindmap structure${isLargeDocument ? ' that captures the main themes and relationships' : ''}.
+    return `
+You are an expert at creating ${documentType} mind map from ${isLargeDocument ? 'large ' : ''}documents. Analyze the following content  and create a ${isLargeDocument ? 'detailed' : 'comprehensive'} mindmap structure${isLargeDocument ? ' that captures the main themes and relationships' : ''}.
 
 IMPORTANT: Return your response as valid JSON that matches this exact structure:
 {
@@ -172,6 +169,7 @@ ${isLargeDocument ? '5. Include cross-references between related concepts' : '5.
 ${isLargeDocument ? '6. Use clear, descriptive labels (' + labelWords + ' words per node)' : '6. Connect related concepts with edges'}
 ${isLargeDocument ? '7. Ensure comprehensive coverage of the document section' : '7. Use clear, concise labels (max ' + labelWords + ' words per node)'}
 ${isLargeDocument ? '8. Position nodes to avoid overlapping' : ''}
+9. Response must be follow language of the content
 
 Content to analyze${isLargeDocument ? ' (truncated for processing)' : ''}:
 ${truncatedContent} ${contentSuffix}
@@ -180,9 +178,9 @@ ${customInstructions ? `Additional Instructions: ${customInstructions}\n\n` : ''
 }
 
 export {
-  createMindmapPrompt,
-  createCustomMindmapPrompt,
-  createSimpleMindmapPrompt,
-  createDetailedMindmapPrompt,
-  createLargeFileMindmapPrompt,
+    createMindmapPrompt,
+    createCustomMindmapPrompt,
+    createSimpleMindmapPrompt,
+    createDetailedMindmapPrompt,
+    createLargeFileMindmapPrompt,
 };

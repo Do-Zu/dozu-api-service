@@ -67,14 +67,15 @@ class TopicController {
       description: topicDescription,
     };
 
+    let dataResponsed;
     try {
-      await topicService.handleInsertSingleTopicForUser(topicAddedValue);
+      dataResponsed = await topicService.handleInsertSingleTopicForUser(topicAddedValue);
     } catch (err) {
       logger.error(err);
       throw new DatabaseError('Something went wrong');
     }
 
-    SuccessResponse.ok(res, {});
+    SuccessResponse.ok(res, dataResponsed);
   }
 
   public async handleUpdateSingleTopic(req: Request, res: Response): Promise<void> {
@@ -95,14 +96,15 @@ class TopicController {
       description: topicDescription,
     };
 
+    let dataResponsed;
     try {
-      await topicService.handleUpdateSingleTopic(topicId, topicUpdatedValue);
+      dataResponsed = await topicService.handleUpdateSingleTopic(topicId, topicUpdatedValue);
     } catch (err) {
       logger.error(err);
       throw new DatabaseError('Something went wrong');
     }
 
-    SuccessResponse.ok(res, {});
+    SuccessResponse.ok(res, dataResponsed);
   }
 
   // còn flashcards -> vẫn xóa topic
