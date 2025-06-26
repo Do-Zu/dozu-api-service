@@ -5,8 +5,8 @@ const { isValidNameService, toKebabCase, toPascalCase, toCamelCase } = require('
 
 // Create interface for user input
 const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
+    input: process.stdin,
+    output: process.stdout,
 });
 
 // Main paths
@@ -33,9 +33,9 @@ export const ${toCamelCase(serviceName)}Controller = new ${toPascalCase(serviceN
 
 `;
 
-const serviceTemplate = serviceName => `import logger from '@/utils/logger';
+const serviceTemplate = serviceName => `
 import { ${toCamelCase(serviceName)}Repo } from '@/repositories/${toKebabCase(serviceName)}/${toCamelCase(serviceName)}.repo';
-import { NotFoundError } from '@/core/error';
+
 
 /**
  * Service class for ${serviceName} functionality
@@ -48,8 +48,8 @@ class ${toPascalCase(serviceName)}Service {
 export const ${toCamelCase(serviceName)}Service = new ${toPascalCase(serviceName)}Service();
 `;
 
-const repositoryTemplate = serviceName => `import logger from '@/utils/logger';
-import { getDbInstance } from '@/libs/drizzleClient.lib';
+const repositoryTemplate = serviceName => `
+import db from '@/libs/drizzleClient.lib';
 
 /**
  * Repository for ${serviceName} data access operations
@@ -84,82 +84,82 @@ export default router;
 
 // Function to generate API files
 const generateSourceCodeStructure = async serviceName => {
-  try {
-    if (!isValidNameService(serviceName)) {
-      console.log('Invalid service name. Only letters and spaces are allowed.');
-      return;
+    try {
+        if (!isValidNameService(serviceName)) {
+            console.log('Invalid service name. Only letters and spaces are allowed.');
+            return;
+        }
+        // Create directories if they don't exist
+        const directories = [
+            path.join(SRC_PATH, 'controllers', toKebabCase(serviceName.toLowerCase())),
+            path.join(SRC_PATH, 'services', toKebabCase(serviceName.toLowerCase())),
+            path.join(SRC_PATH, `repositories`, toKebabCase(serviceName.toLowerCase())),
+            path.join(SRC_PATH, 'routes', toKebabCase(serviceName.toLowerCase())),
+        ];
+
+        directories.forEach(dir => {
+            if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+            }
+        });
+
+        // Generate files with templates
+        const files = [
+            {
+                path: path.join(
+                    SRC_PATH,
+                    `controllers/${toKebabCase(serviceName.toLowerCase())}/${toCamelCase(serviceName)}.controller.ts`
+                ),
+                content: controllerTemplate(serviceName),
+            },
+            {
+                path: path.join(
+                    SRC_PATH,
+                    `services/${toKebabCase(serviceName.toLowerCase())}/${toCamelCase(serviceName)}.service.ts`
+                ),
+                content: serviceTemplate(serviceName),
+            },
+            {
+                path: path.join(
+                    SRC_PATH,
+                    `repositories/${toKebabCase(serviceName.toLowerCase())}/${toCamelCase(serviceName)}.repo.ts`
+                ),
+                content: repositoryTemplate(serviceName),
+            },
+            {
+                path: path.join(
+                    SRC_PATH,
+                    `routes/${toKebabCase(serviceName.toLowerCase())}/${toCamelCase(serviceName)}.routes.ts`
+                ),
+                content: routesTemplate(serviceName),
+            },
+        ];
+
+        // Write files
+        files.forEach(file => {
+            fs.writeFileSync(file.path, file.content);
+            console.log(`✓ Created ${file.path}`);
+        });
+
+        console.log(`\nSource code structure for ${serviceName} successfully generated!`);
+        console.log(
+            `\nImportant: Remember to import '${serviceName.toLowerCase()}/${serviceName.toLowerCase()}.routes' in src/routes/api.routes.ts`
+        );
+    } catch (error) {
+        console.error('Error generating source code structure:', error);
     }
-    // Create directories if they don't exist
-    const directories = [
-      path.join(SRC_PATH, 'controllers', toKebabCase(serviceName.toLowerCase())),
-      path.join(SRC_PATH, 'services', toKebabCase(serviceName.toLowerCase())),
-      path.join(SRC_PATH, `repositories`, toKebabCase(serviceName.toLowerCase())),
-      path.join(SRC_PATH, 'routes', toKebabCase(serviceName.toLowerCase())),
-    ];
-
-    directories.forEach(dir => {
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
-    });
-
-    // Generate files with templates
-    const files = [
-      {
-        path: path.join(
-          SRC_PATH,
-          `controllers/${toKebabCase(serviceName.toLowerCase())}/${toCamelCase(serviceName)}.controller.ts`
-        ),
-        content: controllerTemplate(serviceName),
-      },
-      {
-        path: path.join(
-          SRC_PATH,
-          `services/${toKebabCase(serviceName.toLowerCase())}/${toCamelCase(serviceName)}.service.ts`
-        ),
-        content: serviceTemplate(serviceName),
-      },
-      {
-        path: path.join(
-          SRC_PATH,
-          `repositories/${toKebabCase(serviceName.toLowerCase())}/${toCamelCase(serviceName)}.repo.ts`
-        ),
-        content: repositoryTemplate(serviceName),
-      },
-      {
-        path: path.join(
-          SRC_PATH,
-          `routes/${toKebabCase(serviceName.toLowerCase())}/${toCamelCase(serviceName)}.routes.ts`
-        ),
-        content: routesTemplate(serviceName),
-      },
-    ];
-
-    // Write files
-    files.forEach(file => {
-      fs.writeFileSync(file.path, file.content);
-      console.log(`✓ Created ${file.path}`);
-    });
-
-    console.log(`\nSource code structure for ${serviceName} successfully generated!`);
-    console.log(
-      `\nImportant: Remember to import '${serviceName.toLowerCase()}/${serviceName.toLowerCase()}.routes' in src/routes/api.routes.ts`
-    );
-  } catch (error) {
-    console.error('Error generating source code structure:', error);
-  }
 };
 
 // Main function
 async function main() {
-  console.log('\n=== API Generator ===\n');
-  console.log('\n=== no numbers, no special characters, can be written separately  ===\n');
+    console.log('\n=== API Generator ===\n');
+    console.log('\n=== no numbers, no special characters, can be written separately  ===\n');
 
-  rl.question('\nEnter the service name (e.g., user, product): ', async serviceName => {
-    const formattedServiceName = serviceName.charAt(0).toUpperCase() + serviceName.slice(1);
-    await generateSourceCodeStructure(formattedServiceName);
-    rl.close();
-  });
+    rl.question('\nEnter the service name (e.g., user, product): ', async serviceName => {
+        const formattedServiceName = serviceName.charAt(0).toUpperCase() + serviceName.slice(1);
+        await generateSourceCodeStructure(formattedServiceName);
+        rl.close();
+    });
 }
 
 // Run the script
