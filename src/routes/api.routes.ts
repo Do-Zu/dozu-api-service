@@ -13,12 +13,13 @@ import './sse/sse.routes';
 import './flashcard/flashcard.routes';
 import './topic/topic.routes';
 import './auth/auth.routes';
-import './mindmap/mindmap.routes'
+import './mindmap/mindmap.routes';
 import './recommendation/recommendation.routes';
 import './schedule/schedule.routes';
 import './uploads/upload.routes';
-import './admin/admin.routes'
+import './admin/admin.routes';
 import './progress/progress.routes';
+import './tracking/tracking.routes';
 
 // Apply global async handler to router
 globalAsyncHandler(router);
