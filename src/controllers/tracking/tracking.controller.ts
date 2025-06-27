@@ -25,6 +25,26 @@ class TrackingController {
 
         SuccessResponse.ok(res, result, 'Current learning topic progress tracking retrieved successfully');
     }
+
+    /**
+     * Handles the get tracking current learning progress topic
+     * @param req - Express request object
+     * @param res - Express response object
+     */
+    public async requestTrackingTimeLearningActive(req: Request, res: Response): Promise<void> {
+        const { userId } = req.currentUser;
+
+        if (isNaN(userId) || userId <= 0) {
+            throw new BadRequest('User ID is required');
+        }
+
+        const result = await trackingService.requestTrackingTimeLearningActive({
+            userId,
+            ...req.body,
+        });
+
+        SuccessResponse.ok(res, result, 'Tracking time learning active requested successfully');
+    }
 }
 
 export const trackingController = new TrackingController();

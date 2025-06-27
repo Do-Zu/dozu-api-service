@@ -36,6 +36,13 @@ class TrackingService {
             },
         };
     }
+    public async requestTrackingTimeLearningActive(params: any) {
+        // const { userId } = params;
+
+        return {
+            params,
+        };
+    }
 }
 
 export const trackingService = new TrackingService();
