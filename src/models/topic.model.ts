@@ -9,5 +9,6 @@ export const topicsTable = pgTable('topics', {
     name: varchar('name', { length: 255 }).notNull(),
     description: text('description'),
     // embedding: vector('embedding', { dimensions: 384 }),
+    imageUrl: text('image_url'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
