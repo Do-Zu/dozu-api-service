@@ -130,7 +130,7 @@ class DatabaseManager {
  * Get database connection instance
  * @returns Database connection instance
  */
-export const getDbInstance = (): Database => {
+export const db = (): Database => {
   return DatabaseManager.getInstance().getConnection();
 };
 

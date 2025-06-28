@@ -15,11 +15,13 @@ build/
 lib/
 coverage/
 .nyc_output/
+dist-lambda/
+dist-*/
 
 # Environment and local config
 .env
-# .env.*
-!.env.development
+.env.*
+# !.env.development
 !.env.local
 .npmrc
 .yarnrc
@@ -43,7 +45,7 @@ coverage/
 # Logs
 logs/
 *.log
-tsconfig.tsbuildinfo
+*.tsbuildinfo
 
 # OS generated files
 .DS_Store
@@ -55,3 +57,6 @@ ehthumbs.db
 Thumbs.db
 
 uploads/*
+
+#migrate db
+drizzle/
