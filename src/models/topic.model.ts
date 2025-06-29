@@ -10,5 +10,5 @@ export const topicsTable = pgTable('topics', {
     description: text('description'),
     // embedding: vector('embedding', { dimensions: 384 }),
     imageUrl: text('image_url'),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
