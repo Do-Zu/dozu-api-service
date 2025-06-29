@@ -4,7 +4,7 @@ import { ITopicBasic, ITopicAdded, ITopicUpdated } from '@/types/topic/topic.typ
 import { format } from 'date-fns';
 import { count, eq, sql } from 'drizzle-orm';
 
-export type ITopicForUser = ITopicBasic & { flashcardsCount?: number, flashcardsDueToday?: number };
+export type ITopicForUser = ITopicBasic & { createdAt?: Date; flashcardsCount?: number; flashcardsDueToday?: number };
 export type ITopicsForUserReturned = ITopicForUser[];
 
 class TopicRepo {
@@ -27,15 +27,29 @@ class TopicRepo {
                 topicId: topicsTable.topicId,
                 name: topicsTable.name,
                 description: topicsTable.description,
-                imageUrl: topicsTable.imageUrl,      
-                flashcardsCount: count(),     
-                flashcardsDueToday: sql<number>`CAST(COUNT(CASE WHEN item_spaced_repetition_tracking.next_review <= ${today} THEN 1 END) AS INT)`.as('flashcardsDueToday')
+                imageUrl: topicsTable.imageUrl,
+                createdAt: topicsTable.createdAt,
+                flashcardsCount:
+                    sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL THEN 1 END) AS INT)`.as(
+                        'flashcardsCount'
+                    ),
+                flashcardsDueToday:
+                    sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${today} AND item_spaced_repetition_tracking.last_reviewed IS NOT NULL THEN 1 END) AS INT)`.as(
+                        'flashcardsDueToday'
+                    ),
+                flashcardsNew:
+                    sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.last_reviewed IS NULL THEN 1 END) AS INT)`.as(
+                        'flashcardsNew'
+                    ),
             })
             .from(topicsTable)
-            .innerJoin(flashcardsTable, eq(flashcardsTable.topicId, topicsTable.topicId))
-            .innerJoin(itemSpacedRepetitionTrackingTable, eq(itemSpacedRepetitionTrackingTable.itemId, flashcardsTable.flashcardId))
+            .leftJoin(flashcardsTable, eq(flashcardsTable.topicId, topicsTable.topicId))
+            .leftJoin(
+                itemSpacedRepetitionTrackingTable,
+                eq(itemSpacedRepetitionTrackingTable.itemId, flashcardsTable.flashcardId)
+            )
             .where(eq(topicsTable.userId, userId))
-            .groupBy(topicsTable.topicId)
+            .groupBy(topicsTable.topicId);
 
         return topics;
     }
@@ -45,6 +59,7 @@ class TopicRepo {
             topicId: topicsTable.topicId,
             name: topicsTable.name,
             description: topicsTable.description,
+            createdAt: topicsTable.createdAt,
         });
 
         let ret = result[0] as ITopicForUser;
