@@ -25,7 +25,7 @@ export const itemSpacedRepetitionTrackingTable = pgTable(
         easinessFactor: decimal('easiness_factor', { precision: 3, scale: 2 }).notNull().default('2.5'),
         reviewInterval: integer('review_interval').notNull().default(0),
         lastReviewed: date('last_reviewed'),
-        nextReview: date('next_review'),
+        nextReview: date('next_review').notNull().defaultNow(), // nextReview is today when a new flashcard is inserted
         status: itemStatusEnumType('status').notNull().default('new'), // 'new', 'learning', 'review'
     },
     table => ({
