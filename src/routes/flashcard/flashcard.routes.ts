@@ -17,7 +17,6 @@ router.post('/batch', validateTopicId(), validateFlashcardsBatch(), flashcardCon
 
 router.put('/:flashcardId/track', flashcardController.handleTrackSingleFlashcard);
 
-// todo: đổi url
 router.get('/learning', flashcardController.handleGetFlashcardsLearningForUser);
 router.get('/learning/:topicId', flashcardController.handleGetFlashcardsLearningForTopic);
 router.put('/:flashcardId/put-to-learning', flashcardController.handlePutFlashcardToLearning);
