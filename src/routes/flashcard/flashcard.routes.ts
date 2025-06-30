@@ -1,12 +1,11 @@
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 import { Router } from 'express';
 import { registerRoute } from '@/routes/register.routes';
-import FlashcardController from '@/controllers/flashcard/flashcard.controller';
+import flashcardController from '@/controllers/flashcard/flashcard.controller';
 import { validateFlashcardsBatch, validateTopicId } from '@/middleware/validations/flashcard.validation';
 import { authMiddleware } from '@/middleware/auth.middleware';
 
 const router = Router();
-const flashcardController = new FlashcardController();
 
 globalAsyncHandler(router);
 

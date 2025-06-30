@@ -1,7 +1,5 @@
-import TopicRepo, { ITopicForUser, ITopicsForUserReturned } from '@/repositories/topic.repo';
+import topicRepo, { ITopicForUser, ITopicsForUserReturned } from '@/repositories/topic.repo';
 import { ITopicBasic, ITopicAdded, ITopicUpdated } from '@/types/topic/topic.type';
-
-const topicRepo = new TopicRepo();
 
 class TopicService {
     public async handleIsExistedTopic(topicId: number): Promise<boolean> {
@@ -14,8 +12,8 @@ class TopicService {
         return topic;
     }
 
-    public async handleGetAllTopicsForUser(userId: number): Promise<ITopicsForUserReturned> {
-        const topics = await topicRepo.handleGetAllTopicsForUser(userId);
+    public async handleGetAllTopicsForUser(userId: number, currentDate: string): Promise<ITopicsForUserReturned> {
+        const topics = await topicRepo.handleGetAllTopicsForUser(userId, currentDate);
         return topics;
     }
 
@@ -34,4 +32,4 @@ class TopicService {
     }
 }
 
-export default TopicService;
+export default new TopicService();

@@ -1,4 +1,4 @@
-import FlashcardRepo, {
+import flashcardRepo, {
     IFlashcardAddedArgument,
     IPutFlashcardToLearningArgumentDate,
     IFlashcardsForTopicReturned,
@@ -18,8 +18,6 @@ import { IQualityResponse } from '../spaced-repetition-system/super-memo-2/super
 import { getDateAdded, getDateFormatted } from '@/utils/date';
 import SuperMemo2 from '../spaced-repetition-system/super-memo-2/superMemo2.origin';
 import { FlashcardItemInterface } from '@/dtos/generate';
-
-const flashcardRepo = new FlashcardRepo();
 
 export type IFlashcardNextReviewReturned = Pick<IFlashcardFull, 'flashcardId' | 'front' | 'back' | 'topicName'> & {
     qualityResponsesNextReviewInterval: IQualityResponseNextReviewInterval[];
@@ -98,14 +96,12 @@ class FlashcardService {
         await flashcardRepo.handleApplyFlashcardSM2(flashcardId, sm2);
     }
 
-    public async handleGetFlashcardsLearningForUser(userId: number): Promise<IFlashcardsLearningForUserReturned> {
-        const currentDate = new Date(Date.now());
+    public async handleGetFlashcardsLearningForUser(userId: number, currentDate: string): Promise<IFlashcardsLearningForUserReturned> {
         const flashcards = await flashcardRepo.handleGetFlashcardsLearningForUser(userId, currentDate);
         return flashcards;
     }
 
-    public async handleGetFlashcardsLearningForTopic(topicId: number): Promise<IFlashcardsLearningForUserReturned> {
-        const currentDate = new Date(Date.now());
+    public async handleGetFlashcardsLearningForTopic(topicId: number, currentDate: string): Promise<IFlashcardsLearningForUserReturned> {
         const flashcards = await flashcardRepo.handleGetFlashcardsLearningForTopic(topicId, currentDate);
         return flashcards;
     }
@@ -147,4 +143,4 @@ class FlashcardService {
     }
 }
 
-export default FlashcardService;
+export default new FlashcardService();

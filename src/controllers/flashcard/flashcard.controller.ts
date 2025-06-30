@@ -1,27 +1,22 @@
 import { BadRequest, DatabaseError } from '@/core/error';
 import { SuccessResponse } from '@/core/success';
-import FlashcardService, { IFlashcardNextReviewReturned } from '@/services/flashcard/flashcard.service';
-import TopicService from '@/services/topic/topic.service';
+import flashcardService, { IFlashcardNextReviewReturned } from '@/services/flashcard/flashcard.service';
+import topicService from '@/services/topic/topic.service';
 import { IFlashcardsBatch } from '@/types/flashcard/flashcard.type';
 import logger from '@/utils/logger';
 import { Request, Response } from 'express';
 import SuperMemo2, { IQualityResponse } from '@/services/spaced-repetition-system/super-memo-2/superMemo2.origin';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
-import { getDateFormatted } from '@/utils/date';
+import { getCurrentDateFromRequest } from '@/utils/date';
 import {
     IApplyFlashcardSM2ArgumentSM2,
     IFlashcardsForTopicReturned,
     IFlashcardsLearningForUserReturned,
     IFlashcardSpacedRepetitionReturned,
 } from '@/repositories/flashcard.repo';
-
-const flashcardService = new FlashcardService();
-const topicService = new TopicService();
-
 class FlashcardController {
     constructor() {}
 
-    // done
     public async handleGetAllFlashcardsForTopic(req: Request, res: Response): Promise<void> {
         let { topicId } = req.query as { topicId: string | number };
 
@@ -81,11 +76,12 @@ class FlashcardController {
     }
 
     public async handleGetFlashcardsLearningForUser(req: Request, res: Response): Promise<void> {
+        const currentDate = getCurrentDateFromRequest(req);
         const userId = getUserIdFromRequest(req);
 
         let flashcards: IFlashcardsLearningForUserReturned;
         try {
-            flashcards = await flashcardService.handleGetFlashcardsLearningForUser(userId);
+            flashcards = await flashcardService.handleGetFlashcardsLearningForUser(userId, currentDate);
         } catch (err) {
             logger.error(err);
             throw new DatabaseError('Something went wrong :((');
@@ -98,12 +94,13 @@ class FlashcardController {
     }
 
     public async handleGetFlashcardsLearningForTopic(req: Request, res: Response): Promise<void> {
+        const currentDate = getCurrentDateFromRequest(req);
         let { topicId } = req.params as { topicId: string | number };
         topicId = parseInt(topicId as string);
 
         let flashcards: IFlashcardsLearningForUserReturned;
         try {
-            flashcards = await flashcardService.handleGetFlashcardsLearningForTopic(topicId);
+            flashcards = await flashcardService.handleGetFlashcardsLearningForTopic(topicId, currentDate);
         } catch(err) {
             logger.error(err);
             throw new DatabaseError('Something went wrong :((');
@@ -158,7 +155,7 @@ class FlashcardController {
             throw new BadRequest('Flashcard is invalid');
         }
         const { reviewInterval, easinessFactor, repetitionNumber } = flashcard;
-        const currentDate = new Date(Date.now());
+        const currentDate = getCurrentDateFromRequest(req);
 
         const superMemo2 = new SuperMemo2(easinessFactor, reviewInterval, repetitionNumber, qualityResponse);
         const sm2 = superMemo2.calc();
@@ -169,7 +166,7 @@ class FlashcardController {
             repetitionNumber: sm2.repetitionNumber,
             easinessFactor: sm2.easinessFactor,
             reviewInterval: sm2.reviewInterval,
-            lastReviewed: getDateFormatted(currentDate),
+            lastReviewed: currentDate,
             nextReview,
         };
 
@@ -184,4 +181,4 @@ class FlashcardController {
     }
 }
 
-export default FlashcardController;
+export default new FlashcardController();

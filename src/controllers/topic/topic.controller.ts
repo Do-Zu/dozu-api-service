@@ -3,11 +3,10 @@ import { SuccessResponse } from '@/core/success';
 import { ITopicBasic, ITopicAdded, ITopicUpdated } from '@/types/topic/topic.type';
 import logger from '@/utils/logger';
 import { Request, Response } from 'express';
-import TopicService from '@/services/topic/topic.service';
+import topicService from '@/services/topic/topic.service';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import { ITopicsForUserReturned } from '@/repositories/topic.repo';
-
-const topicService = new TopicService();
+import { getCurrentDateFromRequest } from '@/utils/date';
 
 class TopicController {
     constructor() {}
@@ -34,6 +33,7 @@ class TopicController {
     }
 
     public async handleGetAllTopicsForUser(req: Request, res: Response): Promise<void> {
+        const currentDate = getCurrentDateFromRequest(req);
         const userId = getUserIdFromRequest(req);
         if (isNaN(userId)) {
             throw new BadRequest('Invalid param, cannot get topics');
@@ -41,7 +41,7 @@ class TopicController {
 
         let topics: ITopicsForUserReturned;
         try {
-            topics = await topicService.handleGetAllTopicsForUser(userId);
+            topics = await topicService.handleGetAllTopicsForUser(userId, currentDate);
         } catch (err) {
             logger.error(err);
             throw new DatabaseError('Something went wrong');
@@ -127,4 +127,4 @@ class TopicController {
     }
 }
 
-export default TopicController;
+export default new TopicController();

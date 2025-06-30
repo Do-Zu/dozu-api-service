@@ -15,10 +15,8 @@ import {
     IFlashcardDeleted,
 } from '@/types/flashcard/flashcard.type';
 import { getDateFormatted } from '@/utils/date';
-import { and, asc, eq, lte, ne } from 'drizzle-orm';
-import ItemSpacedRepetitionTrackingRepo from './tracking/itemSpacedRepetitionTracking.repo';
-
-const itemSpacedRepetitionTrackingRepo = new ItemSpacedRepetitionTrackingRepo();
+import { and, asc, eq, lte } from 'drizzle-orm';
+import itemSpacedRepetitionTrackingRepo from './tracking/itemSpacedRepetitionTracking.repo';
 
 export type IFlashcardsForTopicReturned = (Omit<IFlashcardBasic, 'topicId'> & {
     status: IFlashcardStatus;
@@ -58,7 +56,7 @@ class FlashcardRepo {
 
     public async handleGetFlashcardsLearningForUser(
         userId: number,
-        currentDate: Date
+        currentDate: string
     ): Promise<IFlashcardsLearningForUserReturned> {
         const flashcards = await db
             .select({
@@ -99,7 +97,7 @@ class FlashcardRepo {
 
     public async handleGetFlashcardsLearningForTopic(
         topicId: number,
-        currentDate: Date
+        currentDate: string
     ): Promise<IFlashcardsLearningForUserReturned> {
         const flashcards = await db
             .select({
@@ -239,4 +237,4 @@ class FlashcardRepo {
     }
 }
 
-export default FlashcardRepo;
+export default new FlashcardRepo();

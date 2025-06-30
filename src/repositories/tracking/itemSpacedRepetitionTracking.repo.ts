@@ -1,7 +1,7 @@
 import db from '@/libs/drizzleClient.lib';
 import { itemSpacedRepetitionTrackingTable } from '@/models';
 
-export default class ItemSpacedRepetitionTrackingRepo {
+class ItemSpacedRepetitionTrackingRepo {
     public async handleInsertDefaultFlashcardSpacedRepetitions(
         userId: number,
         topicId: number,
@@ -16,3 +16,5 @@ export default class ItemSpacedRepetitionTrackingRepo {
         await db.insert(itemSpacedRepetitionTrackingTable).values(values);
     }
 }
+
+export default new ItemSpacedRepetitionTrackingRepo();

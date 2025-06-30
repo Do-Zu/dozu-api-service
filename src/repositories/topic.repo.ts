@@ -1,8 +1,7 @@
 import db from '@/libs/drizzleClient.lib';
 import { flashcardsTable, itemSpacedRepetitionTrackingTable, topicsTable } from '@/models';
 import { ITopicBasic, ITopicAdded, ITopicUpdated } from '@/types/topic/topic.type';
-import { format } from 'date-fns';
-import { count, eq, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 export type ITopicForUser = ITopicBasic & { createdAt?: Date; flashcardsCount?: number; flashcardsDueToday?: number };
 export type ITopicsForUserReturned = ITopicForUser[];
@@ -20,8 +19,7 @@ class TopicRepo {
         return topic;
     }
 
-    public async handleGetAllTopicsForUser(userId: number): Promise<ITopicsForUserReturned> {
-        const today = format(new Date(), 'yyyy-MM-dd');
+    public async handleGetAllTopicsForUser(userId: number, currentDate: string): Promise<ITopicsForUserReturned> {
         let topics: ITopicForUser[] = await db
             .select({
                 topicId: topicsTable.topicId,
@@ -30,19 +28,23 @@ class TopicRepo {
                 imageUrl: topicsTable.imageUrl,
                 createdAt: topicsTable.createdAt,
                 flashcardsCount:
+                    // get number of flashcards in a topic, flashcards.flashcard_id IS NOT NULL because using below left join
                     sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL THEN 1 END) AS INT)`.as(
                         'flashcardsCount'
                     ),
+                    // get flashcards-due-today, next_review <= today and last_reviewed should not null (if it is, it should be flashcardsNew)
                 flashcardsDueToday:
-                    sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${today} AND item_spaced_repetition_tracking.last_reviewed IS NOT NULL THEN 1 END) AS INT)`.as(
+                    sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${currentDate} AND item_spaced_repetition_tracking.last_reviewed IS NOT NULL THEN 1 END) AS INT)`.as(
                         'flashcardsDueToday'
                     ),
+                    // get number of new flashcards item_spaced_repetition_tracking.last_reviewed IS NULL because flashcards inserted have last_reviewed NULL
                 flashcardsNew:
                     sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.last_reviewed IS NULL THEN 1 END) AS INT)`.as(
                         'flashcardsNew'
                     ),
             })
             .from(topicsTable)
+            // some topics don't have a single flashcard, so using left join to get that topics
             .leftJoin(flashcardsTable, eq(flashcardsTable.topicId, topicsTable.topicId))
             .leftJoin(
                 itemSpacedRepetitionTrackingTable,
@@ -80,4 +82,4 @@ class TopicRepo {
     }
 }
 
-export default TopicRepo;
+export default new TopicRepo();
