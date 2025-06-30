@@ -12,7 +12,7 @@ export const plansTable = pgTable(
         description: text('description'),
         planType: planTypeEnum('plan_type').notNull(),
         billingInterval: billingIntervalEnum('billing_interval').notNull(),
-        price: decimal('price', { precision: 10, scale: 2 }).notNull().default('0.00'),
+        price: decimal('price', { precision: 10, scale: 2 }).notNull(),
         currency: varchar('currency', { length: 3 }).notNull().default('USD'),
         isActive: boolean('is_active').notNull().default(true),
         createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
