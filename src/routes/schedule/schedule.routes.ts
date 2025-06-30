@@ -16,9 +16,9 @@ router.post('/generate', scheduleController.generateSchedule);
 
 // Register the router
 registerRoute('/schedule', router, {
-  description: 'Schedule API endpoints',
-  version: 'v1',
-  isEnabled: true,
+    description: 'Schedule API endpoints',
+    version: 'v1',
+    isEnabled: true,
 });
 
 export default router;
