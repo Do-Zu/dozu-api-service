@@ -14,25 +14,22 @@ import {
 // Enum for feature types
 export const featureTypeEnum = pgEnum('feature_type', [
     'boolean', // Simple on/off features
-    'quota', // Numeric limits (e.g., credits per month)
+    'usage', // Numeric limits (e.g., credits per month)
     'size_limit', // Size limitations (e.g., max file upload size)
-    'rate_limit', // Rate limiting (e.g., API calls per minute)
-    'text', // Text-based features
 ]);
 
 // Enum for feature categories
 export const featureCategoryEnum = pgEnum('feature_category', [
     'core', // Core functionality
     'storage', // Storage-related features
+    'integrations', // Third-party integrations
     'customization', // Customization options
 ]);
 
 export const unitEnum = pgEnum('unit', [
+    'GB', // Gigabytes,
     'MB', // Megabytes,
-    'topics', // Amount of topics
-    'users', // Number of users
-    'credits', // Credits for usage,
-    'files', // Number of files
+    'count', // General countable items
 ]);
 
 // Features table - defines all available features
