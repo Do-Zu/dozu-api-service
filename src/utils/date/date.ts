@@ -1,4 +1,6 @@
+import { format } from 'date-fns';
 import { isValidTimezone } from './validate';
+import { Request } from 'express';
 
 type DateFormatType = 'ISO' | 'US' | 'EU' | 'CUSTOM';
 
@@ -9,8 +11,8 @@ type DateFormatType = 'ISO' | 'US' | 'EU' | 'CUSTOM';
  * @param date - The date to format
  * @returns A string in YYYY-MM-DD format
  */
-export function getDateFormatted(date: Date): string {
-  return date.toISOString().substring(0, 10);
+export function getDateFormatted(date: Date | string, formatStr: string = 'yyyy-MM-dd'): string {
+    return format(date, formatStr);
 }
 
 /**
@@ -22,9 +24,9 @@ export function getDateFormatted(date: Date): string {
  * @returns A new Date object with days added
  */
 export function getDateAdded(date: Date | string, days: number): Date {
-  let result = new Date(date);
-  result.setDate(result.getDate() + days);
-  return result;
+    let result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result;
 }
 
 /**
@@ -39,44 +41,44 @@ export function getDateAdded(date: Date | string, days: number): Date {
  * @throws Error if the date is invalid
  */
 export function getDateFormattedWithTimeZone(
-  date: Date | string,
-  timeZone: string = 'UTC',
-  formatType: DateFormatType = 'ISO',
-  customLocale?: string
+    date: Date | string,
+    timeZone: string = 'UTC',
+    formatType: DateFormatType = 'ISO',
+    customLocale?: string
 ): string {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
 
-  if (isNaN(dateObj.getTime())) {
-    throw new Error(`Invalid date: ${date}`);
-  }
+    if (isNaN(dateObj.getTime())) {
+        throw new Error(`Invalid date: ${date}`);
+    }
 
-  const options: Intl.DateTimeFormatOptions = {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  };
+    const options: Intl.DateTimeFormatOptions = {
+        timeZone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    };
 
-  let locale: string;
+    let locale: string;
 
-  switch (formatType) {
-    case 'ISO':
-      locale = 'en-CA'; // Returns YYYY-MM-DD format
-      break;
-    case 'US':
-      locale = 'en-US'; // Returns MM/DD/YYYY format
-      break;
-    case 'EU':
-      locale = 'en-GB'; // Returns DD/MM/YYYY format
-      break;
-    case 'CUSTOM':
-      locale = customLocale || 'en-US';
-      break;
-    default:
-      locale = 'en-CA'; // Default to ISO format
-  }
+    switch (formatType) {
+        case 'ISO':
+            locale = 'en-CA'; // Returns YYYY-MM-DD format
+            break;
+        case 'US':
+            locale = 'en-US'; // Returns MM/DD/YYYY format
+            break;
+        case 'EU':
+            locale = 'en-GB'; // Returns DD/MM/YYYY format
+            break;
+        case 'CUSTOM':
+            locale = customLocale || 'en-US';
+            break;
+        default:
+            locale = 'en-CA'; // Default to ISO format
+    }
 
-  return new Intl.DateTimeFormat(locale, options).format(dateObj);
+    return new Intl.DateTimeFormat(locale, options).format(dateObj);
 }
 
 /**
@@ -87,11 +89,11 @@ export function getDateFormattedWithTimeZone(
  * @returns A string in HH:MM format
  */
 export function formatTimeToHHMM(date: Date): string {
-  return date.toLocaleTimeString('en-US', {
-    hour12: false,
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+    return date.toLocaleTimeString('en-US', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+    });
 }
 
 /**
@@ -103,13 +105,13 @@ export function formatTimeToHHMM(date: Date): string {
  * @returns A formatted time string like "HH:MM:SS"
  */
 export function getTimeUTC(date: Date, timeZone: string = 'UTC'): string {
-  const options: Intl.DateTimeFormatOptions = {
-    timeZone,
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  };
-  return new Intl.DateTimeFormat('en-US', options).format(date);
+    const options: Intl.DateTimeFormatOptions = {
+        timeZone,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+    };
+    return new Intl.DateTimeFormat('en-US', options).format(date);
 }
 
 /**
@@ -119,26 +121,23 @@ export function getTimeUTC(date: Date, timeZone: string = 'UTC'): string {
  * @param options - Intl.DateTimeFormatOptions for customization
  * @returns A string representing the formatted date
  */
-export function formatDateWithTimeZone(
-  date: string | Date,
-  options?: Intl.DateTimeFormatOptions
-): string {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
+export function formatDateWithTimeZone(date: string | Date, options?: Intl.DateTimeFormatOptions): string {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
 
-  const defaultOptions: Intl.DateTimeFormatOptions = {
-    timeZone: 'UTC',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    ...options,
-  };
+    const defaultOptions: Intl.DateTimeFormatOptions = {
+        timeZone: 'UTC',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        ...options,
+    };
 
-  const formattedDate = new Intl.DateTimeFormat('en-US', defaultOptions).format(dateObj);
+    const formattedDate = new Intl.DateTimeFormat('en-US', defaultOptions).format(dateObj);
 
-  return formattedDate.replace(',', '');
+    return formattedDate.replace(',', '');
 }
 
 /**
@@ -151,27 +150,27 @@ export function formatDateWithTimeZone(
  * @returns A Date object set to the start of the day in the specified timezone
  */
 export function startOfDay(date: Date | string, timeZone: string = 'UTC'): Date {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-  });
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+    });
 
-  const parts = formatter.formatToParts(dateObj);
-  const dateParts: Record<string, number> = {};
+    const parts = formatter.formatToParts(dateObj);
+    const dateParts: Record<string, number> = {};
 
-  parts.forEach(part => {
-    if (['year', 'month', 'day'].includes(part.type)) {
-      dateParts[part.type] = parseInt(part.value, 10);
-    }
-  });
+    parts.forEach(part => {
+        if (['year', 'month', 'day'].includes(part.type)) {
+            dateParts[part.type] = parseInt(part.value, 10);
+        }
+    });
 
-  // Month is 0-indexed in Date constructor
-  dateParts.month -= 1;
+    // Month is 0-indexed in Date constructor
+    dateParts.month -= 1;
 
-  return new Date(Date.UTC(dateParts.year, dateParts.month, dateParts.day, 0, 0, 0, 0));
+    return new Date(Date.UTC(dateParts.year, dateParts.month, dateParts.day, 0, 0, 0, 0));
 }
 
 /**
@@ -184,8 +183,8 @@ export function startOfDay(date: Date | string, timeZone: string = 'UTC'): Date 
  * @returns A Date object set to the end of the day in the specified timezone
  */
 export function endOfDay(date: Date | string, timeZone: string = 'UTC'): Date {
-  const startDay = startOfDay(date, timeZone);
-  return new Date(startDay.getTime() + 24 * 60 * 60 * 1000 - 1);
+    const startDay = startOfDay(date, timeZone);
+    return new Date(startDay.getTime() + 24 * 60 * 60 * 1000 - 1);
 }
 
 /**
@@ -198,26 +197,26 @@ export function endOfDay(date: Date | string, timeZone: string = 'UTC'): Date {
  * @returns A Date object set to the start of the month in the specified timezone
  */
 export function startOfMonth(date: Date | string, timeZone: string = 'UTC'): Date {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    year: 'numeric',
-    month: 'numeric',
-  });
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        year: 'numeric',
+        month: 'numeric',
+    });
 
-  const parts = formatter.formatToParts(dateObj);
-  const dateParts: Record<string, number> = {};
+    const parts = formatter.formatToParts(dateObj);
+    const dateParts: Record<string, number> = {};
 
-  parts.forEach(part => {
-    if (['year', 'month'].includes(part.type)) {
-      dateParts[part.type] = parseInt(part.value, 10);
-    }
-  });
+    parts.forEach(part => {
+        if (['year', 'month'].includes(part.type)) {
+            dateParts[part.type] = parseInt(part.value, 10);
+        }
+    });
 
-  // Month is 0-indexed in Date constructor
-  dateParts.month -= 1;
+    // Month is 0-indexed in Date constructor
+    dateParts.month -= 1;
 
-  return new Date(Date.UTC(dateParts.year, dateParts.month, 1, 0, 0, 0, 0));
+    return new Date(Date.UTC(dateParts.year, dateParts.month, 1, 0, 0, 0, 0));
 }
 
 /**
@@ -231,12 +230,12 @@ export function startOfMonth(date: Date | string, timeZone: string = 'UTC'): Dat
  * @returns Locale-specific formatted date string
  */
 export function formatDate(
-  date: Date | string,
-  locale: string = 'en-US',
-  options: Intl.DateTimeFormatOptions = { timeZone: 'UTC' }
+    date: Date | string,
+    locale: string = 'en-US',
+    options: Intl.DateTimeFormatOptions = { timeZone: 'UTC' }
 ): string {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  return new Intl.DateTimeFormat(locale, options).format(dateObj);
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return new Intl.DateTimeFormat(locale, options).format(dateObj);
 }
 
 /**
@@ -254,34 +253,34 @@ export function formatDate(
  * @returns A new Date with the specified amount added
  */
 export function addTime(
-  date: Date | string,
-  amount: number,
-  unit: 'days' | 'hours' | 'minutes' | 'seconds' | 'months' | 'years'
+    date: Date | string,
+    amount: number,
+    unit: 'days' | 'hours' | 'minutes' | 'seconds' | 'months' | 'years'
 ): Date {
-  const dateObj = typeof date === 'string' ? new Date(date) : new Date(date.getTime());
+    const dateObj = typeof date === 'string' ? new Date(date) : new Date(date.getTime());
 
-  switch (unit) {
-    case 'days':
-      dateObj.setDate(dateObj.getDate() + amount);
-      break;
-    case 'hours':
-      dateObj.setHours(dateObj.getHours() + amount);
-      break;
-    case 'minutes':
-      dateObj.setMinutes(dateObj.getMinutes() + amount);
-      break;
-    case 'seconds':
-      dateObj.setSeconds(dateObj.getSeconds() + amount);
-      break;
-    case 'months':
-      dateObj.setMonth(dateObj.getMonth() + amount);
-      break;
-    case 'years':
-      dateObj.setFullYear(dateObj.getFullYear() + amount);
-      break;
-  }
+    switch (unit) {
+        case 'days':
+            dateObj.setDate(dateObj.getDate() + amount);
+            break;
+        case 'hours':
+            dateObj.setHours(dateObj.getHours() + amount);
+            break;
+        case 'minutes':
+            dateObj.setMinutes(dateObj.getMinutes() + amount);
+            break;
+        case 'seconds':
+            dateObj.setSeconds(dateObj.getSeconds() + amount);
+            break;
+        case 'months':
+            dateObj.setMonth(dateObj.getMonth() + amount);
+            break;
+        case 'years':
+            dateObj.setFullYear(dateObj.getFullYear() + amount);
+            break;
+    }
 
-  return dateObj;
+    return dateObj;
 }
 
 /**
@@ -298,27 +297,27 @@ export function addTime(
  * @returns The difference as a whole number in the specified unit
  */
 export function differenceInTime(
-  date1: Date | string,
-  date2: Date | string,
-  unit: 'days' | 'hours' | 'minutes' | 'seconds'
+    date1: Date | string,
+    date2: Date | string,
+    unit: 'days' | 'hours' | 'minutes' | 'seconds'
 ): number {
-  const dateObj1 = typeof date1 === 'string' ? new Date(date1) : date1;
-  const dateObj2 = typeof date2 === 'string' ? new Date(date2) : date2;
+    const dateObj1 = typeof date1 === 'string' ? new Date(date1) : date1;
+    const dateObj2 = typeof date2 === 'string' ? new Date(date2) : date2;
 
-  const diffMs = dateObj2.getTime() - dateObj1.getTime();
+    const diffMs = dateObj2.getTime() - dateObj1.getTime();
 
-  switch (unit) {
-    case 'days':
-      return Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    case 'hours':
-      return Math.floor(diffMs / (1000 * 60 * 60));
-    case 'minutes':
-      return Math.floor(diffMs / (1000 * 60));
-    case 'seconds':
-      return Math.floor(diffMs / 1000);
-    default:
-      return diffMs;
-  }
+    switch (unit) {
+        case 'days':
+            return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        case 'hours':
+            return Math.floor(diffMs / (1000 * 60 * 60));
+        case 'minutes':
+            return Math.floor(diffMs / (1000 * 60));
+        case 'seconds':
+            return Math.floor(diffMs / 1000);
+        default:
+            return diffMs;
+    }
 }
 
 /**
@@ -329,49 +328,57 @@ export function differenceInTime(
  * @returns string - The name of the day of the week
  * @throws Error if the date is invalid or cannot be parsed
  */
-export function getDayOfWeek(
-  date: Date | string | number,
-  locale: string = 'en-US',
-  timeZone: string = 'UTC'
-): string {
-  let dateObj: Date;
+export function getDayOfWeek(date: Date | string | number, locale: string = 'en-US', timeZone: string = 'UTC'): string {
+    let dateObj: Date;
 
-  try {
-    if (typeof date === 'string') {
-      if (date.trim() === '') {
-        throw new Error('Empty string is not a valid date');
-      }
-      dateObj = new Date(date);
-    } else if (typeof date === 'number') {
-      // Handle timestamp (both seconds and milliseconds)
-      // If number is less than year 2001 in milliseconds, assume it's in seconds
-      const timestamp = date < 1000000000000 ? date * 1000 : date;
-      dateObj = new Date(timestamp);
-    } else if (date instanceof Date) {
-      dateObj = new Date(date.getTime());
-    } else {
-      throw new Error(`Invalid date type: expected Date, string, or number, got ${typeof date}`);
+    try {
+        if (typeof date === 'string') {
+            if (date.trim() === '') {
+                throw new Error('Empty string is not a valid date');
+            }
+            dateObj = new Date(date);
+        } else if (typeof date === 'number') {
+            // Handle timestamp (both seconds and milliseconds)
+            // If number is less than year 2001 in milliseconds, assume it's in seconds
+            const timestamp = date < 1000000000000 ? date * 1000 : date;
+            dateObj = new Date(timestamp);
+        } else if (date instanceof Date) {
+            dateObj = new Date(date.getTime());
+        } else {
+            throw new Error(`Invalid date type: expected Date, string, or number, got ${typeof date}`);
+        }
+
+        if (isNaN(dateObj.getTime())) {
+            throw new Error(`Invalid date value: "${date}" could not be parsed as a valid date`);
+        }
+
+        if (!isValidTimezone(timeZone)) {
+            throw new Error(`Invalid timezone: "${timeZone}"`);
+        }
+
+        // Use Intl.DateTimeFormat for timezone-aware day calculation
+        const formatter = new Intl.DateTimeFormat(locale, {
+            weekday: 'long',
+            timeZone: timeZone,
+        });
+
+        return formatter.format(dateObj);
+    } catch (error) {
+        if (error instanceof Error) {
+            throw new Error(`Failed to get day of week: ${error.message}`);
+        }
+        throw new Error(`Failed to get day of week for date: ${date}`);
     }
+}
 
-    if (isNaN(dateObj.getTime())) {
-      throw new Error(`Invalid date value: "${date}" could not be parsed as a valid date`);
+export function getCurrentTimestampFromRequest(req: Request) : string {
+    const result = req.headers['x-timestamp'] as string;
+    if(!result) {
+        throw new Error('Failed to get Current Date'); 
     }
+    return result;
+}
 
-    if (!isValidTimezone(timeZone)) {
-      throw new Error(`Invalid timezone: "${timeZone}"`);
-    }
-
-    // Use Intl.DateTimeFormat for timezone-aware day calculation
-    const formatter = new Intl.DateTimeFormat(locale, {
-      weekday: 'long',
-      timeZone: timeZone,
-    });
-
-    return formatter.format(dateObj);
-  } catch (error) {
-    if (error instanceof Error) {
-      throw new Error(`Failed to get day of week: ${error.message}`);
-    }
-    throw new Error(`Failed to get day of week for date: ${date}`);
-  }
+export function getCurrentDateFromRequest(req: Request) : string {
+    return getDateFormatted(getCurrentTimestampFromRequest(req));
 }
