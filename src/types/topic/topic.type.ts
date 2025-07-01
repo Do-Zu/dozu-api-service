@@ -3,6 +3,7 @@ export interface ITopic {
     userId: number
     name: string
     description: string | null
+    imageUrl?: string
     createdAt: Date
 }
 
