@@ -13,16 +13,16 @@ export class SubscriptionController {
     /**
      * Get all available plans with features
      */
-    getPlans = async (req: Request, res: Response) => {
+    public async getAllPlans(_req: Request, res: Response) {
         const plans = await subscriptionService.getAvailablePlans();
 
         SuccessResponse.ok(res, plans, 'Plans retrieved successfully');
-    };
+    }
 
     /**
      * Get current user's subscription
      */
-    getCurrentSubscription = async (req: Request, res: Response) => {
+    public getCurrentSubscription = async (req: Request, res: Response) => {
         const userId = req.currentUser?.userId;
 
         const subscription = await subscriptionService.getUserSubscriptionWithPlan(userId);
@@ -33,7 +33,7 @@ export class SubscriptionController {
     /**
      * Create a new subscription
      */
-    createSubscription = async (req: Request, res: Response) => {
+    public async createSubscription(req: Request, res: Response) {
         const userId = req.currentUser?.userId;
 
         const validatedData = createSubscriptionSchema.parse(req.body);
@@ -73,7 +73,7 @@ export class SubscriptionController {
             },
             'Subscription created successfully'
         );
-    };
+    }
 
     /**
      * Update subscription

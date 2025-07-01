@@ -10,13 +10,76 @@ import {
     type SelectUserSubscription,
     type InsertUserFeatureUsage,
 } from '@/models/subscription';
+import subscriptionRepo from '@/repositories/subscription/subscription.repo';
+import { NotFoundError } from '@/core/error';
+import { getDateFormattedWithTimeZone } from '@/utils/date';
 
+export interface IFeature {
+    planId: number;
+    featureId: number;
+    name: string;
+    description?: string;
+    booleanValue?: boolean;
+    numericValue?: string;
+    textValue?: string;
+    isUnlimited: boolean;
+    isEnabled: boolean;
+}
+export interface SelectPlanWithFeatures {
+    planId: number;
+    name: string;
+    description?: string;
+    planType: string;
+    billingInterval: string;
+    price: string;
+    currency: string;
+    isActive: boolean;
+    features: IFeature[];
+}
 export class SubscriptionService {
     /**
      * Get all available plans with their features
      */
-    async getAvailablePlans() {
-        return [];
+    public async getAvailablePlans() {
+        const plans = await subscriptionRepo.getAllPlansAvailable();
+
+        if (!plans || plans.length === 0) {
+            throw new NotFoundError('No plans available');
+        }
+
+        if (!plans || plans.length === 0) {
+            throw new NotFoundError('No plans available');
+        }
+
+        const planFeatures = (await subscriptionRepo.getPlanFeaturesAvailable()) as IFeature[];
+
+        if (!planFeatures || planFeatures.length === 0) {
+            throw new NotFoundError('No plan features available');
+        }
+
+        const mapPlanFeatures = new Map<number, IFeature[]>();
+
+        planFeatures?.forEach(feature => {
+            if (!feature || feature?.planId === null) {
+                throw new NotFoundError(`Feature ${feature.featureId} is not associated with any plan`);
+            }
+
+            if (!mapPlanFeatures.has(feature.planId)) {
+                mapPlanFeatures.set(feature.planId, []);
+            }
+
+            mapPlanFeatures?.get(feature.planId)?.push(feature);
+        });
+
+        const plansWithFeatures = plans.map(plan => {
+            const features = mapPlanFeatures.get(plan.planId) || [];
+            return {
+                ...plan,
+                features,
+            };
+        });
+
+        return plansWithFeatures as SelectPlanWithFeatures[];
     }
 
     /**
@@ -66,17 +129,10 @@ export class SubscriptionService {
     /**
      * Create a new subscription for a user
      */
-    async createSubscription(
-        userId: number,
-        planId: number,
-        paymentData: {
-            amount: number;
-            currency?: string;
-            externalSubscriptionId?: string;
-            paymentMethod?: string;
-        }
-    ): Promise<SelectUserSubscription> {
-        const now = new Date();
+    async createSubscription(params: any): Promise<SelectUserSubscription> {
+        const { userId, planId, paymentData, timeZone } = params;
+
+        const now = getDateFormattedWithTimeZone;
         const currentPeriodEnd = new Date();
         currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1); // Default to 1 month
 

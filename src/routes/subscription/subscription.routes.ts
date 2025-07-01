@@ -1,17 +1,16 @@
 import { Router } from 'express';
-import { SubscriptionController } from '@/controllers/subscription/subscription.controller';
+import subscriptionController from '@/controllers/subscription/subscription.controller';
 import { authMiddleware } from '@/middleware/auth.middleware';
 import { registerRoute } from '../register.routes';
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 
 const router = Router();
-const subscriptionController = new SubscriptionController();
 
 // Apply global async handler
 globalAsyncHandler(router);
 
 // Public routes
-router.get('/plans', subscriptionController.getPlans);
+router.get('/plans', subscriptionController.getAllPlans);
 
 // Protected routes (require authentication)
 router.use(authMiddleware);
