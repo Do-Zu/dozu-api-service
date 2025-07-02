@@ -37,13 +37,13 @@ class TrackingController {
         if (isNaN(userId) || userId <= 0) {
             throw new BadRequest('User ID is required');
         }
+        // TODO: Implement the logic for requesting tracking time learning active
+        // const result = await trackingService.requestTrackingTimeLearningActive({
+        //     userId,
+        //     ...req.body,
+        // });
 
-        const result = await trackingService.requestTrackingTimeLearningActive({
-            userId,
-            ...req.body,
-        });
-
-        SuccessResponse.ok(res, result, 'Tracking time learning active requested successfully');
+        SuccessResponse.ok(res, {}, 'Tracking time learning active requested successfully');
     }
 }
 

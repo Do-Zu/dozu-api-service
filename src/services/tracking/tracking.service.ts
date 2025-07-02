@@ -1,6 +1,6 @@
 import { trackingRepo } from '@/repositories/tracking/tracking.repo';
 import { NotFoundError } from '@/core/error';
-import { topicRepo } from '@/repositories/topic.repo';
+import topicRepo from '@/repositories/topic.repo';
 
 /**
  * Service class for Tracking functionality
@@ -34,13 +34,6 @@ class TrackingService {
                 percentComplete: Math.round(percentComplete),
                 type: result[0].type,
             },
-        };
-    }
-    public async requestTrackingTimeLearningActive(params: any) {
-        // const { userId } = params;
-
-        return {
-            params,
         };
     }
 }
