@@ -1,7 +1,8 @@
+import db, { Transaction } from '@/libs/drizzleClient.lib';
 import { NotFoundError } from '@/core/error';
-import db from '@/libs/drizzleClient.lib';
 import {
     featuresTable,
+    IBillingInterval,
     planFeaturesTable,
     plansTable,
     userFeatureUsageTable,
@@ -12,7 +13,9 @@ import {
 } from '@/models/subscription';
 import subscriptionRepo from '@/repositories/subscription/subscription.repo';
 import { getCurrentDateInTimeZone } from '@/utils/date';
+import { addMonths, addYears } from 'date-fns';
 import { and, desc, eq, gte } from 'drizzle-orm';
+import planService from './plan.service';
 
 export interface IFeature {
     planId: number;
@@ -137,7 +140,13 @@ export class SubscriptionService {
         const result = await db
             .select({
                 subscription: userSubscriptionsTable,
-                plan: plansTable,
+                plan: {
+                    planId: plansTable.planId,
+                    name: plansTable.name,
+                    description: plansTable.description,
+                    price: plansTable.price,
+                    isActive: plansTable.isActive,
+                },
             })
             .from(userSubscriptionsTable)
             .innerJoin(plansTable, eq(userSubscriptionsTable.planId, plansTable.planId))
@@ -162,39 +171,73 @@ export class SubscriptionService {
     }): Promise<SelectUserSubscription> {
         const { userId, planId, paymentData, timeZone } = params;
 
-        const now = getCurrentDateInTimeZone(timeZone);
-        const currentPeriodEnd = getCurrentDateInTimeZone(timeZone);
+        const { planType, billingInterval } = await planService.getPlanById(planId);
 
-        // Set the current period end to one month from now
-        currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
+        if (!planType || !billingInterval) {
+            throw new NotFoundError(`Plan with ID ${planId} not found`);
+        }
 
-        const subscription: InsertUserSubscription = {
-            userId,
-            planId,
-            status: 'pending',
-            currentPeriodStart: now,
-            currentPeriodEnd,
-            paymentStatus: 'pending',
-            amount: paymentData.amount.toString(),
-            currency: paymentData.currency || 'USD',
-            externalSubscriptionId: paymentData.externalSubscriptionId,
-            autoRenew: true,
-        };
+        return await db.transaction(async tx => {
+            const startDateSubscription = getCurrentDateInTimeZone(timeZone);
+            const endDateSubscription = this.calculateSubscriptionEndDate(billingInterval, startDateSubscription);
 
-        const [newSubscription] = await db.insert(userSubscriptionsTable).values(subscription).returning();
+            const subscription: InsertUserSubscription = {
+                userId,
+                planId,
+                status: 'active',
+                currentPeriodStart: startDateSubscription,
+                currentPeriodEnd: endDateSubscription,
+                paymentStatus: 'pending',
+                amount: paymentData?.amount?.toString(),
+                currency: paymentData?.currency || 'USD',
+                externalSubscriptionId: paymentData.externalSubscriptionId,
+                autoRenew: true,
+            };
 
-        // Initialize user feature usage for this subscription
-        await this.initializeUserFeatureUsage(userId, planId, newSubscription.subscriptionId);
+            const [newSubscription] = await tx.insert(userSubscriptionsTable).values(subscription).returning();
 
-        return newSubscription;
+            // Initialize user feature usage for this subscription
+            await this.initializeUserFeatureUsage({
+                tx,
+                userId,
+                planId,
+                subscriptionId: newSubscription.subscriptionId,
+            });
+
+            return newSubscription;
+        });
+    }
+
+    private calculateSubscriptionEndDate(billingInterval: IBillingInterval, startDateSubscription: Date) {
+        switch (billingInterval) {
+            case 'monthly':
+                return addMonths(startDateSubscription, 1);
+            case 'yearly':
+                return addYears(startDateSubscription, 1);
+            case 'custom':
+                // TODO: Implement custom billing logic for custom intervals
+                return startDateSubscription;
+            default:
+                throw new Error(`Unsupported billing interval: ${billingInterval}`);
+        }
     }
 
     /**
      * Initialize user feature usage based on their plan
      */
-    private async initializeUserFeatureUsage(userId: number, planId: number, subscriptionId: number) {
+    private async initializeUserFeatureUsage({
+        tx,
+        userId,
+        planId,
+        subscriptionId,
+    }: {
+        tx: Transaction;
+        userId: number;
+        planId: number;
+        subscriptionId: number;
+    }) {
         // Get plan features
-        const planFeatures = await db
+        const planFeatures = await tx
             .select({
                 featureId: planFeaturesTable.featureId,
                 numericValue: planFeaturesTable.numericValue,
@@ -221,7 +264,7 @@ export class SubscriptionService {
         }));
 
         if (usageRecords.length > 0) {
-            await db.insert(userFeatureUsageTable).values(usageRecords);
+            await tx.insert(userFeatureUsageTable).values(usageRecords);
         }
     }
 
@@ -366,10 +409,7 @@ export class SubscriptionService {
         return result.length > 0;
     }
 
-    /**
-     * Upgrade/downgrade subscription
-     */
-    async changeSubscription(
+    public async changeSubscription(
         userId: number,
         newPlanId: number,
         paymentData: {
@@ -379,25 +419,67 @@ export class SubscriptionService {
         },
         timeZone: string
     ): Promise<SelectUserSubscription | null> {
-        // Get current subscription
-        const currentSubscription = await this.getUserActiveSubscription(userId);
+        return await db.transaction(async tx => {
+            // Get current subscription
+            const currentSubscription = await tx
+                .select()
+                .from(userSubscriptionsTable)
+                .where(and(eq(userSubscriptionsTable.userId, userId), eq(userSubscriptionsTable.status, 'active')))
+                .limit(1);
 
-        if (!currentSubscription) {
-            return null;
-        }
+            if (!currentSubscription[0]) {
+                return null;
+            }
 
-        // Cancel current subscription
-        await this.cancelSubscription(currentSubscription.subscriptionId, 'Plan change');
+            const currentDate = getCurrentDateInTimeZone(timeZone);
 
-        // Create new subscription
-        const newSubscription = await this.createSubscription({
-            userId,
-            planId: newPlanId,
-            paymentData,
-            timeZone,
+            // Cancel current subscription within transaction
+            await tx
+                .update(userSubscriptionsTable)
+                .set({
+                    status: 'cancelled',
+                    canceledAt: currentDate,
+                    cancellationReason: 'Plan change',
+                    autoRenew: false,
+                    updatedAt: currentDate,
+                })
+                .where(eq(userSubscriptionsTable.subscriptionId, currentSubscription[0].subscriptionId));
+
+            // Create new subscription within same transaction
+            const { planType, billingInterval } = await planService.getPlanById(newPlanId);
+
+            if (!planType || !billingInterval) {
+                throw new NotFoundError(`Plan with ID ${newPlanId} not found`);
+            }
+
+            const startDateSubscription = getCurrentDateInTimeZone(timeZone);
+            const endDateSubscription = this.calculateSubscriptionEndDate(billingInterval, startDateSubscription);
+
+            const subscription: InsertUserSubscription = {
+                userId,
+                planId: newPlanId,
+                status: 'active',
+                currentPeriodStart: startDateSubscription,
+                currentPeriodEnd: endDateSubscription,
+                paymentStatus: 'pending',
+                amount: paymentData?.amount?.toString(),
+                currency: paymentData?.currency || 'USD',
+                externalSubscriptionId: paymentData.externalSubscriptionId,
+                autoRenew: true,
+            };
+
+            const [newSubscription] = await tx.insert(userSubscriptionsTable).values(subscription).returning();
+
+            // Initialize feature usage for new subscription
+            await this.initializeUserFeatureUsage({
+                tx,
+                userId,
+                planId: newPlanId,
+                subscriptionId: newSubscription.subscriptionId,
+            });
+
+            return newSubscription;
         });
-
-        return newSubscription;
     }
 
     /**

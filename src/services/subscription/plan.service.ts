@@ -60,6 +60,19 @@ class PlanService {
         return await this.getPlanByTypeAndInterval('free', 'monthly');
     }
 
+    public async getPlanById(planId: number) {
+        const plan = await db
+            .select()
+            .from(plansTable)
+            .where(and(eq(plansTable.planId, planId), eq(plansTable.isActive, true)))
+            .limit(1);
+
+        if (!plan?.[0]) {
+            throw new NotFoundError(`Plan not found with ID: ${planId}`);
+        }
+        return plan[0];
+    }
+
     // private getPlanConfiguration(planType: IPlanType, intervalType: IBillingInterval) {}
 }
 
