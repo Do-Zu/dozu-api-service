@@ -32,12 +32,12 @@ class TopicRepo {
                     sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL THEN 1 END) AS INT)`.as(
                         'flashcardsCount'
                     ),
-                // get flashcards-due-today, next_review <= today and last_reviewed should not null (if it is, it should be flashcardsNew)
+                    // get flashcards-due-today, next_review <= today and last_reviewed should not null (if it is, it should be flashcardsNew)
                 flashcardsDueToday:
                     sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${currentDate} AND item_spaced_repetition_tracking.last_reviewed IS NOT NULL THEN 1 END) AS INT)`.as(
                         'flashcardsDueToday'
                     ),
-                // get number of new flashcards item_spaced_repetition_tracking.last_reviewed IS NULL because flashcards inserted have last_reviewed NULL
+                    // get number of new flashcards item_spaced_repetition_tracking.last_reviewed IS NULL because flashcards inserted have last_reviewed NULL
                 flashcardsNew:
                     sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.last_reviewed IS NULL THEN 1 END) AS INT)`.as(
                         'flashcardsNew'
