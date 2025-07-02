@@ -1,16 +1,4 @@
-import {
-    pgTable,
-    serial,
-    integer,
-    decimal,
-    timestamp,
-    boolean,
-    jsonb,
-    varchar,
-    text,
-    foreignKey,
-    index,
-} from 'drizzle-orm/pg-core';
+import { boolean, decimal, foreignKey, integer, pgTable, serial, timestamp } from 'drizzle-orm/pg-core';
 import { usersTable } from '../user.model';
 import { featuresTable } from './feature.model';
 import { userSubscriptionsTable } from './userSubscription.model';

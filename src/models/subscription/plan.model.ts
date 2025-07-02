@@ -2,7 +2,11 @@ import { pgTable, serial, varchar, text, timestamp, boolean, decimal, pgEnum, un
 
 export const planTypeEnum = pgEnum('plan_type', ['free', 'pro', 'team', 'enterprise']);
 
+export type IPlanType = 'free' | 'pro' | 'team' | 'enterprise';
+
 export const billingIntervalEnum = pgEnum('billing_interval', ['monthly', 'yearly', 'lifetime']);
+
+export type IBillingInterval = 'monthly' | 'yearly' | 'lifetime';
 
 export const plansTable = pgTable(
     'plans',

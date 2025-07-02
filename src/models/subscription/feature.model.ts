@@ -14,7 +14,7 @@ import {
 // Enum for feature types
 export const featureTypeEnum = pgEnum('feature_type', [
     'boolean', // Simple on/off features
-    'usage', // Numeric limits (e.g., credits per month)
+    'usage', // Numeric limits (e.g., credits per date)
     'size_limit', // Size limitations (e.g., max file upload size)
 ]);
 
