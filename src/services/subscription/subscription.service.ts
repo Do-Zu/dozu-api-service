@@ -1,18 +1,18 @@
+import { NotFoundError } from '@/core/error';
 import db from '@/libs/drizzleClient.lib';
-import { eq, and, desc, gte } from 'drizzle-orm';
 import {
-    plansTable,
     featuresTable,
     planFeaturesTable,
-    userSubscriptionsTable,
+    plansTable,
     userFeatureUsageTable,
+    userSubscriptionsTable,
+    type InsertUserFeatureUsage,
     type InsertUserSubscription,
     type SelectUserSubscription,
-    type InsertUserFeatureUsage,
 } from '@/models/subscription';
 import subscriptionRepo from '@/repositories/subscription/subscription.repo';
-import { NotFoundError } from '@/core/error';
-import { getDateFormattedWithTimeZone } from '@/utils/date';
+import { getCurrentDateInTimeZone } from '@/utils/date';
+import { and, desc, eq, gte } from 'drizzle-orm';
 
 export interface IFeature {
     planId: number;
@@ -82,6 +82,40 @@ export class SubscriptionService {
         return plansWithFeatures as SelectPlanWithFeatures[];
     }
 
+    public async getFeatureAbilityOfPlan({ planId, featureId }: { planId: number; featureId: number }) {
+        const feature = await db
+            .select({
+                planFeatureId: planFeaturesTable.planFeatureId,
+                featureType: featuresTable.featureType,
+                interval: planFeaturesTable.interval,
+                category: featuresTable.category,
+                unit: featuresTable.unit,
+                sortOrder: featuresTable.sortOrder,
+                booleanValue: planFeaturesTable.booleanValue,
+                numericValue: planFeaturesTable.numericValue,
+                textValue: planFeaturesTable.textValue,
+                isUnlimited: planFeaturesTable.isUnlimited,
+                isEnabled: planFeaturesTable.isEnabled,
+            })
+            .from(planFeaturesTable)
+            .innerJoin(featuresTable, eq(planFeaturesTable.featureId, featuresTable.featureId))
+            .where(
+                and(
+                    eq(planFeaturesTable.planId, planId),
+                    eq(planFeaturesTable.featureId, featureId),
+                    eq(planFeaturesTable.isEnabled, true),
+                    eq(featuresTable.isActive, true)
+                )
+            )
+            .limit(1);
+
+        if (!feature[0]) {
+            throw new NotFoundError(`Feature ${featureId} not found for plan ${planId}`);
+        }
+
+        return feature[0];
+    }
+
     /**
      * Get user's current active subscription
      */
@@ -89,13 +123,7 @@ export class SubscriptionService {
         const subscription = await db
             .select()
             .from(userSubscriptionsTable)
-            .where(
-                and(
-                    eq(userSubscriptionsTable.userId, userId),
-                    eq(userSubscriptionsTable.status, 'active'),
-                    gte(userSubscriptionsTable.currentPeriodEnd, new Date())
-                )
-            )
+            .where(and(eq(userSubscriptionsTable.userId, userId), eq(userSubscriptionsTable.status, 'active')))
             .orderBy(desc(userSubscriptionsTable.createdAt))
             .limit(1);
 
@@ -113,14 +141,7 @@ export class SubscriptionService {
             })
             .from(userSubscriptionsTable)
             .innerJoin(plansTable, eq(userSubscriptionsTable.planId, plansTable.planId))
-            .where(
-                and(
-                    eq(userSubscriptionsTable.userId, userId),
-                    eq(userSubscriptionsTable.status, 'active'),
-                    gte(userSubscriptionsTable.currentPeriodEnd, new Date())
-                )
-            )
-            .orderBy(desc(userSubscriptionsTable.createdAt))
+            .where(and(eq(userSubscriptionsTable.userId, userId), eq(userSubscriptionsTable.status, 'active')))
             .limit(1);
 
         return result[0] || null;
@@ -129,12 +150,23 @@ export class SubscriptionService {
     /**
      * Create a new subscription for a user
      */
-    async createSubscription(params: any): Promise<SelectUserSubscription> {
+    public async createSubscription(params: {
+        userId: number;
+        planId: number;
+        paymentData: {
+            amount: number;
+            currency?: string;
+            externalSubscriptionId?: string;
+        };
+        timeZone: string;
+    }): Promise<SelectUserSubscription> {
         const { userId, planId, paymentData, timeZone } = params;
 
-        const now = getDateFormattedWithTimeZone;
-        const currentPeriodEnd = new Date();
-        currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1); // Default to 1 month
+        const now = getCurrentDateInTimeZone(timeZone);
+        const currentPeriodEnd = getCurrentDateInTimeZone(timeZone);
+
+        // Set the current period end to one month from now
+        currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
 
         const subscription: InsertUserSubscription = {
             userId,
@@ -344,7 +376,8 @@ export class SubscriptionService {
             amount: number;
             currency?: string;
             externalSubscriptionId?: string;
-        }
+        },
+        timeZone: string
     ): Promise<SelectUserSubscription | null> {
         // Get current subscription
         const currentSubscription = await this.getUserActiveSubscription(userId);
@@ -357,7 +390,12 @@ export class SubscriptionService {
         await this.cancelSubscription(currentSubscription.subscriptionId, 'Plan change');
 
         // Create new subscription
-        const newSubscription = await this.createSubscription(userId, newPlanId, paymentData);
+        const newSubscription = await this.createSubscription({
+            userId,
+            planId: newPlanId,
+            paymentData,
+            timeZone,
+        });
 
         return newSubscription;
     }

@@ -46,28 +46,35 @@ export class SubscriptionController {
 
         // Get plan details to calculate price
         const plans = await subscriptionService.getAvailablePlans();
-        const selectedPlan = plans.find(p => p?.plan?.planId === validatedData.planId);
+        const selectedPlan = plans.find(p => p?.planId === validatedData.planId);
 
         if (!selectedPlan) {
             throw new NotFoundError('Plan not found');
         }
 
-        let finalAmount = parseFloat(selectedPlan.plan.price);
+        let finalAmount = parseFloat(selectedPlan.price);
         let discountAmount = 0;
 
+        const params = {
+            userId,
+            planId: validatedData.planId,
+            paymentData: {
+                amount: finalAmount,
+                currency: selectedPlan.currency,
+                externalSubscriptionId: validatedData.externalSubscriptionId,
+                paymentMethod: validatedData.paymentMethod,
+            },
+            interval: selectedPlan.billingInterval,
+        };
+
         // Create subscription
-        const subscription = await subscriptionService.createSubscription(userId, validatedData.planId, {
-            amount: finalAmount,
-            currency: selectedPlan.plan.currency,
-            externalSubscriptionId: validatedData.externalSubscriptionId,
-            paymentMethod: validatedData.paymentMethod,
-        });
+        const subscription = await subscriptionService.createSubscription(params);
 
         SuccessResponse.created(
             res,
             {
                 subscription,
-                originalAmount: parseFloat(selectedPlan.plan.price),
+                originalAmount: parseFloat(selectedPlan.price),
                 discountAmount,
                 finalAmount,
             },
