@@ -1,9 +1,9 @@
 import db from '@/libs/drizzleClient.lib';
-import { flashcardsTable, topicsTable } from '@/models';
+import { flashcardsTable, itemSpacedRepetitionTrackingTable, topicsTable } from '@/models';
 import { ITopicBasic, ITopicAdded, ITopicUpdated } from '@/types/topic/topic.type';
-import { count, eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
-export type ITopicForUser = ITopicBasic & { flashcardsCount?: number };
+export type ITopicForUser = ITopicBasic & { createdAt?: Date; flashcardsCount?: number; flashcardsDueToday?: number };
 export type ITopicsForUserReturned = ITopicForUser[];
 
 class TopicRepo {
@@ -19,31 +19,39 @@ class TopicRepo {
         return topic;
     }
 
-    public async handleGetAllTopicsForUser(userId: number): Promise<ITopicsForUserReturned> {
+    public async handleGetAllTopicsForUser(userId: number, currentDate: string): Promise<ITopicsForUserReturned> {
         let topics: ITopicForUser[] = await db
             .select({
                 topicId: topicsTable.topicId,
                 name: topicsTable.name,
                 description: topicsTable.description,
+                imageUrl: topicsTable.imageUrl,
+                createdAt: topicsTable.createdAt,
+                flashcardsCount:
+                    // get number of flashcards in a topic, flashcards.flashcard_id IS NOT NULL because using below left join
+                    sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL THEN 1 END) AS INT)`.as(
+                        'flashcardsCount'
+                    ),
+                // get flashcards-due-today, next_review <= today and last_reviewed should not null (if it is, it should be flashcardsNew)
+                flashcardsDueToday:
+                    sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${currentDate} AND item_spaced_repetition_tracking.last_reviewed IS NOT NULL THEN 1 END) AS INT)`.as(
+                        'flashcardsDueToday'
+                    ),
+                // get number of new flashcards item_spaced_repetition_tracking.last_reviewed IS NULL because flashcards inserted have last_reviewed NULL
+                flashcardsNew:
+                    sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.last_reviewed IS NULL THEN 1 END) AS INT)`.as(
+                        'flashcardsNew'
+                    ),
             })
             .from(topicsTable)
-            .where(eq(topicsTable.userId, userId));
-
-        for (let i = 0; i < topics.length; ++i) {
-            let topic = topics[i] as ITopicForUser;
-            const result = await db
-                .select({
-                    flashcardsCount: count(),
-                })
-                .from(topicsTable)
-                .innerJoin(flashcardsTable, eq(flashcardsTable.topicId, topicsTable.topicId))
-                .where(eq(topicsTable.topicId, topic.topicId));
-
-            const { flashcardsCount }: { flashcardsCount: number } = result[0];
-
-            topic['flashcardsCount'] = flashcardsCount;
-            topics[i] = topic;
-        }
+            // some topics don't have a single flashcard, so using left join to get that topics
+            .leftJoin(flashcardsTable, eq(flashcardsTable.topicId, topicsTable.topicId))
+            .leftJoin(
+                itemSpacedRepetitionTrackingTable,
+                eq(itemSpacedRepetitionTrackingTable.itemId, flashcardsTable.flashcardId)
+            )
+            .where(eq(topicsTable.userId, userId))
+            .groupBy(topicsTable.topicId);
 
         return topics;
     }
@@ -53,6 +61,7 @@ class TopicRepo {
             topicId: topicsTable.topicId,
             name: topicsTable.name,
             description: topicsTable.description,
+            createdAt: topicsTable.createdAt,
         });
 
         let ret = result[0] as ITopicForUser;
@@ -73,4 +82,4 @@ class TopicRepo {
     }
 }
 
-export const topicRepo = new TopicRepo();
+export default new TopicRepo();

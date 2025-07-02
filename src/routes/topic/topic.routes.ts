@@ -1,13 +1,11 @@
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 import { Router } from 'express';
 import { registerRoute } from '../register.routes';
-import TopicController from '@/controllers/topic/topic.controller';
+import topicController from '@/controllers/topic/topic.controller';
 import { authMiddleware } from '@/middleware/auth.middleware';
 
 const router = Router();
 globalAsyncHandler(router);
-
-const topicController = new TopicController();
 
 router.use(authMiddleware);
 
