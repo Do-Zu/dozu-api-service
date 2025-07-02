@@ -4,9 +4,9 @@ export const planTypeEnum = pgEnum('plan_type', ['free', 'pro', 'team', 'enterpr
 
 export type IPlanType = 'free' | 'pro' | 'team' | 'enterprise';
 
-export const billingIntervalEnum = pgEnum('billing_interval', ['monthly', 'yearly', 'lifetime']);
+export const billingIntervalEnum = pgEnum('billing_interval', ['monthly', 'yearly', 'custom']);
 
-export type IBillingInterval = 'monthly' | 'yearly' | 'lifetime';
+export type IBillingInterval = 'monthly' | 'yearly' | 'custom';
 
 export const plansTable = pgTable(
     'plans',

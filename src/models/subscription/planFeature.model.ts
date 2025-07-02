@@ -17,6 +17,8 @@ import { featuresTable } from './feature.model';
 // Enum for feature interval types
 export const featureIntervalEnum = pgEnum('feature_interval', ['daily', 'weekly', 'monthly', 'yearly']);
 
+export type IFeatureUsageInterval = 'daily' | 'weekly' | 'monthly' | 'yearly';
+
 // Plan Features table - defines what features are included in each plan and their limits
 export const planFeaturesTable = pgTable(
     'plan_features',
