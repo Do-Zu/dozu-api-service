@@ -1,15 +1,17 @@
-import { Request, Response } from 'express';
-import subscriptionService from '@/services/subscription/subscription.service';
 import { BadRequest, InternalServerError, NotFoundError, PaymentRequire } from '@/core/error';
-import {
-    createSubscriptionSchema,
-    updateSubscriptionSchema,
-    recordFeatureUsageSchema,
-    checkFeatureUsageSchema,
-} from '@/dtos/subscription/subscription.dto';
 import { SuccessResponse } from '@/core/success';
+import {
+    checkFeatureUsageSchema,
+    createSubscriptionSchema,
+    recordFeatureUsageSchema,
+    updateSubscriptionSchema,
+} from '@/dtos/subscription/subscription.dto';
+import subscriptionService from '@/services/subscription/subscription.service';
+import { getTimezoneClient } from '@/utils/date';
+import { Request, Response } from 'express';
 
 export class SubscriptionController {
+    
     /**
      * Get all available plans with features
      */
@@ -38,6 +40,8 @@ export class SubscriptionController {
 
         const validatedData = createSubscriptionSchema.parse(req.body);
 
+        const timeZone = getTimezoneClient(req);
+
         // Check if user already has an active subscription
         const existingSubscription = await subscriptionService.getUserActiveSubscription(userId);
         if (existingSubscription) {
@@ -65,6 +69,7 @@ export class SubscriptionController {
                 paymentMethod: validatedData.paymentMethod,
             },
             interval: selectedPlan.billingInterval,
+            timeZone,
         };
 
         // Create subscription
