@@ -8,7 +8,7 @@ import {
     userSubscriptionsTable,
     type InsertUserFeatureUsage,
     type InsertUserSubscription,
-    type SelectUserSubscription
+    type SelectUserSubscription,
 } from '@/models/subscription';
 import subscriptionRepo from '@/repositories/subscription/subscription.repo';
 import { getCurrentDateInTimeZone } from '@/utils/date';
@@ -116,6 +116,24 @@ export class SubscriptionService {
         }
 
         return feature[0];
+    }
+
+    public async getAllFeaturesOfPlan({ planId }: { planId: number }) {
+        const features = await db
+            .select({
+                featureId: featuresTable.featureId,
+                name: featuresTable.name,
+                description: featuresTable.description,
+                featureType: featuresTable.featureType,
+                featureIntervalExpire: planFeaturesTable.interval,
+                category: featuresTable.category,
+                unit: featuresTable.unit,
+            })
+            .from(planFeaturesTable)
+            .innerJoin(featuresTable, eq(planFeaturesTable.featureId, featuresTable.featureId))
+            .where(and(eq(planFeaturesTable.planId, planId), eq(featuresTable.isActive, true)));
+
+        return features;
     }
 
     /**

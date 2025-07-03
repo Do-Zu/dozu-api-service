@@ -32,6 +32,22 @@ export class SubscriptionController {
         SuccessResponse.ok(res, subscription, 'Subscription retrieved successfully');
     };
 
+    public getAllFeaturesOfPlan = async (req: Request, res: Response) => {
+        const { planId } = req.body;
+
+        if (!planId) {
+            throw new BadRequest('Plan ID is required');
+        }
+
+        const features = await subscriptionService.getAllFeaturesOfPlan({ planId });
+
+        if (!features || features.length === 0) {
+            throw new NotFoundError('No features found for this plan');
+        }
+
+        SuccessResponse.ok(res, features, 'Plan features retrieved successfully');
+    };
+
     /**
      * Create a new subscription
      */

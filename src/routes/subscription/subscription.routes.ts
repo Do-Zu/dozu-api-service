@@ -19,6 +19,7 @@ router.use(authMiddleware);
 router.get('/current-plan', subscriptionController.getCurrentSubscription);
 router.post('/', subscriptionController.createSubscription);
 router.patch('/', subscriptionController.updateSubscription);
+router.post('/plan/features',subscriptionController.getAllFeaturesOfPlan);
 
 // Feature usage
 router.post('/feature-usage/check', subscriptionController.checkFeatureUsage);
