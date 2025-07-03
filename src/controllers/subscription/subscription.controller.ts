@@ -40,17 +40,20 @@ export class SubscriptionController {
 
         const validatedData = createSubscriptionSchema.parse(req.body);
 
+        const planId = parseInt(validatedData.planId as string, 10);
+
         const timeZone = getTimezoneClient(req);
 
         // Check if user already has an active subscription
         const existingSubscription = await subscriptionService.getUserActiveSubscription(userId);
+
         if (existingSubscription) {
             throw new BadRequest('User already has an active subscription');
         }
 
         // Get plan details to calculate price
         const plans = await subscriptionService.getAvailablePlans();
-        const selectedPlan = plans.find(p => p?.planId === validatedData.planId);
+        const selectedPlan = plans.find(p => p?.planId === planId);
 
         if (!selectedPlan) {
             throw new NotFoundError('Plan not found');
@@ -61,12 +64,12 @@ export class SubscriptionController {
 
         const params = {
             userId,
-            planId: validatedData.planId,
+            planId,
             paymentData: {
                 amount: finalAmount,
                 currency: selectedPlan.currency,
-                externalSubscriptionId: validatedData.externalSubscriptionId,
-                paymentMethod: validatedData.paymentMethod,
+                externalSubscriptionId: validatedData?.externalSubscriptionId,
+                paymentMethod: validatedData?.paymentMethod,
             },
             interval: selectedPlan.billingInterval,
             timeZone,

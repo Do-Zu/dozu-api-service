@@ -61,12 +61,12 @@ export type UpdatePlanFeatureDto = z.infer<typeof updatePlanFeatureSchema>;
 
 // Subscription DTOs
 export const createSubscriptionSchema = z.object({
-    planId: z.number().positive(),
+    planId: z.number().positive().or(z.string().min(1)), // Allow both number and string for planId
     paymentMethod: z.string().optional(),
     externalSubscriptionId: z.string().optional(),
-    couponCode: z.string().optional(),
-    autoRenew: z.boolean().default(true),
-    metadata: z.record(z.any()).optional(),
+    code: z.string().optional(),
+    // autoRenew: z.boolean().default(true),
+    // metadata: z.record(z.any()).optional(),
 });
 
 export const updateSubscriptionSchema = z.object({

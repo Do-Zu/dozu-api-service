@@ -16,7 +16,7 @@ router.get('/plans', subscriptionController.getAllPlans);
 router.use(authMiddleware);
 
 // Subscription management
-router.get('/current', subscriptionController.getCurrentSubscription);
+router.get('/current-plan', subscriptionController.getCurrentSubscription);
 router.post('/', subscriptionController.createSubscription);
 router.patch('/', subscriptionController.updateSubscription);
 

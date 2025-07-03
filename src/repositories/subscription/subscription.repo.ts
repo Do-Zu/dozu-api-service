@@ -1,6 +1,6 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import db from '@/libs/drizzleClient.lib';
-import { featuresTable, planFeaturesTable, plansTable } from '@/models';
+import { featuresTable, planFeaturesTable, plansTable, userSubscriptionsTable } from '@/models';
 
 class SubscriptionRepo {
     /**
@@ -45,6 +45,29 @@ class SubscriptionRepo {
             .where(eq(featuresTable.isActive, true));
 
         return features;
+    }
+
+    /**
+     * Get user's subscription with plan details
+     */
+    public async getUserSubscriptionWithPlan(userId: number) {
+        const result = await db
+            .select({
+                subscription: userSubscriptionsTable,
+                plan: {
+                    planId: plansTable.planId,
+                    name: plansTable.name,
+                    description: plansTable.description,
+                    price: plansTable.price,
+                    isActive: plansTable.isActive,
+                },
+            })
+            .from(userSubscriptionsTable)
+            .innerJoin(plansTable, eq(userSubscriptionsTable.planId, plansTable.planId))
+            .where(and(eq(userSubscriptionsTable.userId, userId), eq(userSubscriptionsTable.status, 'active')))
+            .limit(1);
+
+        return result[0] || null;
     }
 }
 

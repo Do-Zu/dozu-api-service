@@ -1,15 +1,14 @@
-import db, { Transaction } from '@/libs/drizzleClient.lib';
 import { NotFoundError } from '@/core/error';
+import db, { Transaction } from '@/libs/drizzleClient.lib';
 import {
     featuresTable,
     IBillingInterval,
     planFeaturesTable,
-    plansTable,
     userFeatureUsageTable,
     userSubscriptionsTable,
     type InsertUserFeatureUsage,
     type InsertUserSubscription,
-    type SelectUserSubscription,
+    type SelectUserSubscription
 } from '@/models/subscription';
 import subscriptionRepo from '@/repositories/subscription/subscription.repo';
 import { getCurrentDateInTimeZone } from '@/utils/date';
@@ -137,23 +136,8 @@ export class SubscriptionService {
      * Get user's subscription with plan details
      */
     async getUserSubscriptionWithPlan(userId: number) {
-        const result = await db
-            .select({
-                subscription: userSubscriptionsTable,
-                plan: {
-                    planId: plansTable.planId,
-                    name: plansTable.name,
-                    description: plansTable.description,
-                    price: plansTable.price,
-                    isActive: plansTable.isActive,
-                },
-            })
-            .from(userSubscriptionsTable)
-            .innerJoin(plansTable, eq(userSubscriptionsTable.planId, plansTable.planId))
-            .where(and(eq(userSubscriptionsTable.userId, userId), eq(userSubscriptionsTable.status, 'active')))
-            .limit(1);
-
-        return result[0] || null;
+        const result = await subscriptionRepo.getUserSubscriptionWithPlan(userId);
+        return result;
     }
 
     /**
@@ -190,7 +174,7 @@ export class SubscriptionService {
                 paymentStatus: 'pending',
                 amount: paymentData?.amount?.toString(),
                 currency: paymentData?.currency || 'USD',
-                externalSubscriptionId: paymentData.externalSubscriptionId,
+                externalSubscriptionId: paymentData?.externalSubscriptionId,
                 autoRenew: true,
             };
 

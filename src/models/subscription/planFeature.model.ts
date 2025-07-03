@@ -1,18 +1,17 @@
 import {
+    boolean,
+    decimal,
+    foreignKey,
+    integer,
+    pgEnum,
     pgTable,
     serial,
-    integer,
-    decimal,
     text,
-    boolean,
-    jsonb,
     timestamp,
-    foreignKey,
-    uniqueIndex,
-    pgEnum,
+    uniqueIndex
 } from 'drizzle-orm/pg-core';
-import { plansTable } from './plan.model';
 import { featuresTable } from './feature.model';
+import { plansTable } from './plan.model';
 
 // Enum for feature interval types
 export const featureIntervalEnum = pgEnum('feature_interval', ['daily', 'weekly', 'monthly', 'yearly']);
