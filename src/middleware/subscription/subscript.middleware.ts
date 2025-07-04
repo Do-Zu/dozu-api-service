@@ -1,16 +1,16 @@
-import { NextFunction, Request, Response } from 'express';
-import { BadRequest, InternalServerError, PaymentRequire } from '@/core/error';
+import { BadRequest, Forbidden, InternalServerError, PaymentRequire } from '@/core/error';
+import { IFeatureUsageInterval } from '@/models/subscription/planFeature.model';
 import planService from '@/services/subscription/plan.service';
 import subscriptionService from '@/services/subscription/subscription.service';
+import { featureUsageService } from '@/services/subscription/usage/featureUsage.service';
 import {
     getCurrentDateInTimeZone,
     getCurrentTimestampFromRequest,
     getTimezoneClient,
     isExpiredDate,
 } from '@/utils/date';
-import { redisInstance as redis } from '@/libs/redis/default/redisDefault';
 import { addDays, differenceInSeconds, endOfDay } from 'date-fns';
-import { IFeatureUsageInterval } from '@/models/subscription/planFeature.model';
+import { NextFunction, Request, Response } from 'express';
 
 interface ISubscriptionRequest {
     userId: number;
@@ -24,14 +24,12 @@ interface IFeatureRequest extends ISubscriptionRequest {
     subscriptionId?: number;
 }
 
-interface IFeatureUsageCache {
-    usedValue: number;
-    limitValue: number;
-    isEnabled: boolean;
-    featureType: string;
-    category: string;
-}
-
+const TYPE_FEATURE_USAGE = {
+    boolean: 'boolean',
+    usage: 'usage',
+    quota: 'quota',
+    text: 'text',
+};
 class SubscriptionMiddleware {
     private readonly REDIS_FEATURE_LIMIT_EXCEEDED = 'feature_limit_exceeded_per_date';
     private readonly DEFAULT_DATE_FOR_MONTH = 30;
@@ -45,8 +43,18 @@ class SubscriptionMiddleware {
      */
     public async handleSubscription(req: Request, res: Response, next: NextFunction) {
         const userId = req.currentUser?.userId;
-        const today = getCurrentTimestampFromRequest(req);
         const timezone = getTimezoneClient(req);
+
+        const nowServer = getCurrentDateInTimeZone(timezone);
+        const currentDateFromClient = getCurrentTimestampFromRequest(req);
+
+        // Ensure that the client's timestamp and server's timestamp are not more than 1 minute
+        if (nowServer.getTime() - new Date(currentDateFromClient).getTime() > 60 * 1000) {
+            throw new Forbidden('Client time is too far from server time. Please check your device clock.');
+        }
+
+        const today = currentDateFromClient;
+
         const featureId = req.body?.featureId;
 
         if (!featureId) {
@@ -92,7 +100,6 @@ class SubscriptionMiddleware {
         }
 
         const currentPeriodEnd = userPlan.subscription.currentPeriodEnd;
-
         const isExpired = isExpiredDate(currentPeriodEnd, today, timezone);
 
         if (userPlan.subscription.status === 'expired' || isExpired) {
@@ -124,88 +131,46 @@ class SubscriptionMiddleware {
         timezone,
         featureId,
         planId,
+        subscriptionId,
     }: IFeatureRequest): Promise<boolean> {
-        const usageFeatureUsage = await subscriptionService.getFeatureAbilityOfPlan({
+        const planFeature = await subscriptionService.getFeatureAbilityOfPlan({
             planId,
             featureId,
         });
 
-        const key = `${this.REDIS_FEATURE_LIMIT_EXCEEDED}:${userId}:${featureId}:${planId}:${timezone}`;
+        const { featureType, numericValue, isEnabled, interval } = planFeature;
 
-        const featureUsage: IFeatureUsageCache | null = await redis.get(key);
-
-        if (!featureUsage) {
-            const { featureType, category, numericValue, isEnabled, interval } = usageFeatureUsage;
-
-            if (!featureType || !numericValue) {
-                throw new InternalServerError('Feature type or numeric value is missing in the plan feature');
-            }
-
-            const creditValue = parseFloat(numericValue);
-
-            if (creditValue <= 0) {
-                throw new BadRequest('Feature limit value must be greater than zero');
-            }
-
-            const valueStoreCache = {
-                usedValue: 1,
-                limitValue: creditValue,
-                isEnabled,
-                featureType,
-                category,
-            };
-
-            const timeToLiveCache = this.timeToLive(today, timezone, interval);
-
-            await redis.set(key, valueStoreCache, timeToLiveCache);
-
-            //TODO: update into database usage if interval is monthly, weekly, daily, yearly
-            // if (interval === 'monthly' || interval === 'weekly' || interval === 'daily' || interval === 'yearly') {
-            //     const resetPeriodStart = getCurrentDateInTimeZone(timezone, today);
-            //     const resetPeriodEnd = addDays(resetPeriodStart, this.DEFAULT_DATE_FOR_MONTH); // Adjust based on interval
-
-            //     await subscriptionService.createUserFeatureUsage({
-            //         userId,
-            //         featureId,
-            //         planId,
-            //         usedValue: 1,
-            //         limitValue: creditValue,
-            //         isUnlimited: false,
-            //         isEnabled,
-            //         resetPeriodStart,
-            //         resetPeriodEnd,
-            //     });
-            // }
-
-            if (featureType === 'boolean') {
-                return !isEnabled;
-            }
-
-            if (featureType === 'usage') {
-                return true;
-            }
-
+        if (featureType === TYPE_FEATURE_USAGE.boolean) {
             return !isEnabled;
         }
 
-        const { usedValue, limitValue, isEnabled } = featureUsage;
+        if (featureType === TYPE_FEATURE_USAGE.usage) {
+            if (!numericValue) {
+                throw new InternalServerError('Numeric value is required for usage-based features');
+            }
 
-        // Check if already at limit before incrementing
-        if (usedValue >= limitValue) {
-            return true;
+            const limitValue = parseFloat(numericValue);
+
+            if (limitValue <= 0) {
+                throw new InternalServerError('Feature limit value must be greater than zero');
+            }
+
+            const { exceeded } = await featureUsageService.checkAndIncrementUsage({
+                userId,
+                featureId,
+                planId,
+                subscriptionId,
+                featureType,
+                limitValue,
+                interval,
+                timezone,
+                today,
+            });
+
+            return exceeded;
         }
 
-        const isFeatureExceeded = usedValue >= limitValue || isEnabled === false;
-
-        if (isFeatureExceeded) {
-            return true;
-        }
-
-        const newUsedValue = usedValue + 1;
-
-        await redis.hset(key, 'usedValue', newUsedValue.toString());
-
-        return false;
+        return !isEnabled;
     }
 
     private timeToLive(today: string, timezone?: string, interval?: IFeatureUsageInterval): number {
