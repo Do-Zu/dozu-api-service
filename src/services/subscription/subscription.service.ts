@@ -15,6 +15,7 @@ import { getCurrentDateInTimeZone } from '@/utils/date';
 import { addMonths, addYears } from 'date-fns';
 import { and, desc, eq, gte } from 'drizzle-orm';
 import planService from './plan.service';
+import { featureUsageService } from './usage/featureUsage.service';
 
 export interface IFeature {
     planId: number;
@@ -39,6 +40,9 @@ export interface SelectPlanWithFeatures {
     features: IFeature[];
 }
 export class SubscriptionService {
+    private readonly DEFAULT_VALUE_USAGE = '0';
+    private readonly DEFAULT_CURRENCY = 'USD';
+
     /**
      * Get all available plans with their features
      */
@@ -191,7 +195,7 @@ export class SubscriptionService {
                 currentPeriodEnd: endDateSubscription,
                 paymentStatus: 'pending',
                 amount: paymentData?.amount?.toString(),
-                currency: paymentData?.currency || 'USD',
+                currency: paymentData?.currency || this.DEFAULT_CURRENCY,
                 externalSubscriptionId: paymentData?.externalSubscriptionId,
                 autoRenew: true,
             };
@@ -204,6 +208,7 @@ export class SubscriptionService {
                 userId,
                 planId,
                 subscriptionId: newSubscription.subscriptionId,
+                timeZone,
             });
 
             return newSubscription;
@@ -232,11 +237,13 @@ export class SubscriptionService {
         userId,
         planId,
         subscriptionId,
+        timeZone,
     }: {
         tx: Transaction;
         userId: number;
         planId: number;
         subscriptionId: number;
+        timeZone: string;
     }) {
         // Get plan features
         const planFeatures = await tx
@@ -245,25 +252,33 @@ export class SubscriptionService {
                 numericValue: planFeaturesTable.numericValue,
                 isUnlimited: planFeaturesTable.isUnlimited,
                 feature: featuresTable,
+                interval: planFeaturesTable.interval,
             })
             .from(planFeaturesTable)
             .innerJoin(featuresTable, eq(planFeaturesTable.featureId, featuresTable.featureId))
             .where(and(eq(planFeaturesTable.planId, planId), eq(planFeaturesTable.isEnabled, true)));
 
-        const now = new Date();
-        const resetPeriodEnd = new Date();
-        resetPeriodEnd.setMonth(resetPeriodEnd.getMonth() + 1);
+        if (!planFeatures || planFeatures.length === 0) {
+            throw new NotFoundError(`No features found for plan ${planId}`);
+        }
 
-        const usageRecords: InsertUserFeatureUsage[] = planFeatures.map(pf => ({
-            userId,
-            featureId: pf.featureId,
-            subscriptionId,
-            usedValue: '0',
-            limitValue: pf.numericValue,
-            isUnlimited: pf.isUnlimited,
-            resetPeriodStart: now,
-            resetPeriodEnd,
-        }));
+        const usageRecords: InsertUserFeatureUsage[] = planFeatures.map(planFeature => {
+            const now = getCurrentDateInTimeZone(timeZone);
+            const { start, end } = featureUsageService.getPeriodRange(now, timeZone, planFeature.interval);
+
+            return {
+                userId,
+                featureId: planFeature.featureId,
+                subscriptionId,
+                usedValue: this.DEFAULT_VALUE_USAGE,
+                limitValue: planFeature.numericValue ? planFeature.numericValue.toString() : null,
+                isUnlimited: planFeature.isUnlimited,
+                resetPeriodStart: start,
+                resetPeriodEnd: end,
+                lastResetAt: now,
+                updatedAt: now,
+            };
+        });
 
         if (usageRecords.length > 0) {
             await tx.insert(userFeatureUsageTable).values(usageRecords);
@@ -478,6 +493,7 @@ export class SubscriptionService {
                 userId,
                 planId: newPlanId,
                 subscriptionId: newSubscription.subscriptionId,
+                timeZone,
             });
 
             return newSubscription;
