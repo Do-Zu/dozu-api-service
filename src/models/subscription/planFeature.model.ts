@@ -8,15 +8,16 @@ import {
     serial,
     text,
     timestamp,
-    uniqueIndex
+    uniqueIndex,
+    varchar
 } from 'drizzle-orm/pg-core';
 import { featuresTable } from './feature.model';
 import { plansTable } from './plan.model';
 
 // Enum for feature interval types
-export const featureIntervalEnum = pgEnum('feature_interval', ['daily', 'weekly', 'monthly', 'yearly']);
+export const featureIntervalEnum = pgEnum('feature_interval', ['daily', 'weekly', 'monthly', 'yearly', 'lifetime']);
 
-export type IFeatureUsageInterval = 'daily' | 'weekly' | 'monthly' | 'yearly';
+export type IFeatureUsageInterval = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'lifetime';
 
 // Plan Features table - defines what features are included in each plan and their limits
 export const planFeaturesTable = pgTable(
@@ -32,6 +33,8 @@ export const planFeaturesTable = pgTable(
         textValue: text('text_value'), // For text-based features
 
         interval: featureIntervalEnum('interval').notNull().default('daily'),
+
+        apiUrl: varchar('api_url', { length: 255 }).notNull(),
 
         // Additional configuration
         isUnlimited: boolean('is_unlimited').notNull().default(false), // For unlimited features
