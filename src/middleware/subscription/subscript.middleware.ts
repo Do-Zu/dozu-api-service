@@ -1,6 +1,5 @@
 import { BadRequest, Forbidden, InternalServerError, PaymentRequire } from '@/core/error';
 import { IFeatureUsageInterval } from '@/models/subscription/planFeature.model';
-import planService from '@/services/subscription/plan.service';
 import subscriptionService from '@/services/subscription/subscription.service';
 import { featureUsageService } from '@/services/subscription/usage/featureUsage.service';
 import {
@@ -73,43 +72,7 @@ class SubscriptionMiddleware {
             throw new BadRequest('Feature ID is required for subscription check');
         }
 
-        let userPlan = await subscriptionService.getUserSubscriptionWithPlan(userId);
-
-        let freePlan;
-
-        if (!userPlan) {
-            freePlan = await planService.getFreePlan();
-
-            if (!freePlan) {
-                throw new InternalServerError('Free plan not found');
-            }
-
-            let priceFree = 0;
-
-            try {
-                priceFree = parseFloat(freePlan.price);
-            } catch {
-                priceFree = 0;
-            }
-
-            const resultCreteSubScriptionFreePlan = await subscriptionService.createSubscription({
-                userId,
-                planId: freePlan.planId,
-                paymentData: {
-                    amount: priceFree,
-                },
-                timeZone: timezone,
-            });
-
-            if (!resultCreteSubScriptionFreePlan) {
-                throw new InternalServerError('Failed to create subscription for free plan');
-            }
-
-            userPlan = {
-                plan: freePlan,
-                subscription: resultCreteSubScriptionFreePlan,
-            };
-        }
+        const userPlan = await subscriptionService.getUserSubscriptionWithPlan(userId);
 
         // Check if the user has a valid subscription without free plan
         if (userPlan.plan.planType !== 'free') {
@@ -123,7 +86,7 @@ class SubscriptionMiddleware {
             }
         }
 
-        const planId = userPlan?.plan?.planId ?? freePlan?.planId;
+        const planId = userPlan?.plan?.planId;
         const subscriptionId = userPlan?.subscription?.subscriptionId;
 
         const isFeatureExceeded = await this.isFeatureLimitExceeded({
