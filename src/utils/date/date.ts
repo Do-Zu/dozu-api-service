@@ -1,6 +1,7 @@
-import { format } from 'date-fns';
-import { isValidTimezone } from './validate';
 import { Request } from 'express';
+import { format, isBefore } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
+import { isValidTimezone } from './validate';
 
 type DateFormatType = 'ISO' | 'US' | 'EU' | 'CUSTOM';
 
@@ -371,14 +372,52 @@ export function getDayOfWeek(date: Date | string | number, locale: string = 'en-
     }
 }
 
-export function getCurrentTimestampFromRequest(req: Request) : string {
+export function getCurrentTimestampFromRequest(req: Request): string {
     const result = req.headers['x-timestamp'] as string;
-    if(!result) {
-        throw new Error('Failed to get Current Date'); 
+    if (!result) {
+        throw new Error('Failed to get Current Date');
     }
     return result;
 }
 
-export function getCurrentDateFromRequest(req: Request) : string {
+export function getCurrentDateFromRequest(req: Request): string {
     return getDateFormatted(getCurrentTimestampFromRequest(req));
+}
+
+/**
+ *
+ * @param req - The request object containing headers
+ * @description Retrieves the timezone from the request headers.
+ * @returns {string} - The timezone string from the request header.
+ * @throws {Error} - If the timezone header is missing or invalid.
+ */
+export function getTimezoneClient(req: Request): string {
+    const timeZone = req.headers['x-timezone'] as string;
+    if (!timeZone || !isValidTimezone(timeZone)) {
+        throw new Error(`Invalid or missing timezone header: ${timeZone}`);
+    }
+    return timeZone;
+}
+
+export function getCurrentDateInTimeZone(timeZone: string = 'UTC', date: Date | string = new Date()): Date {
+    return toZonedTime(date, timeZone);
+}
+
+/**
+ * Check if a subscription's current period end date is expired compared to today's date.
+ * This function compares the end date with today's date in the specified timezone.
+ *  @param currentPeriodEnd - The end date of the subscription period in ISO format (e.g., "2025-05-16T10:00:00+07:00")
+ *  @param today - The current date in ISO format (e.g., "2025-05-16T10:00:00+07:00")
+ *  @param timezone - The timezone to use for comparison (defaults to 'UTC')
+ *  @returns boolean - Returns true if the current period end date is before today's date, indicating it has expired.
+ *  If the dates are equal, it returns false, indicating the subscription is still active
+ */
+export function isExpiredDate(
+    currentPeriodEnd: Date | string,
+    today: Date | string,
+    timezone: string = 'UTC'
+): boolean {
+    const endDate = getCurrentDateInTimeZone(timezone, currentPeriodEnd);
+    const todayDate = getCurrentDateInTimeZone(timezone, today);
+    return isBefore(endDate, todayDate);
 }
