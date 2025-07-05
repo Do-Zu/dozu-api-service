@@ -132,6 +132,7 @@ export class SubscriptionService {
                 featureIntervalExpire: planFeaturesTable.interval,
                 category: featuresTable.category,
                 unit: featuresTable.unit,
+                apiUrl: planFeaturesTable.apiUrl,
             })
             .from(planFeaturesTable)
             .innerJoin(featuresTable, eq(planFeaturesTable.featureId, featuresTable.featureId))
@@ -409,16 +410,16 @@ export class SubscriptionService {
     /**
      * Cancel a subscription
      */
-    async cancelSubscription(subscriptionId: number, reason?: string, cancelAt?: Date): Promise<boolean> {
+    async cancelSubscription(subscriptionId: number, reason?: string, cancelTime?: Date): Promise<boolean> {
         const result = await db
             .update(userSubscriptionsTable)
             .set({
                 status: 'cancelled',
-                canceledAt: new Date(),
+                canceledAt: cancelTime,
                 cancellationReason: reason,
-                cancelAt: cancelAt,
+                cancelAt: cancelTime,
                 autoRenew: false,
-                updatedAt: new Date(),
+                updatedAt: cancelTime,
             })
             .where(eq(userSubscriptionsTable.subscriptionId, subscriptionId))
             .returning();
@@ -466,7 +467,7 @@ export class SubscriptionService {
             const { planType, billingInterval } = await planService.getPlanById(newPlanId);
 
             if (!planType || !billingInterval) {
-                throw new NotFoundError(`Plan with ID ${newPlanId} not found`);
+                throw new NotFoundError(`Plan unavailable!`);
             }
 
             const startDateSubscription = getCurrentDateInTimeZone(timeZone);

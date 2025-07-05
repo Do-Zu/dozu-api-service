@@ -35,6 +35,7 @@ class PlanService {
                 description: plansTable.description,
                 price: plansTable.price,
                 isActive: plansTable.isActive,
+                planType: plansTable.planType
             })
             .from(plansTable)
             .where(
