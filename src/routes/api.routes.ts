@@ -19,6 +19,7 @@ import './schedule/schedule.routes';
 import './uploads/upload.routes';
 import './admin/admin.routes';
 import './progress/progress.routes';
+import './tracking/tracking.routes';
 import './subscription/subscription.routes';
 
 // Apply global async handler to router
