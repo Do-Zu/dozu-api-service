@@ -7,6 +7,9 @@ import topicService from '@/services/topic/topic.service';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import { ITopicsForUserReturned } from '@/repositories/topic.repo';
 import { getCurrentDateFromRequest } from '@/utils/date';
+import { topicsTable } from '@/models';
+import db from '@/libs/drizzleClient.lib';
+import { eq } from 'drizzle-orm';
 
 class TopicController {
     constructor() {}
@@ -52,30 +55,29 @@ class TopicController {
 
     public async handleInsertSingleTopicForUser(req: Request, res: Response): Promise<void> {
         const userId = getUserIdFromRequest(req);
-
         if (isNaN(userId)) {
             throw new BadRequest('Invalid param, cannot insert topic');
         }
 
-        const { topicName, topicDescription } = req.body as {
-            topicName: string;
-            topicDescription: string;
+        const { name, description } = req.body as {
+            name: string;
+            description: string;
         };
         const topicAddedValue: ITopicAdded = {
             userId,
-            name: topicName,
-            description: topicDescription,
+            name,
+            description,
         };
 
-        let dataResponsed;
+        let data;
         try {
-            dataResponsed = await topicService.handleInsertSingleTopicForUser(topicAddedValue);
+            data = await topicService.handleInsertSingleTopicForUser(topicAddedValue);
         } catch (err) {
             logger.error(err);
             throw new DatabaseError('Something went wrong');
         }
 
-        SuccessResponse.ok(res, dataResponsed);
+        SuccessResponse.ok(res, data);
     }
 
     public async handleUpdateSingleTopic(req: Request, res: Response): Promise<void> {
@@ -87,24 +89,24 @@ class TopicController {
             throw new BadRequest('Invalid param, cannot update topic');
         }
 
-        const { topicName, topicDescription } = req.body as {
-            topicName: string;
-            topicDescription: string;
+        const { name, description } = req.body as {
+            name: string;
+            description: string;
         };
         const topicUpdatedValue: ITopicUpdated = {
-            name: topicName,
-            description: topicDescription,
+            name: name,
+            description: description,
         };
 
-        let dataResponsed;
+        let data;
         try {
-            dataResponsed = await topicService.handleUpdateSingleTopic(topicId, topicUpdatedValue);
+            data = await topicService.handleUpdateSingleTopic(topicId, topicUpdatedValue);
         } catch (err) {
             logger.error(err);
             throw new DatabaseError('Something went wrong');
         }
 
-        SuccessResponse.ok(res, dataResponsed);
+        SuccessResponse.ok(res, data);
     }
 
     // còn flashcards -> vẫn xóa topic
@@ -124,6 +126,66 @@ class TopicController {
             throw new DatabaseError('Something went wrong');
         }
         SuccessResponse.noContent(res);
+    }
+
+    public async handleGetAllTopicsInClass(req: Request, res: Response) {
+        let { classId } = req.params as { classId: string | number };
+        classId = parseInt(classId as string);
+
+        let data;
+        try {
+            data = await db
+                .select({
+                    topicId: topicsTable.topicId,
+                    classId: topicsTable.classId,
+                    name: topicsTable.name,
+                    description: topicsTable.description,
+                    imageUrl: topicsTable.imageUrl,
+                    createdAt: topicsTable.createdAt,
+                })
+                .from(topicsTable)
+                .where(eq(topicsTable.classId, classId));
+        } catch (err) {
+            logger.error(err);
+            throw new DatabaseError('Something went wrong');
+        }
+
+        SuccessResponse.ok(res, data);
+    }
+
+    public async handleCreateTopicInClass(req: Request, res: Response) {
+        const userId = getUserIdFromRequest(req);
+        if (isNaN(userId)) {
+            throw new BadRequest('Invalid param, cannot insert topic');
+        }
+        let { classId } = req.params as { classId: string | number };
+        classId = parseInt(classId as string);
+
+        const { name, description } = req.body as {
+            name: string;
+            description: string;
+        };
+
+        const dataInserted = { userId, classId, name, description };
+
+        let data;
+        try {
+            [data] = await db
+                .insert(topicsTable)
+                .values(dataInserted)
+                .returning({
+                    topicId: topicsTable.topicId,
+                    classId: topicsTable.classId,
+                    name: topicsTable.name,
+                    description: topicsTable.description,
+                    createdAt: topicsTable.createdAt,
+                })
+        } catch(err) {
+            logger.error(err);
+            throw new DatabaseError('Something went wrong');
+        }
+
+        SuccessResponse.ok(res, data);
     }
 }
 
