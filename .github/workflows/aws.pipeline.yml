@@ -108,11 +108,11 @@ jobs:
                   ENV="$3"
                   OPENAI_KEY="$4"
                   GOOGLE_KEY="$5"
-                  REDIS_REC_HOST="$6"
-                  REDIS_REC_PORT="$7"
-                  REDIS_REC_PASSWORD="$8"
-                  REDIS_REC_DB="$9"
-                  REDIS_REC_USERNAME="${10}"
+                  REDIS_HOST="$6"
+                  REDIS_PORT="$7"
+                  REDIS_PASSWORD="$8"
+                  REDIS_DB="$9"
+                  REDIS_USERNAME="${10}"
                   REDIS_PUBSUB_HOST="${11}"
                   REDIS_PUBSUB_PORT="${12}"
                   REDIS_PUBSUB_PASSWORD="${13}"
@@ -220,11 +220,11 @@ jobs:
 
                   update_env_var "OPENAI_API_KEY" "$OPENAI_KEY"
                   update_env_var "GOOGLE_STUDIO_API_KEY" "$GOOGLE_KEY"
-                  update_env_var "REDIS_RECOMMENDATION_HOST" "$REDIS_REC_HOST"
-                  update_env_var "REDIS_RECOMMENDATION_PORT" "$REDIS_REC_PORT"
-                  update_env_var "REDIS_RECOMMENDATION_PASSWORD" "$REDIS_REC_PASSWORD"
-                  update_env_var "REDIS_RECOMMENDATION_DB" "$REDIS_REC_DB"
-                  update_env_var "REDIS_RECOMMENDATION_USERNAME" "$REDIS_REC_USERNAME"
+                  update_env_var "REDIS_HOST" "$REDIS_HOST"
+                  update_env_var "REDIS_PORT" "$REDIS_PORT"
+                  update_env_var "REDIS_PASSWORD" "$REDIS_PASSWORD"
+                  update_env_var "REDIS_DB" "$REDIS_DB"
+                  update_env_var "REDIS_USERNAME" "$REDIS_USERNAME"
                   update_env_var "REDIS_PUBSUB_HOST" "$REDIS_PUBSUB_HOST"
                   update_env_var "REDIS_PUBSUB_PORT" "$REDIS_PUBSUB_PORT"
                   update_env_var "REDIS_PUBSUB_PASSWORD" "$REDIS_PUBSUB_PASSWORD"
@@ -273,11 +273,11 @@ jobs:
                   '${{ github.event.inputs.environment }}' \
                   '${{ secrets.OPENAI_API_KEY }}' \
                   '${{ secrets.GOOGLE_STUDIO_API_KEY }}' \
-                  '${{ secrets.REDIS_RECOMMENDATION_HOST }}' \
-                  '${{ secrets.REDIS_RECOMMENDATION_PORT }}' \
-                  '${{ secrets.REDIS_RECOMMENDATION_PASSWORD }}' \
-                  '${{ secrets.REDIS_RECOMMENDATION_DB }}' \
-                  '${{ secrets.REDIS_RECOMMENDATION_USERNAME }}' \
+                  '${{ secrets.REDIS_HOST }}' \
+                  '${{ secrets.REDIS_PORT }}' \
+                  '${{ secrets.REDIS_PASSWORD }}' \
+                  '${{ secrets.REDIS_DB }}' \
+                  '${{ secrets.REDIS_USERNAME }}' \
                   '${{ secrets.REDIS_PUBSUB_HOST }}' \
                   '${{ secrets.REDIS_PUBSUB_PORT }}' \
                   '${{ secrets.REDIS_PUBSUB_PASSWORD }}' \
