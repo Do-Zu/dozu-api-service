@@ -7,7 +7,7 @@ import {
     updateSubscriptionSchema,
 } from '@/dtos/subscription/subscription.dto';
 import subscriptionService from '@/services/subscription/subscription.service';
-import { getTimezoneClient } from '@/utils/date';
+import { getCurrentDateInTimeZone, getTimezoneClient } from '@/utils/date';
 import { Request, Response } from 'express';
 
 export class SubscriptionController {
@@ -115,6 +115,9 @@ export class SubscriptionController {
 
         const validatedData = updateSubscriptionSchema.parse(req.body);
 
+        const timeZone = getTimezoneClient(req);
+        const date = getCurrentDateInTimeZone(timeZone);
+
         // Verify subscription belongs to user
         const subscription = await subscriptionService.getUserActiveSubscription(userId);
         if (!subscription || subscription.subscriptionId !== subscriptionId) {
@@ -126,7 +129,7 @@ export class SubscriptionController {
             const success = await subscriptionService.cancelSubscription(
                 subscriptionId,
                 validatedData.cancellationReason,
-                validatedData.cancelAt ? new Date(validatedData.cancelAt) : undefined
+                date
             );
 
             if (!success) {
@@ -196,6 +199,36 @@ export class SubscriptionController {
 
         SuccessResponse.ok(res, usage, 'Feature usage retrieved successfully');
     };
+
+    /**
+     * Cancel subscription
+     */
+    public async cancelSubscription(req: Request, res: Response) {
+        const userId = req.currentUser?.userId;
+
+        const validatedData = updateSubscriptionSchema.parse(req.body);
+
+        const date = getCurrentDateInTimeZone(getTimezoneClient(req));
+
+        // Verify user has an active subscription
+        const subscription = await subscriptionService.getUserActiveSubscription(userId);
+        if (!subscription) {
+            throw new NotFoundError('No active subscription found');
+        }
+
+        // Cancel the subscription
+        const success = await subscriptionService.cancelSubscription(
+            subscription.subscriptionId,
+            validatedData.cancellationReason,
+            date
+        );
+
+        if (!success) {
+            throw new InternalServerError('Failed to cancel subscription');
+        }
+
+        SuccessResponse.accepted(res, {}, 'Subscription cancelled successfully');
+    }
 }
 
 export default new SubscriptionController();

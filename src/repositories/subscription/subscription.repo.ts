@@ -60,6 +60,7 @@ class SubscriptionRepo {
                     description: plansTable.description,
                     price: plansTable.price,
                     isActive: plansTable.isActive,
+                    planType: plansTable.planType,
                 },
             })
             .from(userSubscriptionsTable)
