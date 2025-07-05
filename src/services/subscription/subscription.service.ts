@@ -158,8 +158,28 @@ export class SubscriptionService {
     /**
      * Get user's subscription with plan details
      */
-    async getUserSubscriptionWithPlan(userId: number) {
+    async getUserSubscriptionWithPlan({ userId, timezone }: { userId: number; timezone: string }) {
         const result = await subscriptionRepo.getUserSubscriptionWithPlan(userId);
+
+        if (!result) {
+            const freePlan = await planService.getFreePlan();
+
+            const resultCreteSubScriptionFreePlan = await this.createSubscription({
+                userId,
+                planId: freePlan.planId,
+                paymentData: {
+                    amount: 0,
+                },
+                timeZone: timezone,
+            });
+
+            if (!resultCreteSubScriptionFreePlan) {
+                throw new NotFoundError('Failed to create subscription for free plan');
+            }
+
+            return resultCreteSubScriptionFreePlan;
+        }
+
         return result;
     }
 

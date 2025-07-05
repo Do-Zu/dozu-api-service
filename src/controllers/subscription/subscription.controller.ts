@@ -26,8 +26,9 @@ export class SubscriptionController {
      */
     public getCurrentSubscription = async (req: Request, res: Response) => {
         const userId = req.currentUser?.userId;
+        const timezone = getTimezoneClient(req);
 
-        const subscription = await subscriptionService.getUserSubscriptionWithPlan(userId);
+        const subscription = await subscriptionService.getUserSubscriptionWithPlan({userId, timezone});
 
         SuccessResponse.ok(res, subscription, 'Subscription retrieved successfully');
     };
