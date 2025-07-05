@@ -93,6 +93,41 @@ class FeatureUsageService {
         return { exceeded: false, currentUsage: newUsage };
     }
 
+    public async incrementUsage({
+        userId,
+        featureId,
+        planId,
+        subscriptionId,
+        limitValue,
+        interval,
+        timezone,
+        today,
+    }: IFeatureUsageService): Promise<void> {
+        const periodKey = this.generatePeriodKey(today, timezone, interval);
+        const redisKey = `${this.REDIS_PREFIX}:${userId}:${featureId}:${periodKey}`;
+        // Increment usage
+        const newUsage = await redis.incr(redisKey);
+
+        // Set TTL if this is first increment when increment successful
+        if (newUsage > 0) {
+            const ttl = this.calculateTTL(today, timezone, interval);
+            await redis.expire(redisKey, ttl);
+        }
+
+        // Async database update (don't await to keep response fast)
+        this.updateDatabaseAsync({
+            userId,
+            featureId,
+            planId,
+            subscriptionId,
+            usedValue: newUsage,
+            limitValue,
+            interval,
+            timezone,
+            today,
+        });
+    }
+
     private generatePeriodKey(today: string, timezone: string, interval: IFeatureUsageInterval): string {
         const date = getCurrentDateInTimeZone(timezone, today);
 
