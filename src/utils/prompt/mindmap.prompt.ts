@@ -135,6 +135,7 @@ function buildMindmapPromptTemplate(
                 : '...(content truncated)'
             : '';
 
+
     return `
 You are an expert at creating ${documentType} mind map from ${isLargeDocument ? 'large ' : ''}documents. Analyze the following content  and create a ${isLargeDocument ? 'detailed' : 'comprehensive'} mindmap structure${isLargeDocument ? ' that captures the main themes and relationships' : ''}.
 
@@ -146,6 +147,7 @@ IMPORTANT: Return your response as valid JSON that matches this exact structure:
       "position": {"x": number, "y": number},
       "data": {
         "label": "Main Topic or Subtopic",
+        "description":"Summary of the content related to this node",
         "pageStartIndex": "Page start index belonging to this node",
         "pageEndIndex": "Page end index belonging to this node",
       }
@@ -170,6 +172,7 @@ ${isLargeDocument ? '6. Use clear, descriptive labels (' + labelWords + ' words 
 ${isLargeDocument ? '7. Ensure comprehensive coverage of the document section' : '7. Use clear, concise labels (max ' + labelWords + ' words per node)'}
 ${isLargeDocument ? '8. Position nodes to avoid overlapping' : ''}
 9. Response must be follow language of the content
+10. Each node must have a comprehensive summary of the related content including the overall themes and the major ideas covered.
 
 Content to analyze${isLargeDocument ? ' (truncated for processing)' : ''}:
 ${truncatedContent} ${contentSuffix}
