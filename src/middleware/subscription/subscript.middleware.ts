@@ -31,11 +31,14 @@ const TYPE_FEATURE_USAGE = {
     text: 'text',
 };
 class SubscriptionMiddleware {
-    private readonly REDIS_FEATURE_LIMIT_EXCEEDED = 'feature_limit_exceeded_per_date';
     private readonly DEFAULT_DATE_FOR_MONTH = 30;
     private readonly DEFAULT_DATE_FOR_WEEK = 7;
-    private readonly DEFAULT_DATE_FOR_DAY = 1;
     private readonly DEFAULT_DATE_FOR_YEAR = 365;
+
+    constructor() {
+        this.handleSubscription = this.handleSubscription.bind(this);
+        this.isFeatureLimitExceeded = this.isFeatureLimitExceeded.bind(this);
+    }
 
     /**
      * Middleware to check if the user has an active subscription.
@@ -72,19 +75,19 @@ class SubscriptionMiddleware {
                 throw new InternalServerError('Free plan not found');
             }
 
-            let priceFre = 0;
+            let priceFree = 0;
 
             try {
-                priceFre = parseFloat(freePlan.price);
+                priceFree = parseFloat(freePlan.price);
             } catch {
-                priceFre = 0;
+                priceFree = 0;
             }
 
             const resultCreteSubScriptionFreePlan = await subscriptionService.createSubscription({
                 userId,
                 planId: freePlan.planId,
                 paymentData: {
-                    amount: priceFre,
+                    amount: priceFree,
                 },
                 timeZone: timezone,
             });
@@ -99,15 +102,20 @@ class SubscriptionMiddleware {
             };
         }
 
-        const currentPeriodEnd = userPlan.subscription.currentPeriodEnd;
-        const isExpired = isExpiredDate(currentPeriodEnd, today, timezone);
+        // Check if the user has a valid subscription without free plan
+        if (userPlan.plan.planType !== 'free') {
+            const currentPeriodEnd = userPlan.subscription.currentPeriodEnd;
+            const isExpired = isExpiredDate(currentPeriodEnd, today, timezone);
 
-        if (userPlan.subscription.status === 'expired' || isExpired) {
-            throw new PaymentRequire('Your subscription has expired. Please renew to continue using the service.');
+            const isSubscriptionExpired = isExpired || userPlan.subscription.status === 'expired';
+
+            if (isSubscriptionExpired) {
+                throw new PaymentRequire('Your subscription has expired. Please renew to continue using the service.');
+            }
         }
 
         const planId = userPlan?.plan?.planId ?? freePlan?.planId;
-        const subscriptionId = userPlan?.subscription.subscriptionId;
+        const subscriptionId = userPlan?.subscription?.subscriptionId;
 
         const isFeatureExceeded = await this.isFeatureLimitExceeded({
             userId,
