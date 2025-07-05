@@ -6,6 +6,7 @@ import { featureUsageService } from '@/services/subscription/usage/featureUsage.
 import {
     getCurrentDateInTimeZone,
     getCurrentTimestampFromRequest,
+    getDateFormatted,
     getTimezoneClient,
     isExpiredDate,
 } from '@/utils/date';
@@ -48,15 +49,23 @@ class SubscriptionMiddleware {
         const userId = req.currentUser?.userId;
         const timezone = getTimezoneClient(req);
 
-        const nowServer = getCurrentDateInTimeZone(timezone);
+        //Convert to UTC standard for compare
+        const nowServerUTC = new Date();
         const currentDateFromClient = getCurrentTimestampFromRequest(req);
+        const clientDateUTC = new Date(currentDateFromClient);
 
         // Ensure that the client's timestamp and server's timestamp are not more than 1 minute
-        if (nowServer.getTime() - new Date(currentDateFromClient).getTime() > 60 * 1000) {
-            throw new Forbidden('Client time is too far from server time. Please check your device clock.');
+        const maxAllowedDifference = 60 * 1000;
+        const timeDifference = Math.abs(nowServerUTC.getTime() - clientDateUTC.getTime());
+
+        if (timeDifference > maxAllowedDifference) {
+            throw new Forbidden(
+                `Client time is too far from server time. Difference: ${Math.round(timeDifference / 1000)}s. Please check your device clock.`
+            );
         }
 
-        const today = currentDateFromClient;
+        const nowInClientTimezone = getCurrentDateInTimeZone(timezone);
+        const today = getDateFormatted(nowInClientTimezone);
 
         const featureId = req.body?.featureId;
 
