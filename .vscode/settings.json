@@ -1,3 +1,13 @@
 {
-  "cSpell.words": ["deepseek", "dozu", "dtos", "Millis", "Mindmap", "uuidv", "vercel"]
+    "cSpell.words": [
+        "deepseek",
+        "dozu",
+        "dtos",
+        "hset",
+        "Millis",
+        "Mindmap",
+        "setex",
+        "uuidv",
+        "vercel"
+    ]
 }

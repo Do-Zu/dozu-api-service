@@ -1,22 +1,23 @@
 import express from 'express';
 import { registerRoute } from '../register.routes';
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
-import { scheduleController } from '@/controllers/schedule/schedule.controller';
 import { authMiddleware } from '@/middleware/auth.middleware';
+import { trackingController } from '@/controllers/tracking/tracking.controller';
+
 const router = express.Router();
 
 // Apply global async handler
 globalAsyncHandler(router);
 
-// Define routes
 router.use(authMiddleware);
 
-router.get('/', scheduleController.getScheduleInWeek);
-router.post('/generate', scheduleController.generateSchedule);
+// Define routes
+router.get('/current-learning', trackingController.getCurrentLearningTopicProgressTracking);
+router.post('/active-learning', trackingController.requestTrackingTimeLearningActive);
 
 // Register the router
-registerRoute('/schedule', router, {
-    description: 'Schedule API endpoints',
+registerRoute('/tracking', router, {
+    description: 'Tracking API endpoints',
     version: 'v1',
     isEnabled: true,
 });
