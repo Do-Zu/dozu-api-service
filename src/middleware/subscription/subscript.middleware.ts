@@ -30,6 +30,9 @@ const TYPE_FEATURE_USAGE = {
     quota: 'quota',
     text: 'text',
 };
+
+const PLAN_WILL_BE_IGNORE = 'free';
+
 class SubscriptionMiddleware {
     private readonly DEFAULT_DATE_FOR_MONTH = 30;
     private readonly DEFAULT_DATE_FOR_WEEK = 7;
@@ -72,10 +75,10 @@ class SubscriptionMiddleware {
             throw new BadRequest('Feature ID is required for subscription check');
         }
 
-        const userPlan = await subscriptionService.getUserSubscriptionWithPlan(userId);
+        const userPlan = await subscriptionService.getUserSubscriptionWithPlan({ userId, timezone });
 
         // Check if the user has a valid subscription without free plan
-        if (userPlan.plan.planType !== 'free') {
+        if (userPlan.plan.planType !== PLAN_WILL_BE_IGNORE) {
             const currentPeriodEnd = userPlan.subscription.currentPeriodEnd;
             const isExpired = isExpiredDate(currentPeriodEnd, today, timezone);
 
