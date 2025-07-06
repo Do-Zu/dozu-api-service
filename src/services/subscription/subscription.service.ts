@@ -164,7 +164,7 @@ export class SubscriptionService {
         if (!result) {
             return await this.createSubscriptionFreePlan({ userId, timezone });
         }
-        
+
         return result;
     }
 
@@ -292,7 +292,12 @@ export class SubscriptionService {
 
         const usageRecords: InsertUserFeatureUsage[] = planFeatures.map(planFeature => {
             const now = getCurrentDateInTimeZone(timeZone);
-            const { start, end } = featureUsageService.getPeriodRange(now, timeZone, planFeature.interval);
+
+            const { start, end } = featureUsageService.getPeriodRange({
+                date: now,
+                timezone: timeZone,
+                interval: planFeature.interval,
+            });
 
             return {
                 userId,
