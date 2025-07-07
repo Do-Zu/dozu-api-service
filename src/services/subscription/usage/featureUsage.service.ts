@@ -2,9 +2,10 @@ import db from '@/libs/drizzleClient.lib';
 import { redisInstance as redis } from '@/libs/redis/default/redisDefault';
 import { IFeatureUsageInterval } from '@/models/subscription';
 import { userFeatureUsageTable } from '@/models/subscription/userFeatureUsage.model';
-import { getCurrentDateInTimeZone } from '@/utils/date';
+import { getCurrentDateInTimeZone, getDateFormatted } from '@/utils/date';
 import logger from '@/utils/logger';
 import {
+    differenceInSeconds,
     endOfDay,
     endOfMonth,
     endOfWeek,
@@ -48,17 +49,11 @@ class FeatureUsageService {
         let currentUsage = await redis.get(redisKey);
 
         if (currentUsage === null) {
-            // Sync from database if not in Redis
+            // Get usage from database if missing in cache
             currentUsage = await this.syncFromDatabase(userId, featureId, interval, timezone, today);
 
-            if (currentUsage > 0) {
-                const ttl = this.calculateTTL(today, timezone, interval);
-                await redis.set(redisKey, currentUsage, ttl);
-            } else {
-                // When DB doesn't have usage, initialize to 0
-                currentUsage = 0;
-                await redis.set(redisKey, currentUsage, this.calculateTTL(today, timezone, interval));
-            }
+            const usage = currentUsage > 0 ? currentUsage : 0;
+            await redis.set(redisKey, usage);
         } else {
             currentUsage = parseInt(currentUsage as string);
         }
@@ -129,48 +124,52 @@ class FeatureUsageService {
     }
 
     private generatePeriodKey(today: string, timezone: string, interval: IFeatureUsageInterval): string {
-        const date = getCurrentDateInTimeZone(timezone, today);
+        const date = getCurrentDateInTimeZone(timezone);
 
         switch (interval) {
             case 'daily':
-                return `daily:${date.toISOString().split('T')[0]}`;
+                return `daily:${getDateFormatted(date)}`;
             case 'weekly': {
                 const weekStart = startOfWeek(date, { weekStartsOn: 1 });
-                return `weekly:${weekStart.toISOString().split('T')[0]}`;
+                return `weekly:${getDateFormatted(weekStart)}`;
             }
             case 'monthly':
-                return `monthly:${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                return `monthly:${(getDateFormatted(date), 'yyyy-MM')}`;
             case 'yearly':
-                return `yearly:${date.getFullYear()}`;
+                return `yearly:${getDateFormatted(date, 'yyyy')}`;
             case 'lifetime':
                 return `lifetime:${interval}`;
             default:
-                return `daily:${date.toISOString().split('T')[0]}`;
+                return `daily:${getDateFormatted(date, 'yyyy-MM-dd')}`;
         }
     }
 
     private calculateTTL(today: string, timezone: string, interval: IFeatureUsageInterval): number {
-        const date = getCurrentDateInTimeZone(timezone, today);
+        const date = getCurrentDateInTimeZone(timezone);
 
         switch (interval) {
             case 'daily':
-                return Math.floor((endOfDay(date).getTime() - date.getTime()) / 1000);
+                // Number of seconds remaining until the end of the day
+                return differenceInSeconds(endOfDay(date), date);
             case 'weekly': {
+                // The number of seconds until the end of Sunday
                 const weekEnd = endOfWeek(date, { weekStartsOn: 1 });
-                return Math.floor((weekEnd.getTime() - date.getTime()) / 1000);
+                return differenceInSeconds(weekEnd, date);
             }
             case 'monthly': {
+                // The number of seconds until the end of the month
                 const monthEnd = endOfMonth(date);
-                return Math.floor((monthEnd.getTime() - date.getTime()) / 1000);
+                return differenceInSeconds(monthEnd, date);
             }
             case 'yearly': {
+                // The number of seconds until the end of the year
                 const yearEnd = endOfYear(date);
-                return Math.floor((yearEnd.getTime() - date.getTime()) / 1000);
+                return differenceInSeconds(yearEnd, date);
             }
             case 'lifetime':
                 return -1; // No expiration
             default:
-                return Math.floor((endOfDay(date).getTime() - date.getTime()) / 1000);
+                return differenceInSeconds(endOfDay(date), date);
         }
     }
 
@@ -184,7 +183,11 @@ class FeatureUsageService {
         timezone: string,
         today: string
     ): Promise<number> {
-        const { start, end } = this.getPeriodRange(today, timezone, interval);
+        const { start, end } = this.getPeriodRange({
+            date: today,
+            timezone,
+            interval,
+        });
 
         const usage = await db
             .select()
@@ -202,13 +205,14 @@ class FeatureUsageService {
         return usage.length > 0 ? parseFloat(usage[0].usedValue) : 0;
     }
 
-    public getPeriodRange(
-        today: string | Date = new Date(),
-        timezone: string = 'UTC',
-        interval: IFeatureUsageInterval
-    ) {
-        const date = getCurrentDateInTimeZone(timezone, today);
-
+    public getPeriodRange({
+        date,
+        interval,
+    }: {
+        date: string | Date;
+        timezone: string;
+        interval: IFeatureUsageInterval;
+    }) {
         switch (interval) {
             case 'daily':
                 return { start: startOfDay(date), end: endOfDay(date) };
@@ -245,7 +249,11 @@ class FeatureUsageService {
         // Run in background, don't block the main request
         setImmediate(async () => {
             try {
-                const { start, end } = this.getPeriodRange(params.today, params.timezone, params.interval);
+                const { start, end } = this.getPeriodRange({
+                    date: params.today,
+                    timezone: params.timezone,
+                    interval: params.interval,
+                });
 
                 await db
                     .insert(userFeatureUsageTable)
