@@ -5,13 +5,13 @@ import {
     createSubscriptionSchema,
     recordFeatureUsageSchema,
     updateSubscriptionSchema,
+    upgradeSubscriptionSchema,
 } from '@/dtos/subscription/subscription.dto';
 import subscriptionService from '@/services/subscription/subscription.service';
 import { getCurrentDateInTimeZone, getTimezoneClient } from '@/utils/date';
 import { Request, Response } from 'express';
 
 export class SubscriptionController {
-    
     /**
      * Get all available plans with features
      */
@@ -28,7 +28,7 @@ export class SubscriptionController {
         const userId = req.currentUser?.userId;
         const timezone = getTimezoneClient(req);
 
-        const subscription = await subscriptionService.getUserSubscriptionWithPlan({userId, timezone});
+        const subscription = await subscriptionService.getUserSubscriptionWithPlan({ userId, timezone });
 
         SuccessResponse.ok(res, subscription, 'Subscription retrieved successfully');
     };
@@ -112,15 +112,16 @@ export class SubscriptionController {
      */
     updateSubscription = async (req: Request, res: Response) => {
         const userId = req.currentUser?.userId;
-        const subscriptionId = parseInt(req.params.subscriptionId);
 
         const validatedData = updateSubscriptionSchema.parse(req.body);
+        const subscriptionId = parseInt(validatedData.subscriptionId as string);
 
         const timeZone = getTimezoneClient(req);
         const date = getCurrentDateInTimeZone(timeZone);
 
         // Verify subscription belongs to user
         const subscription = await subscriptionService.getUserActiveSubscription(userId);
+
         if (!subscription || subscription.subscriptionId !== subscriptionId) {
             throw new NotFoundError('Subscription not found');
         }
@@ -140,6 +141,40 @@ export class SubscriptionController {
 
         SuccessResponse.created(res, {}, 'Subscription updated successfully');
     };
+
+    /**
+     * Upgrade subscription to a new plan
+     * This method allows users to upgrade their subscription plan.
+     */
+    async changeSubscription(req: Request, res: Response) {
+        const userId = req.currentUser?.userId;
+
+        let validatedData;
+
+        try {
+            validatedData = upgradeSubscriptionSchema.parse(req.body);
+        } catch {
+            throw new BadRequest('Invalid request data');
+        }
+        
+        const planId = parseInt(validatedData.planId as string, 10);
+        const timeZone = getTimezoneClient(req);
+
+        const paymentData = {
+            amount: validatedData.paymentData?.amount,
+            currency: validatedData.paymentData?.currency,
+            externalSubscriptionId: validatedData.paymentData?.externalSubscriptionId,
+        };
+
+        const upgradeResult = await subscriptionService.changeSubscription({
+            userId,
+            newPlanId: planId,
+            timeZone,
+            paymentData,
+        });
+
+        SuccessResponse.ok(res, upgradeResult, 'Subscription upgraded successfully');
+    }
 
     /**
      * Check feature usage limit

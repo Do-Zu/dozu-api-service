@@ -459,16 +459,20 @@ export class SubscriptionService {
         return result.length > 0;
     }
 
-    public async changeSubscription(
-        userId: number,
-        newPlanId: number,
-        paymentData: {
-            amount: number;
+    public async changeSubscription({
+        userId,
+        newPlanId,
+        timeZone,
+        paymentData,
+    }: {
+        userId: number;
+        newPlanId: number;
+        timeZone: string;
+        paymentData?: {
             currency?: string;
             externalSubscriptionId?: string;
-        },
-        timeZone: string
-    ): Promise<SelectUserSubscription | null> {
+        };
+    }): Promise<SelectUserSubscription | null> {
         return await db.transaction(async tx => {
             // Get current subscription
             const currentSubscription = await tx
@@ -496,7 +500,7 @@ export class SubscriptionService {
                 .where(eq(userSubscriptionsTable.subscriptionId, currentSubscription[0].subscriptionId));
 
             // Create new subscription within same transaction
-            const { planType, billingInterval } = await planService.getPlanById(newPlanId);
+            const { planType, billingInterval , price} = await planService.getPlanById(newPlanId);
 
             if (!planType || !billingInterval) {
                 throw new NotFoundError(`Plan unavailable!`);
@@ -511,11 +515,11 @@ export class SubscriptionService {
                 status: 'active',
                 currentPeriodStart: startDateSubscription,
                 currentPeriodEnd: endDateSubscription,
-                paymentStatus: 'pending',
-                amount: paymentData?.amount?.toString(),
+                paymentStatus: 'paid',
+                amount: price,
                 currency: paymentData?.currency || 'USD',
-                externalSubscriptionId: paymentData.externalSubscriptionId,
-                autoRenew: true,
+                externalSubscriptionId: paymentData?.externalSubscriptionId,
+                autoRenew: false,
             };
 
             const [newSubscription] = await tx.insert(userSubscriptionsTable).values(subscription).returning();
