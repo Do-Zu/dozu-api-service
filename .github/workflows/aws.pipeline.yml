@@ -131,6 +131,9 @@ jobs:
                   CLOUDINARY_CLOUD_NAME="${26}"
                   CLOUDINARY_API_KEY="${27}"
                   CLOUDINARY_API_SECRET="${28}"
+                  PAY_OS_CLIENT_ID="${29}"
+                  PAY_OS_API_KEY="${30}"
+                  PAY_OS_CHECKSUM_KEY="${31}"
 
                   # Determine which env file to use
                   if [ "$ENV" = "production" ]; then
@@ -217,6 +220,9 @@ jobs:
                   echo "CLOUDINARY_CLOUD_NAME: $CLOUDINARY_CLOUD_NAME"
                   echo "CLOUDINARY_API_KEY: $CLOUDINARY_API_KEY"
                   echo "CLOUDINARY_API_SECRET: $CLOUDINARY_API_SECRET"
+                  echo "PAY_OS_CLIENT_ID: $PAY_OS_CLIENT_ID"
+                  echo "PAY_OS_API_KEY: $(mask_value "$PAY_OS_API_KEY")"
+                  echo "PAY_OS_CHECKSUM_KEY: $(mask_value "$PAY_OS_CHECKSUM_KEY")"
 
                   update_env_var "OPENAI_API_KEY" "$OPENAI_KEY"
                   update_env_var "GOOGLE_STUDIO_API_KEY" "$GOOGLE_KEY"
@@ -243,6 +249,9 @@ jobs:
                   update_env_var "CLOUDINARY_CLOUD_NAME" "$CLOUDINARY_CLOUD_NAME"
                   update_env_var "CLOUDINARY_API_KEY" "$CLOUDINARY_API_KEY"
                   update_env_var "CLOUDINARY_API_SECRET" "$CLOUDINARY_API_SECRET"
+                  update_env_var "PAY_OS_CLIENT_ID" "$PAY_OS_CLIENT_ID"
+                  update_env_var "PAY_OS_API_KEY" "$PAY_OS_API_KEY"
+                  update_env_var "PAY_OS_CHECKSUM_KEY" "$PAY_OS_CHECKSUM_KEY"
 
                   # Start Docker with the appropriate env file
                   echo "Starting Docker services with $ENV_FILE..."
@@ -296,6 +305,9 @@ jobs:
                   '${{ secrets.CLOUDINARY_CLOUD_NAME }}' \
                   '${{ secrets.CLOUDINARY_API_KEY }}' \
                   '${{ secrets.CLOUDINARY_API_SECRET }}' \
+                  '${{ secrets.PAY_OS_CLIENT_ID }}' \
+                  '${{ secrets.PAY_OS_API_KEY }}' \
+                  '${{ secrets.PAY_OS_CHECKSUM_KEY }}' \
                   "
             - name: Cleanup script
               run: |
