@@ -14,6 +14,8 @@ import './flashcard/flashcard.routes';
 import './topic/topic.routes';
 import './auth/auth.routes';
 import './mindmap/mindmap.routes'
+import './profile/profile.routes';
+// import './notification/notification.route';
 import './recommendation/recommendation.routes';
 import './schedule/schedule.routes';
 import './uploads/upload.routes';

@@ -1,5 +1,7 @@
 export * from '@/models/user.model';
 
+export * from '@/models/profile/profile.model';
+
 export * from '@/models/topic.model';
 
 export * from '@/models/flashcard.model';
