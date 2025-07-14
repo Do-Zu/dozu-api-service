@@ -1,14 +1,16 @@
-type HttpStatusCode = 200 | 201 | 202 | 204 | 400 | 401 | 403 | 404 | 409 | 500 | 503 | 504;
+type HttpStatusCode = 200 | 201 | 202 | 204 | 400 | 401 | 402 | 403 | 404 | 409 | 413 | 500 | 503 | 504;
 type HttpResponse =
     | 'OK'
     | 'CREATED'
     | 'ACCEPTED'
     | 'NO_CONTENT'
     | 'BAD_REQUEST'
+    | 'PAYMENT_REQUIRED'
     | 'UNAUTHORIZED'
     | 'FORBIDDEN'
     | 'NOT_FOUND'
     | 'CONFLICT'
+    | 'PAYLOAD_TOO_LARGE'
     | 'INTERNAL_SERVER'
     | 'SERVICE_UNAVAILABLE'
     | 'GATEWAY_TIMEOUT';
@@ -19,10 +21,12 @@ const HTTP_STATUS: Record<HttpResponse, HttpStatusCode> = {
     ACCEPTED: 202,
     NO_CONTENT: 204,
     BAD_REQUEST: 400,
+    PAYMENT_REQUIRED: 402,
     UNAUTHORIZED: 401,
     FORBIDDEN: 403,
     NOT_FOUND: 404,
     CONFLICT: 409,
+    PAYLOAD_TOO_LARGE: 413,
     INTERNAL_SERVER: 500,
     SERVICE_UNAVAILABLE: 503,
     GATEWAY_TIMEOUT: 504,

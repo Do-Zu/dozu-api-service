@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { registerRoute } from '../register.routes';
 import topicController from '@/controllers/topic/topic.controller';
 import { authMiddleware } from '@/middleware/auth.middleware';
+import subscriptionMiddleware from '@/middleware/subscription/subscript.middleware';
 
 const router = Router();
 globalAsyncHandler(router);
@@ -11,14 +12,14 @@ router.use(authMiddleware);
 
 router.get('/:topicId', topicController.handleGetSingleTopic);
 router.get('/', topicController.handleGetAllTopicsForUser);
-router.post('/', topicController.handleInsertSingleTopicForUser);
+router.post('/', subscriptionMiddleware.handleSubscription, topicController.handleInsertSingleTopicForUser);
 router.put('/:topicId', topicController.handleUpdateSingleTopic);
 router.delete('/:topicId', topicController.handleDeleteSingleTopicForUser);
 
 registerRoute('/topics', router, {
-  description: 'Topics API for CRUD topics',
-  version: 'v1',
-  isEnabled: true,
+    description: 'Topics API for CRUD topics',
+    version: 'v1',
+    isEnabled: true,
 });
 
 export default router;
