@@ -18,3 +18,6 @@ export const inputSetTable = pgTable('input_set', {
 
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
+
+export type TypeSelectInputSet = typeof inputSetTable.$inferSelect;
+export type TypeInsertInputSet = typeof inputSetTable.$inferInsert;

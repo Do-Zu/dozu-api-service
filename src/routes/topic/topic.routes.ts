@@ -12,14 +12,14 @@ router.use(authMiddleware);
 
 router.get('/:topicId', topicController.handleGetSingleTopic);
 router.get('/', topicController.handleGetAllTopicsForUser);
-router.post('/',subscriptionMiddleware.handleSubscription, topicController.handleInsertSingleTopicForUser);
+router.post('/', subscriptionMiddleware.handleSubscription, topicController.handleInsertSingleTopicForUser);
 router.put('/:topicId', topicController.handleUpdateSingleTopic);
 router.delete('/:topicId', topicController.handleDeleteSingleTopicForUser);
 
 registerRoute('/topics', router, {
-  description: 'Topics API for CRUD topics',
-  version: 'v1',
-  isEnabled: true,
+    description: 'Topics API for CRUD topics',
+    version: 'v1',
+    isEnabled: true,
 });
 
 export default router;

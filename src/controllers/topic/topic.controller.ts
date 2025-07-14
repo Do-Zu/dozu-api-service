@@ -7,6 +7,7 @@ import topicService from '@/services/topic/topic.service';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import { ITopicsForUserReturned } from '@/repositories/topic.repo';
 import { getCurrentDateFromRequest } from '@/utils/date';
+import { updateTopicIdOfInputSet } from '@/repositories/inputSet.repo';
 
 class TopicController {
     constructor() {}
@@ -57,10 +58,12 @@ class TopicController {
             throw new BadRequest('Invalid param, cannot insert topic');
         }
 
-        const { topicName, topicDescription } = req.body as {
+        const { topicName, topicDescription, inputSetId } = req.body as {
             topicName: string;
             topicDescription: string;
+            inputSetId: string; //update inputset on topic creation - DuyND
         };
+
         const topicAddedValue: ITopicAdded = {
             userId,
             name: topicName,
@@ -70,6 +73,11 @@ class TopicController {
         let dataResponsed;
         try {
             dataResponsed = await topicService.handleInsertSingleTopicForUser(topicAddedValue);
+
+            //!debugging
+            console.log('dataResponsed', dataResponsed);
+            const topicId = dataResponsed.topicId;
+            await updateTopicIdOfInputSet({ topicId: topicId, inputSetId: parseInt(inputSetId) });
         } catch (err) {
             logger.error(err);
             throw new DatabaseError('Something went wrong');

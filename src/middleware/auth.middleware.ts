@@ -5,32 +5,54 @@ import { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import logger from '@/utils/logger';
 import { BadRequest } from '@/core/error';
-import { sanitizeUserObject } from '@/utils/auth/authHelpers.utils';
 
 const SECRET = process.env.JWT_SECRET; // make sure to use env vars in production
 
 export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
-  const authHeader = req.headers['authorization'];
-  const accessToken = authHeader && authHeader.split(' ')[1]; // Bearer <token>
+    const authHeader = req.headers['authorization'];
+    const accessToken = authHeader && authHeader.split(' ')[1]; // Bearer <token>
 
-  if (!accessToken) {
-    throw new BadRequest('Access token is required');
-  }
-  if (!SECRET) {
-    throw new Error('JWT_SECRET is not defined in environment variables');
-  }
+    if (!accessToken) {
+        throw new BadRequest('Access token is required');
+    }
+    if (!SECRET) {
+        throw new Error('JWT_SECRET is not defined in environment variables');
+    }
 
-  try {
-    const decoded: any = jwt.verify(accessToken, SECRET);
-    //.verify Validates expiration by default
-    // const sanitizedUser = sanitizeUserObject(decoded.user);
+    try {
+        const decoded: any = jwt.verify(accessToken, SECRET);
+        //.verify Validates expiration by default
 
-    req.currentUser = decoded; // add `user` to Request via type augmentation
+        req.currentUser = decoded; // add `user` to Request via type augmentation
 
-    next();
-  } catch (error) {
-    console.log(error);
-    logger.warn('Invalid token');
-    throw new BadRequest('Unauthorized: Invalid token');
-  }
+        next();
+    } catch (error) {
+        console.log(error);
+        logger.warn('Invalid token');
+        throw new BadRequest('Unauthorized: Invalid token');
+    }
+};
+
+export const authMiddlewareIfHeadersPresent = async (req: Request, res: Response, next: NextFunction) => {
+    const authHeader = req.headers['authorization'];
+    const accessToken = authHeader && authHeader.split(' ')[1]; // Bearer <token>
+
+    if (!accessToken) {
+        next();//skips verifying if user is not logged in, for use with endpoints where you can optionally use as guest - DuyND
+    } else if (!SECRET) {
+        throw new Error('JWT_SECRET is not defined in environment variables');
+    } else {
+        try {
+            const decoded: any = jwt.verify(accessToken, SECRET);
+            //.verify Validates expiration by default
+
+            req.currentUser = decoded; // add `user` to Request via type augmentation
+
+            next();
+        } catch (error) {
+            console.log(error);
+            logger.warn('Invalid token');
+            throw new BadRequest('Unauthorized: Invalid token');
+        }
+    }
 };
