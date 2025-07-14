@@ -6,6 +6,8 @@
         "hset",
         "Millis",
         "Mindmap",
+        "payos",
+        "SEPAY",
         "setex",
         "uuidv",
         "vercel"
