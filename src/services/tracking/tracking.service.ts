@@ -23,7 +23,7 @@ class TrackingService {
 
         const topicId = result[0].topicId;
 
-        const topic = await topicRepo.handleGetSingleTopic(topicId);
+        const topic = await topicRepo.getTopicById(topicId);
 
         return {
             topic,

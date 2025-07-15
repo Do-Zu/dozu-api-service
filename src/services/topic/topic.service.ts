@@ -1,34 +1,51 @@
-import topicRepo, { ITopicForUser, ITopicsForUserReturned } from '@/repositories/topic.repo';
-import { ITopicBasic, ITopicAdded, ITopicUpdated } from '@/types/topic/topic.type';
+import topicRepo, { ICreateTopicRepo, IUpdateTopicRepo } from '@/repositories/topic.repo';
+import { ICreateTopicBody, ITopic } from '@/types/topic/topic.type';
 
 class TopicService {
-    public async handleIsExistedTopic(topicId: number): Promise<boolean> {
-        const topic = await topicRepo.handleGetSingleTopic(topicId);
+    public async doesTopicExist(topicId: number): Promise<boolean> {
+        const topic = await topicRepo.getTopicById(topicId);
         return topic ? true : false;
     }
 
-    public async handleGetSingleTopic(topicId: number): Promise<ITopicBasic | undefined> {
-        const topic = await topicRepo.handleGetSingleTopic(topicId);
+    public async getTopicById(topicId: number): Promise<ITopic | undefined> {
+        const topic = await topicRepo.getTopicById(topicId);
         return topic;
     }
 
-    public async handleGetAllTopicsForUser(userId: number, currentDate: string): Promise<ITopicsForUserReturned> {
-        const topics = await topicRepo.handleGetAllTopicsForUser(userId, currentDate);
+    public async getTopicsForUser(userId: number, currentDate: string): Promise<ITopic[]> {
+        const topics = await topicRepo.getTopicsForUser(userId, currentDate);
         return topics;
     }
 
-    public async handleInsertSingleTopicForUser(topic: ITopicAdded): Promise<ITopicForUser> {
-        const ret = await topicRepo.handleInsertSingleTopicForUser(topic);
-        return ret;
+    public async createTopicForUser(userId: number, topic: ICreateTopicBody): Promise<ITopic> {
+        const value: ICreateTopicRepo = { ...topic, userId };
+        const result = await topicRepo.createTopicForUser(value);
+        return result;
     }
 
-    public async handleUpdateSingleTopic(topicId: number, topic: ITopicUpdated): Promise<ITopicForUser> {
-        const ret = await topicRepo.handleUpdateSingleTopic(topicId, topic);
-        return ret;
+    public async updateTopicById(topicId: number, topic: IUpdateTopicRepo): Promise<ITopic> {
+        const result = await topicRepo.updateTopicById(topicId, topic);
+        return result;
     }
 
-    public async handleDeleteSingleTopic(topicId: number): Promise<void> {
-        await topicRepo.handleDeleteSingleTopic(topicId);
+    public async deleteTopicById(topicId: number): Promise<void> {
+        await topicRepo.deleteTopicById(topicId);
+    }
+
+    // this function get topics in specific class, and get individualized information of user (eg. SM-2)
+    public async getTopicsForClass(classId: number, userId: number, currentDate: string): Promise<ITopic[]> {
+        const result = await topicRepo.getTopicsForClass(classId, userId, currentDate);
+        return result;
+    }
+
+    public async getTopicsInClassForStudent(classId: number, userId: number, currentDate: string): Promise<ITopic[]> {
+        const result = await topicRepo.getTopicsInClassForStudent(classId, userId, currentDate);
+        return result;
+    }
+
+    public async getTopicsInClassForTeacher(classId: number): Promise<ITopic[]> {
+        const result = await topicRepo.getTopicsInClassForTeacher(classId);
+        return result;
     }
 }
 

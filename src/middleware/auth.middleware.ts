@@ -4,7 +4,8 @@ import { NextFunction, Request, Response } from 'express';
 
 import jwt from 'jsonwebtoken';
 import logger from '@/utils/logger';
-import { BadRequest } from '@/core/error';
+import { BadRequest, Forbidden } from '@/core/error';
+import { getUserRolesFromRequest } from '@/utils/auth/authHelpers.utils';
 
 const SECRET = process.env.JWT_SECRET; // make sure to use env vars in production
 
@@ -32,6 +33,18 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
         throw new BadRequest('Unauthorized: Invalid token');
     }
 };
+
+export const validateTeacher = async (req: Request, res: Response, next: NextFunction) => {
+    const roles = await getUserRolesFromRequest(req);
+    const isTeacher = roles.find((role) => role.name === 'teacher');
+    if(isTeacher) {
+        next();
+    } else {
+        const message = 'Forbidden: Require teacher to access the resources';
+        logger.warn(message);
+        throw new Forbidden(message);
+    }
+}
 
 export const authMiddlewareIfHeadersPresent = async (req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers['authorization'];

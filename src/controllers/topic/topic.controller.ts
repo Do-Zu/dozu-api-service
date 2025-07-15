@@ -1,30 +1,26 @@
 import { BadRequest, DatabaseError } from '@/core/error';
 import { SuccessResponse } from '@/core/success';
-import { ITopicBasic, ITopicAdded, ITopicUpdated } from '@/types/topic/topic.type';
+// import { ITopicBasic, ITopicAdded, ITopicUpdated } from '@/types/topic/topic.type';
 import logger from '@/utils/logger';
 import { Request, Response } from 'express';
 import topicService from '@/services/topic/topic.service';
-import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
-import { ITopicsForUserReturned } from '@/repositories/topic.repo';
+import { getUserIdFromRequest, isTeacher } from '@/utils/auth/authHelpers.utils';
 import { getCurrentDateFromRequest } from '@/utils/date';
+import { topicsTable } from '@/models';
+import db from '@/libs/drizzleClient.lib';
+import { ICreateTopicBody, ICreateTopicInClassBody, ITopic, IUpdateTopicBody } from '@/types/topic/topic.type';
+import itemSpacedRepetitionTrackingService from '@/services/tracking/itemSpacedRepetitionTracking.service';
 import { updateTopicIdOfInputSet } from '@/repositories/inputSet.repo';
 
 class TopicController {
     constructor() {}
 
-    public async handleGetSingleTopic(req: Request, res: Response): Promise<void> {
-        let { topicId } = req.params as { topicId: string | number };
+    public async getTopicById(req: Request, res: Response): Promise<void> {
+        let { topicId } = req.validatedParams as { topicId: number };
 
-        topicId = parseInt(topicId as string);
-
-        if (isNaN(topicId)) {
-            throw new BadRequest('Invalid param, cannot get topic');
-        }
-
-        let topic: ITopicBasic | undefined;
-
+        let topic: ITopic | undefined;
         try {
-            topic = await topicService.handleGetSingleTopic(topicId);
+            topic = await topicService.getTopicById(topicId);
         } catch (err) {
             logger.error(err);
             throw new DatabaseError('Something went wrong');
@@ -33,16 +29,13 @@ class TopicController {
         SuccessResponse.ok(res, topic);
     }
 
-    public async handleGetAllTopicsForUser(req: Request, res: Response): Promise<void> {
+    public async getTopicsForUser(req: Request, res: Response): Promise<void> {
         const currentDate = getCurrentDateFromRequest(req);
         const userId = getUserIdFromRequest(req);
-        if (isNaN(userId)) {
-            throw new BadRequest('Invalid param, cannot get topics');
-        }
 
-        let topics: ITopicsForUserReturned;
+        let topics: ITopic[];
         try {
-            topics = await topicService.handleGetAllTopicsForUser(userId, currentDate);
+            topics = await topicService.getTopicsForUser(userId, currentDate);
         } catch (err) {
             logger.error(err);
             throw new DatabaseError('Something went wrong');
@@ -51,87 +44,119 @@ class TopicController {
         SuccessResponse.ok(res, topics);
     }
 
-    public async handleInsertSingleTopicForUser(req: Request, res: Response): Promise<void> {
+    public async createTopicForUser(req: Request, res: Response): Promise<void> {
         const userId = getUserIdFromRequest(req);
+        const { name, description } = req.body as ICreateTopicBody;
+        const { inputSetId } = req.body as { inputSetId: string };
 
-        if (isNaN(userId)) {
-            throw new BadRequest('Invalid param, cannot insert topic');
-        }
-
-        const { topicName, topicDescription, inputSetId } = req.body as {
-            topicName: string;
-            topicDescription: string;
-            inputSetId: string; //update inputset on topic creation - DuyND
-        };
-
-        const topicAddedValue: ITopicAdded = {
-            userId,
-            name: topicName,
-            description: topicDescription,
-        };
-
-        let dataResponsed;
+        let result;
         try {
-            dataResponsed = await topicService.handleInsertSingleTopicForUser(topicAddedValue);
-
-            //!debugging
-            console.log('dataResponsed', dataResponsed);
-            const topicId = dataResponsed.topicId;
-            await updateTopicIdOfInputSet({ topicId: topicId, inputSetId: parseInt(inputSetId) });
+            result = await topicService.createTopicForUser(userId, { name, description });
+            if(inputSetId) {
+                const topicId = result.topicId;
+                await updateTopicIdOfInputSet({ topicId: topicId, inputSetId: parseInt(inputSetId) });
+            }
         } catch (err) {
             logger.error(err);
             throw new DatabaseError('Something went wrong');
         }
 
-        SuccessResponse.ok(res, dataResponsed);
+        SuccessResponse.ok(res, result);
     }
 
-    public async handleUpdateSingleTopic(req: Request, res: Response): Promise<void> {
-        let { topicId } = req.params as { topicId: string | number };
+    public async updateTopicById(req: Request, res: Response): Promise<void> {
+        let { topicId } = req.validatedParams as { topicId: number };
+        const { name, description } = req.body as IUpdateTopicBody;
 
-        topicId = parseInt(topicId as string);
-
-        if (isNaN(topicId)) {
-            throw new BadRequest('Invalid param, cannot update topic');
-        }
-
-        const { topicName, topicDescription } = req.body as {
-            topicName: string;
-            topicDescription: string;
-        };
-        const topicUpdatedValue: ITopicUpdated = {
-            name: topicName,
-            description: topicDescription,
-        };
-
-        let dataResponsed;
+        let result;
         try {
-            dataResponsed = await topicService.handleUpdateSingleTopic(topicId, topicUpdatedValue);
+            result = await topicService.updateTopicById(topicId, { name, description });
         } catch (err) {
             logger.error(err);
             throw new DatabaseError('Something went wrong');
         }
 
-        SuccessResponse.ok(res, dataResponsed);
+        SuccessResponse.ok(res, result);
     }
 
     // còn flashcards -> vẫn xóa topic
-    public async handleDeleteSingleTopicForUser(req: Request, res: Response): Promise<void> {
-        let { topicId } = req.params as { topicId: string | number };
-
-        topicId = parseInt(topicId as string);
-
-        if (isNaN(topicId)) {
-            throw new BadRequest('Invalid param, cannot update topic');
-        }
+    public async deleteTopicById(req: Request, res: Response): Promise<void> {
+        let { topicId } = req.validatedParams as { topicId: number };
 
         try {
-            await topicService.handleDeleteSingleTopic(topicId);
+            await topicService.deleteTopicById(topicId);
         } catch (err) {
             logger.error(err);
             throw new DatabaseError('Something went wrong');
         }
         SuccessResponse.noContent(res);
+    }
+
+    public async getTopicsInClass(req: Request, res: Response) {
+        const teacher = await isTeacher(req);
+        let { classId } = req.params as { classId: string | number };
+        classId = parseInt(classId as string);
+
+        let result : ITopic[];
+        try {
+            if(teacher) {
+                result = await topicService.getTopicsInClassForTeacher(classId);
+            } else {
+                const currentDate = getCurrentDateFromRequest(req);
+                const userId = getUserIdFromRequest(req);
+                result = await topicService.getTopicsInClassForStudent(classId, userId, currentDate);
+            }
+        } catch (err) {
+            logger.error(err);
+            throw new DatabaseError('Something went wrong');
+        }
+        SuccessResponse.ok(res, result);
+    }
+
+    public async createTopicForClass(req: Request, res: Response) {
+        const userId = getUserIdFromRequest(req);
+        if (isNaN(userId)) {
+            throw new BadRequest('Invalid param, cannot get topics');
+        }
+        let { classId } = req.params as { classId: string | number };
+        classId = parseInt(classId as string);
+
+        const { name, description } = req.body as ICreateTopicInClassBody;
+
+        const dataInserted = { userId, classId, name, description };
+
+        let result;
+        try {
+            [result] = await db.insert(topicsTable).values(dataInserted).returning({
+                topicId: topicsTable.topicId,
+                classId: topicsTable.classId,
+                name: topicsTable.name,
+                description: topicsTable.description,
+                createdAt: topicsTable.createdAt,
+            });
+        } catch (err) {
+            logger.error(err);
+            throw new DatabaseError('Something went wrong');
+        }
+
+        SuccessResponse.ok(res, result);
+    }
+
+    public async startLearningFlashcards(req: Request, res: Response) {
+        const userId = getUserIdFromRequest(req);
+        if (isNaN(userId)) {
+            throw new BadRequest('Invalid param, cannot start learning flashcards');
+        }
+
+        let { topicId } = req.validatedParams as { topicId: number };
+
+        try {
+            await itemSpacedRepetitionTrackingService.initializeStudentTrackingForTopic(userId, topicId);
+        } catch(err) {
+            logger.error(err);
+            throw new DatabaseError('Something went wrong');
+        }
+        SuccessResponse.ok(res, { });
     }
 }
 
