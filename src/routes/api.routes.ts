@@ -23,6 +23,8 @@ import './class-based-learning/class.routes';
 import './tracking/tracking.routes';
 import './subscription/subscription.routes';
 import './payment/payment.routes';
+import './question/question.routes';
+import './quiz/quiz.routes';
 
 // Apply global async handler to router
 globalAsyncHandler(router);
