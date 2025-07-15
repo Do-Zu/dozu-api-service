@@ -18,7 +18,7 @@ class QuestionController {
       throw new BadRequest('Invalid topicId');
     }
 
-    const isExisted = await topicService.handleIsExistedTopic(topicId);
+    const isExisted = await topicService.doesTopicExist(topicId);
     if (!isExisted) {
       throw new BadRequest('Topic does not exist');
     }
