@@ -1,6 +1,6 @@
 import { z, ZodObject } from "zod"
 import validateData from "./validator"
-import { ZFlashcardsArrayAdded, ZFlashcardsArrayDeleted, ZFlashcardsArrayUpdated, ZFlashcardsBatch } from "@/types/flashcard/flashcard.type"
+import { ZFlashcardsArrayAdded, ZFlashcardsBatch } from "@/types/flashcard/flashcard.type"
 
 function validateTopicId() {
     return validateData<ZodObject<any, any>>({ selector: req => req.query, schema: z.object({ topicId: z.string() }) })
