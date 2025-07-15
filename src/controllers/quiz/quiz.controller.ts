@@ -13,7 +13,7 @@ class QuizController {
         const userId = getUserIdFromRequest(req);
         const { topicId, type } = req.query as unknown as QuizGenerateDto;
 
-        const isExisted = await topicService.handleIsExistedTopic(Number(topicId));
+        const isExisted = await topicService.doesTopicExist(Number(topicId));
         if (!isExisted) throw new BadRequest('Topic does not exist');
 
         const questions = await quizService.handleGenerateQuiz(type, Number(topicId), userId);
@@ -31,7 +31,7 @@ class QuizController {
     async handleGetQuizHistory(req: Request, res: Response): Promise<void> {
         const topicId = Number(req.query.topicId);
 
-        const isExisted = await topicService.handleIsExistedTopic(topicId);
+        const isExisted = await topicService.doesTopicExist(topicId);
         if (!isExisted) throw new BadRequest('Topic does not exist');
 
         const history = await quizService.handleGetQuizHistory(Number(topicId));
