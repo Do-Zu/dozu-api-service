@@ -7,6 +7,11 @@ export const insertInputSet = async (newInputSet: TypeInsertInputSet): Promise<T
     return insertedUser;
 };
 
+export const getInputSetByTopicId = async (topicId: number): Promise<TypeSelectInputSet> => {
+    const [result] = await db.select().from(inputSetTable).where(eq(inputSetTable.topicId, topicId));
+    return result;
+};
+
 type updateTopicIdOfInputIdParams = {
     inputSetId: number;
     topicId: number;

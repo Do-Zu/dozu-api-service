@@ -22,6 +22,7 @@ import './progress/progress.routes';
 import './tracking/tracking.routes';
 import './subscription/subscription.routes';
 import './payment/payment.routes';
+import './inputSet/inputSet.routes';
 
 // Apply global async handler to router
 globalAsyncHandler(router);
