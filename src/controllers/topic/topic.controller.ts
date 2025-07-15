@@ -52,8 +52,10 @@ class TopicController {
         let result;
         try {
             result = await topicService.createTopicForUser(userId, { name, description });
-            const topicId = result.topicId;
-            await updateTopicIdOfInputSet({ topicId: topicId, inputSetId: parseInt(inputSetId) });
+            if(inputSetId) {
+                const topicId = result.topicId;
+                await updateTopicIdOfInputSet({ topicId: topicId, inputSetId: parseInt(inputSetId) });
+            }
         } catch (err) {
             logger.error(err);
             throw new DatabaseError('Something went wrong');
