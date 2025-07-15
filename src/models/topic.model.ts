@@ -11,7 +11,7 @@ export const topicsTable = pgTable('topics', {
         .notNull()
         .references(() => usersTable.userId, { onDelete: 'cascade' }),
     name: varchar('name', { length: 255 }).notNull(),
-    description: text('description'),
+    description: text('description').notNull().default(''),
     // embedding: vector('embedding', { dimensions: 384 }),
     imageUrl: text('image_url'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
