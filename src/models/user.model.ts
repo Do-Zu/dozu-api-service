@@ -18,7 +18,7 @@ export const usersTable = pgTable('users', {
   email: varchar('email', { length: 100 }).notNull().unique(),
   passwordHash: text('password_hash'), //set to not null in case user register with 3rd party accounts (google)
   fullName: varchar('full_name', { length: 100 }),
-  avatarUrl: text('avatar_url').default(
+  avatarUrl: text('avatar_url').notNull().default(
     'https://res.cloudinary.com/dsvllb1am/image/upload/f_auto,q_auto/v1/default/tcd6nnm6lgn0jb3puton'
   ),
   role: userRoleEnum().notNull().default('user'), //!replaces UserRoles & Roles tables, favor using permissions
