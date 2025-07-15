@@ -65,13 +65,21 @@ export const createSubscriptionSchema = z.object({
     paymentMethod: z.string().optional(),
     externalSubscriptionId: z.string().optional(),
     code: z.string().optional(),
-    // autoRenew: z.boolean().default(true),
-    // metadata: z.record(z.any()).optional(),
+});
+
+export const upgradeSubscriptionSchema = z.object({
+    planId: z.number().positive().or(z.string().min(1)),
+    paymentMethod: z.string().optional(),
+    externalSubscriptionId: z.string().optional(),
+    code: z.string().optional(),
+    autoRenew: z.boolean().optional(),
+    paymentData:z.record(z.any()).optional(),
 });
 
 export const updateSubscriptionSchema = z.object({
     status: z.enum(['active', 'cancelled', 'expired', 'pending', 'suspended', 'trialing']).optional(),
     paymentStatus: z.enum(['pending', 'paid', 'failed', 'refunded', 'partially_refunded']).optional(),
+    subscriptionId: z.number().positive().or(z.string().min(1)),
     cancelAt: z.string().datetime().optional(),
     cancellationReason: z.string().optional(),
     autoRenew: z.boolean().optional(),

@@ -5,7 +5,7 @@ import { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import logger from '@/utils/logger';
 import { BadRequest, Forbidden } from '@/core/error';
-import { getUserRolesFromRequest, sanitizeUserObject } from '@/utils/auth/authHelpers.utils';
+import { getUserRolesFromRequest } from '@/utils/auth/authHelpers.utils';
 
 const SECRET = process.env.JWT_SECRET; // make sure to use env vars in production
 
@@ -23,7 +23,6 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
     try {
         const decoded: any = jwt.verify(accessToken, SECRET);
         //.verify Validates expiration by default
-        // const sanitizedUser = sanitizeUserObject(decoded.user);
 
         req.currentUser = decoded; // add `user` to Request via type augmentation
 
@@ -44,5 +43,29 @@ export const validateTeacher = async (req: Request, res: Response, next: NextFun
         const message = 'Forbidden: Require teacher to access the resources';
         logger.warn(message);
         throw new Forbidden(message);
+    }
+}
+
+export const authMiddlewareIfHeadersPresent = async (req: Request, res: Response, next: NextFunction) => {
+    const authHeader = req.headers['authorization'];
+    const accessToken = authHeader && authHeader.split(' ')[1]; // Bearer <token>
+
+    if (!accessToken) {
+        next();//skips verifying if user is not logged in, for use with endpoints where you can optionally use as guest - DuyND
+    } else if (!SECRET) {
+        throw new Error('JWT_SECRET is not defined in environment variables');
+    } else {
+        try {
+            const decoded: any = jwt.verify(accessToken, SECRET);
+            //.verify Validates expiration by default
+
+            req.currentUser = decoded; // add `user` to Request via type augmentation
+
+            next();
+        } catch (error) {
+            console.log(error);
+            logger.warn('Invalid token');
+            throw new BadRequest('Unauthorized: Invalid token');
+        }
     }
 };

@@ -10,6 +10,8 @@ import { topicsTable } from '@/models';
 import db from '@/libs/drizzleClient.lib';
 import { ICreateTopicBody, ICreateTopicInClassBody, ITopic, IUpdateTopicBody } from '@/types/topic/topic.type';
 import itemSpacedRepetitionTrackingService from '@/services/tracking/itemSpacedRepetitionTracking.service';
+import { updateTopicIdOfInputSet } from '@/repositories/inputSet.repo';
+
 class TopicController {
     constructor() {}
 
@@ -45,10 +47,13 @@ class TopicController {
     public async createTopicForUser(req: Request, res: Response): Promise<void> {
         const userId = getUserIdFromRequest(req);
         const { name, description } = req.body as ICreateTopicBody;
+        const { inputSetId } = req.body as { inputSetId: string };
 
         let result;
         try {
             result = await topicService.createTopicForUser(userId, { name, description });
+            const topicId = result.topicId;
+            await updateTopicIdOfInputSet({ topicId: topicId, inputSetId: parseInt(inputSetId) });
         } catch (err) {
             logger.error(err);
             throw new DatabaseError('Something went wrong');

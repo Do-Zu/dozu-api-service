@@ -19,9 +19,9 @@ router.delete('/:topicId', validateIdParam('topicId'), topicController.deleteTop
 router.post('/:topicId/flashcards/start-learning', validateIdParam('topicId'), topicController.startLearningFlashcards);
 
 registerRoute('/topics', router, {
-  description: 'Topics API for CRUD topics',
-  version: 'v1',
-  isEnabled: true,
+    description: 'Topics API for CRUD topics',
+    version: 'v1',
+    isEnabled: true,
 });
 
 export default router;

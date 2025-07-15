@@ -43,7 +43,7 @@ class FeatureUsageService {
         today,
     }: IFeatureUsageService): Promise<{ exceeded: boolean; currentUsage: number }> {
         const periodKey = this.generatePeriodKey(today, timezone, interval);
-        const redisKey = `${this.REDIS_PREFIX}:${userId}:${featureId}:${periodKey}`;
+        const redisKey = `${this.REDIS_PREFIX}:${userId}:${planId}:${featureId}:${periodKey}`;
 
         // Get current usage from Redis
         let currentUsage = await redis.get(redisKey);

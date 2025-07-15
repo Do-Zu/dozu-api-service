@@ -3,7 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 import { registerRoute } from '../register.routes';
 import { uploadFileController } from '@/controllers/uploads/upload.file.controller';
-import { authMiddleware } from '@/middleware/auth.middleware';
+import { authMiddleware, authMiddlewareIfHeadersPresent } from '@/middleware/auth.middleware';
 import {
     validateFileId,
     validateFileIds,
@@ -35,6 +35,7 @@ router.post(
     uploadRateLimiter,
     uploadFileController.getSingleUploadMiddleware('file'),
     validateSingleFileUpload(),
+    authMiddlewareIfHeadersPresent, //only add user object if auth header exists
     uploadFileController.uploadSingleFile
 );
 
