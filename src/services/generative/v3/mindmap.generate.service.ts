@@ -483,6 +483,7 @@ export class MindmapGenerateService {
 
                 const data = nodeObj.data as Record<string, unknown>;
                 if (!data.label) return false;
+                if (!data.description) return false;
             }
 
             // Validate edges structure
