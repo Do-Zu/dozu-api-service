@@ -1,79 +1,196 @@
 import db from '@/libs/drizzleClient.lib';
-import { flashcardsTable, topicsTable } from '@/models';
-import { ITopicBasic, ITopicAdded, ITopicUpdated } from '@/types/topic/topic.type';
-import { count, eq } from 'drizzle-orm';
+import { flashcardsTable, itemSpacedRepetitionTrackingTable, topicsTable } from '@/models';
+import { ITopic } from '@/types/topic/topic.type';
+import logger from '@/utils/logger';
+import { and, eq, lte, sql } from 'drizzle-orm';
 
-export type ITopicForUser = ITopicBasic & { flashcardsCount?: number };
-export type ITopicsForUserReturned = ITopicForUser[];
+export type ICreateTopicRepo = Pick<ITopic, 'name' | 'description'> & { userId: number };
+export type IUpdateTopicRepo = Pick<ITopic, 'name' | 'description'>;
 
 class TopicRepo {
-  public async handleGetSingleTopic(topicId: number): Promise<ITopicBasic | undefined> {
-    const topic = await db.query.topicsTable.findFirst({
-      where: eq(topicsTable.topicId, topicId),
-      columns: {
-        topicId: true,
-        name: true,
-        description: true,
-      },
-    });
-    return topic;
-  }
-
-  public async handleGetAllTopicsForUser(userId: number): Promise<ITopicsForUserReturned> {
-    let topics: ITopicForUser[] = await db
-      .select({
-        topicId: topicsTable.topicId,
-        name: topicsTable.name,
-        description: topicsTable.description,
-      })
-      .from(topicsTable)
-      .where(eq(topicsTable.userId, userId));
-
-    for (let i = 0; i < topics.length; ++i) {
-      let topic = topics[i] as ITopicForUser;
-      const result = await db
-        .select({
-          flashcardsCount: count(),
-        })
-        .from(topicsTable)
-        .innerJoin(flashcardsTable, eq(flashcardsTable.topicId, topicsTable.topicId))
-        .where(eq(topicsTable.topicId, topic.topicId));
-
-      const { flashcardsCount }: { flashcardsCount: number } = result[0];
-
-      topic['flashcardsCount'] = flashcardsCount;
-      topics[i] = topic;
+    public async getTopicById(topicId: number): Promise<ITopic | undefined> {
+        const topic = await db.query.topicsTable.findFirst({
+            where: eq(topicsTable.topicId, topicId),
+            columns: {
+                topicId: true,
+                userId: true,
+                name: true,
+                description: true,
+                createdAt: true,
+            },
+        });
+        return topic;
     }
 
-    return topics;
-  }
+    public async getTopicsForUser(userId: number, currentDate: string): Promise<ITopic[]> {
+        let topics: ITopic[] = await db
+            .select({
+                topicId: topicsTable.topicId,
+                userId: topicsTable.userId,
+                name: topicsTable.name,
+                description: topicsTable.description,
+                imageUrl: topicsTable.imageUrl,
+                createdAt: topicsTable.createdAt,
+                flashcardsCount:
+                    // get number of flashcards in a topic, flashcards.flashcard_id IS NOT NULL because using below left join
+                    sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL THEN 1 END) AS INT)`.as(
+                        'flashcardsCount'
+                    ),
+                // get flashcards-due-today, next_review <= today and last_reviewed should not null (if it is, it should be flashcardsNew)
+                flashcardsDueToday:
+                    sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${currentDate} AND item_spaced_repetition_tracking.last_reviewed IS NOT NULL THEN 1 END) AS INT)`.as(
+                        'flashcardsDueToday'
+                    ),
+                // get number of new flashcards item_spaced_repetition_tracking.last_reviewed IS NULL because flashcards inserted have last_reviewed NULL
+                flashcardsNew:
+                    sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.last_reviewed IS NULL THEN 1 END) AS INT)`.as(
+                        'flashcardsNew'
+                    ),
+            })
+            .from(topicsTable)
+            // some topics don't have a single flashcard, so using left join to get that topics
+            .leftJoin(flashcardsTable, eq(flashcardsTable.topicId, topicsTable.topicId))
+            .leftJoin(
+                itemSpacedRepetitionTrackingTable,
+                eq(itemSpacedRepetitionTrackingTable.itemId, flashcardsTable.flashcardId)
+            )
+            .where(eq(topicsTable.userId, userId))
+            .groupBy(topicsTable.topicId);
 
-  public async handleInsertSingleTopicForUser(topic: ITopicAdded): Promise<ITopicForUser> {
-    const result = await db
-      .insert(topicsTable)
-      .values(topic)
-      .returning({ 
-        topicId: topicsTable.topicId,
-        name: topicsTable.name,
-        description: topicsTable.description,
-      });
-    
-    let ret = result[0] as ITopicForUser;
-    return ret;
-  }
+        return topics;
+    }
 
-  public async handleUpdateSingleTopic(topicId: number, topic: ITopicUpdated): Promise<ITopicForUser> {
-    const [ret] = await db.update(topicsTable).set(topic).where(eq(topicsTable.topicId, topicId)).returning({
-      topicId: topicsTable.topicId,
-      name: topicsTable.name,
-      description: topicsTable.description,    
-    });
-    return ret;
-  }
+    public async createTopicForUser(topic: ICreateTopicRepo): Promise<ITopic> {
+        const [result] = await db.insert(topicsTable).values(topic).returning({
+            topicId: topicsTable.topicId,
+            name: topicsTable.name,
+            description: topicsTable.description,
+            createdAt: topicsTable.createdAt,
+        });
 
-  public async handleDeleteSingleTopic(topicId: number): Promise<void> {
-    await db.delete(topicsTable).where(eq(topicsTable.topicId, topicId));
-  }
+        return result;
+    }
+
+    public async updateTopicById(topicId: number, topic: IUpdateTopicRepo): Promise<ITopic> {
+        const [result] = await db.update(topicsTable).set(topic).where(eq(topicsTable.topicId, topicId)).returning({
+            topicId: topicsTable.topicId,
+            name: topicsTable.name,
+            description: topicsTable.description,
+            createdAt: topicsTable.createdAt,
+        });
+        return result;
+    }
+
+    public async deleteTopicById(topicId: number): Promise<void> {
+        await db.delete(topicsTable).where(eq(topicsTable.topicId, topicId));
+    }
+
+    public async getTopicsForClass(classId: number, userId: number, currentDate: string): Promise<ITopic[]> {
+        let topics: ITopic[] = await db
+            .select({
+                topicId: topicsTable.topicId,
+                userId: topicsTable.userId,
+                name: topicsTable.name,
+                description: topicsTable.description,
+                imageUrl: topicsTable.imageUrl,
+                createdAt: topicsTable.createdAt,
+                // get flashcards-due-today, next_review <= today and last_reviewed should not null (if it is, it should be flashcardsNew)
+                flashcardsDueToday:
+                    sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${currentDate} AND item_spaced_repetition_tracking.last_reviewed IS NOT NULL THEN 1 END) AS INT)`.as(
+                        'flashcardsDueToday'
+                    ),
+            })
+            .from(topicsTable)
+            // some topics don't have a single flashcard, so using left join to get that topics
+            .leftJoin(flashcardsTable, eq(flashcardsTable.topicId, topicsTable.topicId))
+            .leftJoin(
+                itemSpacedRepetitionTrackingTable,
+                eq(itemSpacedRepetitionTrackingTable.itemId, flashcardsTable.flashcardId)
+            )
+            .where(and(eq(topicsTable.classId, classId), eq(itemSpacedRepetitionTrackingTable.userId, userId)))
+            .groupBy(topicsTable.topicId);
+
+        return topics;
+    }
+
+    public async getTopicsInClassForStudent(classId: number, userId: number, currentDate: string): Promise<ITopic[]> {
+        let topics: ITopic[] = await db
+            .select({
+                topicId: topicsTable.topicId,
+                userId: topicsTable.userId,
+                name: topicsTable.name,
+                description: topicsTable.description,
+                imageUrl: topicsTable.imageUrl,
+                createdAt: topicsTable.createdAt,
+            })
+            .from(topicsTable)
+            .where(eq(topicsTable.classId, classId));
+
+        for (let i = 0; i < topics.length; ++i) {
+            // let topic = topics[i];
+            // const [personalizedData] = await db
+            //     .select({})
+            //     .from(itemSpacedRepetitionTrackingTable)
+            //     .leftJoin(topicsTable, eq(itemSpacedRepetitionTrackingTable.topicId, topicsTable.topicId))
+            //     .leftJoin(flashcardsTable, eq(flashcardsTable.topicId, topicsTable.topicId))
+            //     .where(and(
+            //         eq(topicsTable.topicId, topic.topicId),
+            //         eq(itemSpacedRepetitionTrackingTable.userId, userId),
+            //     ));
+            // topic.hasProgress = personalizedData != null;
+            let topic = topics[i];
+
+            const [result] = await db
+                .select({
+                    topicId: flashcardsTable.topicId,
+                    // flashcardsDueToday: sql<number>`COUNT(*)`.as('flashcardsDueToday'),
+                    flashcardsDueToday:
+                        sql<number>`CAST(COUNT(CASE WHEN item_spaced_repetition_tracking.next_review <= ${currentDate} THEN 1 END) AS INT)`.as(
+                            'flashcardsDueToday'
+                        ),
+                    hasProgress: 
+                        sql<boolean>`BOOL_OR(item_spaced_repetition_tracking.item_id IS NOT NULL)`.as('hasProgress'),
+                })
+                .from(flashcardsTable)
+                .innerJoin(itemSpacedRepetitionTrackingTable, 
+                    and(
+                        eq(itemSpacedRepetitionTrackingTable.userId, userId),
+                        eq(flashcardsTable.flashcardId, itemSpacedRepetitionTrackingTable.itemId),
+                        eq(itemSpacedRepetitionTrackingTable.type, 'flashcard'),
+                    )
+                )
+                .where(eq(flashcardsTable.topicId, topic.topicId))
+                .groupBy(flashcardsTable.topicId)
+
+            // console.log('topicId', topic.name);
+            // console.log(result);
+            if(result) {
+                topic.hasProgress = true;
+                topic.flashcardsDueToday = result.flashcardsDueToday;
+            } else {
+                topic.hasProgress = false;
+            }
+        }
+
+        return topics;
+    }
+
+    public async getTopicsInClassForTeacher(classId: number): Promise<ITopic[]> {
+        let topics: ITopic[] = await db
+            .select({
+                topicId: topicsTable.topicId,
+                userId: topicsTable.userId,
+                name: topicsTable.name,
+                description: topicsTable.description,
+                imageUrl: topicsTable.imageUrl,
+                createdAt: topicsTable.createdAt,
+            })
+            .from(topicsTable)
+            .where(eq(topicsTable.classId, classId))
+            .groupBy(topicsTable.topicId);
+
+        return topics;
+    }
 }
 
-export default TopicRepo;
+export default new TopicRepo();

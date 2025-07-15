@@ -1,3 +1,4 @@
+import { getUserRoles } from '@/repositories/auth.repo';
 import { SanitizedUser } from '@/types/auth/sanitizedUser.type';
 import { Request } from 'express';
 
@@ -31,3 +32,13 @@ export const getUserIdFromRequest = (req: Request): number => {
   return userId;
 };
 
+export const getUserRolesFromRequest = async (req: Request): Promise<{ roleId: number, name: string }[]> => {
+  const userId = getUserIdFromRequest(req);
+  const userRoles = await getUserRoles(userId);
+  return userRoles;
+}
+
+export const isTeacher = async(req: Request): Promise<boolean> => {
+  const roles = await getUserRolesFromRequest(req);
+  return roles.find((role) => role.name === 'teacher') !== undefined;
+}

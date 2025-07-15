@@ -1,18 +1,14 @@
 import db from '@/libs/drizzleClient.lib';
 import { itemSpacedRepetitionTrackingTable } from '@/models';
+import { ICreateTrackingRecord } from '@/types/tracking/itemSpacedRepetitionTracking.type';
 
-export default class ItemSpacedRepetitionTrackingRepo {
-  public async handleInsertDefaultFlashcardSpacedRepetitions(
-    userId: number,
-    topicId: number,
-    flashcardIds: number[]
-  ) {
-    const values = flashcardIds.map(flashcardId => ({
-      userId,
-      topicId,
-      itemId: flashcardId,
-      type: 'flashcard',
-    })) as { userId: number; topicId: number, itemId: number; type: 'flashcard' }[];
-    await db.insert(itemSpacedRepetitionTrackingTable).values(values);
-  }
+class ItemSpacedRepetitionTrackingRepo {
+    public async initializeTrackingRecords(data: ICreateTrackingRecord[]) : Promise<void> {
+        if(data.length === 0) {
+            return;
+        }
+        await db.insert(itemSpacedRepetitionTrackingTable).values(data);
+    }
 }
+
+export default new ItemSpacedRepetitionTrackingRepo();

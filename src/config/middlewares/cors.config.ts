@@ -9,7 +9,7 @@ const corsConfig = () => {
   const developmentOptions = {
    origin: 'http://localhost:3000', // Allow UI origins in development
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Timestamp', 'X-Timezone'],
     credentials: true,
   };
 
@@ -23,7 +23,7 @@ const corsConfig = () => {
 
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Timestamp', 'X-Timezone'],
     credentials: true,
     maxAge: 86400, // 24h
   };
