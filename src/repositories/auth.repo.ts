@@ -150,7 +150,14 @@ export const updateLastLoginAt = async (userId: number) => {
 };
 
 export const getUserRoles = async (userId: number) => {
-  const result = await db.select().from(userRolesTable).where(eq(userRolesTable.userId, userId));
+  const result = await db
+    .select({
+      roleId: rolesTable.roleId,
+      name: rolesTable.name
+    })
+    .from(userRolesTable)
+    .innerJoin(rolesTable, eq(userRolesTable.roleId, rolesTable.roleId))
+    .where(eq(userRolesTable.userId, userId));
   return result;
 };
 

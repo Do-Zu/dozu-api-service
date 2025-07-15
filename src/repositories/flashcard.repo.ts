@@ -16,7 +16,7 @@ import {
 } from '@/types/flashcard/flashcard.type';
 import { getDateFormatted } from '@/utils/date';
 import { and, asc, eq, lte } from 'drizzle-orm';
-import itemSpacedRepetitionTrackingRepo from './tracking/itemSpacedRepetitionTracking.repo';
+import itemSpacedRepetitionTrackingService from '@/services/tracking/itemSpacedRepetitionTracking.service';
 
 export type IFlashcardsForTopicReturned = (Omit<IFlashcardBasic, 'topicId'> & {
     status: IFlashcardStatus;
@@ -97,6 +97,7 @@ class FlashcardRepo {
 
     public async handleGetFlashcardsLearningForTopic(
         topicId: number,
+        userId: number,
         currentDate: string
     ): Promise<IFlashcardsLearningForUserReturned> {
         const flashcards = await db
@@ -115,19 +116,19 @@ class FlashcardRepo {
                 repetitionNumber: itemSpacedRepetitionTrackingTable.repetitionNumber,
             })
             .from(flashcardsTable)
-            .innerJoin(topicsTable, eq(flashcardsTable.topicId, topicsTable.topicId))
-            .innerJoin(usersTable, eq(topicsTable.userId, usersTable.userId))
+            .innerJoin(topicsTable, eq(topicsTable.topicId, flashcardsTable.topicId))
+            // .innerJoin(usersTable, eq(usersTable.userId, topicsTable.userId))
             .innerJoin(
                 itemSpacedRepetitionTrackingTable,
                 and(
                     eq(itemSpacedRepetitionTrackingTable.type, 'flashcard'),
-                    eq(itemSpacedRepetitionTrackingTable.itemId, flashcardsTable.flashcardId)
+                    eq(itemSpacedRepetitionTrackingTable.itemId, flashcardsTable.flashcardId),
+                    eq(itemSpacedRepetitionTrackingTable.userId, userId) // specific user
                 )
             )
             .where(
                 and(
                     eq(topicsTable.topicId, topicId),
-                    // ne(itemSpacedRepetitionTrackingTable.status, 'new'),
                     lte(itemSpacedRepetitionTrackingTable.nextReview, getDateFormatted(currentDate))
                 )
             )
@@ -168,7 +169,8 @@ class FlashcardRepo {
             flashcardId: flashcardsTable.flashcardId,
         });
         const flashcardIds = flashcardsAdded.map(flashcard => flashcard.flashcardId);
-        await itemSpacedRepetitionTrackingRepo.handleInsertDefaultFlashcardSpacedRepetitions(
+        // todo-ka: repo should not call service
+        await itemSpacedRepetitionTrackingService.insertSpacedRepetitionTrackingForFlashcards(
             userId,
             topicId,
             flashcardIds
@@ -201,9 +203,7 @@ class FlashcardRepo {
                 .where(eq(flashcardsTable.flashcardId, flashcardId))
                 .returning({ flashcardId: flashcardsTable.flashcardId });
         }
-    }
-
-    // done check type
+    } // done check type
     public async handlePutFlashcardToLearning(
         flashcardId: number,
         date: IPutFlashcardToLearningArgumentDate
@@ -224,12 +224,17 @@ class FlashcardRepo {
             );
     }
 
-    public async handleApplyFlashcardSM2(flashcardId: number, sm2: IApplyFlashcardSM2ArgumentSM2): Promise<void> {
+    public async handleApplyFlashcardSM2(
+        userId: number,
+        flashcardId: number,
+        sm2: IApplyFlashcardSM2ArgumentSM2
+    ): Promise<void> {
         await db
             .update(itemSpacedRepetitionTrackingTable)
             .set(sm2)
             .where(
                 and(
+                    eq(itemSpacedRepetitionTrackingTable.userId, userId),
                     eq(itemSpacedRepetitionTrackingTable.type, 'flashcard'),
                     eq(itemSpacedRepetitionTrackingTable.itemId, flashcardId)
                 )

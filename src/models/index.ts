@@ -48,3 +48,7 @@ export * from '@/models/auth/permission.model';
 export * from '@/models/auth/rolePermission.model';
 
 export * from '@/models/subscription';
+
+// class based learning
+export * from '@/models/class-based-learning/class.model';
+export * from '@/models/class-based-learning/classEnrollment.model'

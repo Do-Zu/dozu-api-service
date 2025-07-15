@@ -19,10 +19,14 @@ import './schedule/schedule.routes';
 import './uploads/upload.routes';
 import './admin/admin.routes';
 import './progress/progress.routes';
+import './class-based-learning/class.routes';
 import './tracking/tracking.routes';
 import './subscription/subscription.routes';
 import './payment/payment.routes';
+import './question/question.routes';
+import './quiz/quiz.routes';
 import './inputSet/inputSet.routes';
+
 
 // Apply global async handler to router
 globalAsyncHandler(router);
