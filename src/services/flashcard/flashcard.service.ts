@@ -92,8 +92,8 @@ class FlashcardService {
         await flashcardRepo.handlePutFlashcardToLearning(flashcardId, date);
     }
 
-    public async handleApplyFlashcardSM2(flashcardId: number, sm2: IApplyFlashcardSM2ArgumentSM2): Promise<void> {
-        await flashcardRepo.handleApplyFlashcardSM2(flashcardId, sm2);
+    public async handleApplyFlashcardSM2(userId: number, flashcardId: number, sm2: IApplyFlashcardSM2ArgumentSM2): Promise<void> {
+        await flashcardRepo.handleApplyFlashcardSM2(userId, flashcardId, sm2);
     }
 
     public async handleGetFlashcardsLearningForUser(userId: number, currentDate: string): Promise<IFlashcardsLearningForUserReturned> {
@@ -101,8 +101,8 @@ class FlashcardService {
         return flashcards;
     }
 
-    public async handleGetFlashcardsLearningForTopic(topicId: number, currentDate: string): Promise<IFlashcardsLearningForUserReturned> {
-        const flashcards = await flashcardRepo.handleGetFlashcardsLearningForTopic(topicId, currentDate);
+    public async handleGetFlashcardsLearningForTopic(topicId: number, userId: number, currentDate: string): Promise<IFlashcardsLearningForUserReturned> {
+        const flashcards = await flashcardRepo.handleGetFlashcardsLearningForTopic(topicId, userId, currentDate);
         return flashcards;
     }
 

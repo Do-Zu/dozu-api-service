@@ -26,7 +26,7 @@ class FlashcardController {
             throw new BadRequest('Invalid param, cannot get flashcards');
         }
 
-        const topic = await topicService.handleGetSingleTopic(topicId);
+        const topic = await topicService.getTopicById(topicId);
         if (!topic) {
             throw new BadRequest('Invalid topic');
         }
@@ -54,7 +54,7 @@ class FlashcardController {
             throw new BadRequest('Invalid param, cannot create flashcards');
         }
 
-        const isExistedTopic = await topicService.handleIsExistedTopic(topicId);
+        const isExistedTopic = await topicService.doesTopicExist(topicId);
         if (!isExistedTopic) {
             throw new BadRequest('Invalid topic');
         }
@@ -96,11 +96,12 @@ class FlashcardController {
     public async handleGetFlashcardsLearningForTopic(req: Request, res: Response): Promise<void> {
         const currentDate = getCurrentDateFromRequest(req);
         let { topicId } = req.params as { topicId: string | number };
+        const userId = getUserIdFromRequest(req);
         topicId = parseInt(topicId as string);
 
         let flashcards: IFlashcardsLearningForUserReturned;
         try {
-            flashcards = await flashcardService.handleGetFlashcardsLearningForTopic(topicId, currentDate);
+            flashcards = await flashcardService.handleGetFlashcardsLearningForTopic(topicId, userId, currentDate);
         } catch(err) {
             logger.error(err);
             throw new DatabaseError('Something went wrong :((');
@@ -114,9 +115,7 @@ class FlashcardController {
 
     public async handlePutFlashcardToLearning(req: Request, res: Response): Promise<void> {
         let { flashcardId } = req.params as { flashcardId: string | number };
-
         flashcardId = parseInt(flashcardId as string);
-
         if (isNaN(flashcardId)) {
             logger.warn('flashcardId is NaN');
             throw new BadRequest('Invalid param, cannot set flashcard to practice');
@@ -133,6 +132,7 @@ class FlashcardController {
     }
 
     public async handleTrackSingleFlashcard(req: Request, res: Response): Promise<void> {
+        const userId = getUserIdFromRequest(req);
         let { flashcardId } = req.params as { flashcardId: string | number };
         const { qualityResponse } = req.body as { qualityResponse: IQualityResponse };
 
@@ -171,7 +171,7 @@ class FlashcardController {
         };
 
         try {
-            await flashcardService.handleApplyFlashcardSM2(flashcardId, sm2Info);
+            await flashcardService.handleApplyFlashcardSM2(userId, flashcardId, sm2Info);
         } catch (err) {
             logger.error(err);
             throw new DatabaseError('Something went wrong :((');
