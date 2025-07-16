@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import { NotificationSettings } from '@/models/profile/profile.model';
+import { NotificationSettings } from '@/models/user.model';
 import ProfileRepository from '@/repositories/profile/profile.repo';
 import logger from '@/utils/logger';
 import { WebSocketService } from '@/libs/websocket/socket.io';
@@ -37,6 +37,7 @@ export interface NotificationContext {
 
 /**
  * Enhanced Notification Service for handling email, push, and realtime notifications
+ * Updated for merged users table architecture
  */
 export class NotificationService {
   private static profileRepo = new ProfileRepository();
@@ -191,20 +192,27 @@ export class NotificationService {
   }
 
   /**
-   * Get user notification context
+   * Get user notification context - Updated for merged users table
    */
   static async getUserNotificationContext(userId: number): Promise<NotificationContext | null> {
     try {
-      const profile = await this.profileRepo.getCompleteProfileByUserId(userId);
-      if (!profile) {
+      // Use simplified getUserById since profile is merged into users table
+      const user = await this.profileRepo.getUserById(userId);
+      if (!user) {
         return null;
       }
 
       return {
         userId,
-        username: profile.user.username,
-        email: profile.user.email,
-        settings: profile.notificationSettings as NotificationSettings
+        username: user.username,
+        email: user.email,
+        settings: user.notificationSettings as NotificationSettings || {
+          dailyReminders: true,
+          weeklyReports: true,
+          achievementNotifications: true,
+          emailNotifications: true,
+          pushNotifications: true,
+        }
       };
     } catch (error) {
       logger.error('Failed to get user notification context:', error);
@@ -313,9 +321,22 @@ export class NotificationService {
         text: `Weekly Report: ${stats.studyHours}h study time, ${stats.topicsCompleted} topics completed, ${stats.achievementsEarned} achievements, ${stats.streak} day streak.`
       };
 
-      return context.settings.emailNotifications 
+      const emailSent = context.settings.emailNotifications 
         ? await this.sendEmail(emailNotification)
         : false;
+
+      // Send realtime notification too
+      const realtimeSent = await this.sendRealtimeNotification({
+        userId,
+        type: 'progress',
+        title: '📊 Weekly Report Ready',
+        message: `You studied ${stats.studyHours} hours and completed ${stats.topicsCompleted} topics this week!`,
+        data: { type: 'weekly_report', stats },
+        timestamp: new Date(),
+        read: false
+      });
+
+      return emailSent || realtimeSent;
     } catch (error) {
       logger.error('Failed to send weekly report:', error);
       return false;
@@ -436,6 +457,64 @@ export class NotificationService {
   }
 
   /**
+   * Send system announcement to all users
+   */
+  static async sendSystemAnnouncement(announcement: {
+    title: string;
+    message: string;
+    priority: 'low' | 'medium' | 'high';
+  }): Promise<{ sent: number; failed: number }> {
+    try {
+      // Get all active users
+      const activeUsers = await this.profileRepo.getAllActiveUsers();
+      
+      const notification = {
+        subject: `📢 ${announcement.title} - Dozu`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #2563eb;">📢 ${announcement.title}</h2>
+            <div style="background-color: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2563eb;">
+              <p style="margin: 0; font-size: 16px; line-height: 1.6;">${announcement.message}</p>
+            </div>
+            <p style="color: #6b7280; font-size: 14px;">
+              Thank you for being part of the Dozu learning community!
+            </p>
+          </div>
+        `,
+        text: `${announcement.title}: ${announcement.message}`
+      };
+
+      // Send bulk email notifications
+      const bulkResult = await this.sendBulkNotifications(
+        activeUsers.map(user => user.userId),
+        notification
+      );
+
+      // Send realtime notifications to all users
+      for (const user of activeUsers) {
+        await this.sendRealtimeNotification({
+          userId: user.userId,
+          type: 'system',
+          title: announcement.title,
+          message: announcement.message,
+          data: { 
+            type: 'system_announcement',
+            priority: announcement.priority
+          },
+          timestamp: new Date(),
+          read: false
+        });
+      }
+
+      logger.info(`System announcement sent: ${bulkResult.sent} successful, ${bulkResult.failed} failed`);
+      return bulkResult;
+    } catch (error) {
+      logger.error('Failed to send system announcement:', error);
+      return { sent: 0, failed: 1 };
+    }
+  }
+
+  /**
    * Send re-engagement notification to inactive users
    */
   static async sendReEngagementNotification(userId: number): Promise<boolean> {
@@ -492,6 +571,29 @@ export class NotificationService {
       logger.error('Failed to send re-engagement notification:', error);
       return false;
     }
+  }
+
+  /**
+   * Get notification statistics
+   */
+  static getNotificationStats(): {
+    totalNotificationsStored: number;
+    usersWithNotifications: number;
+    averageNotificationsPerUser: number;
+  } {
+    const totalNotifications = Array.from(this.notifications.values())
+      .reduce((sum, userNotifications) => sum + userNotifications.length, 0);
+    
+    const usersWithNotifications = this.notifications.size;
+    const averageNotificationsPerUser = usersWithNotifications > 0 
+      ? Math.round(totalNotifications / usersWithNotifications) 
+      : 0;
+
+    return {
+      totalNotificationsStored: totalNotifications,
+      usersWithNotifications,
+      averageNotificationsPerUser
+    };
   }
 }
 

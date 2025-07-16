@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 import { registerRoute } from '../register.routes';
-import { ProfileController } from '@/controllers/profile/profile.controller';
+import { profileController } from '@/controllers/profile/profile.controller';
 import { authMiddleware } from '@/middleware/auth.middleware';
-import { uploadMiddleware } from '@/middleware/upload.middleware';
+// import { uploadMiddleware } from '@/middleware/upload.middleware';
 
 const router = Router();
 globalAsyncHandler(router);
@@ -12,25 +12,21 @@ globalAsyncHandler(router);
 router.use(authMiddleware);
 
 // Profile CRUD operations
-router.get('/', ProfileController.getProfile);
-router.put('/', ProfileController.updateProfile);
-router.delete('/', ProfileController.deleteAccount);
+router.get('/', profileController.getProfile);
+router.put('/', profileController.updateProfile);
+router.delete('/', profileController.deleteAccount);
 
-// Avatar management
-router.post('/avatar', uploadMiddleware.single('avatar'), ProfileController.uploadAvatar);
-router.delete('/avatar', ProfileController.removeAvatar);
+// Avatar management - TODO: Implement with Cloudinary
+// router.post('/avatar', uploadMiddleware.single('avatar'), ProfileController.uploadAvatar);
+// router.delete('/avatar', ProfileController.removeAvatar);
 
 // Password management
-router.put('/password', ProfileController.changePassword);
+router.put('/password', profileController.changePassword);
 
 // Settings management
-router.put('/notifications', ProfileController.updateNotificationSettings);
-router.put('/privacy', ProfileController.updatePrivacySettings);
-router.put('/settings', ProfileController.updateSettings);
+router.put('/notifications', profileController.updateNotificationSettings);
+router.put('/privacy', profileController.updatePrivacySettings);
 
-// Activity and achievements
-router.get('/activity', ProfileController.getActivityStats);
-router.get('/achievements', ProfileController.getAchievements);
 
 registerRoute('/profile', router, {
   description: 'User Profile API endpoints',
