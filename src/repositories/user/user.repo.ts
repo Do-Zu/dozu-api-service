@@ -94,6 +94,49 @@ export class UserRepository {
             slot.endTime.trim() !== ''
         );
     }
+
+    /**
+     * Update user info (fullName, avatarUrl, email, preferences, hobbiesTopic, avgStudyDuration)
+     */
+    public async updateUserInfo(userId: number, updateData: Partial<{ fullName: string; avatarUrl: string; email: string; preferences: any; hobbiesTopic: string; avgStudyDuration: string; }>) {
+        const [updatedUser] = await db
+            .update(usersTable)
+            .set({
+                ...updateData,
+                updatedAt: new Date(),
+            })
+            .where(eq(usersTable.userId, userId))
+            .returning();
+        return updatedUser;
+    }
+
+    /**
+     * Update user password
+     */
+    public async updateUserPassword(userId: number, passwordHash: string) {
+        const [updatedUser] = await db
+            .update(usersTable)
+            .set({ passwordHash, updatedAt: new Date() })
+            .where(eq(usersTable.userId, userId))
+            .returning();
+        return updatedUser;
+    }
+
+    /**
+     * Get user by ID (full info)
+     */
+    public async getUserById(userId: number) {
+        const [user] = await db.select().from(usersTable).where(eq(usersTable.userId, userId));
+        return user;
+    }
+
+    /**
+     * Get all users (for admin/test)
+     */
+    public async getAllUsers() {
+        const users = await db.select().from(usersTable);
+        return users;
+    }
 }
 
 export const userRepository = new UserRepository();

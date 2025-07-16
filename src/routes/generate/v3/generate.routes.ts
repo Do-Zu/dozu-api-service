@@ -16,8 +16,8 @@ router.post('/text/llm', subscriptionMiddleware.handleSubscription, generateCont
 router.post('/text/llm/status', generateController.getGenerateContentStatus);
 
 registerRoute('/generate/v3/', router, {
-  version: 'v3',
-  isEnabled: true,
+    version: 'v3',
+    isEnabled: true,
 });
 
 export const generateRoutes = router;
