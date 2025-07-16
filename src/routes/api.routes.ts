@@ -16,7 +16,7 @@ import './auth/auth.routes';
 
 import './mindmap/mindmap.routes'
 import './profile/profile.routes';
-// import './notification/notification.route';
+import './notification/notification.route';
 
 import './mindmap/mindmap.routes';
 
