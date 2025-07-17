@@ -1,8 +1,8 @@
 import { quizRepo } from '@/repositories/quiz/quiz.repo';
-import { QuizGenerateDto } from '@/dtos/quiz/quiz.dto';
+import { QuizGenerateDto, QuizCreateDto } from '@/dtos/quiz/quiz.dto';
 import { applySM2ForQuestion } from '@/utils/quiz/quizSm2Helper';
 import { IQuizResultPayload } from '@/types/quiz/quiz.type';
-import { BadRequest } from '@/core/error'; 
+import { BadRequest } from '@/core/error';
 
 class QuizService {
     constructor() {}
@@ -25,11 +25,21 @@ class QuizService {
         }
     }
 
+    async handleCreateQuiz(data: QuizCreateDto) {
+        return await quizRepo.createQuizWithQuestions(data);
+    }
+
+    async getQuizById(quizId: number) {
+        const result = await quizRepo.getQuizById(quizId);
+        if (!result) throw new BadRequest('Quiz not found');
+        return result;
+    }
+
     async handleSubmitQuiz(userId: number, quizId: number, results: IQuizResultPayload[]) {
         const correctAnswersCount = results.filter(r => r.correct).length;
 
         // Record quiz results and each question
-        await quizRepo.saveQuizAndQuestionResults(userId, quizId, results, correctAnswersCount);
+       const quizResultId = await quizRepo.saveQuizAndQuestionResults(userId, quizId, results, correctAnswersCount);
 
         // SM-2 for each question
         for (const result of results) {
@@ -38,6 +48,7 @@ class QuizService {
 
             await applySM2ForQuestion(userId, result.questionId, topicId, result.correct);
         }
+        return quizResultId;
     }
 
     async handleGetQuizHistory(topicId: number) {

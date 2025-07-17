@@ -17,6 +17,13 @@ export const quizSubmitSchema = z.object({
   ),
 });
 
+export const quizCreateSchema = z.object({
+  topicId: z.number(),
+  name: z.string().min(1),
+  description: z.string().optional(),
+});
+
 
 export type QuizGenerateDto = z.infer<typeof quizGenerateSchema>;
 export type QuizSubmitDto = z.infer<typeof quizSubmitSchema>;
+export type QuizCreateDto = z.infer<typeof quizCreateSchema>;
