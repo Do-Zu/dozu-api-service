@@ -56,9 +56,9 @@ export const userSubscriptionsTable = pgTable(
         cancellationReason: text('cancellation_reason'),
 
         // Payment details
-        paymentStatus: paymentStatusEnum('payment_status').notNull().default('pending'),
-        amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
-        currency: varchar('currency', { length: 3 }).notNull().default('USD'),
+        // paymentStatus: paymentStatusEnum('payment_status').notNull().default('pending'),
+        // amount: decimal('amount', { precision: 10, scale: 2 }).notNull(),
+        // currency: varchar('currency', { length: 3 }).notNull().default('USD'),
 
         externalSubscriptionId: varchar('external_subscription_id', { length: 255 }), // ID from external payment provider (e.g., Stripe, PayPal)
 
