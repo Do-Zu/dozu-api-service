@@ -12,6 +12,7 @@ import cookieParser from 'cookie-parser';
 import cors from './config/middlewares/cors.config';
 import rateLimit from './config/middlewares/rate-limit.config';
 import { db } from './libs/drizzleClient.lib';
+import NotificationScheduler from './services/notification/notification.scheduler';
 // import { redisInstance } from './libs/redis/redis.connect';
 // import { createServer } from 'http';
 // import { webSocketService } from './libs/websocket/socket.io';
@@ -71,12 +72,20 @@ app.use(handleError);
 
 const server = app.listen(port, () => {
   db();
-  console.log(`Server is running at http://${host}:${port}`);
+  
+  // Initialize notification scheduler
+  NotificationScheduler.init();
+  
+  logger.info(`Server is running at http://${host}:${port}`);
 });
 
 // Handle graceful shutdown
 process.on('SIGTERM', () => {
   logger.info('SIGTERM received. Shutting down gracefully');
+  
+  // Stop notification scheduler
+  NotificationScheduler.stopAll();
+  
   server.close(() => {
     logger.info('Process terminated');
   });

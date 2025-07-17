@@ -5,7 +5,8 @@ import logger from '@/utils/logger';
 export class WebSocketService {
   private static instance: WebSocketService;
   private io: Server | null = null;
-  private activeSockets: Map<string, Socket> = new Map();
+  private activeSockets: Map<string, Socket> = new Map(); // jobId -> socket
+  private userSockets: Map<string, Set<Socket>> = new Map(); // userId -> set of sockets
 
   private constructor() {}
 
@@ -42,6 +43,15 @@ export class WebSocketService {
         logger.info(`Client ${socket.id} registered for job ${jobId}`);
       });
 
+      // Register user for notifications
+      socket.on('register-user', (userId: string) => {
+        if (!this.userSockets.has(userId)) {
+          this.userSockets.set(userId, new Set());
+        }
+        this.userSockets.get(userId)!.add(socket);
+        logger.info(`User ${userId} registered for notifications on socket ${socket.id}`);
+      });
+
       socket.on('disconnect', () => {
         // Remove socket from active connections
         for (const [jobId, activeSocket] of this.activeSockets.entries()) {
@@ -50,12 +60,24 @@ export class WebSocketService {
             logger.info(`Client ${socket.id} unregistered from job ${jobId}`);
           }
         }
+
+        // Remove socket from user connections
+        for (const [userId, sockets] of this.userSockets.entries()) {
+          if (sockets.has(socket)) {
+            sockets.delete(socket);
+            if (sockets.size === 0) {
+              this.userSockets.delete(userId);
+            }
+            logger.info(`User ${userId} disconnected from socket ${socket.id}`);
+          }
+        }
+        
         logger.info(`Client disconnected: ${socket.id}`);
       });
     });
   }
 
-  public sendResult(jobId: string, data: any): boolean {
+  public sendResult(jobId: string, data: Record<string, unknown>): boolean {
     const socket = this.activeSockets.get(jobId);
     if (!socket) {
       logger.warn(`No client registered for job ${jobId}`);
@@ -70,6 +92,37 @@ export class WebSocketService {
     this.activeSockets.delete(jobId);
 
     return true;
+  }
+
+  public sendToUser(userId: string, event: string, data: Record<string, unknown>): boolean {
+    const userSocketsSet = this.userSockets.get(userId);
+    if (!userSocketsSet || userSocketsSet.size === 0) {
+      logger.warn(`No sockets found for user ${userId}`);
+      return false;
+    }
+
+    let sent = false;
+    userSocketsSet.forEach(socket => {
+      if (socket.connected) {
+        socket.emit(event, data);
+        sent = true;
+      }
+    });
+
+    if (sent) {
+      logger.info(`Sent ${event} to user ${userId} on ${userSocketsSet.size} socket(s)`);
+    }
+
+    return sent;
+  }
+
+  public getUserSocketCount(userId: string): number {
+    const userSocketsSet = this.userSockets.get(userId);
+    return userSocketsSet ? userSocketsSet.size : 0;
+  }
+
+  public isUserOnline(userId: string): boolean {
+    return this.getUserSocketCount(userId) > 0;
   }
 }
 

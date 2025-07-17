@@ -23,6 +23,11 @@ import './class-based-learning/class.routes';
 import './tracking/tracking.routes';
 import './subscription/subscription.routes';
 import './payment/payment.routes';
+import './question/question.routes';
+import './quiz/quiz.routes';
+import './inputSet/inputSet.routes';
+import './profile/profile.routes';
+import './notification/notification.route';
 
 // Apply global async handler to router
 globalAsyncHandler(router);
