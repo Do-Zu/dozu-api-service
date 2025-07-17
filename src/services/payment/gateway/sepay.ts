@@ -1,14 +1,16 @@
 import planService from '@/services/subscription/plan.service';
-import { PaymentLinkRequest, IPaymentResponseSePayRegister } from '../type';
-import { getCurrentDateInTimeZone } from '@/utils/date';
 import { convertUsdToVnd } from '@/utils/conversion/conversion';
+import { getCurrentDateInTimeZone, getSystemDate } from '@/utils/date';
+import { addMilliseconds } from 'date-fns';
 import { v4 as uuidv4 } from 'uuid';
+import { IPaymentResponseSePayRegister, PaymentLinkRequest } from '../type';
+import { removeHyphensFromUUID } from '@/utils/common';
 
 class SepayPayment {
     private readonly LINK_BASE_QR = 'https://qr.sepay.vn/img?acc=VQRQADHMU4768&bank=MBBank';
 
     public async registerPaymentProcess(paymentData: PaymentLinkRequest): Promise<IPaymentResponseSePayRegister> {
-        const { planId, timeZone } = paymentData;
+        const { planId, timeZone, userId } = paymentData;
 
         const plan = await planService.getPlanById(planId);
 
@@ -17,16 +19,17 @@ class SepayPayment {
         }
 
         const ttlForExpirePayment = 60 * 60 * 1000; // 1 hour
-        const expireAt = new Date(Date.now() + ttlForExpirePayment);
+        const expireAt = addMilliseconds(getSystemDate(), ttlForExpirePayment);
         const expireAtTimeZone = getCurrentDateInTimeZone(timeZone, expireAt).toISOString();
 
         const price = parseFloat(plan.price as string);
         const currencyVND = convertUsdToVnd(price);
+        const jobId = removeHyphensFromUUID(uuidv4());
 
         const orderCode = this.generateOrderCode();
-        const description = `PAYMENT SUBSCRIPTION PLAN ${plan.name} - ${orderCode}`;
-        const qrCodeUrl = `${this.LINK_BASE_QR}&amount=${currencyVND}&des=${description}`;
-        const jobId = uuidv4();
+        const description = `ORDER:${orderCode};JOB:${jobId};USER:${userId}`;
+        const encodedDescription = encodeURIComponent(description);
+        const qrCodeUrl = `${this.LINK_BASE_QR}&amount=${currencyVND}&des=${encodedDescription}`;
 
         const paymentDataWithDetails: IPaymentResponseSePayRegister = {
             amount: currencyVND,
