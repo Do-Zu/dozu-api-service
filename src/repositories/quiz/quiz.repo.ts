@@ -47,17 +47,22 @@ class QuizRepo {
             );
     }
 
-    async getNewQuiz(topicId: number) {
-        return db
-            .select()
-            .from(questionsTable)
-            .where(
-                and(
-                    eq(questionsTable.topicId, topicId),
-                    sql`NOT EXISTS (SELECT 1 FROM ${itemSpacedRepetitionTrackingTable} WHERE ${itemSpacedRepetitionTrackingTable}.question_id = ${questionsTable}.question_id)`
-                )
-            );
-    }
+async getNewQuiz(topicId: number) {
+    return db
+        .select()
+        .from(questionsTable)
+        .where(
+            and(
+                eq(questionsTable.topicId, topicId),
+                sql`NOT EXISTS (
+                    SELECT 1
+                    FROM ${itemSpacedRepetitionTrackingTable}
+                    WHERE ${itemSpacedRepetitionTrackingTable}.item_id = ${questionsTable.questionId}
+                )` 
+            )
+        );
+}
+
 
     async getRandomQuiz(topicId: number) {
         return db.select().from(questionsTable).where(eq(questionsTable.topicId, topicId));
