@@ -6,10 +6,8 @@ import { IJoinClassBody } from '@/types/class-based-learning/classEnrollment.typ
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import logger from '@/utils/logger';
 import { Request, Response } from 'express';
-import db from '@/libs/drizzleClient.lib';
-import { usersTable } from '@/models';
 import { IClass } from '@/types/class-based-learning/class.type';
-import { eq } from 'drizzle-orm';
+import profileService from '@/services/profile/profile.service';
 
 class ClassEnrollmentController {
     public async joinClass(req: Request, res: Response) {
@@ -21,16 +19,9 @@ class ClassEnrollmentController {
         let result: IClass;
         try {
             const enrollment = await classEnrollmentService.addStudentToClass(myClass.classId, userId);
-            const [teacher] = await db
-                .select({
-                    teacherId: usersTable.userId,
-                    teacherName: usersTable.fullName,
-                    teacherImageUrl: usersTable.avatarUrl,
-                })
-                .from(usersTable)
-                .where(eq(usersTable.userId, myClass.teacherId));
+            const teacher = await profileService.getProfile(myClass.teacherId);
 
-            const { teacherId, teacherName, teacherImageUrl } = teacher;
+            const { userId: teacherId, fullName: teacherName, avatarUrl: teacherImageUrl } = teacher;
             result = {
                 ...myClass,
                 classEnrollmentId: enrollment.classEnrollmentId,
