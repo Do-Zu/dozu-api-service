@@ -10,16 +10,17 @@ const router = express.Router();
 globalAsyncHandler(router);
 
 //
-router.use(authMiddleware)
+router.use(authMiddleware);
 
 // Define routes
 router.post('/register', paymentController.createLinkPaymentWithPayOS);
+router.post('/register/sepay', paymentController.createLinkPaymentWithSepay);
 
 // Register the router
 registerRoute('/payment', router, {
-  description: 'Payment API endpoints',
-  version: 'v1',
-  isEnabled: true,
+    description: 'Payment API endpoints',
+    version: 'v1',
+    isEnabled: true,
 });
-  
+
 export default router;
