@@ -20,12 +20,32 @@ class QuizController {
         SuccessResponse.ok(res, questions);
     }
 
+    async handleCreateQuiz(req: Request, res: Response): Promise<void> {
+        const { topicId, name, description} = req.body;
+
+        const quizId = await quizService.handleCreateQuiz({
+            topicId,
+            name,
+            description,
+        });
+
+        SuccessResponse.created(res, { quizId });
+    }
+
+    async handleGetQuizById(req: Request, res: Response): Promise<void> {
+        const quizId = parseInt(req.params.quizId);
+        if (isNaN(quizId)) throw new BadRequest('Invalid quizId');
+
+        const quiz = await quizService.getQuizById(quizId);
+        SuccessResponse.ok(res, quiz);
+    }
+
     async handleSubmitQuiz(req: Request, res: Response): Promise<void> {
         const userId = getUserIdFromRequest(req);
         const { quizId, results }: QuizSubmitDto = req.body;
 
-        await quizService.handleSubmitQuiz(userId, quizId, results);
-        SuccessResponse.created(res, { message: 'Quiz submitted successfully' });
+        const quizResultId = await quizService.handleSubmitQuiz(userId, quizId, results);
+        SuccessResponse.created(res, { message: 'Quiz submitted successfully', quizResultId });
     }
 
     async handleGetQuizHistory(req: Request, res: Response): Promise<void> {

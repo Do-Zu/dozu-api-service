@@ -1,14 +1,16 @@
 import { BadRequest } from '@/core/error';
 import classRepo, { ICreateClassRepo } from '@/repositories/class-based-learning/class.repo';
 import { IClass, ICreateClassBody, IUpdateClassBody } from '@/types/class-based-learning/class.type';
-import { customAlphabet } from 'nanoid';
-const getRandomNumbers = () =>
-    customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', 8)();
+
+const getRandomNumbers = async () => {
+    const { customAlphabet } = await import('nanoid');
+    return customAlphabet('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', 8)();
+};
 
 class ClassService {
     // todo: make sure it unique
-    public generateInvitationCode(): string {
-        const id = getRandomNumbers();
+    public async generateInvitationCode(): Promise<string> {
+        const id = await getRandomNumbers();
         return id;
     }
 
@@ -28,7 +30,7 @@ class ClassService {
     }
 
     public async createClassForUser(userId: number, data: ICreateClassBody): Promise<IClass> {
-        const invitationCode = this.generateInvitationCode();
+        const invitationCode = await this.generateInvitationCode();
         const value : ICreateClassRepo = { ...data, teacherId: userId, invitationCode };
         const result = await classRepo.createClassForUser(value);
         return result;

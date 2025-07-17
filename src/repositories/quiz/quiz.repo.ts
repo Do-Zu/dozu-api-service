@@ -6,6 +6,7 @@ import { quizResultTable } from '@/models/quiz/quizResult.model';
 import { quizzesTable } from '@/models/quiz/quiz.model';
 import { IQuizResultPayload } from '@/types/quiz/quiz.type';
 import { eq, and, lt, sql, desc } from 'drizzle-orm';
+import { QuizCreateDto } from '@/dtos/quiz/quiz.dto';
 
 class QuizRepo {
     async getInitialQuiz(topicId: number) {
@@ -15,7 +16,11 @@ class QuizRepo {
     async getReviewQuiz(topicId: number, userId: number) {
         return db
             .select()
-            .from(itemSpacedRepetitionTrackingTable)
+            .from(questionsTable)
+            .innerJoin(
+                itemSpacedRepetitionTrackingTable,
+                eq(questionsTable.questionId, itemSpacedRepetitionTrackingTable.itemId)
+            )
             .where(
                 and(
                     eq(itemSpacedRepetitionTrackingTable.topicId, topicId),
@@ -28,12 +33,16 @@ class QuizRepo {
     async getLowEFQuiz(topicId: number, userId: number) {
         return db
             .select()
-            .from(itemSpacedRepetitionTrackingTable)
+            .from(questionsTable)
+            .innerJoin(
+                itemSpacedRepetitionTrackingTable,
+                eq(questionsTable.questionId, itemSpacedRepetitionTrackingTable.itemId)
+            )
             .where(
                 and(
                     eq(itemSpacedRepetitionTrackingTable.topicId, topicId),
                     eq(itemSpacedRepetitionTrackingTable.userId, userId),
-                    lt(itemSpacedRepetitionTrackingTable.easinessFactor, '2.0')
+                    lt(itemSpacedRepetitionTrackingTable.easinessFactor, '2.0') // Lọc theo EasinessFactor
                 )
             );
     }
@@ -66,6 +75,28 @@ class QuizRepo {
                     eq(questionResultTable.correct, false)
                 )
             );
+    }
+
+    async createQuizWithQuestions({ topicId, name, description }: QuizCreateDto) {
+        const [quiz] = await db
+            .insert(quizzesTable)
+            .values({ topicId, name, description })
+            .returning({ quizId: quizzesTable.quizId });
+
+        return quiz.quizId;
+    }
+
+    async getQuizById(quizId: number) {
+        const result = await db.query.quizzesTable.findFirst({
+            where: eq(quizzesTable.quizId, quizId),
+            columns: {
+                quizId: true,
+                name: true,
+                description: true,
+            },
+        });
+
+        return result ?? null;
     }
 
     async saveQuizAndQuestionResults(
@@ -163,24 +194,23 @@ class QuizRepo {
             questions,
         };
     }
-//     {
-//   "quizResultId": 12,
-//   "quizId": 5,
-//   "correctAnswersCount": 7,
-//   "questionsCount": 10,
-//   "timeReviewed": "2025-07-13T10:00:00Z",
-//   "questions": [
-//     {
-//       "questionId": 101,
-//       "questionText": "What is 2 + 2?",
-//       "choices": ["2", "3", "4", "5"],
-//       "correctIndex": 2,
-//       "userAnswerCorrect": true
-//     },
-//     ...
-//   ]
-// }
-
+    //     {
+    //   "quizResultId": 12,
+    //   "quizId": 5,
+    //   "correctAnswersCount": 7,
+    //   "questionsCount": 10,
+    //   "timeReviewed": "2025-07-13T10:00:00Z",
+    //   "questions": [
+    //     {
+    //       "questionId": 101,
+    //       "questionText": "What is 2 + 2?",
+    //       "choices": ["2", "3", "4", "5"],
+    //       "correctIndex": 2,
+    //       "userAnswerCorrect": true
+    //     },
+    //     ...
+    //   ]
+    // }
 }
 
 export const quizRepo = new QuizRepo();
