@@ -79,6 +79,7 @@ class ClassRepo {
     public async getClassByInvitationCode(invitationCode: string): Promise<IClass> {
         const [result] = await db
             .select({
+                teacherId: classesTable.teacherId,
                 classId: classesTable.classId,
                 name: classesTable.name,
                 description: classesTable.description,
