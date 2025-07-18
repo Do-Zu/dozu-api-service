@@ -9,6 +9,17 @@ import { ItemTrackingWithTopic } from '@/services/schedule/types/schedule.index'
  * Repository for Schedule data access operations
  */
 class ScheduleRepository {
+    private readonly LIMIT_ITEM_TRACKING = 400;
+
+    /**
+     * Retrieves a list of item tracking records for a user within a specified week.
+     * This method fetches the item tracking data along with associated topic details.
+     *
+     * @param userId - The ID of the user whose item tracking records are to be fetched.
+     * @param fromDate - The start date of the week in ISO format (YYYY-MM-DD).
+     * @param toDate - The end date of the week in ISO format (YYYY-MM-DD).
+     * @returns A promise that resolves to an array of ItemTrackingWithTopic objects.
+     */
     async getListItemTrackingByUserIdInWeek(
         userId: number,
         fromDate: string,
@@ -40,7 +51,8 @@ class ScheduleRepository {
                         lte(itemSpacedRepetitionTrackingTable.nextReview, toDate)
                     )
                 )
-            );
+            )
+            .limit(this.LIMIT_ITEM_TRACKING);
 
         return result;
     }
