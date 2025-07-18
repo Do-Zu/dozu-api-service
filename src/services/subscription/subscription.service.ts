@@ -221,9 +221,6 @@ export class SubscriptionService {
                 status: 'active',
                 currentPeriodStart: startDateSubscription,
                 currentPeriodEnd: endDateSubscription,
-                paymentStatus: 'pending',
-                amount: paymentData?.amount?.toString(),
-                currency: paymentData?.currency || this.DEFAULT_CURRENCY,
                 externalSubscriptionId: paymentData?.externalSubscriptionId,
                 autoRenew: true,
             };
@@ -500,7 +497,7 @@ export class SubscriptionService {
                 .where(eq(userSubscriptionsTable.subscriptionId, currentSubscription[0].subscriptionId));
 
             // Create new subscription within same transaction
-            const { planType, billingInterval , price} = await planService.getPlanById(newPlanId);
+            const { planType, billingInterval } = await planService.getPlanById(newPlanId);
 
             if (!planType || !billingInterval) {
                 throw new NotFoundError(`Plan unavailable!`);
@@ -515,9 +512,6 @@ export class SubscriptionService {
                 status: 'active',
                 currentPeriodStart: startDateSubscription,
                 currentPeriodEnd: endDateSubscription,
-                paymentStatus: 'paid',
-                amount: price,
-                currency: paymentData?.currency || 'USD',
                 externalSubscriptionId: paymentData?.externalSubscriptionId,
                 autoRenew: false,
             };
@@ -561,7 +555,6 @@ export class SubscriptionService {
             .set({
                 currentPeriodStart: newPeriodStart,
                 currentPeriodEnd: newPeriodEnd,
-                paymentStatus: 'pending',
                 updatedAt: new Date(),
             })
             .where(eq(userSubscriptionsTable.subscriptionId, subscriptionId));
