@@ -32,7 +32,27 @@ export * from '@/models/schedule/reminder.model';
 
 export * from '@/models/tracking/taskProgress.model';
 
+export * from '@/models/mindmap/mindmap.model';
+
 //auth
 export * from '@/models/auth/emailVerificationCode.model';
 
 export * from '@/models/auth/authAccount.model';
+
+export * from '@/models/auth/role.model';
+
+export * from '@/models/auth/userRole.model';
+
+export * from '@/models/auth/permission.model';
+
+export * from '@/models/auth/rolePermission.model';
+
+//payment
+export * from '@/models/subscription';
+
+export * from '@/models/payment';
+
+// class based learning
+export * from '@/models/class-based-learning/class.model';
+
+export * from '@/models/class-based-learning/classEnrollment.model';

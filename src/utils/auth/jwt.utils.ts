@@ -19,11 +19,15 @@ export const signAccessJwtToken = (user: SanitizedUser): string => {
   if (!jwtSecretKey) {
     throw new Error('JWT_SECRET is not defined in environment variables');
   }
-  const token = jwt.sign({ user }, jwtSecretKey, {
-    algorithm: 'HS256',
-    allowInsecureKeySizes: true,
-    expiresIn: expiresIn,
-  });
+  const token = jwt.sign(
+    { userId: user.userId, roles: user.roles, email: user.email },
+    jwtSecretKey,
+    {
+      algorithm: 'HS256',
+      allowInsecureKeySizes: true,
+      expiresIn: expiresIn,
+    }
+  );
   return token;
 };
 
@@ -56,8 +60,8 @@ export const decodeJwtToken = (token: string): GoogleIdTokenPayload => {
     typeof decoded.sub !== 'string' ||
     typeof decoded.email !== 'string'
   ) {
+    console.log('google token:', token);
     throw new Error('Invalid token payload');
-    //todo:check if error thrown correctly
   }
   return decoded as GoogleIdTokenPayload;
 };

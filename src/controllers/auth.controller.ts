@@ -119,25 +119,24 @@ export const getProfileController = async (req: Request, res: Response) => {
 };
 
 export const googleOAuthRedirectController = async (req: Request, res: Response) => {
-  const code = req.query.code!; //code returned by google
+  const code = req.body.code;
   if (!code || typeof code !== 'string') {
     throw new AuthenticationError('Google authentication failed');
   }
   //todo:chase these into services
   // const data = await getOAuthJwtTokenService(code);
   // const decoded = decodeJwtToken(data);
-  const data = await googleOAuthLoginService(code);
+  const data: any = await googleOAuthLoginService(code);
 
   if (data.success) {
-    const sanitizedUser = sanitizeUserObject(data.user);
+    const sanitizedUser: any = sanitizeUserObject(data.user);
     const accessToken = signAccessJwtToken(sanitizedUser);
-    res.redirect(`${frontEndBaseUrl}/?token=${accessToken}`);
+    sanitizedUser.accessToken = accessToken;
+    SuccessResponse.ok(res, sanitizedUser);
 
     //todo: includes token of some kind for FE & handle on frontend
   } else {
     res.redirect(`${frontEndBaseUrl}/auth/login`);
     //todo: include message of some kind for FE
   }
-
-  SuccessResponse.ok(res, data);
 };

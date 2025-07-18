@@ -1,284 +1,314 @@
 name: AWS EC2 CI/CD Pipeline
 
 on:
-  workflow_dispatch:
-    inputs:
-      branch:
-        description: 'Branch to deploy'
-        required: true
-        default: 'feature/merge'
-        type: choice
-        options:
-          - develop
-          - feature/merge
-          - feature/pipeline
-      environment:
-        description: 'Environment to deploy to'
-        required: true
-        default: 'development'
-        type: choice
-        options:
-          - development
-          - production
+    workflow_dispatch:
+        inputs:
+            branch:
+                description: 'Branch to deploy'
+                required: true
+                default: 'feature/merge'
+                type: choice
+                options:
+                    - develop
+                    - feature/merge
+                    - feature/pipeline
+            environment:
+                description: 'Environment to deploy to'
+                required: true
+                default: 'development'
+                type: choice
+                options:
+                    - development
+                    - production
 
 env:
-  NODE_VERSION: '20.x'
-  PROJECT_DIR: '/projects/dozu-api-service'
+    NODE_VERSION: '20.x'
+    PROJECT_DIR: '/projects/dozu-api-service'
 
 jobs:
-  # lint:
-  #   name: Lint
-  #   runs-on: ubuntu-latest
+    # lint:
+    #   name: Lint
+    #   runs-on: ubuntu-latest
 
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v2
+    #   steps:
+    #     - name: Checkout code
+    #       uses: actions/checkout@v2
 
-  #     - name: Set up Node.js
-  #       uses: actions/setup-node@v2
-  #       with:
-  #         node-version: ${{ env.NODE_VERSION }}
+    #     - name: Set up Node.js
+    #       uses: actions/setup-node@v2
+    #       with:
+    #         node-version: ${{ env.NODE_VERSION }}
 
-  #     - name: Install dependencies
-  #       run: npm ci
+    #     - name: Install dependencies
+    #       run: npm ci
 
-  #     - name: Run ESLint
-  #       run: npm run lint
-  check-connection:
-    name: Check EC2 Connection
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install SSH key
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+    #     - name: Run ESLint
+    #       run: npm run lint
+    check-connection:
+        name: Check EC2 Connection
+        runs-on: ubuntu-latest
+        steps:
+            - name: Install SSH key
+              uses: webfactory/ssh-agent@v0.9.0
+              with:
+                  ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-      - name: Add EC2 host to known hosts
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+            - name: Add EC2 host to known hosts
+              run: |
+                  mkdir -p ~/.ssh
+                  ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Check connection to EC2 and root access
-        run: |
-          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "echo 'Connection successful!' && echo 'Checking sudo access:' && sudo -n echo 'Sudo access confirmed'"
-  build:
-    needs: check-connection
-    name: build
-    runs-on: ubuntu-latest
+            - name: Check connection to EC2 and root access
+              run: |
+                  ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "echo 'Connection successful!' && echo 'Checking sudo access:' && sudo -n echo 'Sudo access confirmed'"
+    build:
+        needs: check-connection
+        name: build
+        runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v2
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: ${{ env.NODE_VERSION }}
+            - name: Set up Node.js
+              uses: actions/setup-node@v2
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
 
-      - name: Install dependencies
-        run: npm ci
+            - name: Install dependencies
+              run: npm ci
 
-      - name: Build
-        run: npm run build
+            - name: Build
+              run: npm run build
 
-  deploy-ec2:
-    needs: build
-    name: Deploy to EC2
-    runs-on: ubuntu-latest
+    deploy-ec2:
+        needs: build
+        name: Deploy to EC2
+        runs-on: ubuntu-latest
 
-    steps:
-      - name: Install SSH key
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+        steps:
+            - name: Install SSH key
+              uses: webfactory/ssh-agent@v0.9.0
+              with:
+                  ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-      - name: Add EC2 host to known hosts
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+            - name: Add EC2 host to known hosts
+              run: |
+                  mkdir -p ~/.ssh
+                  ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Create deployment script
-        run: |
-          cat > deploy.sh << 'EOL'
-          #!/bin/bash
-          set -e
+            - name: Create deployment script
+              run: |
+                  cat > deploy.sh << 'EOL'
+                  #!/bin/bash
+                  set -e
 
-          PROJECT_DIR="$1"
-          BRANCH="$2"
-          ENV="$3"
-          OPENAI_KEY="$4"
-          GOOGLE_KEY="$5"
-          REDIS_REC_HOST="$6"
-          REDIS_REC_PORT="$7"
-          REDIS_REC_PASSWORD="$8"
-          REDIS_REC_DB="$9"
-          REDIS_REC_USERNAME="${10}"
-          REDIS_PUBSUB_HOST="${11}"
-          REDIS_PUBSUB_PORT="${12}"
-          REDIS_PUBSUB_PASSWORD="${13}"
-          REDIS_PUBSUB_DB="${14}"
-          AWS_REGION="${15}"
-          ACCESS_KEY_ID_AWS="${16}"
-          SECRET_ACCESS_KEY_AWS="${17}"
-          FRONTEND_BASE_URL="${18}"
-          MAIL_HOST="${19}"
-          MAIL_USERNAME="${20}"
-          MAIL_APP_PASSWORD="${21}"
-          JWT_SECRET="${22}"
-          GOOGLE_CLIENT_ID="${23}"
-          GOOGLE_CLIENT_SECRET="${24}"
+                  PROJECT_DIR="$1"
+                  BRANCH="$2"
+                  ENV="$3"
+                  OPENAI_KEY="$4"
+                  GOOGLE_KEY="$5"
+                  REDIS_HOST="$6"
+                  REDIS_PORT="$7"
+                  REDIS_PASSWORD="$8"
+                  REDIS_DB="$9"
+                  REDIS_USERNAME="${10}"
+                  REDIS_PUBSUB_HOST="${11}"
+                  REDIS_PUBSUB_PORT="${12}"
+                  REDIS_PUBSUB_PASSWORD="${13}"
+                  REDIS_PUBSUB_DB="${14}"
+                  AWS_REGION="${15}"
+                  ACCESS_KEY_ID_AWS="${16}"
+                  SECRET_ACCESS_KEY_AWS="${17}"
+                  FRONTEND_BASE_URL="${18}"
+                  BACKEND_BASE_URL="${19}" 
+                  MAIL_HOST="${20}"
+                  MAIL_USERNAME="${21}"
+                  MAIL_APP_PASSWORD="${22}"
+                  JWT_SECRET="${23}"
+                  GOOGLE_CLIENT_ID="${24}"
+                  GOOGLE_CLIENT_SECRET="${25}"
+                  CLOUDINARY_CLOUD_NAME="${26}"
+                  CLOUDINARY_API_KEY="${27}"
+                  CLOUDINARY_API_SECRET="${28}"
+                  PAY_OS_CLIENT_ID="${29}"
+                  PAY_OS_API_KEY="${30}"
+                  PAY_OS_CHECKSUM_KEY="${31}"
 
-          # Determine which env file to use
-          if [ "$ENV" = "production" ]; then
-            ENV_FILE=".env.production"
-          else
-            ENV_FILE=".env.development"
-          fi
+                  # Determine which env file to use
+                  if [ "$ENV" = "production" ]; then
+                    ENV_FILE=".env.production"
+                  else
+                    ENV_FILE=".env.development"
+                  fi
 
-          # Ensure project directory exists with correct permission
-          cd /
+                  # Ensure project directory exists with correct permission
+                  cd /
 
-          sudo mkdir -p "$PROJECT_DIR"
-          sudo chown -R $(whoami):$(whoami) "$PROJECT_DIR"
+                  sudo mkdir -p "$PROJECT_DIR"
+                  sudo chown -R $(whoami):$(whoami) "$PROJECT_DIR"
 
-          cd "$PROJECT_DIR" || { echo "Failed to change directory to $PROJECT_DIR"; exit 1; }
+                  cd "$PROJECT_DIR" || { echo "Failed to change directory to $PROJECT_DIR"; exit 1; }
 
-          if [ -d .git ]; then
-            echo "Git repository exists, fetching changes..."
-            git checkout "$BRANCH" || git checkout -b "$BRANCH" "origin/$BRANCH"
-            git pull origin "$BRANCH"
-          else
-            echo "Cloning fresh repository..."
-            rm -rf * .[!.]* ..?*
-            git init
-            git remote add origin https://github.com/perinst/dozu-api-service.git
-            git checkout -b "$BRANCH" "origin/$BRANCH"
-          fi
+                  if [ -d .git ]; then
+                    echo "Git repository exists, fetching changes..."
+                    git checkout "$BRANCH" || git checkout -b "$BRANCH" "origin/$BRANCH"
+                    git pull origin "$BRANCH"
+                  else
+                    echo "Cloning fresh repository..."
+                    rm -rf * .[!.]* ..?*
+                    git init
+                    git remote add origin https://github.com/perinst/dozu-api-service.git
+                    git checkout -b "$BRANCH" "origin/$BRANCH"
+                  fi
 
-          # Ensure env file exists
-          echo "Configuring environment variables in $ENV_FILE..."
-          touch "$ENV_FILE"
+                  # Ensure env file exists
+                  echo "Configuring environment variables in $ENV_FILE..."
+                  touch "$ENV_FILE"
 
-          # Update environment variables in the appropriate env file
-          # Function to update or add a variable to the env file
+                  # Update environment variables in the appropriate env file
+                  # Function to update or add a variable to the env file
 
-          update_env_var() {
-            local key=$1
-            local value=$2
-            if grep -q "^${key}=" "$ENV_FILE"; then
-              # Replace existing value
-              sed -i "s|^${key}=.*|${key}=${value}|" "$ENV_FILE"
-            else
-              # Add new value
-              echo "${key}=${value}" >> "$ENV_FILE"
-            fi
-          }
+                  update_env_var() {
+                    local key=$1
+                    local value=$2
+                    if grep -q "^${key}=" "$ENV_FILE"; then
+                      # Replace existing value
+                      sed -i "s|^${key}=.*|${key}=${value}|" "$ENV_FILE"
+                    else
+                      # Add new value
+                      echo "${key}=${value}" >> "$ENV_FILE"
+                    fi
+                  }
 
-          # Log environment variables (safely) for debugging
-          echo "======== Environment Variables in $ENV_FILE (Debug) ========"
-          echo "Environment: $ENV"
+                  # Log environment variables (safely) for debugging
+                  echo "======== Environment Variables in $ENV_FILE (Debug) ========"
+                  echo "Environment: $ENV"
 
-          # Print all variables with masked sensitive values
-          mask_value() {
-            if [ -z "$1" ]; then
-              echo "[EMPTY]"
-            else
-              local length=${#1}
-              if [ "$length" -gt 8 ]; then
-                echo "${1:0:4}...${1:$(($length - 4))}"
-              else
-                echo "$1"
-              fi
-            fi
-          }
-            
-          echo "OPENAI_API_KEY: $(mask_value "$OPENAI_KEY")"
-          echo "GOOGLE_STUDIO_API_KEY: $(mask_value "$GOOGLE_KEY")"
-          echo "REDIS_HOST: $REDIS_HOST"
-          echo "REDIS_PORT: $REDIS_PORT"
-          echo "REDIS_PASSWORD: $(mask_value "$REDIS_PASSWORD")"
-          echo "REDIS_DB: $REDIS_DB"
-          echo "REDIS_USERNAME: $REDIS_USERNAME"
-          echo "AWS_REGION: $AWS_REGION"
-          echo "ACCESS_KEY_ID_AWS: $(mask_value "$ACCESS_KEY_ID_AWS")"
-          echo "SECRET_ACCESS_KEY_AWS: $(mask_value "$SECRET_ACCESS_KEY_AWS")"
-          echo "FRONTEND_BASE_URL: $FRONTEND_BASE_URL"
-          echo "BACKEND_BASE_URL: $BACKEND_BASE_URL"
-          echo "MAIL_HOST: $MAIL_HOST"
-          echo "MAIL_USERNAME: $MAIL_USERNAME"
-          echo "MAIL_APP_PASSWORD: $(mask_value "$MAIL_APP_PASSWORD")"
-          echo "JWT_SECRET: $(mask_value "$JWT_SECRET")"
-          echo "GOOGLE_CLIENT_ID: $GOOGLE_CLIENT_ID"
-          echo "GOOGLE_CLIENT_SECRET: $(mask_value "$GOOGLE_CLIENT_SECRET")"
-          echo "GOOGLE_REDIRECT_URI: $GOOGLE_REDIRECT_URI"
+                  # Print all variables with masked sensitive values
+                  mask_value() {
+                    if [ -z "$1" ]; then
+                      echo "[EMPTY]"
+                    else
+                      local length=${#1}
+                      if [ "$length" -gt 8 ]; then
+                        echo "${1:0:4}...${1:$(($length - 4))}"
+                      else
+                        echo "$1"
+                      fi
+                    fi
+                  }
+                    
+                  echo "OPENAI_API_KEY: $(mask_value "$OPENAI_KEY")"
+                  echo "GOOGLE_STUDIO_API_KEY: $(mask_value "$GOOGLE_KEY")"
+                  echo "REDIS_HOST: $REDIS_HOST"
+                  echo "REDIS_PORT: $REDIS_PORT"
+                  echo "REDIS_PASSWORD: $(mask_value "$REDIS_PASSWORD")"
+                  echo "REDIS_DB: $REDIS_DB"
+                  echo "REDIS_USERNAME: $REDIS_USERNAME"
+                  echo "AWS_REGION: $AWS_REGION"
+                  echo "ACCESS_KEY_ID_AWS: $(mask_value "$ACCESS_KEY_ID_AWS")"
+                  echo "SECRET_ACCESS_KEY_AWS: $(mask_value "$SECRET_ACCESS_KEY_AWS")"
+                  echo "FRONTEND_BASE_URL: $FRONTEND_BASE_URL"
+                  echo "BACKEND_BASE_URL: $BACKEND_BASE_URL"
+                  echo "MAIL_HOST: $MAIL_HOST"
+                  echo "MAIL_USERNAME: $MAIL_USERNAME"
+                  echo "MAIL_APP_PASSWORD: $(mask_value "$MAIL_APP_PASSWORD")"
+                  echo "JWT_SECRET: $(mask_value "$JWT_SECRET")"
+                  echo "GOOGLE_CLIENT_ID: $GOOGLE_CLIENT_ID"
+                  echo "GOOGLE_CLIENT_SECRET: $(mask_value "$GOOGLE_CLIENT_SECRET")"
+                  echo "CLOUDINARY_CLOUD_NAME: $CLOUDINARY_CLOUD_NAME"
+                  echo "CLOUDINARY_API_KEY: $CLOUDINARY_API_KEY"
+                  echo "CLOUDINARY_API_SECRET: $CLOUDINARY_API_SECRET"
+                  echo "PAY_OS_CLIENT_ID: $PAY_OS_CLIENT_ID"
+                  echo "PAY_OS_API_KEY: $(mask_value "$PAY_OS_API_KEY")"
+                  echo "PAY_OS_CHECKSUM_KEY: $(mask_value "$PAY_OS_CHECKSUM_KEY")"
 
-          update_env_var "OPENAI_API_KEY" "$OPENAI_KEY"
-          update_env_var "GOOGLE_STUDIO_API_KEY" "$GOOGLE_KEY"
-          update_env_var "REDIS_RECOMMENDATION_HOST" "$REDIS_REC_HOST"
-          update_env_var "REDIS_RECOMMENDATION_PORT" "$REDIS_REC_PORT"
-          update_env_var "REDIS_RECOMMENDATION_PASSWORD" "$REDIS_REC_PASSWORD"
-          update_env_var "REDIS_RECOMMENDATION_DB" "$REDIS_REC_DB"
-          update_env_var "REDIS_RECOMMENDATION_USERNAME" "$REDIS_REC_USERNAME"
-          update_env_var "REDIS_PUBSUB_HOST" "$REDIS_PUBSUB_HOST"
-          update_env_var "REDIS_PUBSUB_PORT" "$REDIS_PUBSUB_PORT"
-          update_env_var "REDIS_PUBSUB_PASSWORD" "$REDIS_PUBSUB_PASSWORD"
-          update_env_var "REDIS_PUBSUB_DB" "$REDIS_PUBSUB_DB"
-          update_env_var "AWS_REGION" "$AWS_REGION"
-          update_env_var "ACCESS_KEY_ID_AWS" "$ACCESS_KEY_ID_AWS"
-          update_env_var "SECRET_ACCESS_KEY_AWS" "$SECRET_ACCESS_KEY_AWS"
-          update_env_var "FRONTEND_BASE_URL" "$FRONTEND_BASE_URL"
-          update_env_var "MAIL_HOST" "$MAIL_HOST"
-          update_env_var "MAIL_USERNAME" "$MAIL_USERNAME"
-          update_env_var "MAIL_APP_PASSWORD" "$MAIL_APP_PASSWORD"
-          update_env_var "JWT_SECRET" "$JWT_SECRET"
-          update_env_var "GOOGLE_CLIENT_ID" "$GOOGLE_CLIENT_ID"
-          update_env_var "GOOGLE_CLIENT_SECRET" "$GOOGLE_CLIENT_SECRET"
+                  update_env_var "OPENAI_API_KEY" "$OPENAI_KEY"
+                  update_env_var "GOOGLE_STUDIO_API_KEY" "$GOOGLE_KEY"
+                  update_env_var "REDIS_HOST" "$REDIS_HOST"
+                  update_env_var "REDIS_PORT" "$REDIS_PORT"
+                  update_env_var "REDIS_PASSWORD" "$REDIS_PASSWORD"
+                  update_env_var "REDIS_DB" "$REDIS_DB"
+                  update_env_var "REDIS_USERNAME" "$REDIS_USERNAME"
+                  update_env_var "REDIS_PUBSUB_HOST" "$REDIS_PUBSUB_HOST"
+                  update_env_var "REDIS_PUBSUB_PORT" "$REDIS_PUBSUB_PORT"
+                  update_env_var "REDIS_PUBSUB_PASSWORD" "$REDIS_PUBSUB_PASSWORD"
+                  update_env_var "REDIS_PUBSUB_DB" "$REDIS_PUBSUB_DB"
+                  update_env_var "AWS_REGION" "$AWS_REGION"
+                  update_env_var "ACCESS_KEY_ID_AWS" "$ACCESS_KEY_ID_AWS"
+                  update_env_var "SECRET_ACCESS_KEY_AWS" "$SECRET_ACCESS_KEY_AWS"
+                  update_env_var "FRONTEND_BASE_URL" "$FRONTEND_BASE_URL"
+                  update_env_var "BACKEND_BASE_URL" "$BACKEND_BASE_URL"
+                  update_env_var "MAIL_HOST" "$MAIL_HOST"
+                  update_env_var "MAIL_USERNAME" "$MAIL_USERNAME"
+                  update_env_var "MAIL_APP_PASSWORD" "$MAIL_APP_PASSWORD"
+                  update_env_var "JWT_SECRET" "$JWT_SECRET"
+                  update_env_var "GOOGLE_CLIENT_ID" "$GOOGLE_CLIENT_ID"
+                  update_env_var "GOOGLE_CLIENT_SECRET" "$GOOGLE_CLIENT_SECRET"
+                  update_env_var "CLOUDINARY_CLOUD_NAME" "$CLOUDINARY_CLOUD_NAME"
+                  update_env_var "CLOUDINARY_API_KEY" "$CLOUDINARY_API_KEY"
+                  update_env_var "CLOUDINARY_API_SECRET" "$CLOUDINARY_API_SECRET"
+                  update_env_var "PAY_OS_CLIENT_ID" "$PAY_OS_CLIENT_ID"
+                  update_env_var "PAY_OS_API_KEY" "$PAY_OS_API_KEY"
+                  update_env_var "PAY_OS_CHECKSUM_KEY" "$PAY_OS_CHECKSUM_KEY"
 
+                  # Start Docker with the appropriate env file
+                  echo "Starting Docker services with $ENV_FILE..."
 
-          # Start Docker with the appropriate env file
-          echo "Starting Docker services with $ENV_FILE..."
+                  sudo docker-compose build --build-arg ENV_FILE=$ENV_FILE api
+                  sudo docker-compose --env-file $ENV_FILE up -d api
 
-          sudo docker-compose build --build-arg ENV_FILE=$ENV_FILE api
-          sudo docker-compose --env-file $ENV_FILE up -d api
+                  echo "Deployment complete!"
+                  sudo docker-compose ps
+                  sudo docker-compose logs --tail=20
 
-          echo "Deployment complete!"
-          sudo docker-compose ps
-          sudo docker-compose logs --tail=20
-          EOL
+                  echo "Cleaning up old Docker images unused"
+                  sudo docker image prune -a -f
 
-          chmod +x deploy.sh
+                  EOL
 
-      - name: Copy deployment script to EC2
-        run: |
-          scp deploy.sh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:~/deploy.sh
+                  chmod +x deploy.sh
 
-      - name: Run deployment on EC2
-        run: |
-          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} \
-          "~/deploy.sh '${{ env.PROJECT_DIR }}' \
-          '${{ github.event.inputs.branch }}' \
-          '${{ github.event.inputs.environment }}' \
-          '${{ secrets.OPENAI_API_KEY }}' \
-          '${{ secrets.GOOGLE_STUDIO_API_KEY }}' \
-          '${{ secrets.REDIS_RECOMMENDATION_HOST }}' \
-          '${{ secrets.REDIS_RECOMMENDATION_PORT }}' \
-          '${{ secrets.REDIS_RECOMMENDATION_PASSWORD }}' \
-          '${{ secrets.REDIS_RECOMMENDATION_DB }}' \
-          '${{ secrets.REDIS_RECOMMENDATION_USERNAME }}' \
-          '${{ secrets.REDIS_PUBSUB_HOST }}' \
-          '${{ secrets.REDIS_PUBSUB_PORT }}' \
-          '${{ secrets.REDIS_PUBSUB_PASSWORD }}' \
-          '${{ secrets.REDIS_PUBSUB_DB }}' \
-          '${{ secrets.AWS_REGION }}' \
-          '${{ secrets.ACCESS_KEY_ID_AWS }}' \
-          '${{ secrets.SECRET_ACCESS_KEY_AWS }}' \
-          '${{ secrets.FRONTEND_BASE_URL }}' \
-          '${{ secrets.MAIL_HOST }}' \
-          '${{ secrets.MAIL_USERNAME }}' \
-          '${{ secrets.MAIL_APP_PASSWORD }}' \
-          '${{ secrets.JWT_SECRET }}' \
-          '${{ secrets.GOOGLE_CLIENT_ID }}' \
-          '${{ secrets.GOOGLE_CLIENT_SECRET }}'"
-      - name: Cleanup script
-        run: |
-          ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "rm -f ~/deploy.sh"
+            - name: Copy deployment script to EC2
+              run: |
+                  scp deploy.sh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }}:~/deploy.sh
+
+            - name: Run deployment on EC2
+              run: |
+                  ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} \
+                  "~/deploy.sh '${{ env.PROJECT_DIR }}' \
+                  '${{ github.event.inputs.branch }}' \
+                  '${{ github.event.inputs.environment }}' \
+                  '${{ secrets.OPENAI_API_KEY }}' \
+                  '${{ secrets.GOOGLE_STUDIO_API_KEY }}' \
+                  '${{ secrets.REDIS_HOST }}' \
+                  '${{ secrets.REDIS_PORT }}' \
+                  '${{ secrets.REDIS_PASSWORD }}' \
+                  '${{ secrets.REDIS_DB }}' \
+                  '${{ secrets.REDIS_USERNAME }}' \
+                  '${{ secrets.REDIS_PUBSUB_HOST }}' \
+                  '${{ secrets.REDIS_PUBSUB_PORT }}' \
+                  '${{ secrets.REDIS_PUBSUB_PASSWORD }}' \
+                  '${{ secrets.REDIS_PUBSUB_DB }}' \
+                  '${{ secrets.AWS_REGION }}' \
+                  '${{ secrets.ACCESS_KEY_ID_AWS }}' \
+                  '${{ secrets.SECRET_ACCESS_KEY_AWS }}' \
+                  '${{ secrets.FRONTEND_BASE_URL }}' \
+                  '${{ secrets.BACKEND_BASE_URL }}' \
+                  '${{ secrets.MAIL_HOST }}' \
+                  '${{ secrets.MAIL_USERNAME }}' \
+                  '${{ secrets.MAIL_APP_PASSWORD }}' \
+                  '${{ secrets.JWT_SECRET }}' \
+                  '${{ secrets.GOOGLE_CLIENT_ID }}' \
+                  '${{ secrets.GOOGLE_CLIENT_SECRET }}' \
+                  '${{ secrets.CLOUDINARY_CLOUD_NAME }}' \
+                  '${{ secrets.CLOUDINARY_API_KEY }}' \
+                  '${{ secrets.CLOUDINARY_API_SECRET }}' \
+                  '${{ secrets.PAY_OS_CLIENT_ID }}' \
+                  '${{ secrets.PAY_OS_API_KEY }}' \
+                  '${{ secrets.PAY_OS_CHECKSUM_KEY }}' \
+                  "
+            - name: Cleanup script
+              run: |
+                  ssh ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "rm -f ~/deploy.sh"

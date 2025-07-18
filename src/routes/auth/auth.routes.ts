@@ -27,7 +27,7 @@ router.post('/logout', logoutController);
 router.post('/refresh-token',refreshTokenController)
 router.get('/verify-email', verifyEmailController);
 router.get('/profile', authMiddleware, getProfileController);
-router.get('/google', googleOAuthRedirectController);
+router.post('/google', googleOAuthRedirectController);
 
 registerRoute('/auth', router, {
   description: 'Authentication endpoints',
