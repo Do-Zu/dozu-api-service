@@ -102,10 +102,6 @@ class GenerativeService extends BaseGenerativeService {
 
         try {
             if (!job || !dataGenerated || !jobId) {
-                console.log({
-                    jobId,
-                    dataGenerated,
-                });
                 throw new ServiceUnavailable('Processor received invalid data!');
             }
 
