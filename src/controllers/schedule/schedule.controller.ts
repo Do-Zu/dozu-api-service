@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { scheduleService } from '@/services/schedule/schedule.service';
 import { SuccessResponse } from '@/core/success';
 import { BadRequest } from '@/core/error';
+import { getTimezoneClient } from '@/utils/date';
 
 /**
  * Controller class for Schedule functionality
@@ -25,7 +26,8 @@ class ScheduleController {
      */
     async generateSchedule(req: Request, res: Response) {
         const userId = req.currentUser?.userId;
-        const { fromDate, toDate, timezone } = req.body;
+        const timezone = getTimezoneClient(req);
+        const { fromDate, toDate } = req.body;
 
         if (!userId) {
             throw new BadRequest('Unauthorized!');

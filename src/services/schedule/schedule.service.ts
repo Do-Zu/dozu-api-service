@@ -7,30 +7,42 @@ import { SchedulePriorityQueue } from '@/utils/queue/schedule.queue';
 
 const DEFINE_DEFAULT_FREE_TIME: FreeTimeSlotDays = {
     Monday: [
-        { startTime: '07:45', endTime: '12:30' },
-        { startTime: '14:00', endTime: '15:45' },
+        { startTime: '05:00', endTime: '06:00' },
+        { startTime: '07:00', endTime: '11:30' },
+        { startTime: '14:00', endTime: '17:00' },
+        { startTime: '20:00', endTime: '22:00' },
     ],
-    Tuesday: [{ startTime: '13:45', endTime: '16:30' }],
+    Tuesday: [
+        { startTime: '07:30', endTime: '11:30' },
+        { startTime: '14:00', endTime: '17:00' },
+        { startTime: '19:30', endTime: '22:00' },
+    ],
     Wednesday: [
-        { startTime: '08:15', endTime: '10:15' },
-        { startTime: '14:15', endTime: '14:45' },
-        { startTime: '15:30', endTime: '16:30' },
+        { startTime: '05:15', endTime: '06:30' },
+        { startTime: '08:15', endTime: '11:15' },
+        { startTime: '14:15', endTime: '17:30' },
+        { startTime: '20:30', endTime: '22:30' },
     ],
     Thursday: [
-        { startTime: '13:15', endTime: '14:00' },
-        { startTime: '15:00', endTime: '17:15' },
-        { startTime: '17:45', endTime: '22:30' },
+        { startTime: '05:15', endTime: '06:00' },
+        { startTime: '08:15', endTime: '10:00' },
+        { startTime: '14:00', endTime: '17:35' },
+        { startTime: '18:45', endTime: '22:30' },
     ],
     Friday: [
+        { startTime: '09:15', endTime: '11:00' },
         { startTime: '13:45', endTime: '15:15' },
         { startTime: '17:45', endTime: '22:45' },
     ],
     Saturday: [
-        { startTime: '10:00', endTime: '14:15' },
-        { startTime: '13:45', endTime: '16:15' },
+        { startTime: '07:30', endTime: '11:30' },
+        { startTime: '13:45', endTime: '16:30' },
         { startTime: '20:15', endTime: '21:45' },
     ],
-    Sunday: [],
+    Sunday: [
+        { startTime: '05:00', endTime: '9:00' },
+        { startTime: '14:00', endTime: '16:00' },
+    ],
 };
 
 const USER_PREFERRED_SESSION_LEARNING = 'morning';
@@ -47,12 +59,15 @@ class ScheduleService {
     private readonly MIN_SLOT_DURATION_MINUTES = 30; // Minimum time for a productive study session
     private readonly REVIEW_PRIORITY_MULTIPLIER = 1.5; // Boost priority for review items
     private readonly NEW_ITEM_PRIORITY_MULTIPLIER = 1.2; // Boost priority for new items
+    private readonly PRIORITY_STATUS_ITEM_LEARNING_TRACKING = { new: 3, learning: 2, review: 1 }; // Max items in priority queue
     /**
      * Retrieves the schedule for the current week.
      * @returns An array of time slots for the current week or an empty array if not implemented.
      */
-    private async getFreeTimeSlots(userId: string) {
-        return await userRepository.getFreeTimeSlots(userId);
+    private async getFreeTimeSlots(userId: number) {
+        const freeTimes: FreeTimeSlotDays | null = await userRepository.getFreeTimeSlots(userId);
+        if (!freeTimes) return DEFINE_DEFAULT_FREE_TIME;
+        return freeTimes;
     }
 
     /**
@@ -61,129 +76,6 @@ class ScheduleService {
      */
     public async getScheduleInWeek() {
         return null;
-    }
-
-    /**
-     * Calculate optimal items per slot based on difficulty and time available
-     */
-    private calculateOptimalItemsPerSlot(
-        items: IGroupTopic[],
-        availableMinutes: number
-    ): { itemsPerSlot: number; numberOfSlots: number } {
-        const totalItems = items.length;
-        const averageDifficulty = items.reduce((sum, item) => sum + parseFloat(item.easinessFactor), 0) / totalItems;
-
-        // Adjust items per slot based on difficulty (lower easiness = harder = fewer items per slot)
-        let baseItemsPerSlot = Math.floor(availableMinutes / this.DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM);
-
-        // Apply difficulty adjustment
-        if (averageDifficulty < 2.0) {
-            baseItemsPerSlot = Math.min(baseItemsPerSlot * 0.7, this.MAX_ITEMS_PER_SLOT);
-        } else if (averageDifficulty > 3.0) {
-            baseItemsPerSlot = Math.min(baseItemsPerSlot * 1.2, this.MAX_ITEMS_PER_SLOT);
-        }
-
-        // Ensure within bounds
-        const itemsPerSlot = Math.max(this.MIN_ITEMS_PER_SLOT, Math.min(this.MAX_ITEMS_PER_SLOT, baseItemsPerSlot));
-        const numberOfSlots = Math.ceil(totalItems / itemsPerSlot);
-
-        return { itemsPerSlot, numberOfSlots };
-    }
-
-    /**
-     * Split items into optimal chunks for studying
-     */
-    private splitItemsIntoStudyChunks(items: IGroupTopic[], targetItemsPerChunk: number): IGroupTopic[][] {
-        const chunks: IGroupTopic[][] = [];
-
-        // Sort items by priority (new items first, then by difficulty)
-        const sortedItems = [...items].sort((a, b) => {
-            // Prioritize by status: new > learning > review
-            const statusPriority = { new: 3, learning: 2, review: 1 };
-            const aStatusPriority = statusPriority[a.status as keyof typeof statusPriority] || 0;
-            const bStatusPriority = statusPriority[b.status as keyof typeof statusPriority] || 0;
-
-            if (aStatusPriority !== bStatusPriority) {
-                return bStatusPriority - aStatusPriority;
-            }
-
-            // Then by difficulty (harder items first within same status)
-            return parseFloat(a.easinessFactor) - parseFloat(b.easinessFactor);
-        });
-
-        // Split into chunks with mixed difficulty
-        for (let i = 0; i < sortedItems.length; i += targetItemsPerChunk) {
-            const chunk = sortedItems.slice(i, i + targetItemsPerChunk);
-            if (chunk.length >= this.MIN_ITEMS_PER_SLOT || i + targetItemsPerChunk >= sortedItems.length) {
-                chunks.push(chunk);
-            } else {
-                // Add remaining items to last chunk if it's too small
-                if (chunks.length > 0) {
-                    chunks[chunks.length - 1].push(...chunk);
-                } else {
-                    chunks.push(chunk);
-                }
-            }
-        }
-
-        return chunks;
-    }
-
-    /**
-     * Calculate enhanced priority with smart weighting
-     *      -------------- Low Easiness Factor → High Priority -----------------
-            Lower easinessFactorSum = smaller numerator = higher priority
-            Items that are harder to remember get more attention
-            ------------------- High Repetition Count → Lower Priority -----------------
-            Higher repetitionNumberSum = larger denominator = lower priority
-            Items already reviewed many times get less attention
-              ----------------- Edge Case Handling ------------------
-            1 prevents division by zero when no items have repetitions
-            Ensures new items (with 0 repetitions) get appropriate priority
-              ----------------- Status Consideration ------------------
-            New topics naturally get higher priority since they have lower repetition counts
-            The grouping by status earlier in the code ensures proper categorization
-            ES for new topic is usually 2.5 and repetition is 0 , so it will be handled correctly
-     */
-    private calculatePriority(items: IGroupTopic[]): number {
-        const easinessFactorSum = items.reduce((sum, item) => sum + parseFloat(item.easinessFactor), 0);
-        const repetitionNumberSum = items.reduce((sum, item) => sum + (item.repetition || 0), 0);
-
-        // Base priority calculation
-        let priority = easinessFactorSum / (repetitionNumberSum + 1);
-
-        // Apply status-based multipliers
-        const statusCounts = items.reduce(
-            (acc, item) => {
-                acc[item.status] = (acc[item.status] || 0) + 1;
-                return acc;
-            },
-            {} as Record<string, number>
-        );
-
-        if (statusCounts['new'] > 0) {
-            priority *= this.NEW_ITEM_PRIORITY_MULTIPLIER;
-        }
-        if (statusCounts['review'] > 0) {
-            priority *= this.REVIEW_PRIORITY_MULTIPLIER;
-        }
-
-        // Boost priority for overdue items
-        const now = new Date();
-        const overdueCount = items.filter(item => item.reviewDate && new Date(item.reviewDate) < now).length;
-
-        if (overdueCount > 0) {
-            priority *= 1 + (overdueCount / items.length) * 0.5; // Up to 50% boost for overdue items
-        }
-
-        return priority;
-    }
-
-    /**
-     * Check if a time slot can accommodate the minimum study session
-     */
-    private isSlotViable(slotDurationMinutes: number): boolean {
-        return slotDurationMinutes >= this.MIN_SLOT_DURATION_MINUTES;
     }
 
     /**
@@ -222,7 +114,7 @@ class ScheduleService {
             };
         }
 
-        let freeTimeSlotPerDay = this.DEFAULT_FREE_TIME;
+        const freeTimeSlotPerDay = await this.getFreeTimeSlots(userId);
 
         const scheduleMap: Record<string, IGroupTopic[]> = {};
 
@@ -412,7 +304,7 @@ class ScheduleService {
                 }
             }
 
-            // Add waiting items from previous days
+            // Add waiting items from previous days and process today's schedule
             while (!scheduleWaitingPriorityQueue.isEmpty()) {
                 const waitingItem = scheduleWaitingPriorityQueue.dequeue();
                 if (waitingItem) {
@@ -437,9 +329,11 @@ class ScheduleService {
                     const nextItem = dailyPriorityQueue.peek();
                     if (!nextItem) break;
 
+                    // Time required for items in this slot
                     const itemDuration =
                         nextItem.amountItem * this.DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM +
                         this.DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION;
+
                     const availableTime = (slotEnd.getTime() - slotStart.getTime()) / (60 * 1000);
 
                     if (availableTime < itemDuration) {
@@ -515,6 +409,129 @@ class ScheduleService {
                         : 0,
             },
         };
+    }
+
+    /**
+     * Calculate optimal items per slot based on difficulty and time available
+     */
+    private calculateOptimalItemsPerSlot(
+        items: IGroupTopic[],
+        availableMinutes: number
+    ): { itemsPerSlot: number; numberOfSlots: number } {
+        const totalItems = items.length;
+        const averageDifficulty = items.reduce((sum, item) => sum + parseFloat(item.easinessFactor), 0) / totalItems;
+
+        // Adjust items per slot based on difficulty (lower easiness = harder = fewer items per slot)
+        let baseItemsPerSlot = Math.floor(availableMinutes / this.DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM);
+
+        // Apply difficulty adjustment
+        if (averageDifficulty < 2.0) {
+            baseItemsPerSlot = Math.min(baseItemsPerSlot * 0.7, this.MAX_ITEMS_PER_SLOT);
+        } else if (averageDifficulty > 3.0) {
+            baseItemsPerSlot = Math.min(baseItemsPerSlot * 1.2, this.MAX_ITEMS_PER_SLOT);
+        }
+
+        // Ensure within bounds
+        const itemsPerSlot = Math.max(this.MIN_ITEMS_PER_SLOT, Math.min(this.MAX_ITEMS_PER_SLOT, baseItemsPerSlot));
+        const numberOfSlots = Math.ceil(totalItems / itemsPerSlot);
+
+        return { itemsPerSlot, numberOfSlots };
+    }
+
+    /**
+     * Split items into optimal chunks for studying
+     */
+    private splitItemsIntoStudyChunks(items: IGroupTopic[], targetItemsPerChunk: number): IGroupTopic[][] {
+        const chunks: IGroupTopic[][] = [];
+
+        // Sort items by priority (new items first, then by difficulty)
+        const sortedItems = [...items].sort((a, b) => {
+            // Prioritize by status: new > learning > review
+            const statusPriority = this.PRIORITY_STATUS_ITEM_LEARNING_TRACKING;
+            const aStatusPriority = statusPriority[a.status as keyof typeof statusPriority] || 0;
+            const bStatusPriority = statusPriority[b.status as keyof typeof statusPriority] || 0;
+
+            if (aStatusPriority !== bStatusPriority) {
+                return bStatusPriority - aStatusPriority;
+            }
+
+            // Then by difficulty (harder items first within same status)
+            return parseFloat(a.easinessFactor) - parseFloat(b.easinessFactor);
+        });
+
+        // Split into chunks with mixed difficulty
+        for (let i = 0; i < sortedItems.length; i += targetItemsPerChunk) {
+            const chunk = sortedItems.slice(i, i + targetItemsPerChunk);
+            if (chunk.length >= this.MIN_ITEMS_PER_SLOT || i + targetItemsPerChunk >= sortedItems.length) {
+                chunks.push(chunk);
+            } else {
+                // Add remaining items to last chunk if it's too small
+                if (chunks.length > 0) {
+                    chunks[chunks.length - 1].push(...chunk);
+                } else {
+                    chunks.push(chunk);
+                }
+            }
+        }
+
+        return chunks;
+    }
+
+    /**
+     * Calculate enhanced priority with smart weighting
+     *      -------------- Low Easiness Factor → High Priority -----------------
+            Lower easinessFactorSum = smaller numerator = higher priority
+            Items that are harder to remember get more attention
+            ------------------- High Repetition Count → Lower Priority -----------------
+            Higher repetitionNumberSum = larger denominator = lower priority
+            Items already reviewed many times get less attention
+              ----------------- Edge Case Handling ------------------
+            1 prevents division by zero when no items have repetitions
+            Ensures new items (with 0 repetitions) get appropriate priority
+              ----------------- Status Consideration ------------------
+            New topics naturally get higher priority since they have lower repetition counts
+            The grouping by status earlier in the code ensures proper categorization
+            ES for new topic is usually 2.5 and repetition is 0 , so it will be handled correctly
+     */
+    private calculatePriority(items: IGroupTopic[]): number {
+        const easinessFactorSum = items.reduce((sum, item) => sum + parseFloat(item.easinessFactor), 0);
+        const repetitionNumberSum = items.reduce((sum, item) => sum + (item.repetition || 0), 0);
+
+        // Base priority calculation
+        let priority = easinessFactorSum / (repetitionNumberSum + 1);
+
+        // Apply status-based multipliers
+        const statusCounts = items.reduce(
+            (acc, item) => {
+                acc[item.status] = (acc[item.status] || 0) + 1;
+                return acc;
+            },
+            {} as Record<string, number>
+        );
+
+        if (statusCounts['new'] > 0) {
+            priority *= this.NEW_ITEM_PRIORITY_MULTIPLIER;
+        }
+        if (statusCounts['review'] > 0) {
+            priority *= this.REVIEW_PRIORITY_MULTIPLIER;
+        }
+
+        // Boost priority for overdue items
+        const now = new Date();
+        const overdueCount = items.filter(item => item.reviewDate && new Date(item.reviewDate) < now).length;
+
+        if (overdueCount > 0) {
+            priority *= 1 + (overdueCount / items.length) * 0.5; // Up to 50% boost for overdue items
+        }
+
+        return priority;
+    }
+
+    /**
+     * Check if a time slot can accommodate the minimum study session
+     */
+    private isSlotViable(slotDurationMinutes: number): boolean {
+        return slotDurationMinutes >= this.MIN_SLOT_DURATION_MINUTES;
     }
 }
 

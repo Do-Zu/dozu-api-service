@@ -51,8 +51,7 @@ class ScheduleRepository {
                         lte(itemSpacedRepetitionTrackingTable.nextReview, toDate)
                     )
                 )
-            )
-            .limit(this.LIMIT_ITEM_TRACKING);
+            );
 
         return result;
     }
