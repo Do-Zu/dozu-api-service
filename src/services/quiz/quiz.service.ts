@@ -1,6 +1,7 @@
 import { quizRepo } from '@/repositories/quiz/quiz.repo';
 import { QuizGenerateDto, QuizCreateDto } from '@/dtos/quiz/quiz.dto';
 import { applySM2ForQuestion } from '@/utils/quiz/quizSm2Helper';
+import { fisherYatesShuffle } from '@/utils/quiz/shuffle'; 
 import { IQuizResultPayload } from '@/types/quiz/quiz.type';
 import { BadRequest } from '@/core/error';
 
@@ -16,8 +17,12 @@ class QuizService {
                 return quizRepo.getLowEFQuiz(topicId, userId);
             case 'new':
                 return quizRepo.getNewQuiz(topicId);
-            case 'random':
-                return quizRepo.getRandomQuiz(topicId);
+            case 'random': {
+                const allQuestions = await quizRepo.getInitialQuiz(topicId);
+                const shuffled = fisherYatesShuffle(allQuestions);
+                const selected = shuffled.slice(0, 5);
+                return selected;
+            }
             case 'wrong':
                 return quizRepo.getWrongQuiz(topicId, userId);
             default:
