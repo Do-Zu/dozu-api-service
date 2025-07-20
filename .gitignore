@@ -24,7 +24,6 @@ dist-*/
 .env.*
 # !.env.development
 !.env.local
-.npmrc
 .yarnrc
 .config
 

@@ -7,6 +7,7 @@ export const questionsTable = pgTable('questions', {
   topicId: integer('topic_id')
     .notNull()
     .references(() => topicsTable.topicId, { onDelete: 'cascade' }),
+  questionText: text('question_text').notNull().default(''),
   choices: text('choices').array(),
   correctIndex: integer('correct_index'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),

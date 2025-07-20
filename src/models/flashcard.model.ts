@@ -6,6 +6,8 @@ export const flashcardsTable = pgTable('flashcards', {
   topicId: integer('topic_id')
     .notNull()
     .references(() => topicsTable.topicId, { onDelete: 'cascade' }),
+  nodeId: text('node_id'),
+
   front: text('front').notNull(),
   back: text('back').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
