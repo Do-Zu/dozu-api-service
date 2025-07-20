@@ -5,7 +5,7 @@ import { questionResultTable } from '@/models/quiz/questionResult.model';
 import { quizResultTable } from '@/models/quiz/quizResult.model';
 import { quizzesTable } from '@/models/quiz/quiz.model';
 import { IQuizResultPayload } from '@/types/quiz/quiz.type';
-import { eq, and, lt, sql, desc } from 'drizzle-orm';
+import { eq, and, lte, lt, sql, desc } from 'drizzle-orm';
 import { QuizCreateDto } from '@/dtos/quiz/quiz.dto';
 
 class QuizRepo {
@@ -25,7 +25,7 @@ class QuizRepo {
                 and(
                     eq(itemSpacedRepetitionTrackingTable.topicId, topicId),
                     eq(itemSpacedRepetitionTrackingTable.userId, userId),
-                    lt(itemSpacedRepetitionTrackingTable.nextReview, new Date().toISOString())
+                    lte(itemSpacedRepetitionTrackingTable.nextReview, new Date().toISOString())
                 )
             );
     }
@@ -47,39 +47,41 @@ class QuizRepo {
             );
     }
 
-async getNewQuiz(topicId: number) {
-    return db
-        .select()
-        .from(questionsTable)
-        .where(
-            and(
-                eq(questionsTable.topicId, topicId),
-                sql`NOT EXISTS (
+    async getNewQuiz(topicId: number) {
+        return db
+            .select()
+            .from(questionsTable)
+            .where(
+                and(
+                    eq(questionsTable.topicId, topicId),
+                    sql`NOT EXISTS (
                     SELECT 1
                     FROM ${itemSpacedRepetitionTrackingTable}
                     WHERE ${itemSpacedRepetitionTrackingTable}.item_id = ${questionsTable.questionId}
-                )` 
-            )
-        );
-}
-
-
-    async getRandomQuiz(topicId: number) {
-        return db.select().from(questionsTable).where(eq(questionsTable.topicId, topicId));
+                )`
+                )
+            );
     }
 
     async getWrongQuiz(topicId: number, userId: number) {
-        return db
-            .select()
-            .from(questionResultTable)
-            .innerJoin(questionsTable, eq(questionResultTable.questionId, questionsTable.questionId))
-            .where(
-                and(
-                    eq(questionResultTable.userId, userId),
-                    eq(questionsTable.topicId, topicId),
-                    eq(questionResultTable.correct, false)
-                )
-            );
+        const result = await db.execute(
+            sql`
+    SELECT DISTINCT ON (qr.question_id)
+      q.question_id AS "questionId",
+      q.topic_id AS "topicId",
+      q.question_text AS "questionText",
+      q.choices AS "choices",
+      q.correct_index AS "correctIndex",
+      q.created_at AS "createdAt"
+    FROM question_result qr
+    JOIN questions q ON qr.question_id = q.question_id
+    WHERE qr.user_id = ${userId}
+      AND q.topic_id = ${topicId}
+      AND qr.correct = false
+    ORDER BY qr.question_id, qr.answered_at DESC
+  `
+        );
+        return result.rows;
     }
 
     async createQuizWithQuestions({ topicId, name, description }: QuizCreateDto) {
