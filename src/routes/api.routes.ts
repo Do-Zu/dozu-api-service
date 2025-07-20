@@ -28,6 +28,7 @@ import './quiz/quiz.routes';
 import './inputSet/inputSet.routes';
 import './profile/profile.routes';
 import './notification/notification.route';
+import './onboarding/onboarding.routes';
 
 // Apply global async handler to router
 globalAsyncHandler(router);
