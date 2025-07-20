@@ -2,12 +2,15 @@ import express from 'express';
 import { registerRoute } from '../register.routes';
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 import {
+  getProfileController,
+  googleOAuthRedirectController,
   loginController,
+  logoutController,
+  refreshTokenController,
   registerUserController,
   testingAuthPath,
   verifyEmailController,
 } from '@/controllers/auth.controller';
-import { sendVerificationLinkEmail } from '@/libs/nodeMailerTransporter.lib';
 import { authMiddleware } from '@/middleware/auth.middleware';
 const router = express.Router();
 
@@ -20,7 +23,11 @@ router.get('/testing', authMiddleware, testingAuthPath);
 
 router.post('/register', registerUserController);
 router.post('/login', loginController);
+router.post('/logout', logoutController);
+router.post('/refresh-token',refreshTokenController)
 router.get('/verify-email', verifyEmailController);
+router.get('/profile', authMiddleware, getProfileController);
+router.post('/google', googleOAuthRedirectController);
 
 registerRoute('/auth', router, {
   description: 'Authentication endpoints',

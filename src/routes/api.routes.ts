@@ -1,13 +1,20 @@
 import express, { Router } from 'express';
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
-import { getRoutes, registerRoute } from './register.routes';
+import { getRoutes } from './register.routes';
 import logger from '@/utils/logger';
 
 const router: Router = express.Router();
 
 //import routers here
 import './demo/demo.routes';
+import './generate/v1/generate.routes';
+import './generate/v3/generate.routes';
+import './sse/sse.routes';
+import './flashcard/flashcard.routes';
+import './topic/topic.routes';
 import './auth/auth.routes';
+import './recommendation/recommendation.routes';
+import './schedule/schedule.routes';
 
 // Apply global async handler to router
 globalAsyncHandler(router);
