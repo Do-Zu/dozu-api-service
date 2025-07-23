@@ -66,19 +66,25 @@ class QuizRepo {
     async getWrongQuiz(topicId: number, userId: number) {
         const result = await db.execute(
             sql`
-    SELECT DISTINCT ON (qr.question_id)
-      q.question_id AS "questionId",
-      q.topic_id AS "topicId",
-      q.question_text AS "questionText",
-      q.choices AS "choices",
-      q.correct_index AS "correctIndex",
-      q.created_at AS "createdAt"
-    FROM question_result qr
-    JOIN questions q ON qr.question_id = q.question_id
-    WHERE qr.user_id = ${userId}
-      AND q.topic_id = ${topicId}
-      AND qr.correct = false
-    ORDER BY qr.question_id, qr.answered_at DESC
+            SELECT 
+  q.question_id AS "questionId",
+  q.topic_id AS "topicId",
+  q.question_text AS "questionText",
+  q.choices AS "choices",
+  q.correct_index AS "correctIndex",
+  q.created_at AS "createdAt"
+FROM (
+  SELECT DISTINCT ON (qr.question_id)
+    qr.question_id,
+    qr.correct,
+    qr.answered_at
+  FROM question_result qr
+  WHERE qr.user_id = ${userId}
+  ORDER BY qr.question_id, qr.answered_at DESC
+) latest_wrong
+JOIN questions q ON latest_wrong.question_id = q.question_id
+WHERE latest_wrong.correct = false
+  AND q.topic_id = ${topicId};
   `
         );
         return result.rows;
