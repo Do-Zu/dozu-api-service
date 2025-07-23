@@ -16,6 +16,7 @@ import { addMonths, addYears } from 'date-fns';
 import { and, desc, eq, gte } from 'drizzle-orm';
 import planService from './plan.service';
 import { featureUsageService } from './usage/featureUsage.service';
+import { PaymentStatus } from '../payment/payment.interface';
 
 export interface IFeature {
     planId: number;
@@ -488,7 +489,7 @@ export class SubscriptionService {
             await tx
                 .update(userSubscriptionsTable)
                 .set({
-                    status: 'cancelled',
+                    status: PaymentStatus.CANCELLED,
                     canceledAt: currentDate,
                     cancellationReason: 'Plan change',
                     autoRenew: false,
