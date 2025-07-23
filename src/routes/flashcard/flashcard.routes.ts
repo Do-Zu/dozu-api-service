@@ -13,6 +13,7 @@ router.use(authMiddleware);
 router.get('/', validateTopicId(), flashcardController.handleGetAllFlashcardsForTopic);
 
 router.post('/batch', validateTopicId(), validateFlashcardsBatch(), flashcardController.handleBatchFlashcardsForTopic);
+router.post('/batch/node', validateTopicId(), validateFlashcardsBatch(), flashcardController.handleBatchFlashcardsForNode);//for use with mindmap's node
 
 router.put('/:flashcardId/track', flashcardController.handleTrackSingleFlashcard);
 

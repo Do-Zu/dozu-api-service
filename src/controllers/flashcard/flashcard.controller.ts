@@ -75,6 +75,44 @@ class FlashcardController {
         SuccessResponse.created(res, {});
     }
 
+    public async handleBatchFlashcardsForNode(req: Request, res: Response): Promise<void> {
+        const userId = getUserIdFromRequest(req);
+        let { topicId } = req.query as { topicId: string | number };
+        let { nodeId } = req.query as { nodeId: string  };
+
+        topicId = parseInt(topicId as string);
+
+        if (isNaN(topicId)) {
+            logger.warn('topicId is NaN');
+            throw new BadRequest('Invalid param, cannot create flashcards');
+        }
+
+        if (!nodeId) {
+            logger.warn('topicId is empty');
+            throw new BadRequest('Invalid param, cannot create flashcards');
+        }
+
+        const isExistedTopic = await topicService.doesTopicExist(topicId);
+        if (!isExistedTopic) {
+            throw new BadRequest('Invalid topic');
+        }
+
+        const { flashcardsAdded, flashcardsUpdated, flashcardsDeleted }: IFlashcardsBatch = req.body;
+
+        try {
+            await flashcardService.handleBatchFlashcardsForNode(userId, topicId, nodeId, {
+                flashcardsAdded,
+                flashcardsUpdated,
+                flashcardsDeleted,
+            });
+        } catch (err) {
+            logger.error(err);
+            throw new DatabaseError('Something went wrong :((');
+        }
+
+        SuccessResponse.created(res, {});
+    }
+
     public async handleGetFlashcardsLearningForUser(req: Request, res: Response): Promise<void> {
         const currentDate = getCurrentDateFromRequest(req);
         const userId = getUserIdFromRequest(req);
@@ -102,7 +140,7 @@ class FlashcardController {
         let flashcards: IFlashcardsLearningForUserReturned;
         try {
             flashcards = await flashcardService.handleGetFlashcardsLearningForTopic(topicId, userId, currentDate);
-        } catch(err) {
+        } catch (err) {
             logger.error(err);
             throw new DatabaseError('Something went wrong :((');
         }

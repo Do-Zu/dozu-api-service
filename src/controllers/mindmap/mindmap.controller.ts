@@ -122,11 +122,11 @@ export const getFlashcardsOfNodeController = async (req: Request, res: Response)
 
 export const uploadImageTESTDELETELATER = async (req: Request, res: Response) => {
     let imageObject;
-    
+
     if (req.file) {
         // Conditionally attach image
         imageObject = await uploadImage(req.file.buffer);
-        imageObject?.url
+        imageObject?.url;
     }
     SuccessResponse.ok(res, { object: imageObject });
 };
