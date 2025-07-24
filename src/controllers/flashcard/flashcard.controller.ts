@@ -77,6 +77,7 @@ class FlashcardController {
 
     public async handleBatchFlashcardsForNode(req: Request, res: Response): Promise<void> {
         const userId = getUserIdFromRequest(req);
+
         let { topicId } = req.body as { topicId: string };
         let { nodeId } = req.body as { nodeId: string };
 
@@ -97,7 +98,7 @@ class FlashcardController {
             throw new BadRequest('Invalid topic');
         }
 
-        const { flashcardsAdded, flashcardsUpdated, flashcardsDeleted }: IFlashcardsBatch = req.body;
+        const { flashcardsAdded, flashcardsUpdated, flashcardsDeleted }: IFlashcardsBatch = req.body.flashcards;
 
         try {
             await flashcardService.handleBatchFlashcardsForNode(userId, parsedTopicId, nodeId, {
