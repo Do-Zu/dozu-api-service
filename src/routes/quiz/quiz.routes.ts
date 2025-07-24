@@ -11,6 +11,7 @@ globalAsyncHandler(router);
 
 router.use(authMiddleware);
 
+router.get('/statistics', validateTopicId(), quizController.handleGetQuizStatistics);
 router.get('/generate', validateQuizGenerateQuery(), quizController.handleGenerateQuiz);
 router.post('/submit', validateQuizSubmit(), quizController.handleSubmitQuiz);
 router.get('/history', validateTopicId(), quizController.handleGetQuizHistory);

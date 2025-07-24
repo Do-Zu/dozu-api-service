@@ -21,7 +21,7 @@ class QuizController {
     }
 
     async handleCreateQuiz(req: Request, res: Response): Promise<void> {
-        const { topicId, name, description} = req.body;
+        const { topicId, name, description } = req.body;
 
         const quizId = await quizService.handleCreateQuiz({
             topicId,
@@ -66,6 +66,16 @@ class QuizController {
 
         const data = await quizService.getQuizResultDetail(parsedId);
         SuccessResponse.ok(res, data);
+    }
+
+    async handleGetQuizStatistics(req: Request, res: Response): Promise<void> {
+        const topicId = Number(req.query.topicId);
+
+        const isExisted = await topicService.doesTopicExist(topicId);
+        if (!isExisted) throw new BadRequest('Topic does not exist');
+
+        const stats = await quizService.getQuizStatistics(topicId);
+        SuccessResponse.ok(res, stats);
     }
 }
 

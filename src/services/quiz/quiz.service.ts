@@ -44,7 +44,7 @@ class QuizService {
         const correctAnswersCount = results.filter(r => r.correct).length;
 
         // Record quiz results and each question
-       const quizResultId = await quizRepo.saveQuizAndQuestionResults(userId, quizId, results, correctAnswersCount);
+        const quizResultId = await quizRepo.saveQuizAndQuestionResults(userId, quizId, results, correctAnswersCount);
 
         // SM-2 for each question
         for (const result of results) {
@@ -64,6 +64,10 @@ class QuizService {
         const result = await quizRepo.getQuizResultDetail(quizResultId);
         if (!result) throw new BadRequest('Quiz result not found');
         return result;
+    }
+
+    async getQuizStatistics(topicId: number) {
+        return await quizRepo.getQuizStatistics(topicId);
     }
 }
 
