@@ -12,6 +12,7 @@ globalAsyncHandler(router);
 
 router.use(authMiddleware);
 
+router.get('/', validateTopicId(), questionController.handleGetAllQuestionsForTopic);
 router.post('/batch', validateTopicId(), validateBatchQuestions() ,questionController.handleBatchQuestionsForTopic);
 
 registerRoute('/questions', router, {

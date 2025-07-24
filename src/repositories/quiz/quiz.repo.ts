@@ -207,23 +207,50 @@ WHERE latest_wrong.correct = false
             questions,
         };
     }
-    //     {
-    //   "quizResultId": 12,
-    //   "quizId": 5,
-    //   "correctAnswersCount": 7,
-    //   "questionsCount": 10,
-    //   "timeReviewed": "2025-07-13T10:00:00Z",
-    //   "questions": [
-    //     {
-    //       "questionId": 101,
-    //       "questionText": "What is 2 + 2?",
-    //       "choices": ["2", "3", "4", "5"],
-    //       "correctIndex": 2,
-    //       "userAnswerCorrect": true
-    //     },
-    //     ...
-    //   ]
-    // }
+
+    async getQuizStatistics(topicId: number) {
+        const result = await db
+            .select({
+                correctAnswersCount: quizResultTable.correctAnswersCount,
+                questionsCount: quizResultTable.questionsCount,
+            })
+            .from(quizResultTable)
+            .innerJoin(quizzesTable, eq(quizResultTable.quizId, quizzesTable.quizId))
+            .where(eq(quizzesTable.topicId, topicId));
+
+        const totalQuizzes = result.length;
+        if (totalQuizzes === 0) {
+            return {
+                totalQuizzes: 0,
+                averageScore: 0,
+                perfectScoreCount: 0,
+                averageQuestionsPerQuiz: 0,
+            };
+        }
+
+        let totalCorrect = 0;
+        let totalQuestions = 0;
+        let perfectScoreCount = 0;
+
+        for (const r of result) {
+            totalCorrect += r.correctAnswersCount ?? 0;
+            totalQuestions += r.questionsCount ?? 0;
+            if (r.correctAnswersCount === r.questionsCount) {
+                perfectScoreCount++;
+            }
+        }
+
+        const averageScore = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
+
+        const averageQuestionsPerQuiz = totalQuizzes > 0 ? Math.round(totalQuestions / totalQuizzes) : 0;
+
+        return {
+            totalQuizzes,
+            averageScore,
+            perfectScoreCount,
+            averageQuestionsPerQuiz,
+        };
+    }
 }
 
 export const quizRepo = new QuizRepo();
