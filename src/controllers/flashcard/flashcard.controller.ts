@@ -75,6 +75,44 @@ class FlashcardController {
         SuccessResponse.created(res, {});
     }
 
+    public async handleBatchFlashcardsForNode(req: Request, res: Response): Promise<void> {
+        const userId = getUserIdFromRequest(req);
+        let { topicId } = req.body as { topicId: string };
+        let { nodeId } = req.body as { nodeId: string };
+
+        let parsedTopicId = parseInt(topicId as string);
+
+        if (isNaN(parsedTopicId)) {
+            logger.warn('topicId is NaN');
+            throw new BadRequest('Invalid param, cannot create flashcards');
+        }
+
+        if (!nodeId) {
+            logger.warn('topicId is empty');
+            throw new BadRequest('Invalid param, cannot create flashcards');
+        }
+
+        const isExistedTopic = await topicService.doesTopicExist(parsedTopicId);
+        if (!isExistedTopic) {
+            throw new BadRequest('Invalid topic');
+        }
+
+        const { flashcardsAdded, flashcardsUpdated, flashcardsDeleted }: IFlashcardsBatch = req.body;
+
+        try {
+            await flashcardService.handleBatchFlashcardsForNode(userId, parsedTopicId, nodeId, {
+                flashcardsAdded,
+                flashcardsUpdated,
+                flashcardsDeleted,
+            });
+        } catch (err) {
+            logger.error(err);
+            throw new DatabaseError('Something went wrong :((');
+        }
+
+        SuccessResponse.created(res, {});
+    }
+
     public async handleGetFlashcardsLearningForUser(req: Request, res: Response): Promise<void> {
         const currentDate = getCurrentDateFromRequest(req);
         const userId = getUserIdFromRequest(req);
@@ -102,7 +140,7 @@ class FlashcardController {
         let flashcards: IFlashcardsLearningForUserReturned;
         try {
             flashcards = await flashcardService.handleGetFlashcardsLearningForTopic(topicId, userId, currentDate);
-        } catch(err) {
+        } catch (err) {
             logger.error(err);
             throw new DatabaseError('Something went wrong :((');
         }

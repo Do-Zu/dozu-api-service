@@ -54,6 +54,24 @@ class FlashcardService {
         await flashcardRepo.handleInsertFlashcardsForTopic(userId, topicId, flashcardsFormatted);
     }
 
+    public async handleInsertFlashcardsForNode(
+        userId: number,
+        topicId: number,
+        nodeId: string,
+        flashcards: IFlashcardAdded[] | FlashcardItemInterface[]
+    ): Promise<void> {
+        let flashcardsFormatted: IFlashcardAddedArgument = flashcards.map(flashcard => {
+            if ('front' in flashcard && 'back' in flashcard) {
+                return { topicId: topicId, front: flashcard.front, back: flashcard.back, nodeId: nodeId };
+            } else {
+                return { topicId, front: flashcard.q, back: flashcard.a, nodeId: nodeId };
+            }
+        });
+
+        //reusing topic's repo functions since nodeId value is added already - DuyND
+        await flashcardRepo.handleInsertFlashcardsForTopic(userId, topicId, flashcardsFormatted);
+    }
+
     public async handleUpdateFlashcardsForTopic(flashcards: IFlashcardUpdated[]): Promise<void> {
         await flashcardRepo.handleUpdateFlashcardsForTopic(flashcards);
     }
@@ -80,6 +98,27 @@ class FlashcardService {
         }
     }
 
+    public async handleBatchFlashcardsForNode(
+        userId: number,
+        topicId: number,
+        nodeId: string,
+        { flashcardsAdded, flashcardsUpdated, flashcardsDeleted }: IFlashcardsBatch
+    ): Promise<void> {
+        if (flashcardsAdded && flashcardsAdded.length > 0) {
+            await this.handleInsertFlashcardsForNode(userId, topicId, nodeId, flashcardsAdded);
+        }
+
+        if (flashcardsUpdated && flashcardsUpdated.length > 0) {
+            //implements later
+            // await this.handleUpdateFlashcardsForTopic(flashcardsUpdated);
+        }
+
+        if (flashcardsDeleted && flashcardsDeleted.length > 0) {
+            //implements later
+            // await this.handleDeleteFlashcardsForTopic(flashcardsDeleted);
+        }
+    }
+
     public async handlePutFlashcardToLearning(flashcardId: number): Promise<void> {
         const currentDate = new Date(Date.now());
         const tommorow = getDateAdded(currentDate, 1);
@@ -92,16 +131,27 @@ class FlashcardService {
         await flashcardRepo.handlePutFlashcardToLearning(flashcardId, date);
     }
 
-    public async handleApplyFlashcardSM2(userId: number, flashcardId: number, sm2: IApplyFlashcardSM2ArgumentSM2): Promise<void> {
+    public async handleApplyFlashcardSM2(
+        userId: number,
+        flashcardId: number,
+        sm2: IApplyFlashcardSM2ArgumentSM2
+    ): Promise<void> {
         await flashcardRepo.handleApplyFlashcardSM2(userId, flashcardId, sm2);
     }
 
-    public async handleGetFlashcardsLearningForUser(userId: number, currentDate: string): Promise<IFlashcardsLearningForUserReturned> {
+    public async handleGetFlashcardsLearningForUser(
+        userId: number,
+        currentDate: string
+    ): Promise<IFlashcardsLearningForUserReturned> {
         const flashcards = await flashcardRepo.handleGetFlashcardsLearningForUser(userId, currentDate);
         return flashcards;
     }
 
-    public async handleGetFlashcardsLearningForTopic(topicId: number, userId: number, currentDate: string): Promise<IFlashcardsLearningForUserReturned> {
+    public async handleGetFlashcardsLearningForTopic(
+        topicId: number,
+        userId: number,
+        currentDate: string
+    ): Promise<IFlashcardsLearningForUserReturned> {
         const flashcards = await flashcardRepo.handleGetFlashcardsLearningForTopic(topicId, userId, currentDate);
         return flashcards;
     }
