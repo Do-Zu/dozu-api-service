@@ -77,12 +77,12 @@ class FlashcardController {
 
     public async handleBatchFlashcardsForNode(req: Request, res: Response): Promise<void> {
         const userId = getUserIdFromRequest(req);
-        let { topicId } = req.query as { topicId: string | number };
-        let { nodeId } = req.query as { nodeId: string  };
+        let { topicId } = req.body as { topicId: string };
+        let { nodeId } = req.body as { nodeId: string };
 
-        topicId = parseInt(topicId as string);
+        let parsedTopicId = parseInt(topicId as string);
 
-        if (isNaN(topicId)) {
+        if (isNaN(parsedTopicId)) {
             logger.warn('topicId is NaN');
             throw new BadRequest('Invalid param, cannot create flashcards');
         }
@@ -92,7 +92,7 @@ class FlashcardController {
             throw new BadRequest('Invalid param, cannot create flashcards');
         }
 
-        const isExistedTopic = await topicService.doesTopicExist(topicId);
+        const isExistedTopic = await topicService.doesTopicExist(parsedTopicId);
         if (!isExistedTopic) {
             throw new BadRequest('Invalid topic');
         }
@@ -100,7 +100,7 @@ class FlashcardController {
         const { flashcardsAdded, flashcardsUpdated, flashcardsDeleted }: IFlashcardsBatch = req.body;
 
         try {
-            await flashcardService.handleBatchFlashcardsForNode(userId, topicId, nodeId, {
+            await flashcardService.handleBatchFlashcardsForNode(userId, parsedTopicId, nodeId, {
                 flashcardsAdded,
                 flashcardsUpdated,
                 flashcardsDeleted,
