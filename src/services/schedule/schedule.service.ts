@@ -1,77 +1,48 @@
-// import logger from '@/utils/logger';
 import { scheduleRepo } from '@/repositories/schedule/schedule.repo';
 import { FreeTimeSlotDays } from '@/repositories/user/type';
 import { userRepository } from '@/repositories/user/user.repo';
-import { ItemTrackingWithTopic } from './types';
-import {
-  convertMinuteToMillisecond,
-  formatTimeToHHMM,
-  getDateFormattedWithTimeZone,
-  getDayOfWeek,
-} from '@/utils/date';
+import { IGroupTopic, IItemScheduleGenerated, ItemTrackingWithTopic } from './types/schedule.index';
+import { getDateFormattedWithTimeZone, getDayOfWeek } from '@/utils/date';
 import { SchedulePriorityQueue } from '@/utils/queue/schedule.queue';
 
-export interface IScheduleTopicReview {
-  topicId: number;
-  topicTitle: string;
-  topicDescription: string | null;
-  reviewDate: Date;
-  status: string;
-  priority: number;
-  type: string;
-  startTime: Date;
-  endTime: Date;
-}
-
-interface IGroupTopic {
-  topicId: number;
-  topicTitle: string;
-  topicDescription: string | null;
-  easinessFactor: string;
-  reviewInterval: number;
-  repetition: number;
-  lastReviewed: string | null;
-  reviewDate: Date;
-  status: string;
-  type: string;
-}
-interface IItemScheduleGenerated {
-  topicId: number;
-  priority: number;
-  startTime: Date;
-  endTime: Date;
-  title: string;
-  description: string | null;
-  type: string;
-  amountItem: number;
-}
-
 const DEFINE_DEFAULT_FREE_TIME: FreeTimeSlotDays = {
-  Monday: [
-    { startTime: '07:45', endTime: '12:30' },
-    { startTime: '14:00', endTime: '15:45' },
-  ],
-  Tuesday: [{ startTime: '13:45', endTime: '16:30' }],
-  Wednesday: [
-    { startTime: '08:15', endTime: '10:15' },
-    { startTime: '14:15', endTime: '14:45' },
-    { startTime: '15:30', endTime: '16:30' },
-  ],
-  Thursday: [
-    { startTime: '13:15', endTime: '14:00' },
-    { startTime: '15:00', endTime: '17:15' },
-    { startTime: '17:45', endTime: '22:30' },
-  ],
-  Friday: [
-    { startTime: '13:45', endTime: '15:15' },
-    { startTime: '17:45', endTime: '22:45' },
-  ],
-  Saturday: [
-    { startTime: '10:00', endTime: '14:15' },
-    { startTime: '13:45', endTime: '16:15' },
-    { startTime: '20:15', endTime: '21:45' },
-  ],
-  Sunday: [],
+    Monday: [
+        { startTime: '05:00', endTime: '06:00' },
+        { startTime: '07:00', endTime: '11:30' },
+        { startTime: '14:00', endTime: '17:00' },
+        { startTime: '20:00', endTime: '22:00' },
+    ],
+    Tuesday: [
+        { startTime: '07:30', endTime: '11:30' },
+        { startTime: '14:00', endTime: '17:00' },
+        { startTime: '19:30', endTime: '22:00' },
+    ],
+    Wednesday: [
+        { startTime: '05:15', endTime: '06:30' },
+        { startTime: '08:15', endTime: '11:15' },
+        { startTime: '14:15', endTime: '17:30' },
+        { startTime: '20:30', endTime: '22:30' },
+    ],
+    Thursday: [
+        { startTime: '05:15', endTime: '06:00' },
+        { startTime: '08:15', endTime: '10:00' },
+        { startTime: '14:00', endTime: '17:35' },
+        { startTime: '18:45', endTime: '22:30' },
+    ],
+    Friday: [
+        { startTime: '09:15', endTime: '11:00' },
+        { startTime: '13:45', endTime: '15:15' },
+        { startTime: '17:45', endTime: '22:45' },
+    ],
+    Saturday: [
+        { startTime: '07:30', endTime: '11:30' },
+        { startTime: '13:45', endTime: '16:30' },
+        { startTime: '20:15', endTime: '21:45' },
+    ],
+    Sunday: [
+        { startTime: '05:00', endTime: '9:00' },
+        { startTime: '14:00', endTime: '16:00' },
+    ],
 };
 
 const USER_PREFERRED_SESSION_LEARNING = 'morning';
@@ -80,359 +51,488 @@ const USER_PREFERRED_SESSION_LEARNING = 'morning';
  * Service class for Schedule functionality
  */
 class ScheduleService {
-  private readonly DEFAULT_FREE_TIME: FreeTimeSlotDays = DEFINE_DEFAULT_FREE_TIME;
-  private readonly DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM = 1;
-  private readonly DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION = 5;
-  /**
-   * Retrieves the schedule for the current week.
-   * @returns An array of time slots for the current week or an empty array if not implemented.
-   */
-  private async getFreeTimeSlots(userId: string) {
-    return await userRepository.getFreeTimeSlots(userId);
-  }
-
-  /**
-   * Gets the schedule for the current week.
-   * @returns An object containing the schedule for the week or null if not implemented.
-   */
-  public async getScheduleInWeek() {
-    return null;
-  }
-
-  /**
-   * Generates a schedule for the user based on their spaced repetition tracking data.
-   * @param userId - The ID of the user for whom to generate the schedule.
-   * @returns An object containing the schedules or an empty array if no tracking data is found.
-   */
-  public async generateSchedule(body: {
-    userId: string;
-    fromDate: Date | string;
-    toDate: Date | string;
-    timezone: string;
-  }) {
-    const { userId, fromDate, toDate, timezone } = body;
-
-    const fromDateString = getDateFormattedWithTimeZone(fromDate, timezone);
-    const toDateString = getDateFormattedWithTimeZone(toDate, timezone);
-
-    const listItemTracking: ItemTrackingWithTopic[] =
-      await scheduleRepo.getListItemTrackingByUserIdInWeek(userId, fromDateString, toDateString);
-
-    if (listItemTracking.length === 0) {
-      return {
-        schedules: [],
-      };
+    private readonly DEFAULT_FREE_TIME: FreeTimeSlotDays = DEFINE_DEFAULT_FREE_TIME;
+    private readonly DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM = 1;
+    private readonly DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION = 5;
+    private readonly MIN_ITEMS_PER_SLOT = 20;
+    private readonly MAX_ITEMS_PER_SLOT = 50;
+    private readonly MIN_SLOT_DURATION_MINUTES = 30; // Minimum time for a productive study session
+    private readonly REVIEW_PRIORITY_MULTIPLIER = 1.5; // Boost priority for review items
+    private readonly NEW_ITEM_PRIORITY_MULTIPLIER = 1.2; // Boost priority for new items
+    private readonly PRIORITY_STATUS_ITEM_LEARNING_TRACKING = { new: 3, learning: 2, review: 1 }; // Max items in priority queue
+    /**
+     * Retrieves the schedule for the current week.
+     * @returns An array of time slots for the current week or an empty array if not implemented.
+     */
+    private async getFreeTimeSlots(userId: number) {
+        const freeTimes: FreeTimeSlotDays | null = await userRepository.getFreeTimeSlots(userId);
+        if (!freeTimes) return DEFINE_DEFAULT_FREE_TIME;
+        return freeTimes;
     }
 
-    //TODO: Should be get  user free time slots at DB layer
-    //const userFreeTimeSlots = await this.getFreeTimeSlots(userId);
-    // let freeTimeSlotPerDay = await this.getFreeTimeSlots(userId);
-
-    // if (!freeTimeSlotPerDay || Object.keys(freeTimeSlotPerDay).length === 0) {
-    //   freeTimeSlotPerDay = this.DEFAULT_FREE_TIME;
-    // }
-
-    let freeTimeSlotPerDay = this.DEFAULT_FREE_TIME;
-
-    const scheduleMap: Record<string, IGroupTopic[]> = {};
-
-    // Group items by nextReview date
-    for (const item of listItemTracking) {
-      if (!item.nextReview) {
-        continue;
-      }
-
-      if (!scheduleMap[item.nextReview]) {
-        scheduleMap[item.nextReview] = [];
-      }
-
-      scheduleMap[item.nextReview].push({
-        topicId: item.topicId,
-        topicTitle: item.topicTitle,
-        topicDescription: item.topicDescription,
-        lastReviewed: item.lastReviewed,
-        easinessFactor: item.easinessFactor,
-        reviewInterval: item.reviewInterval,
-        repetition: item.repetitionNumber,
-        reviewDate: new Date(item.nextReview),
-        status: item.status,
-        type: item.type,
-      });
+    /**
+     * Gets the schedule for the current week.
+     * @returns An object containing the schedule for the week or null if not implemented.
+     */
+    public async getScheduleInWeek() {
+        return null;
     }
 
-    const scheduleGroupItemPerDate: Record<string, IGroupTopic[][]> = {};
+    /**
+     * Generates a schedule for the user based on their spaced repetition tracking data.
+     * @param userId - The ID of the user for whom to generate the schedule.
+     * @returns An object containing the schedules or an empty array if no tracking data is found.
+     */
+    public async generateSchedule(body: {
+        userId: number;
+        fromDate: Date | string;
+        toDate: Date | string;
+        timezone: string;
+    }) {
+        const { userId, fromDate, toDate, timezone } = body;
 
-    for (const date in scheduleMap) {
-      const scheduleGroupTopic: Record<number, IGroupTopic[]> = {};
+        const fromDateString = getDateFormattedWithTimeZone(fromDate, timezone);
+        const toDateString = getDateFormattedWithTimeZone(toDate, timezone);
 
-      for (const topicPerDate of scheduleMap[date]) {
-        // Group by same topicId into array
-        const { topicId } = topicPerDate;
-
-        if (topicId === undefined) {
-          continue;
-        }
-
-        if (!scheduleGroupTopic[topicId]) {
-          scheduleGroupTopic[topicId] = [];
-        }
-
-        scheduleGroupTopic[topicId].push(topicPerDate as IGroupTopic);
-      }
-
-      if (!scheduleGroupItemPerDate[date]) {
-        scheduleGroupItemPerDate[date] = [];
-      }
-
-      // For each date, we will have an array of grouped topics
-      for (const topicId in scheduleGroupTopic) {
-        const groupedTopics = scheduleGroupTopic[topicId];
-
-        if (groupedTopics.length === 0) {
-          continue;
-        }
-
-        scheduleGroupItemPerDate[date].push(groupedTopics);
-      }
-
-      const listGroupedItemByTopic = scheduleGroupItemPerDate[date];
-      scheduleGroupItemPerDate[date] = [];
-
-      for (const items of listGroupedItemByTopic) {
-        const groupTopicsByMethod: Record<string, IGroupTopic[]> = {};
-
-        for (const item of items) {
-          if (!item.type) {
-            continue;
-          }
-
-          if (!groupTopicsByMethod[item.type]) {
-            groupTopicsByMethod[item.type] = [];
-          }
-
-          groupTopicsByMethod[item.type].push(item);
-        }
-
-        Object.values(groupTopicsByMethod).forEach(groupedItems => {
-          if (groupedItems.length > 0) {
-            scheduleGroupItemPerDate[date].push(groupedItems);
-          }
-        });
-      }
-
-      const tempScheduleGroupItemByMethod = scheduleGroupItemPerDate[date];
-      scheduleGroupItemPerDate[date] = [];
-
-      for (const items of tempScheduleGroupItemByMethod) {
-        const arrayTopicsPerItemStatus: Record<string, IGroupTopic[]> = {};
-
-        for (const item of items) {
-          if (!item.status) {
-            continue;
-          }
-
-          if (!arrayTopicsPerItemStatus[item.status]) {
-            arrayTopicsPerItemStatus[item.status] = [];
-          }
-
-          arrayTopicsPerItemStatus[item.status].push(item);
-        }
-
-        // Convert the object to an array of grouped by status
-        Object.values(arrayTopicsPerItemStatus).forEach(groupedItems => {
-          if (groupedItems.length > 0) {
-            scheduleGroupItemPerDate[date].push(groupedItems);
-          }
-        });
-      }
-    }
-
-    const scheduleGenerateFollowFreeTimeSlotPerDay: Record<string, IItemScheduleGenerated[]> = {};
-
-    const scheduleWaitingPriorityQueue = new SchedulePriorityQueue<IItemScheduleGenerated>(
-      (topic1, topic2) => topic1.priority - topic2.priority
-    );
-    // Calculate priority and calculate how to push topic in schedule for each day
-
-    for (const date in scheduleGroupItemPerDate) {
-      const listItemGroupedPerDate = scheduleGroupItemPerDate[date];
-
-      const dateOfWeek = getDayOfWeek(date);
-
-      const listFreeTimeSlotsOfDay = freeTimeSlotPerDay[dateOfWeek];
-
-      const schedulePriorityQueuePerDate = new SchedulePriorityQueue<IItemScheduleGenerated>(
-        (topic1, topic2) => topic1.priority - topic2.priority
-      );
-
-      for (const items of listItemGroupedPerDate) {
-        // Calculate priority based on status and easiness factor
-        const easinessFactorSum = items.reduce(
-          (sum, item) => sum + parseFloat(item.easinessFactor),
-          0
+        const listItemTracking: ItemTrackingWithTopic[] = await scheduleRepo.getListItemTrackingByUserIdInWeek(
+            userId,
+            fromDateString,
+            toDateString
         );
 
-        const repetitionNumberSum = items.reduce((sum, item) => sum + (item.repetition ? 1 : 0), 0);
-
-        // ------------------- Low Easiness Factor → High Priority -----------------
-        // Lower easinessFactorSum = smaller numerator = higher priority
-        // Items that are harder to remember get more attention
-        // ------------------- High Repetition Count → Lower Priority -----------------
-        // Higher repetitionNumberSum = larger denominator = lower priority
-        // Items already reviewed many times get less attention
-        //   ----------------- Edge Case Handling ------------------
-        // 1 prevents division by zero when no items have repetitions
-        // Ensures new items (with 0 repetitions) get appropriate priority
-        //   ----------------- Status Consideration ------------------
-        // New topics naturally get higher priority since they have lower repetition counts
-        // The grouping by status earlier in the code ensures proper categorization
-        // ES for new topic is usually 2.5 and repetition is 0 , so it will be handled correctly
-
-        const priority = easinessFactorSum / (repetitionNumberSum || 1);
-
-        const timeToLearn = items.length * (this.DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM * 60 * 1000);
-
-        const scheduleItem: IItemScheduleGenerated = {
-          topicId: items[0].topicId,
-          priority: priority,
-          startTime: items[0].reviewDate, // Will be update for free time slot below
-          endTime: new Date(items[0].reviewDate.getTime() + timeToLearn), // Will be update for free time slot below
-          title: items[0].topicTitle,
-          description: items[0]?.topicDescription,
-          type: items[0].type,
-          amountItem: items.length,
-        };
-
-        schedulePriorityQueuePerDate.enqueue(scheduleItem);
-      }
-
-      // Push all item of previous day that cannot be scheduled into the priority queue for this day
-      // This is to ensure that if there are items that cannot be scheduled today, they will be considered for the next day
-      while (!scheduleWaitingPriorityQueue.isEmpty()) {
-        const waitingTopic = scheduleWaitingPriorityQueue.dequeue();
-        if (!waitingTopic) {
-          continue;
+        if (listItemTracking.length === 0) {
+            return {
+                schedules: [],
+                waitingTopics: [],
+                preferredTime: USER_PREFERRED_SESSION_LEARNING,
+                statistics: {
+                    totalItems: 0,
+                    scheduledItems: 0,
+                    waitingItems: 0,
+                    efficiency: 0,
+                },
+            };
         }
-        schedulePriorityQueuePerDate.enqueue(waitingTopic);
-      }
 
-      //TODO: Should be calculate how many topics assign for each slot is suitable per each day
+        const freeTimeSlotPerDay = await this.getFreeTimeSlots(userId);
 
-      // Fill the schedule for the day based on free time slots
-      for (const slot of listFreeTimeSlotsOfDay) {
-        let startTime = new Date(`${date}T${slot.startTime}`);
-        const endTime = new Date(`${date}T${slot.endTime}`);
+        const scheduleMap: Record<string, IGroupTopic[]> = {};
 
-        // Process all items in the priority queue for this time slot
-        while (!schedulePriorityQueuePerDate.isEmpty()) {
-          const highestPriorityTopicToLearn = schedulePriorityQueuePerDate.peek();
-
-          if (!highestPriorityTopicToLearn) {
-            break;
-          }
-
-          const minutesEstimateToStudy =
-            highestPriorityTopicToLearn.amountItem * this.DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM +
-            this.DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION;
-
-          const timeAvailable = endTime.getTime() - startTime.getTime();
-          const timeNeeded = convertMinuteToMillisecond(minutesEstimateToStudy);
-          // If the item cannot fit in the current time slot, skip to the next item
-          if (timeAvailable < timeNeeded) {
-            let isFindSuitableSlot = false;
-
-            // Find all free time slots that can fit the item
-            for (const indexOfSlot in listFreeTimeSlotsOfDay) {
-              const freeSlot = listFreeTimeSlotsOfDay[indexOfSlot];
-
-              let freeStartTime = new Date(`${date}T${freeSlot.startTime}`);
-              const freeEndTime = new Date(`${date}T${freeSlot.endTime}`);
-
-              // If the item can fit in the free time slot, update the start and end time
-              if (
-                freeEndTime.getTime() - freeStartTime.getTime() >
-                convertMinuteToMillisecond(minutesEstimateToStudy)
-              ) {
-                highestPriorityTopicToLearn.startTime = freeStartTime;
-                highestPriorityTopicToLearn.endTime = new Date(
-                  freeStartTime.getTime() + convertMinuteToMillisecond(minutesEstimateToStudy)
-                );
-
-                const slideStartTimeForAfterFillTopic = new Date(
-                  freeStartTime.getTime() + convertMinuteToMillisecond(minutesEstimateToStudy)
-                );
-
-                listFreeTimeSlotsOfDay[indexOfSlot].startTime = formatTimeToHHMM(
-                  slideStartTimeForAfterFillTopic
-                );
-
-                break;
-              }
+        // Group items by nextReview date
+        for (const item of listItemTracking) {
+            if (!item.nextReview) {
+                continue;
             }
 
-            // If no suitable slot is found, add the item back to the waiting queue
-            if (!isFindSuitableSlot) {
-              scheduleWaitingPriorityQueue.enqueue(highestPriorityTopicToLearn);
+            if (!scheduleMap[item.nextReview]) {
+                scheduleMap[item.nextReview] = [];
             }
 
-            schedulePriorityQueuePerDate.dequeue();
-            continue;
-          }
-
-          // When the item can fit in the current time slot
-          // Assign the time slot to the item
-          highestPriorityTopicToLearn.startTime = startTime;
-          highestPriorityTopicToLearn.endTime = new Date(startTime.getTime() + timeNeeded);
-
-          // Slide the start time by the estimated study time plus break time
-          const slidingStartTimeInSlot =
-            startTime.getTime() +
-            convertMinuteToMillisecond(minutesEstimateToStudy) +
-            convertMinuteToMillisecond(this.DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION);
-
-          startTime = new Date(slidingStartTimeInSlot);
-
-          // Add to the day's schedule
-          if (!scheduleGenerateFollowFreeTimeSlotPerDay[date]) {
-            scheduleGenerateFollowFreeTimeSlotPerDay[date] = [];
-          }
-
-          scheduleGenerateFollowFreeTimeSlotPerDay[date].push(highestPriorityTopicToLearn);
-
-          schedulePriorityQueuePerDate.dequeue();
+            scheduleMap[item.nextReview].push({
+                topicId: item.topicId,
+                topicTitle: item.topicTitle,
+                topicDescription: item.topicDescription,
+                lastReviewed: item.lastReviewed,
+                easinessFactor: item.easinessFactor,
+                reviewInterval: item.reviewInterval,
+                repetition: item.repetitionNumber,
+                reviewDate: new Date(item.nextReview),
+                status: item.status,
+                type: item.type,
+            });
         }
-      }
 
-      // If there are still items left in the queue, they will not be scheduled for this day
-      while (!schedulePriorityQueuePerDate.isEmpty()) {
+        //Grouping strategy
+        const scheduleGroupItemPerDate: Record<string, IGroupTopic[][]> = {};
+
+        for (const date in scheduleMap) {
+            const itemsForDate = scheduleMap[date];
+
+            // Group by topic first
+            const topicGroups: Record<number, IGroupTopic[]> = {};
+            for (const item of itemsForDate) {
+                if (item.topicId === undefined) continue;
+
+                if (!topicGroups[item.topicId]) {
+                    topicGroups[item.topicId] = [];
+                }
+                topicGroups[item.topicId].push(item);
+            }
+
+            // Further group by type and status within each topic
+            const finalGroups: IGroupTopic[][] = [];
+
+            for (const topicId in topicGroups) {
+                const topicItems = topicGroups[topicId];
+
+                // Group by type
+                const typeGroups: Record<string, IGroupTopic[]> = {};
+                for (const item of topicItems) {
+                    if (!item.type) continue;
+
+                    if (!typeGroups[item.type]) {
+                        typeGroups[item.type] = [];
+                    }
+                    typeGroups[item.type].push(item);
+                }
+
+                // Further group by status within each type
+                for (const type in typeGroups) {
+                    const typeItems = typeGroups[type];
+                    const statusGroups: Record<string, IGroupTopic[]> = {};
+
+                    for (const item of typeItems) {
+                        if (!item.status) continue;
+
+                        if (!statusGroups[item.status]) {
+                            statusGroups[item.status] = [];
+                        }
+                        statusGroups[item.status].push(item);
+                    }
+
+                    // Add each status group as a separate group
+                    for (const status in statusGroups) {
+                        const statusItems = statusGroups[status];
+                        if (statusItems.length > 0) {
+                            finalGroups.push(statusItems);
+                        }
+                    }
+                }
+            }
+
+            scheduleGroupItemPerDate[date] = finalGroups;
+        }
+
+        const scheduleGenerateFollowFreeTimeSlotPerDay: Record<string, IItemScheduleGenerated[]> = {};
+        const scheduleWaitingPriorityQueue = new SchedulePriorityQueue<IItemScheduleGenerated>(
+            (topic1, topic2) => topic2.priority - topic1.priority // Higher priority first
+        );
+
+        let totalItems = 0;
+        let scheduledItems = 0;
+
+        // Enhanced scheduling algorithm
+        for (const date in scheduleGroupItemPerDate) {
+            const listItemGroupedPerDate = scheduleGroupItemPerDate[date];
+            const dateOfWeek = getDayOfWeek(date);
+            const listFreeTimeSlotsOfDay = [...freeTimeSlotPerDay[dateOfWeek]]; // Copy to avoid mutation
+
+            if (listFreeTimeSlotsOfDay.length === 0) {
+                // Add all items to waiting queue if no free time
+                for (const items of listItemGroupedPerDate) {
+                    totalItems += items.length;
+
+                    const chunks = this.splitItemsIntoStudyChunks(items, this.MAX_ITEMS_PER_SLOT);
+                    for (const chunk of chunks) {
+                        const priority = this.calculatePriority(chunk);
+                        const scheduleItem: IItemScheduleGenerated = {
+                            topicId: chunk[0].topicId,
+                            priority,
+                            startTime: chunk[0].reviewDate,
+                            endTime: new Date(chunk[0].reviewDate.getTime() + chunk.length * 60 * 1000),
+                            title: chunk[0].topicTitle,
+                            description: chunk[0].topicDescription,
+                            type: chunk[0].type,
+                            amountItem: chunk.length,
+                        };
+                        scheduleWaitingPriorityQueue.enqueue(scheduleItem);
+                    }
+                }
+                continue;
+            }
+
+            const dailyPriorityQueue = new SchedulePriorityQueue<IItemScheduleGenerated>(
+                (topic1, topic2) => topic2.priority - topic1.priority
+            );
+
+            // Process items for this date
+            for (const items of listItemGroupedPerDate) {
+                totalItems += items.length;
+
+                // Calculate available time for the day
+                const totalAvailableMinutes = listFreeTimeSlotsOfDay.reduce((sum, slot) => {
+                    const start = new Date(`${date}T${slot.startTime}`);
+                    const end = new Date(`${date}T${slot.endTime}`);
+                    return sum + (end.getTime() - start.getTime()) / (60 * 1000);
+                }, 0);
+
+                // Only process if we have viable time slots
+                if (!this.isSlotViable(totalAvailableMinutes)) {
+                    const chunks = this.splitItemsIntoStudyChunks(items, this.MAX_ITEMS_PER_SLOT);
+                    for (const chunk of chunks) {
+                        const priority = this.calculatePriority(chunk);
+                        const scheduleItem: IItemScheduleGenerated = {
+                            topicId: chunk[0].topicId,
+                            priority,
+                            startTime: chunk[0].reviewDate,
+                            endTime: new Date(chunk[0].reviewDate.getTime() + chunk.length * 60 * 1000),
+                            title: chunk[0].topicTitle,
+                            description: chunk[0].topicDescription,
+                            type: chunk[0].type,
+                            amountItem: chunk.length,
+                        };
+                        scheduleWaitingPriorityQueue.enqueue(scheduleItem);
+                    }
+                    continue;
+                }
+
+                // Smart chunking based on available time
+                const { itemsPerSlot } = this.calculateOptimalItemsPerSlot(
+                    items,
+                    totalAvailableMinutes / listFreeTimeSlotsOfDay.length
+                );
+                const chunks = this.splitItemsIntoStudyChunks(items, itemsPerSlot);
+
+                for (const chunk of chunks) {
+                    const priority = this.calculatePriority(chunk);
+                    const timeToLearn =
+                        chunk.length * this.DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM +
+                        this.DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION;
+
+                    const scheduleItem: IItemScheduleGenerated = {
+                        topicId: chunk[0].topicId,
+                        priority,
+                        startTime: chunk[0].reviewDate,
+                        endTime: new Date(chunk[0].reviewDate.getTime() + timeToLearn * 60 * 1000),
+                        title: chunk[0].topicTitle,
+                        description: chunk[0].topicDescription,
+                        type: chunk[0].type,
+                        amountItem: chunk.length,
+                    };
+
+                    dailyPriorityQueue.enqueue(scheduleItem);
+                }
+            }
+
+            // Add waiting items from previous days and process today's schedule
+            while (!scheduleWaitingPriorityQueue.isEmpty()) {
+                const waitingItem = scheduleWaitingPriorityQueue.dequeue();
+                if (waitingItem) {
+                    dailyPriorityQueue.enqueue(waitingItem);
+                }
+            }
+
+            // Schedule items into available time slots
+            const scheduledToday: IItemScheduleGenerated[] = [];
+
+            for (const slot of listFreeTimeSlotsOfDay) {
+                let slotStart = new Date(`${date}T${slot.startTime}`);
+                const slotEnd = new Date(`${date}T${slot.endTime}`);
+                const slotDurationMinutes = (slotEnd.getTime() - slotStart.getTime()) / (60 * 1000);
+
+                if (!this.isSlotViable(slotDurationMinutes)) {
+                    continue; // Skip slots that are too short
+                }
+
+                // Fill this slot with highest priority items
+                while (!dailyPriorityQueue.isEmpty()) {
+                    const nextItem = dailyPriorityQueue.peek();
+                    if (!nextItem) break;
+
+                    // Time required for items in this slot
+                    const itemDuration =
+                        nextItem.amountItem * this.DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM +
+                        this.DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION;
+
+                    const availableTime = (slotEnd.getTime() - slotStart.getTime()) / (60 * 1000);
+
+                    if (availableTime < itemDuration) {
+                        break; // Can't fit this item in remaining slot time
+                    }
+
+                    // Schedule the item
+                    const scheduledItem = dailyPriorityQueue.dequeue()!;
+                    scheduledItem.startTime = new Date(slotStart);
+                    scheduledItem.endTime = new Date(slotStart.getTime() + itemDuration * 60 * 1000);
+
+                    scheduledToday.push(scheduledItem);
+                    scheduledItems += scheduledItem.amountItem;
+
+                    // Update slot start time
+                    slotStart = new Date(
+                        scheduledItem.endTime.getTime() + this.DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION * 60 * 1000
+                    );
+                }
+            }
+
+            if (scheduledToday.length > 0) {
+                scheduleGenerateFollowFreeTimeSlotPerDay[date] = scheduledToday;
+            }
+
+            // Add unscheduled items back to waiting queue
+            while (!dailyPriorityQueue.isEmpty()) {
+                const unscheduledItem = dailyPriorityQueue.dequeue();
+                if (unscheduledItem) {
+                    scheduleWaitingPriorityQueue.enqueue(unscheduledItem);
+                }
+            }
+        }
+
         /**
          * This could be due to not enough free time slots or items that cannot fit in the available slot
          * Add to queue for waiting for fill the schedule for the next day
          */
-        const waitingTopic = schedulePriorityQueuePerDate.dequeue();
-        if (!waitingTopic) {
-          continue;
+        const waitingTopics: IItemScheduleGenerated[] = [];
+        while (!scheduleWaitingPriorityQueue.isEmpty()) {
+            const waitingTopic = scheduleWaitingPriorityQueue.dequeue();
+            if (waitingTopic) {
+                waitingTopics.push(waitingTopic);
+            }
         }
-        scheduleWaitingPriorityQueue.enqueue(waitingTopic);
-      }
+
+        const waitingItems = waitingTopics.reduce((sum, topic) => sum + topic.amountItem, 0);
+        const efficiency = totalItems > 0 ? (scheduledItems / totalItems) * 100 : 0;
+
+        return {
+            schedules: scheduleGenerateFollowFreeTimeSlotPerDay,
+            waitingTopics,
+            preferredTime: USER_PREFERRED_SESSION_LEARNING,
+            statistics: {
+                totalItems,
+                scheduledItems,
+                waitingItems,
+                efficiency: Math.round(efficiency * 100) / 100,
+                slotsGenerated: Object.values(scheduleGenerateFollowFreeTimeSlotPerDay).reduce(
+                    (sum, slots) => sum + slots.length,
+                    0
+                ),
+                averageItemsPerSlot:
+                    scheduledItems > 0
+                        ? Math.round(
+                              (scheduledItems /
+                                  Object.values(scheduleGenerateFollowFreeTimeSlotPerDay).reduce(
+                                      (sum, slots) => sum + slots.length,
+                                      0
+                                  )) *
+                                  100
+                          ) / 100
+                        : 0,
+            },
+        };
     }
 
-    // If there are still items left in the waiting queue, send to client and notify user
-    const waitingTopics: IItemScheduleGenerated[] = [];
+    /**
+     * Calculate optimal items per slot based on difficulty and time available
+     */
+    private calculateOptimalItemsPerSlot(
+        items: IGroupTopic[],
+        availableMinutes: number
+    ): { itemsPerSlot: number; numberOfSlots: number } {
+        const totalItems = items.length;
+        const averageDifficulty = items.reduce((sum, item) => sum + parseFloat(item.easinessFactor), 0) / totalItems;
 
-    while (!scheduleWaitingPriorityQueue.isEmpty()) {
-      const waitingTopic = scheduleWaitingPriorityQueue.dequeue();
-      if (waitingTopic) {
-        waitingTopics.push(waitingTopic);
-      }
+        // Adjust items per slot based on difficulty (lower easiness = harder = fewer items per slot)
+        let baseItemsPerSlot = Math.floor(availableMinutes / this.DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM);
+
+        // Apply difficulty adjustment
+        if (averageDifficulty < 2.0) {
+            baseItemsPerSlot = Math.min(baseItemsPerSlot * 0.7, this.MAX_ITEMS_PER_SLOT);
+        } else if (averageDifficulty > 3.0) {
+            baseItemsPerSlot = Math.min(baseItemsPerSlot * 1.2, this.MAX_ITEMS_PER_SLOT);
+        }
+
+        // Ensure within bounds
+        const itemsPerSlot = Math.max(this.MIN_ITEMS_PER_SLOT, Math.min(this.MAX_ITEMS_PER_SLOT, baseItemsPerSlot));
+        const numberOfSlots = Math.ceil(totalItems / itemsPerSlot);
+
+        return { itemsPerSlot, numberOfSlots };
     }
 
-    return {
-      schedules: scheduleGenerateFollowFreeTimeSlotPerDay,
-      waitingTopics,
-      preferredTime: USER_PREFERRED_SESSION_LEARNING,
-    };
-  }
+    /**
+     * Split items into optimal chunks for studying
+     */
+    private splitItemsIntoStudyChunks(items: IGroupTopic[], targetItemsPerChunk: number): IGroupTopic[][] {
+        const chunks: IGroupTopic[][] = [];
+
+        // Sort items by priority (new items first, then by difficulty)
+        const sortedItems = [...items].sort((a, b) => {
+            // Prioritize by status: new > learning > review
+            const statusPriority = this.PRIORITY_STATUS_ITEM_LEARNING_TRACKING;
+            const aStatusPriority = statusPriority[a.status as keyof typeof statusPriority] || 0;
+            const bStatusPriority = statusPriority[b.status as keyof typeof statusPriority] || 0;
+
+            if (aStatusPriority !== bStatusPriority) {
+                return bStatusPriority - aStatusPriority;
+            }
+
+            // Then by difficulty (harder items first within same status)
+            return parseFloat(a.easinessFactor) - parseFloat(b.easinessFactor);
+        });
+
+        // Split into chunks with mixed difficulty
+        for (let i = 0; i < sortedItems.length; i += targetItemsPerChunk) {
+            const chunk = sortedItems.slice(i, i + targetItemsPerChunk);
+            if (chunk.length >= this.MIN_ITEMS_PER_SLOT || i + targetItemsPerChunk >= sortedItems.length) {
+                chunks.push(chunk);
+            } else {
+                // Add remaining items to last chunk if it's too small
+                if (chunks.length > 0) {
+                    chunks[chunks.length - 1].push(...chunk);
+                } else {
+                    chunks.push(chunk);
+                }
+            }
+        }
+
+        return chunks;
+    }
+
+    /**
+     * Calculate enhanced priority with smart weighting
+     *      -------------- Low Easiness Factor → High Priority -----------------
+            Lower easinessFactorSum = smaller numerator = higher priority
+            Items that are harder to remember get more attention
+            ------------------- High Repetition Count → Lower Priority -----------------
+            Higher repetitionNumberSum = larger denominator = lower priority
+            Items already reviewed many times get less attention
+              ----------------- Edge Case Handling ------------------
+            1 prevents division by zero when no items have repetitions
+            Ensures new items (with 0 repetitions) get appropriate priority
+              ----------------- Status Consideration ------------------
+            New topics naturally get higher priority since they have lower repetition counts
+            The grouping by status earlier in the code ensures proper categorization
+            ES for new topic is usually 2.5 and repetition is 0 , so it will be handled correctly
+     */
+    private calculatePriority(items: IGroupTopic[]): number {
+        const easinessFactorSum = items.reduce((sum, item) => sum + parseFloat(item.easinessFactor), 0);
+        const repetitionNumberSum = items.reduce((sum, item) => sum + (item.repetition || 0), 0);
+
+        // Base priority calculation
+        let priority = easinessFactorSum / (repetitionNumberSum + 1);
+
+        // Apply status-based multipliers
+        const statusCounts = items.reduce(
+            (acc, item) => {
+                acc[item.status] = (acc[item.status] || 0) + 1;
+                return acc;
+            },
+            {} as Record<string, number>
+        );
+
+        if (statusCounts['new'] > 0) {
+            priority *= this.NEW_ITEM_PRIORITY_MULTIPLIER;
+        }
+        if (statusCounts['review'] > 0) {
+            priority *= this.REVIEW_PRIORITY_MULTIPLIER;
+        }
+
+        // Boost priority for overdue items
+        const now = new Date();
+        const overdueCount = items.filter(item => item.reviewDate && new Date(item.reviewDate) < now).length;
+
+        if (overdueCount > 0) {
+            priority *= 1 + (overdueCount / items.length) * 0.5; // Up to 50% boost for overdue items
+        }
+
+        return priority;
+    }
+
+    /**
+     * Check if a time slot can accommodate the minimum study session
+     */
+    private isSlotViable(slotDurationMinutes: number): boolean {
+        return slotDurationMinutes >= this.MIN_SLOT_DURATION_MINUTES;
+    }
 }
 
 export const scheduleService = new ScheduleService();

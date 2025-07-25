@@ -4,11 +4,15 @@ import { registerRoute } from '@/routes/register.routes';
 import { questionController } from '@/controllers/question/question.controller';
 import { validateTopicId } from '@/middleware/validations/flashcard.validation';
 import { validateBatchQuestions } from '@/middleware/validations/question.validation';
+import { authMiddleware } from '@/middleware/auth.middleware';
 
 
 const router = Router();
 globalAsyncHandler(router);
 
+router.use(authMiddleware);
+
+router.get('/', validateTopicId(), questionController.handleGetAllQuestionsForTopic);
 router.post('/batch', validateTopicId(), validateBatchQuestions() ,questionController.handleBatchQuestionsForTopic);
 
 registerRoute('/questions', router, {

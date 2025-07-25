@@ -20,12 +20,32 @@ class QuizController {
         SuccessResponse.ok(res, questions);
     }
 
+    async handleCreateQuiz(req: Request, res: Response): Promise<void> {
+        const { topicId, name, description } = req.body;
+
+        const quizId = await quizService.handleCreateQuiz({
+            topicId,
+            name,
+            description,
+        });
+
+        SuccessResponse.created(res, { quizId });
+    }
+
+    async handleGetQuizById(req: Request, res: Response): Promise<void> {
+        const quizId = parseInt(req.params.quizId);
+        if (isNaN(quizId)) throw new BadRequest('Invalid quizId');
+
+        const quiz = await quizService.getQuizById(quizId);
+        SuccessResponse.ok(res, quiz);
+    }
+
     async handleSubmitQuiz(req: Request, res: Response): Promise<void> {
         const userId = getUserIdFromRequest(req);
         const { quizId, results }: QuizSubmitDto = req.body;
 
-        await quizService.handleSubmitQuiz(userId, quizId, results);
-        SuccessResponse.created(res, { message: 'Quiz submitted successfully' });
+        const quizResultId = await quizService.handleSubmitQuiz(userId, quizId, results);
+        SuccessResponse.created(res, { message: 'Quiz submitted successfully', quizResultId });
     }
 
     async handleGetQuizHistory(req: Request, res: Response): Promise<void> {
@@ -46,6 +66,16 @@ class QuizController {
 
         const data = await quizService.getQuizResultDetail(parsedId);
         SuccessResponse.ok(res, data);
+    }
+
+    async handleGetQuizStatistics(req: Request, res: Response): Promise<void> {
+        const topicId = Number(req.query.topicId);
+
+        const isExisted = await topicService.doesTopicExist(topicId);
+        if (!isExisted) throw new BadRequest('Topic does not exist');
+
+        const stats = await quizService.getQuizStatistics(topicId);
+        SuccessResponse.ok(res, stats);
     }
 }
 

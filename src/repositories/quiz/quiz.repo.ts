@@ -5,7 +5,8 @@ import { questionResultTable } from '@/models/quiz/questionResult.model';
 import { quizResultTable } from '@/models/quiz/quizResult.model';
 import { quizzesTable } from '@/models/quiz/quiz.model';
 import { IQuizResultPayload } from '@/types/quiz/quiz.type';
-import { eq, and, lt, sql, desc } from 'drizzle-orm';
+import { eq, and, lte, lt, sql, desc } from 'drizzle-orm';
+import { QuizCreateDto } from '@/dtos/quiz/quiz.dto';
 
 class QuizRepo {
     async getInitialQuiz(topicId: number) {
@@ -15,12 +16,16 @@ class QuizRepo {
     async getReviewQuiz(topicId: number, userId: number) {
         return db
             .select()
-            .from(itemSpacedRepetitionTrackingTable)
+            .from(questionsTable)
+            .innerJoin(
+                itemSpacedRepetitionTrackingTable,
+                eq(questionsTable.questionId, itemSpacedRepetitionTrackingTable.itemId)
+            )
             .where(
                 and(
                     eq(itemSpacedRepetitionTrackingTable.topicId, topicId),
                     eq(itemSpacedRepetitionTrackingTable.userId, userId),
-                    lt(itemSpacedRepetitionTrackingTable.nextReview, new Date().toISOString())
+                    lte(itemSpacedRepetitionTrackingTable.nextReview, new Date().toISOString())
                 )
             );
     }
@@ -28,12 +33,16 @@ class QuizRepo {
     async getLowEFQuiz(topicId: number, userId: number) {
         return db
             .select()
-            .from(itemSpacedRepetitionTrackingTable)
+            .from(questionsTable)
+            .innerJoin(
+                itemSpacedRepetitionTrackingTable,
+                eq(questionsTable.questionId, itemSpacedRepetitionTrackingTable.itemId)
+            )
             .where(
                 and(
                     eq(itemSpacedRepetitionTrackingTable.topicId, topicId),
                     eq(itemSpacedRepetitionTrackingTable.userId, userId),
-                    lt(itemSpacedRepetitionTrackingTable.easinessFactor, '2.0')
+                    lt(itemSpacedRepetitionTrackingTable.easinessFactor, '2.0') // Lọc theo EasinessFactor
                 )
             );
     }
@@ -45,27 +54,62 @@ class QuizRepo {
             .where(
                 and(
                     eq(questionsTable.topicId, topicId),
-                    sql`NOT EXISTS (SELECT 1 FROM ${itemSpacedRepetitionTrackingTable} WHERE ${itemSpacedRepetitionTrackingTable}.question_id = ${questionsTable}.question_id)`
+                    sql`NOT EXISTS (
+                    SELECT 1
+                    FROM ${itemSpacedRepetitionTrackingTable}
+                    WHERE ${itemSpacedRepetitionTrackingTable}.item_id = ${questionsTable.questionId}
+                )`
                 )
             );
-    }
-
-    async getRandomQuiz(topicId: number) {
-        return db.select().from(questionsTable).where(eq(questionsTable.topicId, topicId));
     }
 
     async getWrongQuiz(topicId: number, userId: number) {
-        return db
-            .select()
-            .from(questionResultTable)
-            .innerJoin(questionsTable, eq(questionResultTable.questionId, questionsTable.questionId))
-            .where(
-                and(
-                    eq(questionResultTable.userId, userId),
-                    eq(questionsTable.topicId, topicId),
-                    eq(questionResultTable.correct, false)
-                )
-            );
+        const result = await db.execute(
+            sql`
+            SELECT 
+  q.question_id AS "questionId",
+  q.topic_id AS "topicId",
+  q.question_text AS "questionText",
+  q.choices AS "choices",
+  q.correct_index AS "correctIndex",
+  q.created_at AS "createdAt"
+FROM (
+  SELECT DISTINCT ON (qr.question_id)
+    qr.question_id,
+    qr.correct,
+    qr.answered_at
+  FROM question_result qr
+  WHERE qr.user_id = ${userId}
+  ORDER BY qr.question_id, qr.answered_at DESC
+) latest_wrong
+JOIN questions q ON latest_wrong.question_id = q.question_id
+WHERE latest_wrong.correct = false
+  AND q.topic_id = ${topicId};
+  `
+        );
+        return result.rows;
+    }
+
+    async createQuizWithQuestions({ topicId, name, description }: QuizCreateDto) {
+        const [quiz] = await db
+            .insert(quizzesTable)
+            .values({ topicId, name, description })
+            .returning({ quizId: quizzesTable.quizId });
+
+        return quiz.quizId;
+    }
+
+    async getQuizById(quizId: number) {
+        const result = await db.query.quizzesTable.findFirst({
+            where: eq(quizzesTable.quizId, quizId),
+            columns: {
+                quizId: true,
+                name: true,
+                description: true,
+            },
+        });
+
+        return result ?? null;
     }
 
     async saveQuizAndQuestionResults(
@@ -163,24 +207,50 @@ class QuizRepo {
             questions,
         };
     }
-//     {
-//   "quizResultId": 12,
-//   "quizId": 5,
-//   "correctAnswersCount": 7,
-//   "questionsCount": 10,
-//   "timeReviewed": "2025-07-13T10:00:00Z",
-//   "questions": [
-//     {
-//       "questionId": 101,
-//       "questionText": "What is 2 + 2?",
-//       "choices": ["2", "3", "4", "5"],
-//       "correctIndex": 2,
-//       "userAnswerCorrect": true
-//     },
-//     ...
-//   ]
-// }
 
+    async getQuizStatistics(topicId: number) {
+        const result = await db
+            .select({
+                correctAnswersCount: quizResultTable.correctAnswersCount,
+                questionsCount: quizResultTable.questionsCount,
+            })
+            .from(quizResultTable)
+            .innerJoin(quizzesTable, eq(quizResultTable.quizId, quizzesTable.quizId))
+            .where(eq(quizzesTable.topicId, topicId));
+
+        const totalQuizzes = result.length;
+        if (totalQuizzes === 0) {
+            return {
+                totalQuizzes: 0,
+                averageScore: 0,
+                perfectScoreCount: 0,
+                averageQuestionsPerQuiz: 0,
+            };
+        }
+
+        let totalCorrect = 0;
+        let totalQuestions = 0;
+        let perfectScoreCount = 0;
+
+        for (const r of result) {
+            totalCorrect += r.correctAnswersCount ?? 0;
+            totalQuestions += r.questionsCount ?? 0;
+            if (r.correctAnswersCount === r.questionsCount) {
+                perfectScoreCount++;
+            }
+        }
+
+        const averageScore = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
+
+        const averageQuestionsPerQuiz = totalQuizzes > 0 ? Math.round(totalQuestions / totalQuizzes) : 0;
+
+        return {
+            totalQuizzes,
+            averageScore,
+            perfectScoreCount,
+            averageQuestionsPerQuiz,
+        };
+    }
 }
 
 export const quizRepo = new QuizRepo();

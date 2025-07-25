@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import db from '../../libs/drizzleClient.lib';
 import { usersTable } from '../../models/user.model';
-import { FreeTimeData, TimeSlot } from './type';
+import { FreeTimeSlotDays, TimeSlot } from './type';
 
 export class UserRepository {
     /**
@@ -9,25 +9,24 @@ export class UserRepository {
      * @param userId - The ID of the user
      * @returns Promise<FreeTimeData | null>
      */
-    public async getFreeTimeSlots(userId: string): Promise<FreeTimeData | null> {
+    public async getFreeTimeSlots(userId: number): Promise<FreeTimeSlotDays | null> {
         const user = await db
             .select({
                 freeTime: usersTable.freeTime,
                 isActive: usersTable.isActive,
             })
             .from(usersTable)
-            .where(eq(usersTable.userId, parseInt(userId)));
+            .where(eq(usersTable.userId, userId));
 
         if (!user.length || !user[0].isActive) {
             return null;
         }
 
         const userData = user[0];
-        const freeTimeSlots = this.parseFreeTimeData(userData.freeTime);
 
-        return {
-            freeTimeSlots,
-        };
+        const freeTimeSlots = userData?.freeTime as FreeTimeSlotDays;
+
+        return freeTimeSlots;
     }
 
     /**
@@ -98,7 +97,17 @@ export class UserRepository {
     /**
      * Update user info (fullName, avatarUrl, email, preferences, hobbiesTopic, avgStudyDuration)
      */
-    public async updateUserInfo(userId: number, updateData: Partial<{ fullName: string; avatarUrl: string; email: string; preferences: any; hobbiesTopic: string; avgStudyDuration: string; }>) {
+    public async updateUserInfo(
+        userId: number,
+        updateData: Partial<{
+            fullName: string;
+            avatarUrl: string;
+            email: string;
+            preferences: any;
+            hobbiesTopic: string;
+            avgStudyDuration: string;
+        }>
+    ) {
         const [updatedUser] = await db
             .update(usersTable)
             .set({

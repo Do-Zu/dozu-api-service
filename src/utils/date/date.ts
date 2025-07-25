@@ -421,3 +421,21 @@ export function isExpiredDate(
     const todayDate = getCurrentDateInTimeZone(timezone, today);
     return isBefore(endDate, todayDate);
 }
+
+/**
+ *  Gets the current UTC date.
+ *  This function returns the current date in UTC timezone.
+ */
+export function getUTCDate(): Date {
+    const now = new Date();
+    const utcDate = toZonedTime(now, 'UTC');
+    return utcDate;
+}
+
+/**
+ * Gets the current system date.
+ * This function returns the current date based on the system's local timezone.
+ */
+export function getSystemDate(): Date {
+    return new Date();
+}

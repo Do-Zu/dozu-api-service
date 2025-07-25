@@ -1,5 +1,5 @@
 import validateData from '@/middleware/validations/validator';
-import { quizGenerateSchema, quizSubmitSchema } from '@/dtos/quiz/quiz.dto';
+import { quizGenerateSchema, quizSubmitSchema, quizCreateSchema } from '@/dtos/quiz/quiz.dto';
 
 export const validateQuizGenerateQuery = () =>
   validateData({ 
@@ -12,3 +12,9 @@ export const validateQuizSubmit = () =>
     selector: req => req.body,
     schema: quizSubmitSchema,
   });
+
+export const validateQuizCreate = () =>
+  validateData({ 
+    selector: req => req.body, 
+    schema: quizCreateSchema 
+  });  

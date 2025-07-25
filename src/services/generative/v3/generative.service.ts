@@ -1,5 +1,5 @@
 import { Worker, Job } from 'bullmq';
-import { bullMQService as queue } from '@/libs/bullmq/bullmq';
+import { pubSubGenerateManager as queue } from '../pub-sub/pubSub.generate';
 import { BaseGenerativeService } from '../base/base.abstract';
 import { convertJsonToArray, generatePromptText, TYPE_PROMPT } from '@/utils/prompt';
 import { v4 as uuidv4 } from 'uuid';
@@ -102,7 +102,7 @@ class GenerativeService extends BaseGenerativeService {
 
         try {
             if (!job || !dataGenerated || !jobId) {
-                throw new PayloadTooLarge();
+                throw new ServiceUnavailable('Processor received invalid data!');
             }
 
             // Send data to client via SSE if connected
@@ -163,26 +163,10 @@ class GenerativeService extends BaseGenerativeService {
     }
 
     /**
-     * Enhanced method to store data with better organization
+     *
      */
-    private async storeDataWithMetadata(
-        data: unknown,
-        jobId: string,
-        type: string,
-        metadata?: Record<string, unknown>
-    ): Promise<void> {
-        const key = `${type}:result:${jobId}`;
-        const dataWithMetadata = {
-            data,
-            metadata: {
-                timestamp: new Date().toISOString(),
-                type,
-                jobId,
-                ...metadata,
-            },
-        };
-        await redisInstance.set(key, dataWithMetadata, this.RESULT_TTL);
-        logger.info(`Stored result for job ${jobId} of type ${type} in Redis`);
+    public async checkStatusDataGeneratedCache(jobId: string, type?: string): Promise<boolean> {
+        return await this.checkAndSendPendingResults(jobId, type);
     }
 
     /**
@@ -497,12 +481,8 @@ class GenerativeService extends BaseGenerativeService {
             for (const type of resultTypes) {
                 const cachedResult = await redisInstance.get(`${type}:result:${jobId}`);
                 if (cachedResult) {
-                    // Send the cached result to the newly connected client
-                    const success = sseManager.sendEvent(jobId, cachedResult);
-                    if (success) {
-                        // Optionally remove the cached result since it's been delivered
-                        await redisInstance.del(`${type}:result:${jobId}`);
-                    }
+                    sseManager.sendEvent(jobId, cachedResult);
+
                     return true;
                 }
             }
