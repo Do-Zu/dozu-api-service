@@ -49,6 +49,37 @@ class ScheduleController {
 
         SuccessResponse.ok(res, data);
     }
+
+    /**
+     * Get preference schedule for user configuration
+     * @param req - Express request object
+     * @param res - Express response object
+     */
+    async getPreference(req: Request, res: Response) {
+        const userId = req.currentUser?.userId;
+
+        const data = await scheduleService.getPreferenceForSchedule({ userId });
+
+        SuccessResponse.ok(res, data);
+    }
+
+    /**
+     * Batch update user preferences for schedule
+     * @param req - Express request object
+     * @param res - Express response object
+     */
+    async batchUpdatePreference(req: Request, res: Response) {
+        const userId = req.currentUser?.userId;
+        const preferences = req.body;
+
+        if (!preferences) {
+            throw new BadRequest('Preferences are required');
+        }
+
+        const data = await scheduleService.batchUpdatePreferenceForSchedule({ userId, preferences });
+
+        SuccessResponse.created(res, data);
+    }
 }
 
 export const scheduleController = new ScheduleController();
