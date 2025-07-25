@@ -13,6 +13,8 @@ router.use(authMiddleware);
 
 router.get('/', scheduleController.getScheduleInWeek);
 router.post('/generate', scheduleController.generateSchedule);
+router.get('/preference', scheduleController.getPreference);
+router.post('/preference', scheduleController.batchUpdatePreference);
 
 // Register the router
 registerRoute('/schedule', router, {
