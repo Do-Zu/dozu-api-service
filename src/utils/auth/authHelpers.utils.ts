@@ -1,10 +1,10 @@
-import { SelectUser } from '@/models';
 import { getUserRoles } from '@/repositories/auth.repo';
 import { SanitizedUser } from '@/types/auth/sanitizedUser.type';
 import { Request } from 'express';
 import { getDateFormatted } from '../date';
+import { UserLoginDataResponse } from '@/services/auth.service';
 
-export const sanitizeUserObject = (userData: SelectUser): SanitizedUser => {
+export const sanitizeUserObject = (userData: UserLoginDataResponse): SanitizedUser => {
     const returnData = {
         userId: userData.userId,
         username: userData.username,
@@ -16,7 +16,7 @@ export const sanitizeUserObject = (userData: SelectUser): SanitizedUser => {
         createdAt: userData?.createdAt ? getDateFormatted(userData?.createdAt) : null,
         lastLoginAt: userData?.lastLoginAt ? getDateFormatted(userData?.lastLoginAt) : null,
         permissions: [],
-        roles: [userData.role],
+        roles: userData.roles,
     } as SanitizedUser;
 
     return returnData;

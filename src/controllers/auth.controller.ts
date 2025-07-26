@@ -11,7 +11,6 @@ import { AuthenticationError, BadRequest } from '@/core/error';
 import { signAccessJwtToken, signRefreshJwtToken } from '@/utils/auth/jwt.utils';
 import { sanitizeUserObject } from '@/utils/auth/authHelpers.utils';
 import jwt from 'jsonwebtoken';
-import { SelectUser } from '@/models';
 
 const frontEndBaseUrl = process.env.FRONTEND_BASE_URL;
 const SECRET = process.env.JWT_SECRET;
@@ -26,7 +25,7 @@ export const registerUserController = async (req: Request, res: Response) => {
         throw new BadRequest('Username, password and email are required');
     }
     const data = await registerUserService(req.body.username, req.body.password, req.body.email);
-    const sanitizedUser = sanitizeUserObject(data.user as SelectUser);
+    const sanitizedUser = sanitizeUserObject(data.user);
     const accessToken = signAccessJwtToken(sanitizedUser);
 
     const returnData = {
