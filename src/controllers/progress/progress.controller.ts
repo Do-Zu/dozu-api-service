@@ -185,6 +185,65 @@ class ProgressController {
       SuccessResponse.ok(res, { completedTopics });
    
   }
+
+  /**
+   * Update learning tracking data from client
+   * Updates both progress table and daily_study_records
+   */
+  public async updateLearningTracking(req: Request, res: Response): Promise<void> {
+    
+      const userId = this.extractUserId(req);
+      const {
+        topicId,
+        contentType,
+        timeSpent, // in milliseconds from client
+        isCompleted = false,
+        cardsStudied = 0,
+        accuracy = 0,
+        sessionData
+      } = req.body;
+
+      if (!topicId || !contentType || typeof timeSpent !== 'number') {
+        throw new BadRequest('Missing required fields: topicId, contentType, timeSpent');
+      }
+
+      // Convert timeSpent from milliseconds to seconds for database
+      const timeSpentSeconds = Math.floor(timeSpent / 1000);
+      const timeSpentMinutes = Math.floor(timeSpent / (1000 * 60));
+      
+      // For learning tracking, ensure at least 1 minute is recorded if cards were studied
+      const recordedMinutes = cardsStudied > 0 ? Math.max(timeSpentMinutes, 1) : timeSpentMinutes;
+
+      // Update or create progress record
+      await progressService.updateLearningProgress({
+        userId,
+        topicId,
+        contentType,
+        timeSpent: timeSpentSeconds,
+        isCompleted,
+        metadata: {
+          cardsStudied,
+          accuracy,
+          sessionData,
+          lastUpdated: new Date().toISOString()
+        }
+      });
+
+      // Update daily study records
+      await progressService.updateDailyStudyRecord({
+        userId,
+        date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+        additionalMinutes: recordedMinutes,
+        sessionIncrement: 1
+      });
+
+      SuccessResponse.ok(res, { 
+        message: 'Learning tracking updated successfully',
+        timeSpentMinutes,
+        isCompleted 
+      });
+   
+  }
 }
 
 export const progressController = new ProgressController();
