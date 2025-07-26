@@ -18,9 +18,7 @@ import { getDateFormatted } from '@/utils/date';
 import { and, asc, eq, lte } from 'drizzle-orm';
 import itemSpacedRepetitionTrackingService from '@/services/tracking/itemSpacedRepetitionTracking.service';
 
-export type IFlashcardsForTopicReturned = (Omit<IFlashcardBasic, 'topicId'> & {
-    status: IFlashcardStatus;
-})[];
+export type IFlashcardsForTopicReturned = (Omit<IFlashcardBasic, 'topicId'>)[];
 export type IFlashcardSpacedRepetitionReturned = Pick<
     IFlashcardSpacedRepetition,
     'reviewInterval' | 'easinessFactor' | 'repetitionNumber'
@@ -144,16 +142,8 @@ class FlashcardRepo {
                 flashcardId: flashcardsTable.flashcardId,
                 front: flashcardsTable.front,
                 back: flashcardsTable.back,
-                status: itemSpacedRepetitionTrackingTable.status,
             })
             .from(flashcardsTable)
-            .innerJoin(
-                itemSpacedRepetitionTrackingTable,
-                and(
-                    eq(itemSpacedRepetitionTrackingTable.type, 'flashcard'),
-                    eq(itemSpacedRepetitionTrackingTable.itemId, flashcardsTable.flashcardId)
-                )
-            )
             .where(eq(flashcardsTable.topicId, topicId))
             .orderBy(flashcardsTable.createdAt);
         return flashcards;

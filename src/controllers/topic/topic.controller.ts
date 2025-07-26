@@ -118,6 +118,7 @@ class TopicController {
         if (isNaN(userId)) {
             throw new BadRequest('Invalid param, cannot get topics');
         }
+        const { inputSetId } = req.body as { inputSetId: string };
         let { classId } = req.params as { classId: string | number };
         classId = parseInt(classId as string);
 
@@ -134,6 +135,10 @@ class TopicController {
                 description: topicsTable.description,
                 createdAt: topicsTable.createdAt,
             });
+            if(inputSetId) {
+                const topicId = result.topicId;
+                await updateTopicIdOfInputSet({ topicId: topicId, inputSetId: parseInt(inputSetId) });
+            }
         } catch (err) {
             logger.error(err);
             throw new DatabaseError('Something went wrong');
