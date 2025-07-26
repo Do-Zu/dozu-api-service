@@ -4,6 +4,7 @@ import { userRepository } from '@/repositories/user/user.repo';
 import { IGroupTopic, IItemScheduleGenerated, ItemTrackingWithTopic } from './types/schedule.index';
 import { getDateFormattedWithTimeZone, getDayOfWeek } from '@/utils/date';
 import { SchedulePriorityQueue } from '@/utils/queue/schedule.queue';
+import { BadRequest } from '@/core/error';
 
 const DEFINE_DEFAULT_FREE_TIME: FreeTimeSlotDays = {
     Monday: [
@@ -532,6 +533,62 @@ class ScheduleService {
      */
     private isSlotViable(slotDurationMinutes: number): boolean {
         return slotDurationMinutes >= this.MIN_SLOT_DURATION_MINUTES;
+    }
+
+    /**
+     * Get user preferences for schedule
+     * @returns User preferences for schedule
+     */
+    public async getPreferenceForSchedule({ userId }: { userId: number }) {
+        const user = await userRepository.getUserById(userId);
+
+        if (!user) {
+            throw new BadRequest('User not found');
+        }
+
+        const { preferences, avgStudyDuration, freeTime, studyPreferences } = user;
+
+        return {
+            preferences,
+            studyPreferences,
+            avgStudyDuration,
+            freeTime,
+        };
+    }
+
+    /**
+     * Batch update user preferences for schedule
+     * @param param - Object containing userId and preferences
+     * @param userId - The ID of the user
+     * @return Updated user preferences
+     */
+    public async batchUpdatePreferenceForSchedule({
+        userId,
+        preferences,
+    }: {
+        userId: number;
+        preferences: Partial<{
+            studyPreferences: string[];
+            avgStudyDuration: string | number;
+            freeTime: FreeTimeSlotDays;
+        }>;
+    }) {
+        const user = await userRepository.getUserById(userId);
+
+        if (!user) {
+            throw new BadRequest('User not found');
+        }
+
+        const update = await userRepository.batchUpdatePreferencesSchedule({
+            userId,
+            preferences,
+        });
+
+        return {
+            preferences: update?.preferences,
+            avgStudyDuration: update?.avgStudyDuration,
+            freeTime: update?.freeTime as FreeTimeSlotDays,
+        };
     }
 }
 

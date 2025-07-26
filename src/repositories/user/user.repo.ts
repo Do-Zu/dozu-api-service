@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import db from '../../libs/drizzleClient.lib';
 import { usersTable } from '../../models/user.model';
 import { FreeTimeSlotDays, TimeSlot } from './type';
+import { getSystemDate } from '@/utils/date';
 
 export class UserRepository {
     /**
@@ -145,6 +146,38 @@ export class UserRepository {
     public async getAllUsers() {
         const users = await db.select().from(usersTable);
         return users;
+    }
+
+    /**
+     * Batch update user preferences for schedule
+     * @param param - Object containing userId and preferences
+     * @param userId - The ID of the user
+     * @returns
+     */
+    public async batchUpdatePreferencesSchedule({
+        userId,
+        preferences,
+    }: {
+        userId: number;
+        preferences: Partial<{
+            studyPreferences: string[];
+            avgStudyDuration: string | number;
+            freeTime: FreeTimeSlotDays;
+        }>;
+    }) {
+        const { studyPreferences, avgStudyDuration, freeTime } = preferences;
+        const [updatedUser] = await db
+            .update(usersTable)
+            .set({
+                studyPreferences: studyPreferences ? JSON.stringify(studyPreferences) : undefined,
+                avgStudyDuration: avgStudyDuration ? avgStudyDuration.toString() : undefined,
+                freeTime: freeTime ? JSON.stringify(freeTime) : undefined,
+                updatedAt: getSystemDate(),
+            })
+            .where(eq(usersTable.userId, userId))
+            .returning();
+
+        return updatedUser;
     }
 }
 
