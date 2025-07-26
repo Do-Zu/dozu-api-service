@@ -230,9 +230,13 @@ class ProgressController {
       });
 
       // Update daily study records
+      // Use local date instead of UTC to match user's timezone
+      const today = new Date();
+      const localDateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      
       await progressService.updateDailyStudyRecord({
         userId,
-        date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+        date: localDateString, // YYYY-MM-DD format in local timezone
         additionalMinutes: recordedMinutes,
         sessionIncrement: 1
       });

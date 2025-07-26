@@ -108,9 +108,23 @@ class ProgressService {
       const currentTimeSpent = existingProgress.metadata?.timeSpent || 0;
       const updatedTimeSpent = currentTimeSpent + data.timeSpent;
       
+      // Only update to COMPLETED if isCompleted is true, otherwise keep existing status
+      // This prevents downgrading from COMPLETED to IN_PROGRESS
+      const updatedStatus = data.isCompleted 
+        ? ProgressStatus.COMPLETED 
+        : (existingProgress.status === ProgressStatus.COMPLETED 
+           ? ProgressStatus.COMPLETED 
+           : ProgressStatus.IN_PROGRESS);
+      
+      const updatedCompletionPercentage = data.isCompleted 
+        ? 100 
+        : (existingProgress.status === ProgressStatus.COMPLETED 
+           ? 100 
+           : existingProgress.completionPercentage);
+      
       const updateData: IProgressUpdate = {
-        status: data.isCompleted ? ProgressStatus.COMPLETED : ProgressStatus.IN_PROGRESS,
-        completionPercentage: data.isCompleted ? 100 : existingProgress.completionPercentage,
+        status: updatedStatus,
+        completionPercentage: updatedCompletionPercentage,
         metadata: {
           ...existingProgress.metadata,
           ...data.metadata,
