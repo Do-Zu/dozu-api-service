@@ -21,16 +21,22 @@ import {
 import { hashPassword, verifyPassword } from '@/utils/auth/hash.utils';
 import { decodeJwtToken } from '@/utils/auth/jwt.utils';
 
-type LoginResult = { success: true; user: SelectUser } | { success: false; reason: string }; //todo:reformat as template type for every services
+// type for getLoginData response
+export interface UserLoginDataResponse extends SelectUser {
+    roles: string[];
+    permissions?: string[]; // optional, implement in the future
+}  
 
-const getLoginData = async (userId: number) => {
+type LoginResult = { success: true; user: UserLoginDataResponse } | { success: false; reason: string }; //todo:reformat as template type for every services
+
+const getLoginData = async (userId: number) : Promise<UserLoginDataResponse> => {
     const updatedUser = await updateLastLoginAt(userId);
     const rolesSystem = await getRoles(); //get all roles in system from db
     const userRoleEntries = await getUserRoles(userId); //get all roles of user
     const userRoles = [];
     for (let roleEntry of userRoleEntries) {
         const role = rolesSystem.find(role => role.roleId === roleEntry.roleId);
-        userRoles.push(role?.name);
+        if(role) userRoles.push(role.name); // to not add undefined to the array
     }
     return { ...updatedUser, roles: userRoles };
 };
