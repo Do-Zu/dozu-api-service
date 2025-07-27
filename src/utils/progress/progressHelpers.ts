@@ -75,11 +75,14 @@ export function generateDailyStudyHoursWithEmptyDays(
 }
 
 /**
- * Calculate total hours from minutes with proper rounding
+ * Calculate total hours from minutes with high precision
  * @param totalMinutes - Total minutes as string or number
- * @returns Hours rounded to 1 decimal place
+ * @returns Hours with exact conversion (no unnecessary rounding)
  */
 export function minutesToHours(totalMinutes: string | number | null): number {
   const minutes = Number(totalMinutes || 0);
-  return Math.round((minutes / 60) * 10) / 10;
+  // Convert directly without rounding to preserve precision
+  const hours = minutes / 60;
+  // Only round to 3 decimal places to avoid floating point errors
+  return Math.round(hours * 1000) / 1000;
 }

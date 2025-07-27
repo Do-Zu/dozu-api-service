@@ -34,7 +34,7 @@ export interface ProgressMetadata {
   answers?: Record<string, unknown>; 
   notes?: string;
   // Learning tracking fields
-  cardsStudied?: number;
+  itemsStudied?: number;
   accuracy?: number;
   sessionData?: Record<string, unknown>;
   lastUpdated?: string;

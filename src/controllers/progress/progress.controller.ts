@@ -198,7 +198,7 @@ class ProgressController {
         contentType,
         timeSpent, // in milliseconds from client
         isCompleted = false,
-        cardsStudied = 0,
+        itemsStudied = 0,
         accuracy = 0,
         sessionData
       } = req.body;
@@ -207,12 +207,13 @@ class ProgressController {
         throw new BadRequest('Missing required fields: topicId, contentType, timeSpent');
       }
 
-      // Convert timeSpent from milliseconds to seconds for database
+      // Convert timeSpent from milliseconds to seconds and minutes for database
       const timeSpentSeconds = Math.floor(timeSpent / 1000);
-      const timeSpentMinutes = Math.floor(timeSpent / (1000 * 60));
+      const timeSpentMinutes = timeSpent / (1000 * 60); // Keep as decimal for calculation
       
-      // For learning tracking, ensure at least 1 minute is recorded if cards were studied
-      const recordedMinutes = cardsStudied > 0 ? Math.max(timeSpentMinutes, 1) : timeSpentMinutes;
+      // Round to nearest minute for database storage (integer required)
+      // Ensure minimum 1 minute if any time was spent
+      const recordedMinutes = timeSpentMinutes > 0 ? Math.max(1, Math.round(timeSpentMinutes)) : 0;
 
       // Update or create progress record
       await progressService.updateLearningProgress({
@@ -222,7 +223,7 @@ class ProgressController {
         timeSpent: timeSpentSeconds,
         isCompleted,
         metadata: {
-          cardsStudied,
+          itemsStudied,
           accuracy,
           sessionData,
           lastUpdated: new Date().toISOString()
