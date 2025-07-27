@@ -123,6 +123,7 @@ WHERE latest_wrong.correct = false
             .insert(quizResultTable)
             .values({
                 quizId,
+                userId,
                 correctAnswersCount,
                 questionsCount: results.length,
                 timeReviewed: new Date(),
@@ -151,7 +152,7 @@ WHERE latest_wrong.correct = false
         return record?.topicId ?? -1;
     }
 
-    async getQuizHistoryByTopic(topicId: number) {
+    async getQuizHistoryByTopic(topicId: number, userId: number) {
         return await db
             .select({
                 quizResultId: quizResultTable.quizResultId,
@@ -162,7 +163,8 @@ WHERE latest_wrong.correct = false
             })
             .from(quizResultTable)
             .innerJoin(quizzesTable, eq(quizResultTable.quizId, quizzesTable.quizId))
-            .where(eq(quizzesTable.topicId, topicId))
+            .where(and(eq(quizzesTable.topicId, topicId), eq(quizResultTable.userId, userId)))
+
             .orderBy(desc(quizResultTable.timeReviewed));
     }
 

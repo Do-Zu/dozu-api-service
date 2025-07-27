@@ -44,13 +44,11 @@ public async handleGetAllQuestionsForTopic(topicId: number): Promise<IQuestionBa
 }
 
   public async handleBatchInsertUpdateDelete(
-    userId: number,
     topicId: number,
     { insert, update, delete: deleteIds }: QuestionBatchPayload
   ) {
     const insertData = insert?.map((q) => ({
       topicId,
-      userId,
       questionText: q.questionText,
       choices: q.choices,
       correctIndex: q.correctIndex,
