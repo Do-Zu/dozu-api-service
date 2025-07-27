@@ -29,6 +29,7 @@ import './inputSet/inputSet.routes';
 import './profile/profile.routes';
 import './notification/notification.route';
 import './onboarding/onboarding.routes';
+import './teacher-request/teacherRequest.routes';
 
 // Apply global async handler to router
 globalAsyncHandler(router);

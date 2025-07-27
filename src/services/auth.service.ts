@@ -7,6 +7,7 @@ import {
     deleteVerificationCodeByEmailVerificationId,
     findByProviderId,
     getRoles,
+    getTeacherRoleId,
     getUserRoleId,
     getUserRoles,
     insertAuthAccountObject,
@@ -46,6 +47,11 @@ const addRoleUserForAccount = async (userId: number) => {
     const userRoleId = await getUserRoleId();
     await addRole(userRoleId, userId);
 };
+
+export const addRoleTeacherForAccount = async (userId: number) => {
+    const teacherRoleId = await getTeacherRoleId();
+    await addRole(teacherRoleId, userId);
+}
 
 export const loginService = async (username: string, password: string): Promise<LoginResult> => {
     const userData = await selectOneUserByUsername(username);

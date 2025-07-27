@@ -151,6 +151,23 @@ export const getUserRoleId = async (): Promise<number> => {
     return userRoleId;
 };
 
+
+export const getTeacherRoleId = async (): Promise<number> => {
+    let teacherRoleId = -1;
+    const [result] = await db.select().from(rolesTable).where(eq(rolesTable.name, 'teacher'));
+    if (!result) {
+        const userRole: InsertRole = {
+            name: 'teacher',
+            description: 'Basic teacher',
+        };
+        const [insertedRole] = await db.insert(rolesTable).values(userRole).returning();
+        teacherRoleId = insertedRole.roleId;
+    } else {
+        teacherRoleId = result.roleId;
+    }
+    return teacherRoleId;
+}
+
 export const addRole = async (userRoleId: number, userId: number): Promise<void> => {
     const userRole: InsertUserRolesPermission = {
         roleId: userRoleId,
