@@ -5,8 +5,8 @@ class QuestionService {
     async handleGetAllQuestionsForTopic(topicId: number) {
         return questionRepo.handleGetAllQuestionsForTopic(topicId);
     }
-    async handleBatchQuestions(userId: number, topicId: number, batch: QuestionBatchPayload) {
-        await questionRepo.handleBatchInsertUpdateDelete(userId, topicId, batch);
+    async handleBatchQuestions( topicId: number, batch: QuestionBatchPayload) {
+        await questionRepo.handleBatchInsertUpdateDelete(topicId, batch);
     }
 }
 

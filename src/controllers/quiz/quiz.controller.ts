@@ -49,12 +49,13 @@ class QuizController {
     }
 
     async handleGetQuizHistory(req: Request, res: Response): Promise<void> {
+        const userId = getUserIdFromRequest(req);
         const topicId = Number(req.query.topicId);
 
         const isExisted = await topicService.doesTopicExist(topicId);
         if (!isExisted) throw new BadRequest('Topic does not exist');
 
-        const history = await quizService.handleGetQuizHistory(Number(topicId));
+        const history = await quizService.handleGetQuizHistory(topicId, userId);
         SuccessResponse.ok(res, history);
     }
 

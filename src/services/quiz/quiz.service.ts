@@ -56,8 +56,8 @@ class QuizService {
         return quizResultId;
     }
 
-    async handleGetQuizHistory(topicId: number) {
-        return await quizRepo.getQuizHistoryByTopic(topicId);
+    async handleGetQuizHistory(topicId: number, userId: number) {
+        return await quizRepo.getQuizHistoryByTopic(topicId, userId);
     }
 
     async getQuizResultDetail(quizResultId: number) {
