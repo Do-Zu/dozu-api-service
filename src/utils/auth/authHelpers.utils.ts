@@ -17,6 +17,7 @@ export const sanitizeUserObject = (userData: UserLoginDataResponse): SanitizedUs
         lastLoginAt: userData?.lastLoginAt ? getDateFormatted(userData?.lastLoginAt) : null,
         permissions: [],
         roles: userData.roles,
+        isActive: userData.isActive,
     } as SanitizedUser;
 
     return returnData;
