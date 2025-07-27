@@ -136,6 +136,7 @@ WHERE latest_wrong.correct = false
             questionId: r.questionId,
             userId,
             correct: r.correct,
+            userAnswerIndex: r.userAnswerIndex,
             answeredAt: new Date(),
         }));
 
@@ -182,6 +183,7 @@ WHERE latest_wrong.correct = false
                 choices: questionsTable.choices,
                 correctIndex: questionsTable.correctIndex,
                 userAnswerCorrect: questionResultTable.correct,
+                userAnswerIndex: questionResultTable.userAnswerIndex,
             })
             .from(quizResultTable)
             .innerJoin(questionResultTable, eq(quizResultTable.quizId, questionResultTable.quizId))
@@ -198,6 +200,7 @@ WHERE latest_wrong.correct = false
             choices: r.choices,
             correctIndex: r.correctIndex,
             userAnswerCorrect: r.userAnswerCorrect,
+            userAnswerIndex: r.userAnswerIndex,
         }));
 
         return {
