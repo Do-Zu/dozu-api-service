@@ -6,5 +6,13 @@ export interface IClassEnrollment {
 }
 
 export interface IJoinClassBody {
-    invitationCode: string
+    invitationCode: string;
+}
+
+export interface IStudentInClass {
+    userId: number;
+    username: string;
+    fullName: string | null;
+    avatarUrl: string;
+    enrolledAt: Date;
 }

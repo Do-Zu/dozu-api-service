@@ -1,4 +1,4 @@
-import { BadRequest, DatabaseError } from '@/core/error';
+import { BadRequest, DatabaseError, Forbidden } from '@/core/error';
 import { SuccessResponse } from '@/core/success';
 import flashcardService, { IFlashcardNextReviewReturned } from '@/services/flashcard/flashcard.service';
 import topicService from '@/services/topic/topic.service';
@@ -6,7 +6,7 @@ import { IFlashcardsBatch } from '@/types/flashcard/flashcard.type';
 import logger from '@/utils/logger';
 import { Request, Response } from 'express';
 import SuperMemo2, { IQualityResponse } from '@/services/spaced-repetition-system/super-memo-2/superMemo2.origin';
-import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
+import { getUserIdFromRequest, isTeacher } from '@/utils/auth/authHelpers.utils';
 import { getCurrentDateFromRequest } from '@/utils/date';
 import {
     IApplyFlashcardSM2ArgumentSM2,
@@ -14,22 +14,14 @@ import {
     IFlashcardsLearningForUserReturned,
     IFlashcardSpacedRepetitionReturned,
 } from '@/repositories/flashcard.repo';
+import classEnrollmentService from '@/services/class-based-learning/classEnrollment.service';
+import classService from '@/services/class-based-learning/class.service';
 class FlashcardController {
     constructor() {}
 
     public async handleGetAllFlashcardsForTopic(req: Request, res: Response): Promise<void> {
-        let { topicId } = req.query as { topicId: string | number };
-
-        topicId = parseInt(topicId as string);
-
-        if (isNaN(topicId)) {
-            throw new BadRequest('Invalid param, cannot get flashcards');
-        }
-
+        const topicId = Number(req.query.topicId); 
         const topic = await topicService.getTopicById(topicId);
-        if (!topic) {
-            throw new BadRequest('Invalid topic');
-        }
 
         let flashcards: IFlashcardsForTopicReturned;
         try {
@@ -39,7 +31,7 @@ class FlashcardController {
             throw new DatabaseError('Something went wrong, cannot get flashcards');
         }
 
-        let topicName = topic.name;
+        let topicName = topic!.name; // not undefined because of middlewares
         SuccessResponse.ok(res, { flashcards, topicName });
     }
 
@@ -114,6 +106,7 @@ class FlashcardController {
         SuccessResponse.created(res, {});
     }
 
+    // todo-ka: check if this necessary, yes => create middleware for security
     public async handleGetFlashcardsLearningForUser(req: Request, res: Response): Promise<void> {
         const currentDate = getCurrentDateFromRequest(req);
         const userId = getUserIdFromRequest(req);
@@ -136,7 +129,36 @@ class FlashcardController {
         const currentDate = getCurrentDateFromRequest(req);
         let { topicId } = req.params as { topicId: string | number };
         const userId = getUserIdFromRequest(req);
+        const teacher = await isTeacher(req);
         topicId = parseInt(topicId as string);
+
+        const topic = await topicService.getTopicById(topicId);
+        if (!topic) {
+            throw new BadRequest('Invalid topic');
+        }
+        if(topic.classId) {
+            if(teacher) {
+                const isOwner = await classService.isTeacherOwnerOfClass(topic.classId, userId);
+                if(!isOwner) {
+                    const message = 'Forbidden: You are not the owner of this class!';
+                    logger.warn(message);
+                    throw new Forbidden(message);
+                }
+            } else {
+                const inClass = await classEnrollmentService.isStudentInClass(topic.classId, userId);
+                if(!inClass) {
+                    const message = 'Forbidden: You do not belong to this class!';
+                    logger.warn(message);
+                    throw new Forbidden(message);
+                }
+            }
+        } else {
+            if(topic.userId !== userId) {
+                const message = 'Forbidden: You are not the owner of this topic!';
+                logger.warn(message);
+                throw new Forbidden(message); 
+            }
+        }
 
         let flashcards: IFlashcardsLearningForUserReturned;
         try {

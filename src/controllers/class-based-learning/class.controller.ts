@@ -5,6 +5,8 @@ import { Request, Response } from 'express';
 import { IClass, ICreateClassBody, IUpdateClassBody } from '@/types/class-based-learning/class.type';
 import { SuccessResponse } from '@/core/success';
 import classService from '@/services/class-based-learning/class.service';
+import classEnrollmentService from '@/services/class-based-learning/classEnrollment.service';
+import { IStudentInClass } from '@/types/class-based-learning/classEnrollment.type';
 
 class ClassController {
 
@@ -73,6 +75,24 @@ class ClassController {
         try {
             result = await classService.updateClassById(classId, { name, description });
         } catch (err) {
+            logger.error(err);
+            throw new DatabaseError('Something went wrong');
+        }
+
+        SuccessResponse.ok(res, result);
+    }
+
+    public async getStudentsInClass(req: Request, res: Response) {
+        let { classId } = req.params as { classId: string | number };
+        classId = parseInt(classId as string);
+        if (isNaN(classId)) {
+            throw new BadRequest('Invalid param, cannot get students');
+        }
+
+        let result: IStudentInClass[];
+        try {
+            result = await classEnrollmentService.getStudentsInClass(classId);
+        } catch(err) {
             logger.error(err);
             throw new DatabaseError('Something went wrong');
         }

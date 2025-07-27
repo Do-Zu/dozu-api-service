@@ -1,7 +1,7 @@
 import db from '@/libs/drizzleClient.lib';
 import { classEnrollmentsTable, classesTable, usersTable } from '@/models';
 import { IClass } from '@/types/class-based-learning/class.type';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 export type ICreateClassRepo = Pick<IClass, 'name' | 'description' | 'invitationCode'> & { teacherId: number };
 export type IUpdateClassRepo = Pick<IClass, 'name' | 'description'>;
@@ -90,6 +90,15 @@ class ClassRepo {
             .where(eq(classesTable.invitationCode, invitationCode));
 
         return result;
+    }
+
+    public async isTeacherOwnerOfClass(classId: number, teacherId: number): Promise<boolean> {
+        const result = await db
+            .select({})
+            .from(classesTable)
+            .where(and(eq(classesTable.classId, classId), eq(classesTable.teacherId, teacherId)))
+            .limit(1);
+        return result.length === 1;
     }
 }
 

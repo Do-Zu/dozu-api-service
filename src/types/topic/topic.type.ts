@@ -6,7 +6,7 @@ export interface ITopic {
 
     // optional
     userId?: number;
-    classId?: number;
+    classId?: number | null;
     imageUrl?: string | null;
     flashcardsCount?: number;
     flashcardsDueToday?: number;

@@ -4,7 +4,7 @@ import { SuccessResponse } from '@/core/success';
 import logger from '@/utils/logger';
 import { Request, Response } from 'express';
 import topicService from '@/services/topic/topic.service';
-import { getUserIdFromRequest, isTeacher } from '@/utils/auth/authHelpers.utils';
+import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import { getCurrentDateFromRequest } from '@/utils/date';
 import { topicsTable } from '@/models';
 import db from '@/libs/drizzleClient.lib';
@@ -92,24 +92,23 @@ class TopicController {
         SuccessResponse.noContent(res);
     }
 
-    public async getTopicsInClass(req: Request, res: Response) {
-        const teacher = await isTeacher(req);
+    public async getTopicsInClassForStudent(req: Request, res: Response) {
         let { classId } = req.params as { classId: string | number };
         classId = parseInt(classId as string);
 
-        let result : ITopic[];
-        try {
-            if(teacher) {
-                result = await topicService.getTopicsInClassForTeacher(classId);
-            } else {
-                const currentDate = getCurrentDateFromRequest(req);
-                const userId = getUserIdFromRequest(req);
-                result = await topicService.getTopicsInClassForStudent(classId, userId, currentDate);
-            }
-        } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
-        }
+        const currentDate = getCurrentDateFromRequest(req);
+        const userId = getUserIdFromRequest(req);
+        const result: ITopic[] = await topicService.getTopicsInClassForStudent(classId, userId, currentDate);
+
+        SuccessResponse.ok(res, result);
+    }
+
+    public async getTopicsInClassForTeacher(req: Request, res: Response) {
+        let { classId } = req.params as { classId: string | number };
+        classId = parseInt(classId as string);
+
+        const result: ITopic[] = await topicService.getTopicsInClassForTeacher(classId);
+
         SuccessResponse.ok(res, result);
     }
 

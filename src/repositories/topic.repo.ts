@@ -1,8 +1,7 @@
 import db from '@/libs/drizzleClient.lib';
 import { flashcardsTable, itemSpacedRepetitionTrackingTable, topicsTable } from '@/models';
 import { ITopic } from '@/types/topic/topic.type';
-import logger from '@/utils/logger';
-import { and, eq, lte, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 
 export type ICreateTopicRepo = Pick<ITopic, 'name' | 'description'> & { userId: number };
 export type IUpdateTopicRepo = Pick<ITopic, 'name' | 'description'>;
@@ -12,6 +11,7 @@ class TopicRepo {
         const topic = await db.query.topicsTable.findFirst({
             where: eq(topicsTable.topicId, topicId),
             columns: {
+                classId: true,
                 topicId: true,
                 userId: true,
                 name: true,
@@ -127,23 +127,11 @@ class TopicRepo {
             .where(eq(topicsTable.classId, classId));
 
         for (let i = 0; i < topics.length; ++i) {
-            // let topic = topics[i];
-            // const [personalizedData] = await db
-            //     .select({})
-            //     .from(itemSpacedRepetitionTrackingTable)
-            //     .leftJoin(topicsTable, eq(itemSpacedRepetitionTrackingTable.topicId, topicsTable.topicId))
-            //     .leftJoin(flashcardsTable, eq(flashcardsTable.topicId, topicsTable.topicId))
-            //     .where(and(
-            //         eq(topicsTable.topicId, topic.topicId),
-            //         eq(itemSpacedRepetitionTrackingTable.userId, userId),
-            //     ));
-            // topic.hasProgress = personalizedData != null;
             let topic = topics[i];
 
             const [result] = await db
                 .select({
                     topicId: flashcardsTable.topicId,
-                    // flashcardsDueToday: sql<number>`COUNT(*)`.as('flashcardsDueToday'),
                     flashcardsDueToday:
                         sql<number>`CAST(COUNT(CASE WHEN item_spaced_repetition_tracking.next_review <= ${currentDate} THEN 1 END) AS INT)`.as(
                             'flashcardsDueToday'
