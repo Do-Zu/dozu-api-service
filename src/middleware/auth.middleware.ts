@@ -46,6 +46,18 @@ export const validateTeacher = async (req: Request, res: Response, next: NextFun
     }
 }
 
+export const validateAdmin = async (req: Request, res: Response, next: NextFunction) => {
+    const roles = await getUserRolesFromRequest(req);
+    const isAdmin = roles.find((role) => role.name === 'admin');
+    if(isAdmin) {
+        next();
+    } else {
+        const message = 'Forbidden: Require admin to access the resources';
+        logger.warn(message);
+        throw new Forbidden(message);
+    }
+}
+
 export const authMiddlewareIfHeadersPresent = async (req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers['authorization'];
     const accessToken = authHeader && authHeader.split(' ')[1]; // Bearer <token>
