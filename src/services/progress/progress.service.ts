@@ -1,3 +1,4 @@
+import logger from '@/utils/logger';
 import { InternalServerError, NotFoundError } from '@/core/error';
 import { progressRepository } from '@/repositories/progress/progress.repo';
 import {
@@ -6,6 +7,8 @@ import {
   IProgressUpdate,
   IProgressQuery,
   ContentType,
+  ProgressStatus,
+  ProgressMetadata,
 } from '@/types/progress/progress.type';
 import { 
   createProgressSchema, 
@@ -77,6 +80,97 @@ class ProgressService {
     totalTimeSpent: number;
   }> {
     return await progressRepository.getProgressStatistics(userId);
+  }
+
+  /**
+   * Update or create progress record for learning tracking
+   */
+  async updateLearningProgress(data: {
+    userId: number;
+    topicId: string;
+    contentType: ContentType;
+    timeSpent: number;
+    isCompleted: boolean;
+    metadata?: ProgressMetadata;
+  }): Promise<IProgress> {
+    const topicIdNum = parseInt(data.topicId);
+    
+    // First try to find existing progress
+    const allProgress = await this.getAllProgress({ 
+      userId: data.userId, 
+      topicId: topicIdNum, 
+      contentType: data.contentType 
+    });
+    const existingProgress = allProgress[0];
+
+    if (existingProgress) {
+      // Update existing progress
+      const currentTimeSpent = existingProgress.metadata?.timeSpent || 0;
+      const updatedTimeSpent = currentTimeSpent + data.timeSpent;
+      
+      // Only update to COMPLETED if isCompleted is true, otherwise preserve existing status
+      // This prevents downgrading from COMPLETED to IN_PROGRESS
+      const updatedStatus = data.isCompleted 
+        ? ProgressStatus.COMPLETED 
+        : (existingProgress.status === ProgressStatus.COMPLETED 
+           ? ProgressStatus.COMPLETED 
+           : ProgressStatus.IN_PROGRESS);
+      
+      const updatedCompletionPercentage = data.isCompleted 
+        ? 100 
+        : (existingProgress.status === ProgressStatus.COMPLETED 
+           ? 100 
+           : existingProgress.completionPercentage);
+    
+      const updateData: IProgressUpdate = {
+        status: updatedStatus,
+        completionPercentage: updatedCompletionPercentage,
+        metadata: {
+          ...existingProgress.metadata,
+          ...data.metadata,
+          timeSpent: updatedTimeSpent
+        }
+      };
+
+      return await this.updateProgress(existingProgress.progressId, updateData);
+    } else {
+      // Create new progress record
+      const createData: IProgressCreate = {
+        userId: data.userId,
+        topicId: topicIdNum,
+        contentType: data.contentType,
+        status: data.isCompleted ? ProgressStatus.COMPLETED : ProgressStatus.IN_PROGRESS,
+        completionPercentage: data.isCompleted ? 100 : 0,
+        metadata: {
+          ...data.metadata,
+          timeSpent: data.timeSpent
+        }
+      };
+
+      return await this.createProgress(createData);
+    }
+  }
+
+  /**
+   * Update daily study records
+   */
+  async updateDailyStudyRecord(data: {
+    userId: number;
+    date: string; // YYYY-MM-DD format
+    additionalMinutes: number;
+    sessionIncrement: number;
+  }): Promise<void> {
+    try {
+      await progressRepository.updateDailyStudyRecord(
+        data.userId, 
+        data.date, 
+        data.additionalMinutes
+      );
+      logger.info('Daily study record updated successfully:', data);
+    } catch (error) {
+      logger.error('Failed to update daily study record:', error);
+      throw error;
+    }
   }
 }
 
