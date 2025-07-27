@@ -19,6 +19,8 @@ export const questionResultTable = pgTable(
       .references(() => usersTable.userId, { onDelete: 'cascade' }),
 
     correct: boolean('correct').notNull(),
+    
+    userAnswerIndex: integer('user_answer_index'),
 
     answeredAt: timestamp('answered_at', { withTimezone: true }).defaultNow(),
   },

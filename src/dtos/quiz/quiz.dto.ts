@@ -13,6 +13,7 @@ export const quizSubmitSchema = z.object({
     z.object({
       questionId: z.number(),
       correct: z.boolean(),
+      userAnswerIndex: z.number().nullable(),
     })
   ),
 });
