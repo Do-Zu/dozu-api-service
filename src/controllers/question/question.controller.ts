@@ -26,7 +26,6 @@ class QuestionController {
         }
     }
     async handleBatchQuestionsForTopic(req: Request, res: Response): Promise<void> {
-        const userId = getUserIdFromRequest(req);
         let { topicId } = req.query as { topicId: string | number };
         topicId = parseInt(topicId as string);
 
@@ -44,7 +43,7 @@ class QuestionController {
 
 
         try {
-            await questionService.handleBatchQuestions(userId, topicId, {
+            await questionService.handleBatchQuestions(topicId, {
                 insert,
                 update,
                 delete: deleteIds,

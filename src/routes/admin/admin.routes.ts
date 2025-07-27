@@ -1,14 +1,15 @@
 import { Router } from 'express';
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 import { registerRoute } from '@/routes/register.routes';
-import { authMiddleware } from '@/middleware/auth.middleware';
+import { authMiddleware, validateAdmin } from '@/middleware/auth.middleware';
 import { adminUserController } from '@/controllers/admin/user.controller';
 import { adminAuthController } from '@/controllers/admin/auth.controller';
 import { validateGetUsersQuery, validateUpdateUserRole } from '@/middleware/validations/admin/user.validation';
 
 const router = Router();
 globalAsyncHandler(router);
-// router.use(authMiddleware);
+router.use(authMiddleware);
+router.use(validateAdmin);
 
 router.get('/', validateGetUsersQuery(), adminUserController.handleGetAllUsers);
 router.patch('/:id/toggle-active',adminUserController.handleToggleUserActive);
