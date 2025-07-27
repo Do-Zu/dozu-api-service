@@ -8,7 +8,7 @@ import { validateGetUsersQuery, validateUpdateUserRole } from '@/middleware/vali
 
 const router = Router();
 globalAsyncHandler(router);
-// router.use(authMiddleware);
+router.use(authMiddleware);
 
 router.get('/', validateGetUsersQuery(), adminUserController.handleGetAllUsers);
 router.patch('/:id/toggle-active',adminUserController.handleToggleUserActive);
