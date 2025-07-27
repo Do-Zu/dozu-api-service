@@ -1,6 +1,6 @@
 import db from '@/libs/drizzleClient.lib';
 import { itemSpacedRepetitionTrackingTable } from '@/models';
-import { and, asc, eq, inArray, isNotNull } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull } from 'drizzle-orm';
 
 /**
  * Repository for Tracking data access operations
@@ -21,7 +21,7 @@ class TrackingRepository {
                     eq(itemSpacedRepetitionTrackingTable.type, 'flashcard')
                 )
             )
-            .orderBy(asc(itemSpacedRepetitionTrackingTable.lastReviewed))
+            .orderBy(desc(itemSpacedRepetitionTrackingTable.lastReviewed))
             .limit(1);
 
         const result: {
