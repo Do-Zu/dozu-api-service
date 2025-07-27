@@ -18,7 +18,7 @@ import {
 } from '@/types/progress/progress.type';
 import logger from '@/utils/logger';
 import { getDateFormatted } from '@/utils/date/date';
-import { mapToDailyStudyHoursArray, minutesToHours } from '@/utils/progress/progressHelpers';
+import { minutesToHours, generateDailyStudyHoursWithEmptyDays } from '@/utils/progress/progressHelpers';
 
 import { progressTable } from '@/models/progress/progress.model';
 import { dailyStudyRecordsTable, DailyStudyRecord } from '@/models/progress/dailyStudy.model';
@@ -138,7 +138,8 @@ class ProgressRepository {
       )
       .groupBy(dailyStudyRecordsTable.date);
 
-    return mapToDailyStudyHoursArray(result);
+    // Fill missing days with 0 hours to ensure complete 7-day chart
+    return generateDailyStudyHoursWithEmptyDays(result, days);
   }
 
   async getLearningMethodsDistribution(userId: number): Promise<Array<{ method: ContentType; count: number }>> {

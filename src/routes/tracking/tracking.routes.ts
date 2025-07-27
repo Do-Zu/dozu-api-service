@@ -13,7 +13,6 @@ router.use(authMiddleware);
 
 // Define routes
 router.get('/current-learning', trackingController.getCurrentLearningTopicProgressTracking);
-router.post('/active-learning', trackingController.requestTrackingTimeLearningActive);
 
 // Register the router
 registerRoute('/tracking', router, {

@@ -17,6 +17,9 @@ router.get('/learning-methods', progressController.getLearningMethodsDistributio
 router.get('/weekly-comparison', progressController.getWeeklyComparison.bind(progressController));
 router.get('/completed-topics', progressController.getCompletedTopics.bind(progressController));
 
+// Learning tracking endpoint (new)
+router.post('/learning-tracking', progressController.updateLearningTracking.bind(progressController));
+
 // CRUD operations for progress
 router.get('/', progressController.getAllProgress.bind(progressController));
 router.get('/:id', progressController.getProgressById.bind(progressController));

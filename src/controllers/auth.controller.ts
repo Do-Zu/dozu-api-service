@@ -45,7 +45,11 @@ export const loginController = async (req: Request, res: Response) => {
     const password = req.body.password;
     const data = await loginService(username, password);
     if (!data.success) {
-        throw new BadRequest(data.reason);
+        throw new AuthenticationError(data.reason);
+    }
+    if (!data.user.isActive) {
+        //checks if user is banned
+        throw new AuthenticationError('Account is disabled');
     }
     //add cookie and more
     const sanitizedUser = sanitizeUserObject(data.user);
@@ -138,6 +142,10 @@ export const googleOAuthRedirectController = async (req: Request, res: Response)
 
     if (data.success) {
         const sanitizedUser: any = sanitizeUserObject(data.user);
+        if (!sanitizedUser.isActive) {
+            //checks if user is banned
+            throw new AuthenticationError('Account is disabled');
+        }
         const accessToken = signAccessJwtToken(sanitizedUser);
         sanitizedUser.accessToken = accessToken;
         SuccessResponse.ok(res, sanitizedUser);
