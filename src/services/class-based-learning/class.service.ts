@@ -48,6 +48,11 @@ class ClassService {
         }
         return result;
     }
+
+    public async isTeacherOwnerOfClass(classId: number, teacherId: number) {
+        const result = await classRepo.isTeacherOwnerOfClass(classId, teacherId);
+        return result;
+    }
 }
 
 export default new ClassService();

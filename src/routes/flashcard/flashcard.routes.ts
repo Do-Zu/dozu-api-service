@@ -4,13 +4,19 @@ import { registerRoute } from '@/routes/register.routes';
 import flashcardController from '@/controllers/flashcard/flashcard.controller';
 import { validateFlashcardsBatch, validateTopicId } from '@/middleware/validations/flashcard.validation';
 import { authMiddleware } from '@/middleware/auth.middleware';
+import flashcardMiddleware from '@/middleware/flashcard/flashcard.middleware';
 
 const router = Router();
 
 globalAsyncHandler(router);
 
 router.use(authMiddleware);
-router.get('/', validateTopicId(), flashcardController.handleGetAllFlashcardsForTopic);
+router.get(
+    '/',
+    validateTopicId(),
+    flashcardMiddleware.verifyUserCanAccessFlashcards,
+    flashcardController.handleGetAllFlashcardsForTopic
+);
 
 router.post('/batch', validateTopicId(), validateFlashcardsBatch(), flashcardController.handleBatchFlashcardsForTopic);
 router.post('/batch/node', validateFlashcardsBatch(), flashcardController.handleBatchFlashcardsForNode); //for use with mindmap's node

@@ -37,6 +37,28 @@ class ClassEnrollmentController {
 
         SuccessResponse.created(res, result);
     }
+
+    public async leaveClass(req: Request, res: Response) {
+        const userId = getUserIdFromRequest(req);
+
+        let { classId } = req.params as { classId: string | number };
+        classId = parseInt(classId as string);
+
+        await classEnrollmentService.removeStudentFromClass(classId, userId);
+
+        SuccessResponse.noContent(res);
+    }
+
+    public async removeStudentFromClass(req: Request, res: Response) {
+        let { studentId, classId } = req.params as { studentId: string | number; classId: string | number };
+
+        studentId = Number(studentId as string);
+        classId = Number(classId as string);
+
+        await classEnrollmentService.removeStudentFromClass(classId, studentId);
+
+        SuccessResponse.noContent(res);
+    }
 }
 
 export default new ClassEnrollmentController();

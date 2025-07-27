@@ -18,7 +18,7 @@ import { getDateFormatted } from '@/utils/date';
 import { and, asc, eq, lte } from 'drizzle-orm';
 import itemSpacedRepetitionTrackingService from '@/services/tracking/itemSpacedRepetitionTracking.service';
 
-export type IFlashcardsForTopicReturned = (Omit<IFlashcardBasic, 'topicId'>)[];
+export type IFlashcardsForTopicReturned = Omit<IFlashcardBasic, 'topicId'>[];
 export type IFlashcardSpacedRepetitionReturned = Pick<
     IFlashcardSpacedRepetition,
     'reviewInterval' | 'easinessFactor' | 'repetitionNumber'
