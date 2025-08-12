@@ -1,6 +1,7 @@
 import { trackingRepo } from '@/repositories/tracking/tracking.repo';
 import { NotFoundError } from '@/core/error';
 import topicRepo from '@/repositories/topic.repo';
+import { formatDate, getCurrentDateInTimeZone, getSystemDate } from '@/utils/date';
 
 /**
  * Service class for Tracking functionality
@@ -17,7 +18,14 @@ class TrackingService {
 
         const totalItems = result.length;
 
-        const completedItems = result.filter(item => item.status !== 'new').length;
+        // Calculate completed items based on nextReview date
+        // Compare with current date in UTC
+        const completedItems = result.filter(
+            item =>
+                item?.nextReview &&
+                getCurrentDateInTimeZone('UTC', formatDate(item?.nextReview)) >
+                    getCurrentDateInTimeZone('UTC', getSystemDate())
+        ).length;
 
         const percentComplete = (completedItems / totalItems) * 100;
 
