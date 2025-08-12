@@ -1,31 +1,25 @@
-import { BadRequest, DatabaseError, NotFoundError } from '@/core/error';
+import { DatabaseError, NotFoundError } from '@/core/error';
 import { getUserIdFromRequest, isTeacher } from '@/utils/auth/authHelpers.utils';
 import logger from '@/utils/logger';
 import { Request, Response } from 'express';
 import { IClass, ICreateClassBody, IUpdateClassBody } from '@/types/class-based-learning/class.type';
 import { SuccessResponse } from '@/core/success';
 import classService from '@/services/class-based-learning/class.service';
-import classEnrollmentService from '@/services/class-based-learning/classEnrollment.service';
-import { IStudentInClass } from '@/types/class-based-learning/classEnrollment.type';
+import requestHelper from '@/core/request/request.helper';
 
 class ClassController {
-
     public async getClassById(req: Request, res: Response) {
-        let { classId } = req.params as { classId: string | number };
-        classId = parseInt(classId as string);
-        if (isNaN(classId)) {
-            throw new BadRequest('Invalid param, cannot get class');
-        }
+        const classId = requestHelper.getIdParam(req, 'classId');
 
-        let result : IClass | undefined;
+        let result: IClass | undefined;
         try {
             result = await classService.getClassById(classId);
-        } catch(err) {
+        } catch (err) {
             logger.error(err);
             throw new DatabaseError('Something went wrong');
         }
 
-        if(!result) {
+        if (!result) {
             throw new NotFoundError('Class Not Found');
         }
 
@@ -49,12 +43,36 @@ class ClassController {
         SuccessResponse.ok(res, classes);
     }
 
-    public async createClassForUser(req: Request, res: Response) {
+    public async getClassesForStudent(req: Request, res: Response) {
+        const userId = getUserIdFromRequest(req);
+        let classes: IClass[];
+        try {
+            classes = await classService.getClassesForStudent(userId);
+        } catch (err) {
+            logger.error(err);
+            throw new DatabaseError('Something went wrong');
+        }
+        SuccessResponse.ok(res, classes);
+    }
+
+    public async getClassesForTeacher(req: Request, res: Response) {
+        const userId = getUserIdFromRequest(req);
+        let classes: IClass[];
+        try {
+            classes = await classService.getClassesForTeacher(userId);
+        } catch (err) {
+            logger.error(err);
+            throw new DatabaseError('Something went wrong');
+        }
+        SuccessResponse.ok(res, classes);
+    }
+
+    public async createClassForTeacher(req: Request, res: Response) {
         const userId = getUserIdFromRequest(req);
         const { name, description } = req.body as ICreateClassBody;
         let result;
         try {
-            result = await classService.createClassForUser(userId, { name, description });
+            result = await classService.createClassForTeacher(userId, { name, description });
         } catch (err) {
             logger.error(err);
             throw new DatabaseError('Something went wrong');
@@ -63,11 +81,7 @@ class ClassController {
     }
 
     public async updateClassById(req: Request, res: Response) {
-        let { classId } = req.params as { classId: string | number };
-        classId = parseInt(classId as string);
-        if (isNaN(classId)) {
-            throw new BadRequest('Invalid param, cannot update class');
-        }
+        const classId = requestHelper.getIdParam(req, 'classId');
 
         const { name, description } = req.body as IUpdateClassBody;
 
@@ -75,24 +89,6 @@ class ClassController {
         try {
             result = await classService.updateClassById(classId, { name, description });
         } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
-        }
-
-        SuccessResponse.ok(res, result);
-    }
-
-    public async getStudentsInClass(req: Request, res: Response) {
-        let { classId } = req.params as { classId: string | number };
-        classId = parseInt(classId as string);
-        if (isNaN(classId)) {
-            throw new BadRequest('Invalid param, cannot get students');
-        }
-
-        let result: IStudentInClass[];
-        try {
-            result = await classEnrollmentService.getStudentsInClass(classId);
-        } catch(err) {
             logger.error(err);
             throw new DatabaseError('Something went wrong');
         }

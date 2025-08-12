@@ -30,6 +30,7 @@ import './profile/profile.routes';
 import './notification/notification.route';
 import './onboarding/onboarding.routes';
 import './teacher-request/teacherRequest.routes';
+import './class-based-learning/classEnrollment.routes';
 
 // Apply global async handler to router
 globalAsyncHandler(router);
