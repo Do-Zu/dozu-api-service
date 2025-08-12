@@ -34,6 +34,18 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
     }
 };
 
+export const validateStudent = async (req: Request, res: Response, next: NextFunction) => {
+    const roles = await getUserRolesFromRequest(req);
+    const isStudent = roles.length === 1 && roles[0].name === 'user';
+    if(isStudent) {
+        next();
+    } else {
+        const message = 'Forbidden: Require Student role to access the resources';
+        logger.warn(message);
+        throw new Forbidden(message);
+    }
+}
+
 export const validateTeacher = async (req: Request, res: Response, next: NextFunction) => {
     const roles = await getUserRolesFromRequest(req);
     const isTeacher = roles.find((role) => role.name === 'teacher');
