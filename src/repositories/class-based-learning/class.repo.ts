@@ -54,7 +54,7 @@ class ClassRepo {
         return classes;
     }
 
-    public async createClassForUser(data: ICreateClassRepo): Promise<IClass> {
+    public async createClassForTeacher(data: ICreateClassRepo): Promise<IClass> {
         const [result] = await db.insert(classesTable).values(data).returning({
             classId: classesTable.classId,
             name: classesTable.name,

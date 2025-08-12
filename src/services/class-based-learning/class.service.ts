@@ -29,10 +29,10 @@ class ClassService {
         return result;
     }
 
-    public async createClassForUser(userId: number, data: ICreateClassBody): Promise<IClass> {
+    public async createClassForTeacher(userId: number, data: ICreateClassBody): Promise<IClass> {
         const invitationCode = await this.generateInvitationCode();
         const value : ICreateClassRepo = { ...data, teacherId: userId, invitationCode };
-        const result = await classRepo.createClassForUser(value);
+        const result = await classRepo.createClassForTeacher(value);
         return result;
     }
 
