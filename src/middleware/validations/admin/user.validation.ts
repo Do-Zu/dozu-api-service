@@ -1,15 +1,15 @@
-import validateData from '@/middleware/validations/validator';
+import validator from '@/core/validations/validator';
 import { getUsersQuerySchema } from '@/dtos/admin/getUsers.dto';
 import { updateUserRoleSchema } from '@/dtos/admin/updateUserRole.dto';
 
 export const validateGetUsersQuery = () =>
-  validateData({
-    selector: (req) => req.query,
+  validator.validate({
+    selector: 'query',
     schema: getUsersQuerySchema,
   });
 
 export const validateUpdateUserRole = () =>
-  validateData({
-    selector: req => req.body,
+  validator.validate({
+    selector: 'body',
     schema: updateUserRoleSchema,
   });
