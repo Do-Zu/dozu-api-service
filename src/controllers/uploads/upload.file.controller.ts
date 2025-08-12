@@ -8,6 +8,7 @@ import logger from '@/utils/logger';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import { TypeInsertInputSet } from '@/models';
 import { insertInputSet } from '@/repositories/inputSet.repo';
+import { uploadFileServiceOnR2 } from '@/services/uploads/files/upload.file.R2.service';
 
 /**
  * Upload File Controller
@@ -31,7 +32,6 @@ class UploadFileController {
             // Process the uploaded file
             const result = await uploadFileService.processSingleFile(file);
 
-
             //implement inputset - DuyND
             //change to function
             let resultInputSet;
@@ -42,7 +42,7 @@ class UploadFileController {
                     userId: userId,
                     title: file.originalname,
                     contentType: file.mimetype,
-                    metadata: file.path,//!add size, page count
+                    metadata: file.path, //!add size, page count
                 };
                 resultInputSet = await insertInputSet(newInputSet);
             }
@@ -363,6 +363,10 @@ class UploadFileController {
         try {
             const { fileName, fileSize, fileType, contentType } = req.body as PresignedUrlRequest;
 
+            if (req.method !== 'POST') {
+                throw new BadRequest('Invalid request method');
+            }
+
             if (!fileName || !fileSize || !fileType || !contentType) {
                 throw new BadRequest('fileName, fileSize, fileType, and contentType are required');
             }
@@ -373,10 +377,9 @@ class UploadFileController {
                 fileType,
                 contentType,
             };
-            const DEFAULT_EXPIRATION = 60; //60s
-            const result: PresignedUrlResponse = uploadFileService.generatePresignedUrl(request, DEFAULT_EXPIRATION);
 
-            logger.info(`Generated presigned URL for file: ${fileName}`);
+            const result: PresignedUrlResponse =
+                await uploadFileServiceOnR2.generatePresignedUrlWithR2Cloudflare(request);
 
             SuccessResponse.created(res, result, 'Presigned URL generated successfully');
         } catch (error) {
@@ -531,4 +534,3 @@ class UploadFileController {
 }
 
 export const uploadFileController = new UploadFileController();
-export default UploadFileController;

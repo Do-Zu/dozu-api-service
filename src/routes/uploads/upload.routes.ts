@@ -1,9 +1,8 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 import { registerRoute } from '../register.routes';
 import { uploadFileController } from '@/controllers/uploads/upload.file.controller';
-import { authMiddleware, authMiddlewareIfHeadersPresent } from '@/middleware/auth.middleware';
+import { authMiddleware } from '@/middleware/auth.middleware';
 import {
     validateFileId,
     validateFileIds,
@@ -35,7 +34,6 @@ router.post(
     uploadRateLimiter,
     uploadFileController.getSingleUploadMiddleware('file'),
     validateSingleFileUpload(),
-    authMiddlewareIfHeadersPresent, //only add user object if auth header exists
     uploadFileController.uploadSingleFile
 );
 
@@ -64,13 +62,6 @@ router.get(
 // File operations
 router.delete('/:fileId', validateFileId(), uploadFileController.deleteFile.bind(uploadFileController));
 router.delete('/batch', validateFileIds(), uploadFileController.deleteMultipleFiles.bind(uploadFileController));
-
-// router.put(
-//   '/:fileId/move',
-//   validateFileId(),
-//   validateMoveFileRequest(),
-//   uploadFileController.moveFile.bind(uploadFileController)
-// );
 
 // Cleanup operations
 router.post('/cleanup', validateCleanupRequest(), uploadFileController.cleanupOldFiles.bind(uploadFileController));
