@@ -4,19 +4,30 @@ import { registerRoute } from '../register.routes';
 import topicController from '@/controllers/topic/topic.controller';
 import { authMiddleware } from '@/middleware/auth.middleware';
 import subscriptionMiddleware from '@/middleware/subscription/subscript.middleware';
-import { validateIdParam } from '@/middleware/validations/params.validation';
+import paramsValidator from '@/core/validations/params.validator';
+import { flashcardRoutes } from '../flashcard/flashcard.routes';
+import topicMiddleware from '@/middleware/topic/topic.middleware';
 
 const router = Router();
 globalAsyncHandler(router);
 
 router.use(authMiddleware);
 
-router.get('/:topicId', validateIdParam('topicId'), topicController.getTopicById);
+router.get('/:topicId', paramsValidator.validateId('topicId'), topicController.getTopicById);
 router.get('/', topicController.getTopicsForUser);
 router.post('/', subscriptionMiddleware.handleSubscription, topicController.createTopicForUser);
-router.put('/:topicId', validateIdParam('topicId'), topicController.updateTopicById);
-router.delete('/:topicId', validateIdParam('topicId'), topicController.deleteTopicById);
-router.post('/:topicId/flashcards/start-learning', validateIdParam('topicId'), topicController.startLearningFlashcards);
+router.put('/:topicId', paramsValidator.validateId('topicId'), topicController.updateTopicById);
+router.delete('/:topicId', paramsValidator.validateId('topicId'), topicController.deleteTopicById);
+// todo-ka: move this to class routes
+// router.post('/:topicId/flashcards/start-learning', paramsValidator.validateId('topicId'), topicController.startLearningFlashcards);
+
+router.use(
+    '/:topicId/flashcards',
+    paramsValidator.validateId('topicId'),
+    topicMiddleware.verifyTopicById,
+    topicMiddleware.verifyUserCanAccessTopic,
+    flashcardRoutes
+);
 
 registerRoute('/topics', router, {
     description: 'Topics API for CRUD topics',
