@@ -1,15 +1,26 @@
-interface CurrentUserType {
-  id: string;
-  role: string;
-}
+import { IClass } from '@/types/class-based-learning/class.type';
+import { ITopic } from '@/types/topic/topic.type';
 
 declare global {
-  namespace Express {
-    interface Request {
-      currentUser?: any;
-      validatedParams?: any;
+    namespace Express {
+        interface Request {
+            currentUser?: any;
+            validated?: {
+                params?: {
+                    classId?: number;
+                    topicId?: number;
+                    flashcardId?: number;
+                    requestId?: number;
+                };
+                body?: any;
+                query?: any;
+            };
+            resources?: {
+                topic?: ITopic;
+                class?: IClass;
+            };
+        }
     }
-  }
 }
 
 export {};
