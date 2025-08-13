@@ -1,7 +1,7 @@
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { generateConfig } from '@/config/generate.config';
-import { BadRequest, InternalServerError } from '@/core/error';
+import { BadRequest, DatabaseError, InternalServerError } from '@/core/error';
 import { FileProcessingStatus } from '@/types/generate/generate.type';
 import { PresignedUrlRequest, PresignedUrlResponse } from '@/types/uploads/upload.types';
 import { getSystemDate } from '@/utils/date';
@@ -9,6 +9,7 @@ import logger from '@/utils/logger';
 import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Readable } from 'stream';
+import { insertInputSet } from '@/repositories/inputSet.repo';
 /**
  * File upload configuration interface
  */
@@ -374,6 +375,36 @@ export class UploadFileService {
             throw new BadRequest(
                 `File extension ${fileExtension} is not allowed. Allowed extensions: ${this.defaultConfig.allowedExtensions.join(', ')}`
             );
+        }
+    }
+
+    public async completeSingleFileUpload({
+        fileName,
+        fileSize,
+        contentType,
+        fileKey,
+        userId,
+    }: {
+        fileName: string;
+        fileSize: number;
+        contentType: string;
+        fileKey: string;
+        userId: number;
+    }) {
+        try {
+            const result = await insertInputSet({
+                userId,
+                title: fileName,
+                contentType,
+                metadata: {
+                    fileSize,
+                    fileKey,
+                },
+            });
+
+            return result;
+        } catch {
+            throw new DatabaseError('Failed to complete single file upload');
         }
     }
 }

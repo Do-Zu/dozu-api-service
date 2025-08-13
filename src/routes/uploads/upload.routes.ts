@@ -11,7 +11,6 @@ import {
     validateSingleFileUpload,
     validateMultipleFilesUpload,
     validatePresignedUrlRequest,
-    validatePresignedUpload,
     validateFileKey,
     validateExpirationMinutes,
 } from '@/middleware/validations/upload.validation';
@@ -75,23 +74,6 @@ router.post(
     uploadFileController.generatePresignedUrl.bind(uploadFileController)
 );
 
-router.post(
-    '/presigned/:fileId',
-    uploadFileController.getSingleUploadMiddleware('file'),
-    validatePresignedUpload(),
-    uploadFileController.uploadWithPresignedUrl.bind(uploadFileController)
-);
-
-router.get(
-    '/presigned/:fileId/info',
-    validateFileId(),
-    uploadFileController.getPresignedUrlInfo.bind(uploadFileController)
-);
-
-router.get('/presigned/active', uploadFileController.getActivePresignedUrls.bind(uploadFileController));
-
-router.post('/presigned/cleanup', uploadFileController.cleanupExpiredPresignedUrls.bind(uploadFileController));
-
 router.get('/r2/:fileKey', validateFileKey(), uploadFileController.getFileFromR2.bind(uploadFileController));
 
 router.get(
@@ -106,6 +88,8 @@ router.get(
     validateExpirationMinutes(),
     uploadFileController.generateR2DownloadUrl.bind(uploadFileController)
 );
+
+router.post('/file/single/complete', uploadFileController.completeSingleFileUpload.bind(uploadFileController));
 
 // Register the route
 registerRoute('/upload', router, {

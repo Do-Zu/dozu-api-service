@@ -3,8 +3,8 @@ import { inputSetTable, TypeInsertInputSet, TypeSelectInputSet } from '@/models'
 import { eq } from 'drizzle-orm';
 
 export const insertInputSet = async (newInputSet: TypeInsertInputSet): Promise<TypeSelectInputSet> => {
-    const [insertedUser] = await db.insert(inputSetTable).values(newInputSet).returning();
-    return insertedUser;
+    const [insertedInputSet] = await db.insert(inputSetTable).values(newInputSet).returning();
+    return insertedInputSet;
 };
 
 export const getInputSetByTopicId = async (topicId: number): Promise<TypeSelectInputSet> => {

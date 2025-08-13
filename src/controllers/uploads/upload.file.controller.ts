@@ -510,29 +510,6 @@ class UploadFileController {
     }
 
     /**
-     * Clean up expired presigned URLs
-     * POST /api/upload/presigned/cleanup
-     */
-    public async cleanupExpiredPresignedUrls(req: Request, res: Response): Promise<void> {
-        try {
-            const cleanedCount = uploadFileService.cleanupExpiredPresignedUrls();
-
-            SuccessResponse.ok(
-                res,
-                {
-                    cleanedCount,
-                },
-                `Cleaned up ${cleanedCount} expired presigned URLs`
-            );
-        } catch (error) {
-            logger.error(
-                `Error cleaning up expired presigned URLs: ${error instanceof Error ? error.message : String(error)}`
-            );
-            throw new InternalServerError('Failed to cleanup expired presigned URLs');
-        }
-    }
-
-    /**
      * Get file from R2 Cloudflare storage
      * GET /api/upload/r2/:fileKey
      */
@@ -639,6 +616,30 @@ class UploadFileController {
                 throw new InternalServerError('Failed to generate download URL');
             }
         }
+    }
+
+    /**
+     * Complete single file upload
+     * POST /api/upload/file/single/complete
+     */
+    public async completeSingleFileUpload(req: Request, res: Response): Promise<void> {
+        const { fileKey, fileName, fileSize, contentType } = req.body;
+        const userId = req.currentUser?.userId;
+
+        if (!fileKey) {
+            throw new BadRequest('File key is required');
+        }
+
+        if (!fileName || !fileSize || !contentType) {
+            throw new BadRequest('File name, size, and content type are required');
+        }
+
+        const result = await uploadFileServiceOnR2.completeSingleFileUpload({
+            ...req.body,
+            userId,
+        });
+
+        SuccessResponse.ok(res, result, 'Single file upload completed successfully');
     }
 }
 
