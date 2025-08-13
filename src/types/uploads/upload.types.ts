@@ -342,3 +342,23 @@ export interface PresignedUrlResponse {
         allowedContentTypes: string[];
     };
 }
+
+/**
+ * R2 file download response interface
+ */
+export interface R2FileDownloadResponse {
+    fileId: string;
+    fileName: string;
+    contentType: string;
+    size: number;
+    lastModified?: string; // ISO date string
+}
+
+/**
+ * R2 presigned download URL response interface
+ */
+export interface R2PresignedDownloadResponse {
+    downloadUrl: string;
+    expiresIn: number; // seconds
+    fileKey: string;
+}

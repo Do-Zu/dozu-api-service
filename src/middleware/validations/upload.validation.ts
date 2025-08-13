@@ -253,3 +253,50 @@ export const validatePresignedUpload = () => {
         next();
     };
 };
+
+/**
+ * Validate file key parameter for R2 operations
+ */
+export const validateFileKey = () => {
+    return (req: Request, res: Response, next: NextFunction) => {
+        const { fileKey } = req.params;
+
+        if (!fileKey || fileKey.trim() === '') {
+            throw new BadRequest('File key is required');
+        }
+
+        // Decode and validate the file key format
+        const decodedFileKey = decodeURIComponent(fileKey);
+
+        // Basic validation - ensure it's not just whitespace
+        if (decodedFileKey.trim() === '') {
+            throw new BadRequest('Invalid file key format');
+        }
+
+        next();
+    };
+};
+
+/**
+ * Validate expiration minutes for presigned URLs
+ */
+export const validateExpirationMinutes = () => {
+    return (req: Request, res: Response, next: NextFunction) => {
+        const { expiresInMinutes } = req.query;
+
+        if (expiresInMinutes !== undefined) {
+            const expiration = parseInt(expiresInMinutes as string);
+
+            if (isNaN(expiration)) {
+                throw new BadRequest('expiresInMinutes must be a valid number');
+            }
+
+            if (expiration < 1 || expiration > 1440) {
+                // Max 24 hours
+                throw new BadRequest('expiresInMinutes must be between 1 and 1440 minutes');
+            }
+        }
+
+        next();
+    };
+};

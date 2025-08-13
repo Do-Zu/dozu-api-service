@@ -12,6 +12,8 @@ import {
     validateMultipleFilesUpload,
     validatePresignedUrlRequest,
     validatePresignedUpload,
+    validateFileKey,
+    validateExpirationMinutes,
 } from '@/middleware/validations/upload.validation';
 import { rateLimitMiddleware } from '@/config/middlewares/rate-limit.config';
 
@@ -89,6 +91,21 @@ router.get(
 router.get('/presigned/active', uploadFileController.getActivePresignedUrls.bind(uploadFileController));
 
 router.post('/presigned/cleanup', uploadFileController.cleanupExpiredPresignedUrls.bind(uploadFileController));
+
+router.get('/r2/:fileKey', validateFileKey(), uploadFileController.getFileFromR2.bind(uploadFileController));
+
+router.get(
+    '/r2/:fileKey/download',
+    validateFileKey(),
+    uploadFileController.downloadFileFromR2.bind(uploadFileController)
+);
+
+router.get(
+    '/r2/:fileKey/presigned-download',
+    validateFileKey(),
+    validateExpirationMinutes(),
+    uploadFileController.generateR2DownloadUrl.bind(uploadFileController)
+);
 
 // Register the route
 registerRoute('/upload', router, {

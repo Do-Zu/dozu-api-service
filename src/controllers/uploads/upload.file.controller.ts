@@ -531,6 +531,115 @@ class UploadFileController {
             throw new InternalServerError('Failed to cleanup expired presigned URLs');
         }
     }
+
+    /**
+     * Get file from R2 Cloudflare storage
+     * GET /api/upload/r2/:fileKey
+     */
+    public async getFileFromR2(req: Request, res: Response): Promise<void> {
+        try {
+            const { fileKey } = req.params;
+
+            if (!fileKey) {
+                throw new BadRequest('File key is required');
+            }
+
+            // Decode the file key in case it was URL encoded
+            const decodedFileKey = decodeURIComponent(fileKey);
+
+            const fileResult = await uploadFileServiceOnR2.getFileFromR2Cloudflare(decodedFileKey);
+
+            // Set appropriate headers for file response
+            res.setHeader('Content-Type', fileResult.contentType);
+            res.setHeader('Content-Length', fileResult.size);
+            res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+
+            // Extract filename for content disposition
+            const filename = fileResult.fileName;
+            res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+
+            res.send(fileResult.content);
+        } catch (error) {
+            logger.error(`Error getting file from R2: ${error instanceof Error ? error.message : String(error)}`);
+            if (error instanceof BadRequest) {
+                throw error;
+            } else {
+                throw new InternalServerError('Failed to retrieve file from R2 storage');
+            }
+        }
+    }
+
+    /**
+     * Download file from R2 Cloudflare storage
+     * GET /api/upload/r2/:fileKey/download
+     */
+    public async downloadFileFromR2(req: Request, res: Response): Promise<void> {
+        try {
+            const { fileKey } = req.params;
+
+            if (!fileKey) {
+                throw new BadRequest('File key is required');
+            }
+
+            // Decode the file key in case it was URL encoded
+            const decodedFileKey = decodeURIComponent(fileKey);
+
+            const fileResult = await uploadFileServiceOnR2.getFileFromR2Cloudflare(decodedFileKey);
+
+            // Set appropriate headers for file download
+            res.setHeader('Content-Type', fileResult.contentType);
+            res.setHeader('Content-Length', fileResult.size);
+            res.setHeader('Content-Disposition', `attachment; filename="${fileResult.fileName}"`);
+
+            logger.info(`File downloaded from R2: ${fileResult.fileName} (${(fileResult.size / 1024).toFixed(2)}KB)`);
+
+            res.send(fileResult.content);
+        } catch (error) {
+            logger.error(`Error downloading file from R2: ${error instanceof Error ? error.message : String(error)}`);
+            if (error instanceof BadRequest) {
+                throw error;
+            } else {
+                throw new InternalServerError('Failed to download file from R2 storage');
+            }
+        }
+    }
+
+    /**
+     * Generate download presigned URL for R2 file
+     * GET /api/upload/r2/:fileKey/presigned-download
+     */
+    public async generateR2DownloadUrl(req: Request, res: Response): Promise<void> {
+        try {
+            const { fileKey } = req.params;
+            const { expiresInMinutes } = req.query;
+
+            if (!fileKey) {
+                throw new BadRequest('File key is required');
+            }
+
+            const decodedFileKey = decodeURIComponent(fileKey);
+
+            const defaultExpireFile = 1440;
+
+            const expiration = expiresInMinutes ? parseInt(expiresInMinutes as string) : defaultExpireFile;
+
+            if (expiration < 1 || expiration > 1440) {
+                // Max 24 hours
+                throw new BadRequest('Expiration must be between 1 and 1440 minutes');
+            }
+
+            const result = await uploadFileServiceOnR2.generateDownloadPresignedUrl(decodedFileKey, expiration);
+
+            SuccessResponse.ok(res, result, 'Download URL generated successfully');
+        } catch (error) {
+            logger.error(`Error generating R2 download URL: ${error instanceof Error ? error.message : String(error)}`);
+            if (error instanceof BadRequest) {
+                throw error;
+            } else {
+                throw new InternalServerError('Failed to generate download URL');
+            }
+        }
+    }
 }
 
 export const uploadFileController = new UploadFileController();

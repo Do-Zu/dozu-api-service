@@ -6,8 +6,9 @@ import { FileProcessingStatus } from '@/types/generate/generate.type';
 import { PresignedUrlRequest, PresignedUrlResponse } from '@/types/uploads/upload.types';
 import { getSystemDate } from '@/utils/date';
 import logger from '@/utils/logger';
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { Readable } from 'stream';
 /**
  * File upload configuration interface
  */
@@ -30,6 +31,18 @@ export interface FileUploadResult {
     mimeType: string;
     uploadedAt: Date;
     status: FileProcessingStatus;
+}
+
+/**
+ * File download result interface
+ */
+export interface FileDownloadResult {
+    fileId: string;
+    fileName: string;
+    content: Buffer;
+    contentType: string;
+    size: number;
+    lastModified?: Date;
 }
 
 /**
@@ -131,7 +144,7 @@ export class UploadFileService {
             };
 
             if (userId) {
-                console.warn(
+                logger.warn(
                     'User ID is provided but not used in file processing. Consider implementing user-specific logic.'
                 );
             }
@@ -201,6 +214,121 @@ export class UploadFileService {
         } catch (error) {
             logger.error(`Error generating presigned URL: ${error instanceof Error ? error.message : String(error)}`);
             throw error;
+        }
+    }
+
+    /**
+     * Get file from R2 Cloudflare storage
+     * @param fileKey - The file key in R2 storage
+     */
+    public async getFileFromR2Cloudflare(fileKey: string): Promise<FileDownloadResult> {
+        const R2 = new S3Client({
+            region: this.REGION,
+            endpoint: this.END_POINT,
+            credentials: {
+                accessKeyId: this.ACCESSKEY_ID,
+                secretAccessKey: this.SECRET_ACCESS_KEY,
+            },
+        });
+
+        try {
+            const command = new GetObjectCommand({
+                Bucket: this.BUCKET_NAME,
+                Key: fileKey,
+            });
+
+            const response = await R2.send(command);
+
+            if (!response.Body) {
+                throw new InternalServerError('File content not found');
+            }
+
+            // Convert the response body to buffer
+            const streamToBuffer = async (stream: unknown): Promise<Buffer> => {
+                const chunks: Buffer[] = [];
+
+                // Check if it has transformToByteArray method (AWS SDK v3)
+                if (stream && typeof stream === 'object' && 'transformToByteArray' in stream) {
+                    const transformMethod = (stream as { transformToByteArray: () => Promise<Uint8Array> })
+                        .transformToByteArray;
+                    const byteArray = await transformMethod();
+                    return Buffer.from(byteArray);
+                }
+
+                // Handle as readable stream
+                const readableStream = stream as Readable;
+                return new Promise((resolve, reject) => {
+                    readableStream.on('data', (chunk: Buffer) => chunks.push(chunk));
+                    readableStream.on('end', () => resolve(Buffer.concat(chunks)));
+                    readableStream.on('error', reject);
+                });
+            };
+
+            const content = await streamToBuffer(response.Body);
+
+            // Extract file ID and name from the key (assuming format: fileId:fileName)
+            const [fileId, fileName] = fileKey.includes(':') ? fileKey.split(':', 2) : [fileKey, fileKey];
+
+            const result: FileDownloadResult = {
+                fileId,
+                fileName,
+                content,
+                contentType: response.ContentType || 'application/octet-stream',
+                size: content.length,
+                lastModified: response.LastModified,
+            };
+
+            logger.info(`File retrieved successfully from R2: ${fileName} (${(content.length / 1024).toFixed(2)}KB)`);
+
+            return result;
+        } catch (error) {
+            logger.error(`Error retrieving file from R2: ${error instanceof Error ? error.message : String(error)}`);
+            if (error instanceof InternalServerError) {
+                throw error;
+            }
+            throw new InternalServerError('Failed to retrieve file from R2 storage');
+        }
+    }
+
+    /**
+     * Generate presigned URL for file download
+     * @param fileKey - The file key in R2 storage
+     * @param expiresInMinutes - URL expiration time in minutes (default: 60)
+     */
+    public async generateDownloadPresignedUrl(
+        fileKey: string,
+        expiresInMinutes: number
+    ): Promise<{ downloadUrl: string; expiresIn: number }> {
+        const expiresIn = expiresInMinutes * 60;
+
+        const R2 = new S3Client({
+            region: this.REGION,
+            endpoint: this.END_POINT,
+            credentials: {
+                accessKeyId: this.ACCESSKEY_ID,
+                secretAccessKey: this.SECRET_ACCESS_KEY,
+            },
+        });
+
+        try {
+            const command = new GetObjectCommand({
+                Bucket: this.BUCKET_NAME,
+                Key: fileKey,
+            });
+
+            const downloadUrl = await getSignedUrl(R2, command, {
+                expiresIn,
+            });
+
+            return {
+                downloadUrl,
+                expiresIn,
+            };
+        } catch (error) {
+            logger.error(
+                `Error generating download presigned URL: ${error instanceof Error ? error.message : String(error)}`
+            );
+            throw new InternalServerError('Failed to generate download URL');
         }
     }
 
