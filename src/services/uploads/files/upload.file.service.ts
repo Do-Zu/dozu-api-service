@@ -565,15 +565,6 @@ export class UploadFileService {
     }
 
     /**
-     * Clean up expired presigned URLs
-     */
-    public cleanupExpiredPresignedUrls(): number {
-        let cleanedCount = 0;
-
-        return cleanedCount;
-    }
-
-    /**
      * Get all active presigned URLs
      */
     public getActivePresignedUrls(): Array<{
