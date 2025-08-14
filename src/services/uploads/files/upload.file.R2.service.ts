@@ -298,7 +298,7 @@ export class UploadFileService {
      */
     public async generateDownloadPresignedUrl(
         fileKey: string,
-        expiresInMinutes: number
+        expiresInMinutes = 1440
     ): Promise<{ downloadUrl: string; expiresIn: number }> {
         const expiresIn = expiresInMinutes * 60;
 
