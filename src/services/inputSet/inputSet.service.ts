@@ -1,15 +1,38 @@
+import { InternalServerError } from '@/core/error';
 import { getInputSetByTopicId } from '@/repositories/inputSet.repo';
-import path from 'path';
+import { uploadFileServiceOnR2 } from '../uploads/files/upload.file.R2.service';
 
 export const getDocumentService = async (topicId: number) => {
     const inputSet = await getInputSetByTopicId(topicId);
-    switch (inputSet.contentType) {
-        case 'application/pdf': {
-            // Ensure inputSet.metadata is a string
-            const pdfPath = path.join(process.cwd(), inputSet.metadata as string);
-            return { contentType: 'application/pdf', pdfPath: pdfPath };
-            // implement other types later - DuyND
-        }
+
+    if (!inputSet) {
+        throw new InternalServerError('Input set not found for the given topicId');
     }
-    // return inputSet;
+
+    const { metadata, setId, contentType, description, title } = inputSet;
+
+    const fileContent = await handleGetFile({ metadata } as { metadata: { fileKey: string } });
+
+    return {
+        setId,
+        contentType,
+        description,
+        title,
+        fileUrl: fileContent.downloadUrl,
+        expiresIn: fileContent.expiresIn,
+    };
+};
+
+const handleGetFile = async ({ metadata }: { metadata: { fileKey: string } }) => {
+    if (!metadata?.fileKey) {
+        throw new InternalServerError('File key is missing');
+    }
+
+    const fileContent = await uploadFileServiceOnR2.generateDownloadPresignedUrl(metadata.fileKey);
+
+    if (!fileContent) {
+        throw new InternalServerError('Failed to retrieve file content');
+    }
+
+    return fileContent;
 };

@@ -8,6 +8,7 @@ import logger from '@/utils/logger';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import { TypeInsertInputSet } from '@/models';
 import { insertInputSet } from '@/repositories/inputSet.repo';
+import { uploadFileServiceOnR2 } from '@/services/uploads/files/upload.file.R2.service';
 
 /**
  * Upload File Controller
@@ -31,7 +32,6 @@ class UploadFileController {
             // Process the uploaded file
             const result = await uploadFileService.processSingleFile(file);
 
-
             //implement inputset - DuyND
             //change to function
             let resultInputSet;
@@ -42,7 +42,7 @@ class UploadFileController {
                     userId: userId,
                     title: file.originalname,
                     contentType: file.mimetype,
-                    metadata: file.path,//!add size, page count
+                    metadata: file.path, //!add size, page count
                 };
                 resultInputSet = await insertInputSet(newInputSet);
             }
@@ -363,6 +363,10 @@ class UploadFileController {
         try {
             const { fileName, fileSize, fileType, contentType } = req.body as PresignedUrlRequest;
 
+            if (req.method !== 'POST') {
+                throw new BadRequest('Invalid request method');
+            }
+
             if (!fileName || !fileSize || !fileType || !contentType) {
                 throw new BadRequest('fileName, fileSize, fileType, and contentType are required');
             }
@@ -373,10 +377,9 @@ class UploadFileController {
                 fileType,
                 contentType,
             };
-            const DEFAULT_EXPIRATION = 60; //60s
-            const result: PresignedUrlResponse = uploadFileService.generatePresignedUrl(request, DEFAULT_EXPIRATION);
 
-            logger.info(`Generated presigned URL for file: ${fileName}`);
+            const result: PresignedUrlResponse =
+                await uploadFileServiceOnR2.generatePresignedUrlWithR2Cloudflare(request);
 
             SuccessResponse.created(res, result, 'Presigned URL generated successfully');
         } catch (error) {
@@ -507,28 +510,137 @@ class UploadFileController {
     }
 
     /**
-     * Clean up expired presigned URLs
-     * POST /api/upload/presigned/cleanup
+     * Get file from R2 Cloudflare storage
+     * GET /api/upload/r2/:fileKey
      */
-    public async cleanupExpiredPresignedUrls(req: Request, res: Response): Promise<void> {
+    public async getFileFromR2(req: Request, res: Response): Promise<void> {
         try {
-            const cleanedCount = uploadFileService.cleanupExpiredPresignedUrls();
+            const { fileKey } = req.params;
 
-            SuccessResponse.ok(
-                res,
-                {
-                    cleanedCount,
-                },
-                `Cleaned up ${cleanedCount} expired presigned URLs`
-            );
+            if (!fileKey) {
+                throw new BadRequest('File key is required');
+            }
+
+            // Decode the file key in case it was URL encoded
+            const decodedFileKey = decodeURIComponent(fileKey);
+
+            const fileResult = await uploadFileServiceOnR2.getFileFromR2Cloudflare(decodedFileKey);
+
+            // Set appropriate headers for file response
+            res.setHeader('Content-Type', fileResult.contentType);
+            res.setHeader('Content-Length', fileResult.size);
+            res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+
+            // Extract filename for content disposition
+            const filename = fileResult.fileName;
+            res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+
+            res.send(fileResult.content);
         } catch (error) {
-            logger.error(
-                `Error cleaning up expired presigned URLs: ${error instanceof Error ? error.message : String(error)}`
-            );
-            throw new InternalServerError('Failed to cleanup expired presigned URLs');
+            logger.error(`Error getting file from R2: ${error instanceof Error ? error.message : String(error)}`);
+            if (error instanceof BadRequest) {
+                throw error;
+            } else {
+                throw new InternalServerError('Failed to retrieve file from R2 storage');
+            }
         }
+    }
+
+    /**
+     * Download file from R2 Cloudflare storage
+     * GET /api/upload/r2/:fileKey/download
+     */
+    public async downloadFileFromR2(req: Request, res: Response): Promise<void> {
+        try {
+            const { fileKey } = req.params;
+
+            if (!fileKey) {
+                throw new BadRequest('File key is required');
+            }
+
+            // Decode the file key in case it was URL encoded
+            const decodedFileKey = decodeURIComponent(fileKey);
+
+            const fileResult = await uploadFileServiceOnR2.getFileFromR2Cloudflare(decodedFileKey);
+
+            // Set appropriate headers for file download
+            res.setHeader('Content-Type', fileResult.contentType);
+            res.setHeader('Content-Length', fileResult.size);
+            res.setHeader('Content-Disposition', `attachment; filename="${fileResult.fileName}"`);
+
+            logger.info(`File downloaded from R2: ${fileResult.fileName} (${(fileResult.size / 1024).toFixed(2)}KB)`);
+
+            res.send(fileResult.content);
+        } catch (error) {
+            logger.error(`Error downloading file from R2: ${error instanceof Error ? error.message : String(error)}`);
+            if (error instanceof BadRequest) {
+                throw error;
+            } else {
+                throw new InternalServerError('Failed to download file from R2 storage');
+            }
+        }
+    }
+
+    /**
+     * Generate download presigned URL for R2 file
+     * GET /api/upload/r2/:fileKey/presigned-download
+     */
+    public async generateR2DownloadUrl(req: Request, res: Response): Promise<void> {
+        try {
+            const { fileKey } = req.params;
+            const { expiresInMinutes } = req.query;
+
+            if (!fileKey) {
+                throw new BadRequest('File key is required');
+            }
+
+            const decodedFileKey = decodeURIComponent(fileKey);
+
+            const defaultExpireFile = 1440;
+
+            const expiration = expiresInMinutes ? parseInt(expiresInMinutes as string) : defaultExpireFile;
+
+            if (expiration < 1 || expiration > 1440) {
+                // Max 24 hours
+                throw new BadRequest('Expiration must be between 1 and 1440 minutes');
+            }
+
+            const result = await uploadFileServiceOnR2.generateDownloadPresignedUrl(decodedFileKey, expiration);
+
+            SuccessResponse.ok(res, result, 'Download URL generated successfully');
+        } catch (error) {
+            logger.error(`Error generating R2 download URL: ${error instanceof Error ? error.message : String(error)}`);
+            if (error instanceof BadRequest) {
+                throw error;
+            } else {
+                throw new InternalServerError('Failed to generate download URL');
+            }
+        }
+    }
+
+    /**
+     * Complete single file upload
+     * POST /api/upload/file/single/complete
+     */
+    public async completeSingleFileUpload(req: Request, res: Response): Promise<void> {
+        const { fileKey, fileName, fileSize, contentType } = req.body;
+        const userId = req.currentUser?.userId;
+
+        if (!fileKey) {
+            throw new BadRequest('File key is required');
+        }
+
+        if (!fileName || !fileSize || !contentType) {
+            throw new BadRequest('File name, size, and content type are required');
+        }
+
+        const result = await uploadFileServiceOnR2.completeSingleFileUpload({
+            ...req.body,
+            userId,
+        });
+
+        SuccessResponse.ok(res, result, 'Single file upload completed successfully');
     }
 }
 
 export const uploadFileController = new UploadFileController();
-export default UploadFileController;
