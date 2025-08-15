@@ -10,12 +10,12 @@ export interface ItemTrackingWithTopic {
     lastReviewed: string | null;
     nextReview: string | null;
     status: string;
-    topicTitle: string;
+    topicTitle: string | null;
     topicDescription: string | null;
 }
 export interface IScheduleTopicReview {
     topicId: number;
-    topicTitle: string;
+    topicTitle: string | null;
     topicDescription: string | null;
     reviewDate: Date;
     status: string;
@@ -27,7 +27,7 @@ export interface IScheduleTopicReview {
 
 export interface IGroupTopic {
     topicId: number;
-    topicTitle: string;
+    topicTitle: string | null;
     topicDescription: string | null;
     easinessFactor: string;
     reviewInterval: number;
@@ -42,7 +42,7 @@ export interface IItemScheduleGenerated {
     priority: number;
     startTime: Date;
     endTime: Date;
-    title: string;
+    title: string | null;
     description: string | null;
     type: string;
     amountItem: number;

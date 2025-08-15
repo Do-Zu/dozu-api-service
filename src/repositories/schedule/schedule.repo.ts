@@ -42,7 +42,7 @@ class ScheduleRepository {
                 topicDescription: topicsTable.description,
             })
             .from(itemSpacedRepetitionTrackingTable)
-            .innerJoin(topicsTable, eq(itemSpacedRepetitionTrackingTable.userId, topicsTable.userId))
+            .leftJoin(topicsTable, eq(itemSpacedRepetitionTrackingTable.topicId, topicsTable.topicId))
             .where(
                 and(
                     eq(itemSpacedRepetitionTrackingTable.userId, userId),

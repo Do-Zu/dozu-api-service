@@ -292,9 +292,9 @@ class ScheduleService {
                             priority,
                             startTime: chunk[0].reviewDate,
                             endTime: new Date(chunk[0].reviewDate.getTime() + chunk.length * 60 * 1000),
-                            title: chunk[0].topicTitle,
-                            description: chunk[0].topicDescription,
-                            type: chunk[0].type,
+                            title: chunk[0]?.topicTitle,
+                            description: chunk[0]?.topicDescription,
+                            type: chunk[0]?.type,
                             amountItem: chunk.length,
                         };
                         scheduleWaitingPriorityQueue.enqueue(scheduleItem);
