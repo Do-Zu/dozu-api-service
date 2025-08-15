@@ -231,12 +231,8 @@ async function generateContent(
             // If it's an object, try to extract the array from it
             let data: any[];
 
-            if (Array.isArray(jsonData)) {
+            if (Array.isArray(jsonData) || typeof jsonData === 'object') {
                 data = jsonData;
-            } else if (jsonData && typeof jsonData === 'object') {
-                // Try to find an array property in the response
-                const arrayKey = Object.keys(jsonData).find(key => Array.isArray(jsonData[key]));
-                data = arrayKey ? jsonData[arrayKey] : [jsonData];
             } else {
                 data = [jsonData];
             }
