@@ -13,6 +13,7 @@ router.use(authMiddleware);
 
 router.get('/', scheduleController.getScheduleInWeek);
 router.post('/generate', scheduleController.generateSchedule);
+router.post('/batch/session', scheduleController.updateSessionSchedule);
 router.get('/preference', scheduleController.getPreference);
 router.post('/preference', scheduleController.batchUpdatePreference);
 
