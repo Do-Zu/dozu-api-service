@@ -5,6 +5,7 @@ import { IGroupTopic, IItemScheduleGenerated, ItemTrackingWithTopic } from './ty
 import { getDateFormattedWithTimeZone, getDayOfWeek } from '@/utils/date';
 import { SchedulePriorityQueue } from '@/utils/queue/schedule.queue';
 import { BadRequest } from '@/core/error';
+import { redisInstance as redis } from '@/libs/redis/default/redisDefault';
 
 const DEFINE_DEFAULT_FREE_TIME: FreeTimeSlotDays = {
     Monday: [
@@ -53,6 +54,7 @@ const USER_PREFERRED_SESSION_LEARNING = 'morning';
  */
 class ScheduleService {
     private readonly DEFAULT_FREE_TIME: FreeTimeSlotDays = DEFINE_DEFAULT_FREE_TIME;
+    private readonly TTL_SCHEDULE = 60 * 60; // 1 hour
     private readonly DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM = 1;
     private readonly DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION = 5;
     private readonly MIN_ITEMS_PER_SLOT = 20;
@@ -80,11 +82,70 @@ class ScheduleService {
     }
 
     /**
+     * Gets recommended study sessions for the user.
+     */
+    public async generateRecommendSchedule(body: {
+        userId: number;
+        fromDate: Date | string;
+        toDate: Date | string;
+        timezone: string;
+    }) {
+        const { userId, fromDate, toDate, timezone } = body;
+
+        const KEY_MEMCACHE_SCHEDULE_PERSONAL = `schedule-personal:${userId}:${fromDate}:${toDate}:${timezone}`;
+
+        const cachedSchedule = await redis.get(KEY_MEMCACHE_SCHEDULE_PERSONAL);
+
+        if (cachedSchedule) {
+            return cachedSchedule;
+        }
+
+        const data = await this.generateSchedule(body);
+
+        if (data && data.schedules && Object.keys(data.schedules).length > 0) {
+            await redis.set(KEY_MEMCACHE_SCHEDULE_PERSONAL, data, this.TTL_SCHEDULE);
+        }
+
+        return data;
+    }
+
+    /**
+     * Updates a session schedule.
+     * @param userId - The ID of the user
+     * @param fromDate - The start date of the schedule
+     * @param toDate - The end date of the schedule
+     * @param timezone - The timezone of the user
+     * @param updates - The batch list updates to apply to the session schedule
+     */
+    public async updateSessionSchedule({
+        userId,
+        fromDate,
+        toDate,
+        timezone,
+        updates,
+    }: {
+        userId: number;
+        fromDate: Date | string;
+        toDate: Date | string;
+        timezone: string;
+        updates: Partial<IItemScheduleGenerated>[];
+    }) {
+        const KEY_MEMCACHE_SCHEDULE_PERSONAL = `schedule-personal:${userId}:${fromDate}:${toDate}:${timezone}`;
+
+        //Store in mem-cache
+        await redis.set(KEY_MEMCACHE_SCHEDULE_PERSONAL, updates, this.TTL_SCHEDULE);
+
+        //TODO: Must update on DB
+
+        return updates;
+    }
+
+    /**
      * Generates a schedule for the user based on their spaced repetition tracking data.
      * @param userId - The ID of the user for whom to generate the schedule.
      * @returns An object containing the schedules or an empty array if no tracking data is found.
      */
-    public async generateSchedule(body: {
+    private async generateSchedule(body: {
         userId: number;
         fromDate: Date | string;
         toDate: Date | string;
@@ -103,7 +164,7 @@ class ScheduleService {
 
         if (listItemTracking.length === 0) {
             return {
-                schedules: [],
+                schedules: {},
                 waitingTopics: [],
                 preferredTime: USER_PREFERRED_SESSION_LEARNING,
                 statistics: {
@@ -397,17 +458,6 @@ class ScheduleService {
                     (sum, slots) => sum + slots.length,
                     0
                 ),
-                averageItemsPerSlot:
-                    scheduledItems > 0
-                        ? Math.round(
-                              (scheduledItems /
-                                  Object.values(scheduleGenerateFollowFreeTimeSlotPerDay).reduce(
-                                      (sum, slots) => sum + slots.length,
-                                      0
-                                  )) *
-                                  100
-                          ) / 100
-                        : 0,
             },
         };
     }

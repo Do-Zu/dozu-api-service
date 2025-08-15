@@ -29,10 +29,6 @@ class ScheduleController {
         const timezone = getTimezoneClient(req);
         const { fromDate, toDate } = req.body;
 
-        if (!userId) {
-            throw new BadRequest('Unauthorized!');
-        }
-
         if (!fromDate || !toDate) {
             throw new BadRequest('fromDate and toDate are required');
         }
@@ -45,7 +41,37 @@ class ScheduleController {
             throw new BadRequest('timezone is required');
         }
 
-        const data = await scheduleService.generateSchedule({ userId: parseInt(userId), fromDate, toDate, timezone });
+        const data = await scheduleService.generateRecommendSchedule({
+            userId: parseInt(userId),
+            fromDate,
+            toDate,
+            timezone,
+        });
+
+        SuccessResponse.ok(res, data);
+    }
+    /**
+     * Update session schedule
+     * @param req - Express request object
+     * @param res - Express response object
+     */
+    async updateSessionSchedule(req: Request, res: Response) {
+        const userId = req.currentUser?.userId;
+        const { updates } = req.body;
+        const { fromDate, toDate } = req.body;
+        const timezone = getTimezoneClient(req);
+
+        if (!updates) {
+            throw new BadRequest('Updates element are required');
+        }
+
+        const data = await scheduleService.updateSessionSchedule({
+            userId: parseInt(userId),
+            fromDate,
+            toDate,
+            timezone,
+            updates,
+        });
 
         SuccessResponse.ok(res, data);
     }
