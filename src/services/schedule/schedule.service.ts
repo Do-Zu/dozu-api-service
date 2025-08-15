@@ -92,7 +92,10 @@ class ScheduleService {
     }) {
         const { userId, fromDate, toDate, timezone } = body;
 
-        const KEY_MEMCACHE_SCHEDULE_PERSONAL = `schedule-personal:${userId}:${fromDate}:${toDate}:${timezone}`;
+        const fromDateString = getDateFormattedWithTimeZone(fromDate, timezone);
+        const toDateString = getDateFormattedWithTimeZone(toDate, timezone);
+
+        const KEY_MEMCACHE_SCHEDULE_PERSONAL = `schedule-personal:${userId}:${fromDateString}:${toDateString}`;
 
         const cachedSchedule = await redis.get(KEY_MEMCACHE_SCHEDULE_PERSONAL);
 
@@ -100,7 +103,12 @@ class ScheduleService {
             return cachedSchedule;
         }
 
-        const data = await this.generateSchedule(body);
+        const data = await this.generateSchedule({
+            userId,
+            fromDateString,
+            toDateString,
+            timezone,
+        });
 
         if (data && data.schedules && Object.keys(data.schedules).length > 0) {
             await redis.set(KEY_MEMCACHE_SCHEDULE_PERSONAL, data, this.TTL_SCHEDULE);
@@ -130,7 +138,10 @@ class ScheduleService {
         timezone: string;
         updates: Partial<IItemScheduleGenerated>[];
     }) {
-        const KEY_MEMCACHE_SCHEDULE_PERSONAL = `schedule-personal:${userId}:${fromDate}:${toDate}:${timezone}`;
+        const fromDateString = getDateFormattedWithTimeZone(fromDate, timezone);
+        const toDateString = getDateFormattedWithTimeZone(toDate, timezone);
+
+        const KEY_MEMCACHE_SCHEDULE_PERSONAL = `schedule-personal:${userId}:${fromDateString}:${toDateString}`;
 
         //Store in mem-cache
         await redis.set(KEY_MEMCACHE_SCHEDULE_PERSONAL, updates, this.TTL_SCHEDULE);
@@ -147,14 +158,11 @@ class ScheduleService {
      */
     private async generateSchedule(body: {
         userId: number;
-        fromDate: Date | string;
-        toDate: Date | string;
+        fromDateString: string;
+        toDateString: string;
         timezone: string;
     }) {
-        const { userId, fromDate, toDate, timezone } = body;
-
-        const fromDateString = getDateFormattedWithTimeZone(fromDate, timezone);
-        const toDateString = getDateFormattedWithTimeZone(toDate, timezone);
+        const { userId, fromDateString, toDateString } = body;
 
         const listItemTracking: ItemTrackingWithTopic[] = await scheduleRepo.getListItemTrackingByUserIdInWeek(
             userId,
