@@ -1,5 +1,11 @@
+import db from '@/libs/drizzleClient.lib';
+import flashcardRepo from '@/repositories/flashcard.repo';
 import topicRepo, { ICreateTopicRepo, IUpdateTopicRepo } from '@/repositories/topic.repo';
-import { ICreateTopicBody, ITopic } from '@/types/topic/topic.type';
+import itemSpacedRepetitionTrackingRepo from '@/repositories/tracking/itemSpacedRepetitionTracking.repo';
+import { ICreateTopicBody, ITopic, IUpdateTopicBody } from '@/types/topic/topic.type';
+
+export type ICreateTopicService = ICreateTopicBody & { imageUrl?: string | null };
+export type IUpdateTopicService = IUpdateTopicBody & { imageUrl?: string | null };
 
 class TopicService {
     public async doesTopicExist(topicId: number): Promise<boolean> {
@@ -17,35 +23,42 @@ class TopicService {
         return topics;
     }
 
-    public async createTopicForUser(userId: number, topic: ICreateTopicBody): Promise<ITopic> {
+    public async createTopicForUser(userId: number, topic: ICreateTopicService): Promise<ITopic> {
         const value: ICreateTopicRepo = { ...topic, userId };
+        if (value.imageUrl === undefined) {
+            delete value.imageUrl;
+        }
         const result = await topicRepo.createTopicForUser(value);
         return result;
     }
 
-    public async updateTopicById(topicId: number, topic: IUpdateTopicRepo): Promise<ITopic> {
-        const result = await topicRepo.updateTopicById(topicId, topic);
+    public async updateTopicById(topicId: number, topic: IUpdateTopicService): Promise<ITopic> {
+        let value: IUpdateTopicRepo = { ...topic };
+        if (value.imageUrl === undefined || value.imageUrl === null) {
+            delete value.imageUrl;
+        }
+        const result = await topicRepo.updateTopicById(topicId, value);
         return result;
     }
 
     public async deleteTopicById(topicId: number): Promise<void> {
-        await topicRepo.deleteTopicById(topicId);
-    }
+        await db.transaction(async tx => {
+            // mindmap deletion
+            //... (delete resources related to ONLY mindmap if necessary)
 
-    // this function get topics in specific class, and get individualized information of user (eg. SM-2)
-    public async getTopicsForClass(classId: number, userId: number, currentDate: string): Promise<ITopic[]> {
-        const result = await topicRepo.getTopicsForClass(classId, userId, currentDate);
-        return result;
-    }
+            // flashcard deletion
+            await flashcardRepo.deleteFlashcardsInTopic(topicId, tx);
 
-    public async getTopicsInClassForStudent(classId: number, userId: number, currentDate: string): Promise<ITopic[]> {
-        const result = await topicRepo.getTopicsInClassForStudent(classId, userId, currentDate);
-        return result;
-    }
+            // quiz deletion
+            //... (delete resources related to ONLY quiz if necessary)
 
-    public async getTopicsInClassForTeacher(classId: number): Promise<ITopic[]> {
-        const result = await topicRepo.getTopicsInClassForTeacher(classId);
-        return result;
+            // sm-2 information deletion 
+            // todo-ka: should annouce teacher that deleting topic would clear sm-2 info of students
+            await itemSpacedRepetitionTrackingRepo.deleteTrackingRecordsByTopicId(topicId, tx);
+
+            // topic deletion
+            await topicRepo.deleteTopicById(topicId, tx);
+        })
     }
 }
 

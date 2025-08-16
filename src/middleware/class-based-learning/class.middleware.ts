@@ -1,18 +1,18 @@
-import { Forbidden } from "@/core/error";
-import classService from "@/services/class-based-learning/class.service";
-import classEnrollmentService from "@/services/class-based-learning/classEnrollment.service";
-import { getUserIdFromRequest, isTeacher } from "@/utils/auth/authHelpers.utils";
-import logger from "@/utils/logger";
-import { NextFunction, Request, Response } from "express";
+import { BadRequest, Forbidden } from '@/core/error';
+import requestHelper from '@/core/request/request.helper';
+import classService from '@/services/class-based-learning/class.service';
+import classEnrollmentService from '@/services/class-based-learning/classEnrollment.service';
+import { getUserIdFromRequest, isTeacher } from '@/utils/auth/authHelpers.utils';
+import logger from '@/utils/logger';
+import { NextFunction, Request, Response } from 'express';
 
 class ClassMiddleware {
     public async verifyStudentInClass(req: Request, res: Response, next: NextFunction) {
         const userId = getUserIdFromRequest(req);
-        let { classId } = req.params as { classId: string | number };
-        classId = parseInt(classId as string);
+        const classId = requestHelper.getIdParam(req, 'classId');
 
         const result = await classEnrollmentService.isStudentInClass(classId, userId);
-        if(result) {
+        if (result) {
             next();
         } else {
             const message = 'Forbidden: You do not belong to this class!';
@@ -23,11 +23,10 @@ class ClassMiddleware {
 
     public async verifyTeacherOwnsClass(req: Request, res: Response, next: NextFunction) {
         const userId = getUserIdFromRequest(req);
-        let { classId } = req.params as { classId: string | number };
-        classId = parseInt(classId as string);
+        const classId = requestHelper.getIdParam(req, 'classId');
 
         const result = await classService.isTeacherOwnerOfClass(classId, userId);
-        if(result) {
+        if (result) {
             next();
         } else {
             const message = 'Forbidden: You are not the owner of this class!';
@@ -39,10 +38,21 @@ class ClassMiddleware {
     // for both students and teachers
     public async verifyUserCanAccessClass(req: Request, res: Response, next: NextFunction) {
         const teacher = await isTeacher(req);
-        if(teacher) {
+        if (teacher) {
             return this.verifyTeacherOwnsClass(req, res, next);
         } else {
             return this.verifyStudentInClass(req, res, next);
+        }
+    }
+
+    public async verifyClassById(req: Request, res: Response, next: NextFunction) {
+        const classId = requestHelper.getIdParam(req, 'classId');
+        const myClass = await classService.getClassById(classId);
+        if (myClass) {
+            requestHelper.setResource(req, 'class', myClass);
+            next();
+        } else {
+            throw new BadRequest('Class is invalid!');
         }
     }
 }

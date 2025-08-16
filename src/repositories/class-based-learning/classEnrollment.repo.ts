@@ -1,4 +1,4 @@
-import db from '@/libs/drizzleClient.lib';
+import db, { Transaction } from '@/libs/drizzleClient.lib';
 import { classEnrollmentsTable, usersTable } from '@/models';
 import { IClassEnrollment, IStudentInClass } from '@/types/class-based-learning/classEnrollment.type';
 import { and, eq } from 'drizzle-orm';
@@ -15,10 +15,11 @@ class ClassEnrollmentRepo {
         return enrollment;
     }
 
-    public async removeStudentFromClass(classEnrollmentId: number): Promise<void> {
-        await db
+    public async removeStudentFromClass(classEnrollmentId: number, tx?: Transaction): Promise<void> {
+        const executor = tx ?? db;
+        await executor
             .delete(classEnrollmentsTable)
-            .where(eq(classEnrollmentsTable.classEnrollmentId, classEnrollmentId))
+            .where(eq(classEnrollmentsTable.classEnrollmentId, classEnrollmentId));
     }
 
     public async getEnrollmentByClassAndStudent(classId: number, studentId: number): Promise<IClassEnrollment> {
@@ -51,11 +52,11 @@ class ClassEnrollmentRepo {
                 username: usersTable.username,
                 fullName: usersTable.fullName,
                 avatarUrl: usersTable.avatarUrl,
-                enrolledAt: classEnrollmentsTable.enrolledAt
+                enrolledAt: classEnrollmentsTable.enrolledAt,
             })
             .from(classEnrollmentsTable)
             .innerJoin(usersTable, eq(usersTable.userId, classEnrollmentsTable.studentId))
-            .where(eq(classEnrollmentsTable.classId, classId))
+            .where(eq(classEnrollmentsTable.classId, classId));
         return result;
     }
 }

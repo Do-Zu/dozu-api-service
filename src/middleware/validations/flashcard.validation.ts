@@ -1,17 +1,17 @@
 import { z, ZodObject } from "zod"
-import validateData from "./validator"
+import validator from "../../core/validations/validator"
 import { ZFlashcardsArrayAdded, ZFlashcardsBatch } from "@/types/flashcard/flashcard.type"
 
 function validateTopicId() {
-    return validateData<ZodObject<any, any>>({ selector: req => req.query, schema: z.object({ topicId: z.string() }) })
+    return validator.validate<ZodObject<any, any>>({ selector: 'query', schema: z.object({ topicId: z.string() }) })
 }
 
 function validateFlashcardsAdded() {
-    return validateData<ZodObject<any, any>>({ selector: req => req.body, schema: z.object({ flashcards: ZFlashcardsArrayAdded }) })
+    return validator.validate<ZodObject<any, any>>({ selector: 'body', schema: z.object({ flashcards: ZFlashcardsArrayAdded }) })
 }
 
 function validateFlashcardsBatch() {
-    return validateData<ZodObject<any, any>>({ selector: req => req.body, schema: ZFlashcardsBatch });
+    return validator.validate<ZodObject<any, any>>({ selector: 'body', schema: ZFlashcardsBatch });
 }
 
 export { validateTopicId, validateFlashcardsAdded, validateFlashcardsBatch };

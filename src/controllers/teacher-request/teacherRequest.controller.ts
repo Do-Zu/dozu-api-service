@@ -7,6 +7,7 @@ import { ISendRequestBody, ITeacherRequest } from '@/types/teacher-request/teach
 import { BadRequest } from '@/core/error';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import { addRoleTeacherForAccount } from '@/services/auth.service';
+import requestHelper from '@/core/request/request.helper';
 
 class TeacherRequestController {
     public async getAllRequests(req: Request, res: Response) {
@@ -91,7 +92,7 @@ class TeacherRequestController {
     }
 
     public async approveRequest(req: Request, res: Response) {
-        const { requestId } = req.validatedParams as { requestId: number };
+        const requestId = requestHelper.getIdParam(req, 'requestId');
 
         const [result]: ITeacherRequest[] = await db
             .update(teacherRequestsTable)
@@ -115,7 +116,7 @@ class TeacherRequestController {
     }
 
     public async rejectRequest(req: Request, res: Response) {
-        const { requestId } = req.validatedParams as { requestId: number };
+        const requestId = requestHelper.getIdParam(req, 'requestId');
 
         const [result]: ITeacherRequest[] = await db
             .update(teacherRequestsTable)

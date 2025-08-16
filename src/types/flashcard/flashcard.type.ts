@@ -1,6 +1,6 @@
-import { IFlashcardStatus } from '@/models';
 import { IQualityResponse } from '@/services/spaced-repetition-system/super-memo-2/superMemo2.origin';
 import { z } from 'zod';
+import { IItemSpacedRepetition } from '../tracking/itemSpacedRepetitionTracking.type';
 
 export const ZFlashcardAdded = z.object({
     front: z.string(),
@@ -33,34 +33,33 @@ export const ZFlashcardTracked = z.object({
     qualityResponse: ZQualityResponse,
 });
 
-export type IFlashcardAdded = z.infer<typeof ZFlashcardAdded>;
-export type IFlashcardUpdated = z.infer<typeof ZFlashcardUpdated>;
-export type IFlashcardDeleted = z.infer<typeof ZFlashcardDeleted>;
-
-export type IFlashcardsBatch = z.infer<typeof ZFlashcardsBatch>;
-
 export interface IQualityResponseNextReviewInterval {
     qualityResponse: IQualityResponse;
     nextReviewInterval: number;
 }
 
-export interface IFlashcardBasic {
+export interface IFlashcard {
     flashcardId: number;
     topicId: number;
+    nodeId?: string | null;
     front: string;
     back: string;
+    createdAt: Date;
+    learningState?: IFlashcardLearningState;
+
+    topicName?: string;
 }
 
-export interface IFlashcardSpacedRepetition {
-    flashcardId: number;
-    repetitionNumber: number;
-    easinessFactor: string;
-    reviewInterval: number;
-    lastReviewed: string | null;
-    nextReview: string;
-    status: IFlashcardStatus;
-}
+export type IFlashcardLearningState = Pick<
+    IItemSpacedRepetition,
+    'status' | 'lastReviewed' | 'nextReview' | 'repetitionNumber' | 'easinessFactor' | 'reviewInterval'
+> & { flashcardId?: number };
 
-export interface IFlashcardFull extends IFlashcardBasic, IFlashcardSpacedRepetition {
-    topicName: string;
-}
+export type IFlashcardCreateInput = Pick<IFlashcard, 'front' | 'back'>;
+export type IFlashcardUpdateInput = Pick<IFlashcard, 'flashcardId' | 'front' | 'back'>;
+
+export type IFlashcardsBatchInput = {
+    flashcardsAdded?: IFlashcardCreateInput[];
+    flashcardsUpdated?: IFlashcardUpdateInput[];
+    flashcardsDeleted?: number[];
+};

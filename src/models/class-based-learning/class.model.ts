@@ -9,6 +9,7 @@ export const classesTable = pgTable('classes', {
     name: varchar('name', { length: 255 }).notNull(),
     description: text('description').notNull().default(''),
     invitationCode: varchar('invitation_code', { length: 10 }).notNull().unique(),
+    imageUrl: text('image_url'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 

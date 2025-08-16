@@ -1,67 +1,55 @@
-import { BadRequest, DatabaseError, Forbidden } from '@/core/error';
+import { BadRequest, DatabaseError } from '@/core/error';
 import { SuccessResponse } from '@/core/success';
-import flashcardService, { IFlashcardNextReviewReturned } from '@/services/flashcard/flashcard.service';
+import flashcardService, { IFlashcardWithReviewPrediction } from '@/services/flashcard/flashcard.service';
 import topicService from '@/services/topic/topic.service';
-import { IFlashcardsBatch } from '@/types/flashcard/flashcard.type';
+import { IFlashcard, IFlashcardLearningState, IFlashcardsBatchInput } from '@/types/flashcard/flashcard.type';
 import logger from '@/utils/logger';
 import { Request, Response } from 'express';
 import SuperMemo2, { IQualityResponse } from '@/services/spaced-repetition-system/super-memo-2/superMemo2.origin';
-import { getUserIdFromRequest, isTeacher } from '@/utils/auth/authHelpers.utils';
+import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import { getCurrentDateFromRequest } from '@/utils/date';
-import {
-    IApplyFlashcardSM2ArgumentSM2,
-    IFlashcardsForTopicReturned,
-    IFlashcardsLearningForUserReturned,
-    IFlashcardSpacedRepetitionReturned,
-} from '@/repositories/flashcard.repo';
-import classEnrollmentService from '@/services/class-based-learning/classEnrollment.service';
-import classService from '@/services/class-based-learning/class.service';
+import requestHelper from '@/core/request/request.helper';
 class FlashcardController {
     constructor() {}
 
-    public async handleGetAllFlashcardsForTopic(req: Request, res: Response): Promise<void> {
-        const topicId = Number(req.query.topicId); 
-        const topic = await topicService.getTopicById(topicId);
+    public async getFlashcardsForTopic(req: Request, res: Response): Promise<void> {
+        const topicId = requestHelper.getIdParam(req, 'topicId');
+        const topic = requestHelper.getResource(req, 'topic');
 
-        let flashcards: IFlashcardsForTopicReturned;
+        let flashcards: IFlashcard[];
         try {
-            flashcards = await flashcardService.handleGetAllFlashcardsForTopic(topicId);
+            flashcards = await flashcardService.getFlashcardsForTopic(topicId);
         } catch (err) {
             logger.error(err);
             throw new DatabaseError('Something went wrong, cannot get flashcards');
         }
 
-        let topicName = topic!.name; // not undefined because of middlewares
-        SuccessResponse.ok(res, { flashcards, topicName });
+        let { includeTopic } = req.query as { includeTopic: string | boolean };
+        // !! should check other dev using this API (for including includeTopic)
+        includeTopic = includeTopic && includeTopic === 'true';
+        if (includeTopic) {
+            const topicName = topic!.name; // not undefined because of middlewares
+            SuccessResponse.ok(res, { flashcards, topicName });
+        } else {
+            SuccessResponse.ok(res, flashcards);
+        }
     }
 
-    public async handleBatchFlashcardsForTopic(req: Request, res: Response): Promise<void> {
+    public async batchFlashcardsForTopic(req: Request, res: Response): Promise<void> {
         const userId = getUserIdFromRequest(req);
-        let { topicId } = req.query as { topicId: string | number };
+        const topicId = requestHelper.getIdParam(req, 'topicId');
 
-        topicId = parseInt(topicId as string);
-
-        if (isNaN(topicId)) {
-            logger.warn('topicId is NaN');
-            throw new BadRequest('Invalid param, cannot create flashcards');
-        }
-
-        const isExistedTopic = await topicService.doesTopicExist(topicId);
-        if (!isExistedTopic) {
-            throw new BadRequest('Invalid topic');
-        }
-
-        const { flashcardsAdded, flashcardsUpdated, flashcardsDeleted }: IFlashcardsBatch = req.body;
+        const { flashcardsAdded, flashcardsUpdated, flashcardsDeleted }: IFlashcardsBatchInput = req.body;
 
         try {
-            await flashcardService.handleBatchFlashcardsForTopic(userId, topicId, {
+            await flashcardService.batchFlashcardsForTopic(userId, topicId, {
                 flashcardsAdded,
                 flashcardsUpdated,
                 flashcardsDeleted,
             });
         } catch (err) {
             logger.error(err);
-            throw new DatabaseError('Something went wrong :((');
+            throw new DatabaseError('Something went wrong');
         }
 
         SuccessResponse.created(res, {});
@@ -70,7 +58,8 @@ class FlashcardController {
     public async handleBatchFlashcardsForNode(req: Request, res: Response): Promise<void> {
         const userId = getUserIdFromRequest(req);
 
-        let { topicId } = req.body as { topicId: string };
+        // let { topicId } = req.body as { topicId: string };
+        let { topicId } = req.params as { topicId: string };
         let { nodeId } = req.body as { nodeId: string };
 
         let parsedTopicId = parseInt(topicId as string);
@@ -90,7 +79,7 @@ class FlashcardController {
             throw new BadRequest('Invalid topic');
         }
 
-        const { flashcardsAdded, flashcardsUpdated, flashcardsDeleted }: IFlashcardsBatch = req.body.flashcards;
+        const { flashcardsAdded, flashcardsUpdated, flashcardsDeleted }: IFlashcardsBatchInput = req.body.flashcards;
 
         try {
             await flashcardService.handleBatchFlashcardsForNode(userId, parsedTopicId, nodeId, {
@@ -100,116 +89,61 @@ class FlashcardController {
             });
         } catch (err) {
             logger.error(err);
-            throw new DatabaseError('Something went wrong :((');
+            throw new DatabaseError('Something went wrong');
         }
 
         SuccessResponse.created(res, {});
     }
 
     // todo-ka: check if this necessary, yes => create middleware for security
-    public async handleGetFlashcardsLearningForUser(req: Request, res: Response): Promise<void> {
+    // public async getDueFlashcardsForUser(req: Request, res: Response): Promise<void> {
+    //     const currentDate = getCurrentDateFromRequest(req);
+    //     const userId = getUserIdFromRequest(req);
+
+    //     let flashcards: IFlashcardsLearningForUserReturned;
+    //     try {
+    //         flashcards = await flashcardService.getDueFlashcardsForUser(userId, currentDate);
+    //     } catch (err) {
+    //         logger.error(err);
+    //         throw new DatabaseError('Something went wrong :((');
+    //     }
+
+    //     let flashcardsReturned: IFlashcardNextReviewReturned[] =
+    //         await flashcardService.getReviewIntervalsByQualityResponses(flashcards);
+
+    //     SuccessResponse.ok(res, flashcardsReturned);
+    // }
+
+    public async getDueFlashcardsForTopic(req: Request, res: Response): Promise<void> {
         const currentDate = getCurrentDateFromRequest(req);
         const userId = getUserIdFromRequest(req);
+        const topicId = requestHelper.getIdParam(req, 'topicId');
 
-        let flashcards: IFlashcardsLearningForUserReturned;
+        let flashcards: IFlashcard[];
         try {
-            flashcards = await flashcardService.handleGetFlashcardsLearningForUser(userId, currentDate);
+            flashcards = await flashcardService.getDueFlashcardsForTopicAndUser(topicId, userId, currentDate);
         } catch (err) {
             logger.error(err);
-            throw new DatabaseError('Something went wrong :((');
+            throw new DatabaseError('Something went wrong');
         }
 
-        let flashcardsReturned: IFlashcardNextReviewReturned[] =
-            await flashcardService.handleGetNextReviewIntervalsForAllQualityResponses(flashcards);
+        const flashcardsReturned: IFlashcardWithReviewPrediction[] =
+            await flashcardService.getReviewIntervalsByQualityResponses(flashcards);
 
         SuccessResponse.ok(res, flashcardsReturned);
     }
 
-    public async handleGetFlashcardsLearningForTopic(req: Request, res: Response): Promise<void> {
-        const currentDate = getCurrentDateFromRequest(req);
-        let { topicId } = req.params as { topicId: string | number };
+    public async reviewFlashcardWithQuality(req: Request, res: Response): Promise<void> {
         const userId = getUserIdFromRequest(req);
-        const teacher = await isTeacher(req);
-        topicId = parseInt(topicId as string);
-
-        const topic = await topicService.getTopicById(topicId);
-        if (!topic) {
-            throw new BadRequest('Invalid topic');
-        }
-        if(topic.classId) {
-            if(teacher) {
-                const isOwner = await classService.isTeacherOwnerOfClass(topic.classId, userId);
-                if(!isOwner) {
-                    const message = 'Forbidden: You are not the owner of this class!';
-                    logger.warn(message);
-                    throw new Forbidden(message);
-                }
-            } else {
-                const inClass = await classEnrollmentService.isStudentInClass(topic.classId, userId);
-                if(!inClass) {
-                    const message = 'Forbidden: You do not belong to this class!';
-                    logger.warn(message);
-                    throw new Forbidden(message);
-                }
-            }
-        } else {
-            if(topic.userId !== userId) {
-                const message = 'Forbidden: You are not the owner of this topic!';
-                logger.warn(message);
-                throw new Forbidden(message); 
-            }
-        }
-
-        let flashcards: IFlashcardsLearningForUserReturned;
-        try {
-            flashcards = await flashcardService.handleGetFlashcardsLearningForTopic(topicId, userId, currentDate);
-        } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong :((');
-        }
-
-        let flashcardsReturned: IFlashcardNextReviewReturned[] =
-            await flashcardService.handleGetNextReviewIntervalsForAllQualityResponses(flashcards);
-
-        SuccessResponse.ok(res, flashcardsReturned);
-    }
-
-    public async handlePutFlashcardToLearning(req: Request, res: Response): Promise<void> {
-        let { flashcardId } = req.params as { flashcardId: string | number };
-        flashcardId = parseInt(flashcardId as string);
-        if (isNaN(flashcardId)) {
-            logger.warn('flashcardId is NaN');
-            throw new BadRequest('Invalid param, cannot set flashcard to practice');
-        }
-
-        try {
-            await flashcardService.handlePutFlashcardToLearning(flashcardId);
-        } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong :((');
-        }
-
-        SuccessResponse.ok(res, {});
-    }
-
-    public async handleTrackSingleFlashcard(req: Request, res: Response): Promise<void> {
-        const userId = getUserIdFromRequest(req);
-        let { flashcardId } = req.params as { flashcardId: string | number };
+        const flashcardId = requestHelper.getIdParam(req, 'flashcardId');
         const { qualityResponse } = req.body as { qualityResponse: IQualityResponse };
 
-        flashcardId = parseInt(flashcardId as string);
-
-        if (isNaN(flashcardId)) {
-            logger.warn('flashcardId is NaN');
-            throw new BadRequest('Invalid param, cannot track flashcard');
-        }
-
-        let flashcard: IFlashcardSpacedRepetitionReturned;
+        let flashcard: IFlashcardLearningState;
         try {
-            flashcard = await flashcardService.handleGetFlashcardSpacedRepetition(flashcardId);
+            flashcard = await flashcardService.getSpacedRepetitionDataForFlashcard(flashcardId);
         } catch (err) {
             logger.error(err);
-            throw new DatabaseError('Something went wrong :((');
+            throw new DatabaseError('Something went wrong');
         }
 
         if (!flashcard) {
@@ -221,9 +155,9 @@ class FlashcardController {
         const superMemo2 = new SuperMemo2(easinessFactor, reviewInterval, repetitionNumber, qualityResponse);
         const sm2 = superMemo2.calc();
 
-        let nextReview = SuperMemo2.getNextReview(currentDate, sm2.reviewInterval);
+        const nextReview = SuperMemo2.getNextReview(currentDate, sm2.reviewInterval);
 
-        let sm2Info: IApplyFlashcardSM2ArgumentSM2 = {
+        const sm2Info: Omit<IFlashcardLearningState, 'status'> = {
             repetitionNumber: sm2.repetitionNumber,
             easinessFactor: sm2.easinessFactor,
             reviewInterval: sm2.reviewInterval,
@@ -232,10 +166,10 @@ class FlashcardController {
         };
 
         try {
-            await flashcardService.handleApplyFlashcardSM2(userId, flashcardId, sm2Info);
+            await flashcardService.applySM2ToFlashcard(userId, flashcardId, sm2Info);
         } catch (err) {
             logger.error(err);
-            throw new DatabaseError('Something went wrong :((');
+            throw new DatabaseError('Something went wrong');
         }
 
         SuccessResponse.ok(res, {});

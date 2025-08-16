@@ -1,40 +1,26 @@
-import db from '@/libs/drizzleClient.lib';
-import {
-    flashcardsTable,
-    IFlashcardStatus,
-    itemSpacedRepetitionTrackingTable,
-    topicsTable,
-    usersTable,
-} from '@/models';
-import {
-    IFlashcardSpacedRepetition,
-    IFlashcardFull,
-    IFlashcardBasic,
-    IFlashcardAdded,
-    IFlashcardUpdated,
-    IFlashcardDeleted,
-} from '@/types/flashcard/flashcard.type';
+import db, { Transaction } from '@/libs/drizzleClient.lib';
+import { flashcardsTable, itemSpacedRepetitionTrackingTable, topicsTable } from '@/models';
+import { IFlashcardLearningState, IFlashcard } from '@/types/flashcard/flashcard.type';
 import { getDateFormatted } from '@/utils/date';
 import { and, asc, eq, lte } from 'drizzle-orm';
 import itemSpacedRepetitionTrackingService from '@/services/tracking/itemSpacedRepetitionTracking.service';
 
-export type IFlashcardsForTopicReturned = Omit<IFlashcardBasic, 'topicId'>[];
-export type IFlashcardSpacedRepetitionReturned = Pick<
-    IFlashcardSpacedRepetition,
-    'reviewInterval' | 'easinessFactor' | 'repetitionNumber'
->;
-export type IFlashcardsLearningForUserReturned = Omit<IFlashcardFull, 'lastReviewed'>[];
+type IInsertFlashcard = Pick<IFlashcard, 'topicId' | 'front' | 'back'>;
+type IUpdateFlashcard = Pick<IFlashcard, 'flashcardId' | 'front' | 'back'>;
 
-export type IFlashcardAddedArgument = (IFlashcardAdded & { topicId: number })[];
-export type IPutFlashcardToLearningArgumentDate = Pick<IFlashcardSpacedRepetition, 'lastReviewed' | 'nextReview'>;
-export type IApplyFlashcardSM2ArgumentSM2 = Omit<IFlashcardSpacedRepetition, 'flashcardId' | 'status'>;
+export type ICreateFlashcardRepo = Pick<IFlashcard, 'topicId' | 'front' | 'back'>;
+export type IUpdateFlashcardRepo = Pick<IFlashcard, 'flashcardId' | 'front' | 'back'>;
 
 class FlashcardRepo {
     constructor() {}
 
-    public async handleGetFlashcardSpacedRepetition(flashcardId: number): Promise<IFlashcardSpacedRepetitionReturned> {
+    public async getSpacedRepetitionDataForFlashcard(flashcardId: number): Promise<IFlashcardLearningState> {
         const flashcards = await db
             .select({
+                flashcardId: itemSpacedRepetitionTrackingTable.itemId,
+                status: itemSpacedRepetitionTrackingTable.status,
+                lastReviewed: itemSpacedRepetitionTrackingTable.lastReviewed,
+                nextReview: itemSpacedRepetitionTrackingTable.nextReview,
                 reviewInterval: itemSpacedRepetitionTrackingTable.reviewInterval,
                 easinessFactor: itemSpacedRepetitionTrackingTable.easinessFactor,
                 repetitionNumber: itemSpacedRepetitionTrackingTable.repetitionNumber,
@@ -52,52 +38,52 @@ class FlashcardRepo {
         return flashcards[0];
     }
 
-    public async handleGetFlashcardsLearningForUser(
-        userId: number,
-        currentDate: string
-    ): Promise<IFlashcardsLearningForUserReturned> {
-        const flashcards = await db
-            .select({
-                flashcardId: flashcardsTable.flashcardId,
-                topicId: topicsTable.topicId,
-                topicName: topicsTable.name,
-                front: flashcardsTable.front,
-                back: flashcardsTable.back,
-                status: itemSpacedRepetitionTrackingTable.status,
-                nextReview: itemSpacedRepetitionTrackingTable.nextReview,
+    // public async getDueFlashcardsForUser(
+    //     userId: number,
+    //     currentDate: string
+    // ): Promise<IFlashcardsLearningForUserReturned> {
+    //     const flashcards = await db
+    //         .select({
+    //             flashcardId: flashcardsTable.flashcardId,
+    //             topicId: topicsTable.topicId,
+    //             topicName: topicsTable.name,
+    //             front: flashcardsTable.front,
+    //             back: flashcardsTable.back,
 
-                // extra selection for calculating next time review
-                reviewInterval: itemSpacedRepetitionTrackingTable.reviewInterval,
-                easinessFactor: itemSpacedRepetitionTrackingTable.easinessFactor,
-                repetitionNumber: itemSpacedRepetitionTrackingTable.repetitionNumber,
-            })
-            .from(flashcardsTable)
-            .innerJoin(topicsTable, eq(flashcardsTable.topicId, topicsTable.topicId))
-            .innerJoin(usersTable, eq(topicsTable.userId, usersTable.userId))
-            .innerJoin(
-                itemSpacedRepetitionTrackingTable,
-                and(
-                    eq(itemSpacedRepetitionTrackingTable.type, 'flashcard'),
-                    eq(itemSpacedRepetitionTrackingTable.itemId, flashcardsTable.flashcardId)
-                )
-            )
-            .where(
-                and(
-                    eq(usersTable.userId, userId),
-                    // ne(itemSpacedRepetitionTrackingTable.status, 'new'),
-                    lte(itemSpacedRepetitionTrackingTable.nextReview, getDateFormatted(currentDate))
-                )
-            )
-            .orderBy(asc(itemSpacedRepetitionTrackingTable.nextReview));
+    //             // learning state (sm-2)
+    //             status: itemSpacedRepetitionTrackingTable.status,
+    //             nextReview: itemSpacedRepetitionTrackingTable.nextReview,
+    //             reviewInterval: itemSpacedRepetitionTrackingTable.reviewInterval,
+    //             easinessFactor: itemSpacedRepetitionTrackingTable.easinessFactor,
+    //             repetitionNumber: itemSpacedRepetitionTrackingTable.repetitionNumber,
+    //         })
+    //         .from(flashcardsTable)
+    //         .innerJoin(topicsTable, eq(flashcardsTable.topicId, topicsTable.topicId))
+    //         .innerJoin(usersTable, eq(topicsTable.userId, usersTable.userId))
+    //         .innerJoin(
+    //             itemSpacedRepetitionTrackingTable,
+    //             and(
+    //                 eq(itemSpacedRepetitionTrackingTable.type, 'flashcard'),
+    //                 eq(itemSpacedRepetitionTrackingTable.itemId, flashcardsTable.flashcardId)
+    //             )
+    //         )
+    //         .where(
+    //             and(
+    //                 eq(usersTable.userId, userId),
+    //                 // ne(itemSpacedRepetitionTrackingTable.status, 'new'),
+    //                 lte(itemSpacedRepetitionTrackingTable.nextReview, getDateFormatted(currentDate))
+    //             )
+    //         )
+    //         .orderBy(asc(itemSpacedRepetitionTrackingTable.nextReview));
 
-        return flashcards;
-    }
+    //     return flashcards;
+    // }
 
-    public async handleGetFlashcardsLearningForTopic(
+    public async getDueFlashcardsForTopicAndUser(
         topicId: number,
         userId: number,
         currentDate: string
-    ): Promise<IFlashcardsLearningForUserReturned> {
+    ): Promise<IFlashcard[]> {
         const flashcards = await db
             .select({
                 flashcardId: flashcardsTable.flashcardId,
@@ -105,17 +91,20 @@ class FlashcardRepo {
                 topicName: topicsTable.name,
                 front: flashcardsTable.front,
                 back: flashcardsTable.back,
-                status: itemSpacedRepetitionTrackingTable.status,
-                nextReview: itemSpacedRepetitionTrackingTable.nextReview,
+                createdAt: flashcardsTable.createdAt,
 
-                // extra selection for calculating next time review
-                reviewInterval: itemSpacedRepetitionTrackingTable.reviewInterval,
-                easinessFactor: itemSpacedRepetitionTrackingTable.easinessFactor,
-                repetitionNumber: itemSpacedRepetitionTrackingTable.repetitionNumber,
+                // learning state (sm-2)
+                learningState: {
+                    status: itemSpacedRepetitionTrackingTable.status,
+                    lastReviewed: itemSpacedRepetitionTrackingTable.lastReviewed,
+                    nextReview: itemSpacedRepetitionTrackingTable.nextReview,
+                    reviewInterval: itemSpacedRepetitionTrackingTable.reviewInterval,
+                    easinessFactor: itemSpacedRepetitionTrackingTable.easinessFactor,
+                    repetitionNumber: itemSpacedRepetitionTrackingTable.repetitionNumber,
+                },
             })
             .from(flashcardsTable)
             .innerJoin(topicsTable, eq(topicsTable.topicId, flashcardsTable.topicId))
-            // .innerJoin(usersTable, eq(usersTable.userId, topicsTable.userId))
             .innerJoin(
                 itemSpacedRepetitionTrackingTable,
                 and(
@@ -135,13 +124,14 @@ class FlashcardRepo {
         return flashcards;
     }
 
-    // done check type
-    public async handleGetAllFlashcardsForTopic(topicId: number): Promise<IFlashcardsForTopicReturned> {
+    public async getFlashcardsForTopic(topicId: number): Promise<IFlashcard[]> {
         const flashcards = await db
             .select({
                 flashcardId: flashcardsTable.flashcardId,
+                topicId: flashcardsTable.topicId,
                 front: flashcardsTable.front,
                 back: flashcardsTable.back,
+                createdAt: flashcardsTable.createdAt,
             })
             .from(flashcardsTable)
             .where(eq(flashcardsTable.topicId, topicId))
@@ -149,11 +139,24 @@ class FlashcardRepo {
         return flashcards;
     }
 
-    // done check type
-    public async handleInsertFlashcardsForTopic(
+    public async insertFlashcards(flashcards: ICreateFlashcardRepo[], tx?: Transaction): Promise<IFlashcard[]> {
+        let result: IFlashcard[];
+        const executor = tx ?? db;
+        result = await executor.insert(flashcardsTable).values(flashcards).returning({
+            flashcardId: flashcardsTable.flashcardId,
+            topicId: flashcardsTable.topicId,
+            front: flashcardsTable.front,
+            back: flashcardsTable.back,
+            createdAt: flashcardsTable.createdAt,
+        });
+        return result;
+    }
+
+    // todo-ka: should remove and change into insertFlashcards
+    public async insertFlashcardsIntoTopic(
         userId: number,
         topicId: number,
-        flashcards: IFlashcardAddedArgument
+        flashcards: IInsertFlashcard[]
     ): Promise<void> {
         let flashcardsAdded = await db.insert(flashcardsTable).values(flashcards).returning({
             flashcardId: flashcardsTable.flashcardId,
@@ -167,8 +170,7 @@ class FlashcardRepo {
         );
     }
 
-    // done check type
-    public async handleUpdateFlashcardsForTopic(flashcards: IFlashcardUpdated[]): Promise<void> {
+    public async updateFlashcards(flashcards: IUpdateFlashcard[]): Promise<void> {
         for (const flashcard of flashcards) {
             const { flashcardId, front, back } = flashcard;
 
@@ -185,39 +187,20 @@ class FlashcardRepo {
         }
     }
 
-    // done check type
-    public async handleDeleteFlashcardsForTopic(flashcardsIds: IFlashcardDeleted[]): Promise<void> {
+    public async deleteFlashcards(flashcardsIds: number[], tx?: Transaction): Promise<void> {
+        const executor = tx ?? db;
         for (const flashcardId of flashcardsIds) {
-            await db
+            await executor
                 .delete(flashcardsTable)
                 .where(eq(flashcardsTable.flashcardId, flashcardId))
                 .returning({ flashcardId: flashcardsTable.flashcardId });
         }
-    } // done check type
-    public async handlePutFlashcardToLearning(
-        flashcardId: number,
-        date: IPutFlashcardToLearningArgumentDate
-    ): Promise<void> {
-        const value: Pick<IFlashcardSpacedRepetition, 'lastReviewed' | 'nextReview' | 'status'> = {
-            ...date,
-            status: 'learning',
-        };
-
-        await db
-            .update(itemSpacedRepetitionTrackingTable)
-            .set(value)
-            .where(
-                and(
-                    eq(itemSpacedRepetitionTrackingTable.type, 'flashcard'),
-                    eq(itemSpacedRepetitionTrackingTable.itemId, flashcardId)
-                )
-            );
     }
 
-    public async handleApplyFlashcardSM2(
+    public async applySM2ToFlashcard(
         userId: number,
         flashcardId: number,
-        sm2: IApplyFlashcardSM2ArgumentSM2
+        sm2: Omit<IFlashcardLearningState, 'status'>
     ): Promise<void> {
         await db
             .update(itemSpacedRepetitionTrackingTable)
@@ -229,6 +212,11 @@ class FlashcardRepo {
                     eq(itemSpacedRepetitionTrackingTable.itemId, flashcardId)
                 )
             );
+    }
+
+    public async deleteFlashcardsInTopic(topicId: number, tx?: Transaction) {
+        const executor = tx ?? db;
+        await executor.delete(flashcardsTable).where(eq(flashcardsTable.topicId, topicId));
     }
 }
 

@@ -1,20 +1,20 @@
-import validateData from '@/middleware/validations/validator';
+import validator from '@/core/validations/validator';
 import { quizGenerateSchema, quizSubmitSchema, quizCreateSchema } from '@/dtos/quiz/quiz.dto';
 
 export const validateQuizGenerateQuery = () =>
-  validateData({ 
-    selector: (req) => req.query, 
+  validator.validate({ 
+    selector: 'query',
     schema: quizGenerateSchema 
 });
 
 export const validateQuizSubmit = () =>
-  validateData({
-    selector: req => req.body,
+  validator.validate({
+    selector: 'body',
     schema: quizSubmitSchema,
   });
 
 export const validateQuizCreate = () =>
-  validateData({ 
-    selector: req => req.body, 
+  validator.validate({ 
+    selector: 'body',
     schema: quizCreateSchema 
   });  

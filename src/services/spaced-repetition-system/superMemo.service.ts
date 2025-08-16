@@ -15,7 +15,6 @@ export default abstract class SuperMemo<QualityResponse> {
             if(isNaN(easinessFactor)) throw new Error('easinessFactor is invalid');
         } 
         this.easinessFactor = easinessFactor;
-        
         this.reviewInterval = reviewInterval;
         this.repetitionNumber = repetitionNumber;
         this.qualityResponse = qualityResponse;
