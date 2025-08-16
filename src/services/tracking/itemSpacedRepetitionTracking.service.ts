@@ -18,10 +18,10 @@ class ItemSpacedRepetitionTrackingService {
         await itemSpacedRepetitionTrackingRepo.initializeTrackingRecords(data);
     }
 
-    public async initializeStudentTrackingForTopic(userId: number, topicId: number) : Promise<void> {
+    public async initializeStudentTrackingForTopic(studentId: number, topicId: number) : Promise<void> {
         const flashcards = await flashcardRepo.getFlashcardsForTopic(topicId);
         const data : ICreateTrackingRecord[] = flashcards.map(flashcard => ({
-            userId,
+            userId: studentId,
             topicId,
             itemId: flashcard.flashcardId,
             type: 'flashcard'

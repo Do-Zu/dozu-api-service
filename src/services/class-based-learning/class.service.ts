@@ -1,6 +1,9 @@
 import { BadRequest } from '@/core/error';
-import classRepo, { ICreateClassRepo } from '@/repositories/class-based-learning/class.repo';
+import classRepo, { ICreateClassRepo, IUpdateClassRepo } from '@/repositories/class-based-learning/class.repo';
 import { IClass, ICreateClassBody, IUpdateClassBody } from '@/types/class-based-learning/class.type';
+
+export type ICreateClassService = ICreateClassBody & { imageUrl?: string | null };
+export type IUpdateClassService = IUpdateClassBody & { imageUrl?: string | null };
 
 const getRandomNumbers = async () => {
     const { customAlphabet } = await import('nanoid');
@@ -29,21 +32,28 @@ class ClassService {
         return result;
     }
 
-    public async createClassForTeacher(userId: number, data: ICreateClassBody): Promise<IClass> {
+    public async createClassForTeacher(userId: number, data: ICreateClassService): Promise<IClass> {
         const invitationCode = await this.generateInvitationCode();
-        const value : ICreateClassRepo = { ...data, teacherId: userId, invitationCode };
+        const value: ICreateClassRepo = { ...data, teacherId: userId, invitationCode };
+        if (value.imageUrl === undefined) {
+            delete value.imageUrl;
+        }
         const result = await classRepo.createClassForTeacher(value);
         return result;
     }
 
-    public async updateClassById(classId: number, data: IUpdateClassBody): Promise<IClass> {
+    public async updateClassById(classId: number, data: IUpdateClassService): Promise<IClass> {
+        const value: IUpdateClassRepo = { ...data };
+        if (value.imageUrl === undefined || value.imageUrl === null) {
+            delete value.imageUrl;
+        }
         const result = await classRepo.updateClassById(classId, data);
         return result;
     }
 
     public async getClassByInvitationCode(invitationCode: string) {
         const result = await classRepo.getClassByInvitationCode(invitationCode);
-        if(!result) {
+        if (!result) {
             throw new BadRequest('Invitation Code does not exist');
         }
         return result;

@@ -1,19 +1,15 @@
-import db from '@/libs/drizzleClient.lib';
-import {
-    flashcardsTable,
-    itemSpacedRepetitionTrackingTable,
-    topicsTable,
-} from '@/models';
-import {
-    IFlashcardLearningState,
-    IFlashcard,
-} from '@/types/flashcard/flashcard.type';
+import db, { Transaction } from '@/libs/drizzleClient.lib';
+import { flashcardsTable, itemSpacedRepetitionTrackingTable, topicsTable } from '@/models';
+import { IFlashcardLearningState, IFlashcard } from '@/types/flashcard/flashcard.type';
 import { getDateFormatted } from '@/utils/date';
 import { and, asc, eq, lte } from 'drizzle-orm';
 import itemSpacedRepetitionTrackingService from '@/services/tracking/itemSpacedRepetitionTracking.service';
 
 type IInsertFlashcard = Pick<IFlashcard, 'topicId' | 'front' | 'back'>;
 type IUpdateFlashcard = Pick<IFlashcard, 'flashcardId' | 'front' | 'back'>;
+
+export type ICreateFlashcardRepo = Pick<IFlashcard, 'topicId' | 'front' | 'back'>;
+export type IUpdateFlashcardRepo = Pick<IFlashcard, 'flashcardId' | 'front' | 'back'>;
 
 class FlashcardRepo {
     constructor() {}
@@ -105,7 +101,7 @@ class FlashcardRepo {
                     reviewInterval: itemSpacedRepetitionTrackingTable.reviewInterval,
                     easinessFactor: itemSpacedRepetitionTrackingTable.easinessFactor,
                     repetitionNumber: itemSpacedRepetitionTrackingTable.repetitionNumber,
-                }
+                },
             })
             .from(flashcardsTable)
             .innerJoin(topicsTable, eq(topicsTable.topicId, flashcardsTable.topicId))
@@ -128,7 +124,6 @@ class FlashcardRepo {
         return flashcards;
     }
 
-    // done check type
     public async getFlashcardsForTopic(topicId: number): Promise<IFlashcard[]> {
         const flashcards = await db
             .select({
@@ -136,7 +131,7 @@ class FlashcardRepo {
                 topicId: flashcardsTable.topicId,
                 front: flashcardsTable.front,
                 back: flashcardsTable.back,
-                createdAt: flashcardsTable.createdAt
+                createdAt: flashcardsTable.createdAt,
             })
             .from(flashcardsTable)
             .where(eq(flashcardsTable.topicId, topicId))
@@ -144,7 +139,20 @@ class FlashcardRepo {
         return flashcards;
     }
 
-    // done check type
+    public async insertFlashcards(flashcards: ICreateFlashcardRepo[], tx?: Transaction): Promise<IFlashcard[]> {
+        let result: IFlashcard[];
+        const executor = tx ?? db;
+        result = await executor.insert(flashcardsTable).values(flashcards).returning({
+            flashcardId: flashcardsTable.flashcardId,
+            topicId: flashcardsTable.topicId,
+            front: flashcardsTable.front,
+            back: flashcardsTable.back,
+            createdAt: flashcardsTable.createdAt,
+        });
+        return result;
+    }
+
+    // todo-ka: should remove and change into insertFlashcards
     public async insertFlashcardsIntoTopic(
         userId: number,
         topicId: number,
@@ -179,15 +187,15 @@ class FlashcardRepo {
         }
     }
 
-    // done check type
-    public async deleteFlashcards(flashcardsIds: number[]): Promise<void> {
+    public async deleteFlashcards(flashcardsIds: number[], tx?: Transaction): Promise<void> {
+        const executor = tx ?? db;
         for (const flashcardId of flashcardsIds) {
-            await db
+            await executor
                 .delete(flashcardsTable)
                 .where(eq(flashcardsTable.flashcardId, flashcardId))
                 .returning({ flashcardId: flashcardsTable.flashcardId });
         }
-    } 
+    }
 
     public async applySM2ToFlashcard(
         userId: number,
@@ -204,6 +212,11 @@ class FlashcardRepo {
                     eq(itemSpacedRepetitionTrackingTable.itemId, flashcardId)
                 )
             );
+    }
+
+    public async deleteFlashcardsInTopic(topicId: number, tx?: Transaction) {
+        const executor = tx ?? db;
+        await executor.delete(flashcardsTable).where(eq(flashcardsTable.topicId, topicId));
     }
 }
 

@@ -5,6 +5,7 @@ import flashcardController from '@/controllers/flashcard/flashcard.controller';
 import { validateFlashcardsBatch } from '@/middleware/validations/flashcard.validation';
 import { authMiddleware } from '@/middleware/auth.middleware';
 import paramsValidator from '@/core/validations/params.validator';
+import classTopicController from '@/controllers/class-based-learning/classTopic.controller';
 
 const router = Router({ mergeParams: true }); // for using req.params.topicId in /topics/:topicId/flashcards
 
@@ -20,6 +21,7 @@ router.patch(
     paramsValidator.validateId('flashcardId'),
     flashcardController.reviewFlashcardWithQuality
 );
+router.post('/start-learning', classTopicController.startLearningFlashcards);
 
 registerRoute('/flashcards', router, {
     description: 'Flashcards API for CRUD single flashcard',

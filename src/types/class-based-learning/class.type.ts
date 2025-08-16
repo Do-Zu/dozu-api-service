@@ -10,7 +10,7 @@ export interface IClass {
     teacherName?: string | null;
     teacherImageUrl?: string;
 
-    imageUrl?: string;
+    imageUrl?: string | null;
 
     // only for student
     classEnrollmentId?: number;
@@ -18,6 +18,9 @@ export interface IClass {
 }
 
 export type ICreateClassBody = Pick<IClass, 'name' | 'description'>;
-export type ICreateClassResponse = Pick<IClass, 'classId' | 'name' | 'description' | 'invitationCode' | 'createdAt'>;
+export type ICreateClassResponse = Pick<
+    IClass,
+    'classId' | 'name' | 'description' | 'invitationCode' | 'createdAt' | 'imageUrl'
+>;
 export type IUpdateClassBody = Pick<IClass, 'name' | 'description'>;
-export type IUpdateClassResponse = Pick<IClass, 'classId' | 'name' | 'description'>;
+export type IUpdateClassResponse = Pick<IClass, 'classId' | 'name' | 'description' | 'imageUrl'>;

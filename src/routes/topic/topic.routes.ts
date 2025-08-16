@@ -7,6 +7,7 @@ import subscriptionMiddleware from '@/middleware/subscription/subscript.middlewa
 import paramsValidator from '@/core/validations/params.validator';
 import { flashcardRoutes } from '../flashcard/flashcard.routes';
 import topicMiddleware from '@/middleware/topic/topic.middleware';
+import { fileUploadSingleMiddleware } from '@/libs/multer.lib';
 
 const router = Router();
 globalAsyncHandler(router);
@@ -15,11 +16,25 @@ router.use(authMiddleware);
 
 router.get('/:topicId', paramsValidator.validateId('topicId'), topicController.getTopicById);
 router.get('/', topicController.getTopicsForUser);
-router.post('/', subscriptionMiddleware.handleSubscription, topicController.createTopicForUser);
-router.put('/:topicId', paramsValidator.validateId('topicId'), topicController.updateTopicById);
-router.delete('/:topicId', paramsValidator.validateId('topicId'), topicController.deleteTopicById);
-// todo-ka: move this to class routes
-// router.post('/:topicId/flashcards/start-learning', paramsValidator.validateId('topicId'), topicController.startLearningFlashcards);
+router.post(
+    '/',
+    fileUploadSingleMiddleware,
+    subscriptionMiddleware.handleSubscription,
+    topicController.createTopicForUser
+);
+router.put(
+    '/:topicId',
+    fileUploadSingleMiddleware,
+    paramsValidator.validateId('topicId'),
+    topicMiddleware.verifyTopicById,
+    topicController.updateTopicById
+);
+router.delete(
+    '/:topicId',
+    paramsValidator.validateId('topicId'),
+    topicMiddleware.verifyTopicById,
+    topicController.deleteTopicById
+);
 
 router.use(
     '/:topicId/flashcards',

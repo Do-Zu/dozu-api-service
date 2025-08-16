@@ -1,4 +1,5 @@
-import flashcardRepo from '@/repositories/flashcard.repo';
+import db from '@/libs/drizzleClient.lib';
+import flashcardRepo, { ICreateFlashcardRepo } from '@/repositories/flashcard.repo';
 import {
     IFlashcardCreateInput,
     IFlashcard,
@@ -10,8 +11,13 @@ import {
 import { IQualityResponse } from '../spaced-repetition-system/super-memo-2/superMemo2.origin';
 import SuperMemo2 from '../spaced-repetition-system/super-memo-2/superMemo2.origin';
 import { FlashcardItemInterface } from '@/dtos/generate';
+import { ICreateTrackingRecord } from '@/types/tracking/itemSpacedRepetitionTracking.type';
+import itemSpacedRepetitionTrackingRepo from '@/repositories/tracking/itemSpacedRepetitionTracking.repo';
+import { getUserRoles } from '@/repositories/auth.repo';
+import classEnrollmentService from '../class-based-learning/classEnrollment.service';
+import topicService from '../topic/topic.service';
 
-export type IFlashcardWithReviewPrediction  = Pick<IFlashcard, 'flashcardId' | 'front' | 'back' | 'topicName'> & {
+export type IFlashcardWithReviewPrediction = Pick<IFlashcard, 'flashcardId' | 'front' | 'back' | 'topicName'> & {
     qualityResponsesNextReviewInterval: IQualityResponseNextReviewInterval[];
 };
 
@@ -31,17 +37,88 @@ class FlashcardService {
     public async createFlashcardsForTopic(
         userId: number,
         topicId: number,
-        flashcards: IFlashcardCreateInput[] | FlashcardItemInterface[]
+        flashcards: IFlashcardCreateInput[]
     ): Promise<void> {
-        let data = flashcards.map(flashcard => {
-            if ('front' in flashcard && 'back' in flashcard) {
-                return { topicId: topicId, front: flashcard.front, back: flashcard.back };
-            } else {
-                return { topicId, front: flashcard.q, back: flashcard.a };
-            }
+        const roles = await getUserRoles(userId);
+        const isTeacher = roles.find(role => role.name === 'teacher') !== undefined;
+
+        const data: ICreateFlashcardRepo[] = flashcards.map(flashcard => {
+            return { topicId, front: flashcard.front, back: flashcard.back };
         });
 
-        await flashcardRepo.insertFlashcardsIntoTopic(userId, topicId, data);
+        // belong to personal topic
+        if (!isTeacher) {
+            await db.transaction(async tx => {
+                const flashcards = await flashcardRepo.insertFlashcards(data, tx);
+
+                // insert tracking records for user
+                const trackingRecords: ICreateTrackingRecord[] = flashcards.map(flashcard => {
+                    return {
+                        userId,
+                        topicId,
+                        itemId: flashcard.flashcardId,
+                        type: 'flashcard',
+                    };
+                });
+
+                await itemSpacedRepetitionTrackingRepo.initializeTrackingRecords(trackingRecords, tx);
+            });
+        }
+
+        // belong to class-based topic (teacher CRUD flashcards)
+        else {
+            const topic = await topicService.getTopicById(topicId);
+            let { classId } = topic!;
+            classId = classId!;
+            await db.transaction(async tx => {
+                const flashcards = await flashcardRepo.insertFlashcards(data, tx);
+                const students = await classEnrollmentService.getStudentsInClass(classId);
+
+                // insert tracking records for teacher
+                const trackingRecords: ICreateTrackingRecord[] = flashcards.map(flashcard => {
+                    return {
+                        userId,
+                        topicId,
+                        itemId: flashcard.flashcardId,
+                        type: 'flashcard',
+                    };
+                });
+
+                await itemSpacedRepetitionTrackingRepo.initializeTrackingRecords(trackingRecords, tx);
+
+                // students who are leanring that topic (tracking records should > 0)
+                const studentsLearning: { studentId: number }[] = [];
+
+                // get students who are learning
+                for (const student of students) {
+                    const trackingRecords = await itemSpacedRepetitionTrackingRepo.getTrackingRecordsByUserAndTopicId(
+                        {
+                            userId: student.userId,
+                            topicId,
+                            itemtype: 'flashcard',
+                        },
+                        tx
+                    );
+                    if (trackingRecords.length > 0) {
+                        studentsLearning.push({ studentId: student.userId });
+                    }
+                }
+
+                // create sm-2 records for students learning
+                for (const student of studentsLearning) {
+                    const trackingRecords: ICreateTrackingRecord[] = flashcards.map(flashcard => {
+                        return {
+                            userId: student.studentId,
+                            topicId,
+                            itemId: flashcard.flashcardId,
+                            type: 'flashcard',
+                        };
+                    });
+
+                    await itemSpacedRepetitionTrackingRepo.initializeTrackingRecords(trackingRecords, tx);
+                }
+            });
+        }
     }
 
     public async handleInsertFlashcardsForNode(
@@ -67,9 +144,12 @@ class FlashcardService {
     }
 
     public async deleteFlashcardsByIds(flashcardsIds: number[]): Promise<void> {
-        await flashcardRepo.deleteFlashcards(flashcardsIds);
+        await db.transaction(async tx => {
+            await flashcardRepo.deleteFlashcards(flashcardsIds, tx);
+        });
     }
 
+    // todo-ka: use transaction
     public async batchFlashcardsForTopic(
         userId: number,
         topicId: number,
@@ -136,8 +216,8 @@ class FlashcardService {
 
     public async getReviewIntervalsByQualityResponses(
         flashcards: IFlashcard[]
-    ): Promise<IFlashcardWithReviewPrediction []> {
-        let result: IFlashcardWithReviewPrediction [] = [];
+    ): Promise<IFlashcardWithReviewPrediction[]> {
+        let result: IFlashcardWithReviewPrediction[] = [];
 
         for (const flashcard of flashcards) {
             if (!flashcard.learningState) {

@@ -1,4 +1,3 @@
-import { IFlashcardStatus } from '@/models';
 import { IQualityResponse } from '@/services/spaced-repetition-system/super-memo-2/superMemo2.origin';
 import { z } from 'zod';
 import { IItemSpacedRepetition } from '../tracking/itemSpacedRepetitionTracking.type';
@@ -47,7 +46,7 @@ export interface IFlashcard {
     back: string;
     createdAt: Date;
     learningState?: IFlashcardLearningState;
-    
+
     topicName?: string;
 }
 
@@ -60,7 +59,7 @@ export type IFlashcardCreateInput = Pick<IFlashcard, 'front' | 'back'>;
 export type IFlashcardUpdateInput = Pick<IFlashcard, 'flashcardId' | 'front' | 'back'>;
 
 export type IFlashcardsBatchInput = {
-  flashcardsAdded?: IFlashcardCreateInput[];
-  flashcardsUpdated?: IFlashcardUpdateInput[];
-  flashcardsDeleted?: number[];
+    flashcardsAdded?: IFlashcardCreateInput[];
+    flashcardsUpdated?: IFlashcardUpdateInput[];
+    flashcardsDeleted?: number[];
 };

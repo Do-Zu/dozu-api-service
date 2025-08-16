@@ -1,7 +1,4 @@
-import { DatabaseError } from '@/core/error';
 import { SuccessResponse } from '@/core/success';
-// import { ITopicBasic, ITopicAdded, ITopicUpdated } from '@/types/topic/topic.type';
-import logger from '@/utils/logger';
 import { Request, Response } from 'express';
 import topicService from '@/services/topic/topic.service';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
@@ -9,6 +6,8 @@ import { getCurrentDateFromRequest } from '@/utils/date';
 import { ICreateTopicBody, ITopic, IUpdateTopicBody } from '@/types/topic/topic.type';
 import { updateTopicIdOfInputSet } from '@/repositories/inputSet.repo';
 import requestHelper from '@/core/request/request.helper';
+import { deleteImage, uploadImage } from '@/libs/cloudinary.lib';
+import { extractPublicId } from 'cloudinary-build-url';
 
 class TopicController {
     constructor() {}
@@ -16,14 +15,7 @@ class TopicController {
     public async getTopicById(req: Request, res: Response): Promise<void> {
         const topicId = requestHelper.getIdParam(req, 'topicId');
 
-        let topic: ITopic | undefined;
-        try {
-            topic = await topicService.getTopicById(topicId);
-        } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
-        }
-
+        const topic: ITopic | undefined = await topicService.getTopicById(topicId);
         SuccessResponse.ok(res, topic);
     }
 
@@ -31,14 +23,7 @@ class TopicController {
         const currentDate = getCurrentDateFromRequest(req);
         const userId = getUserIdFromRequest(req);
 
-        let topics: ITopic[];
-        try {
-            topics = await topicService.getTopicsForUser(userId, currentDate);
-        } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
-        }
-
+        const topics: ITopic[] = await topicService.getTopicsForUser(userId, currentDate);
         SuccessResponse.ok(res, topics);
     }
 
@@ -46,17 +31,21 @@ class TopicController {
         const userId = getUserIdFromRequest(req);
         const { name, description } = req.body as ICreateTopicBody;
         const { inputSetId } = req.body as { inputSetId: string };
+        const imageFile = req.file;
 
-        let result;
-        try {
-            result = await topicService.createTopicForUser(userId, { name, description });
-            if (inputSetId) {
-                const topicId = result.topicId;
-                await updateTopicIdOfInputSet({ topicId: topicId, inputSetId: parseInt(inputSetId) });
+        let imageUrl: string | null = null;
+        if (imageFile) {
+            const imageObject = await uploadImage(imageFile.buffer);
+            if (!imageObject) {
+                throw new Error('Cannot upload image');
             }
-        } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
+            imageUrl = imageObject.secure_url;
+        }
+
+        const result = await topicService.createTopicForUser(userId, { name, description, imageUrl });
+        if (inputSetId) {
+            const topicId = result.topicId;
+            await updateTopicIdOfInputSet({ topicId: topicId, inputSetId: parseInt(inputSetId) });
         }
 
         SuccessResponse.created(res, result);
@@ -65,28 +54,37 @@ class TopicController {
     public async updateTopicById(req: Request, res: Response): Promise<void> {
         const topicId = requestHelper.getIdParam(req, 'topicId');
         const { name, description } = req.body as IUpdateTopicBody;
+        const imageFile = req.file;
+        const topic = requestHelper.getResource(req, 'topic');
 
-        let result;
-        try {
-            result = await topicService.updateTopicById(topicId, { name, description });
-        } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
+        let imageUrl: string | null = null;
+        if (imageFile) {
+            if (topic.imageUrl) {
+                // delete old image of topic
+                await deleteImage(extractPublicId(topic.imageUrl));
+            }
+            // upload new image
+            const imageObject = await uploadImage(imageFile.buffer);
+            if (!imageObject) {
+                throw new Error('Cannot upload image');
+            }
+            imageUrl = imageObject.secure_url;
         }
 
+        const result = await topicService.updateTopicById(topicId, { name, description, imageUrl });
         SuccessResponse.ok(res, result);
     }
 
     // còn flashcards -> vẫn xóa topic
     public async deleteTopicById(req: Request, res: Response): Promise<void> {
         const topicId = requestHelper.getIdParam(req, 'topicId');
-
-        try {
-            await topicService.deleteTopicById(topicId);
-        } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
+        const topic = requestHelper.getResource(req, 'topic');
+        
+        if (topic.imageUrl) {
+            await deleteImage(extractPublicId(topic.imageUrl));
         }
+
+        await topicService.deleteTopicById(topicId);
         SuccessResponse.ok(res, topicId);
     }
 }

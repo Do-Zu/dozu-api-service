@@ -1,4 +1,4 @@
-import { BadRequest } from "@/core/error";
+import { BadRequest, NotFoundError } from "@/core/error";
 import topicService from "@/services/topic/topic.service";
 import { getUserIdFromRequest, isTeacher } from "@/utils/auth/authHelpers.utils";
 import { NextFunction, Request, Response } from "express";
@@ -15,7 +15,7 @@ class TopicMiddleware {
             requestHelper.setResource(req, 'topic', topic);
             next();
         } else {
-            throw new BadRequest('Topic is invalid!');
+            throw new NotFoundError('Topic not found');
         }
     }
 

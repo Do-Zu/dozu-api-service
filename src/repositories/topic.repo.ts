@@ -1,10 +1,11 @@
-import db from '@/libs/drizzleClient.lib';
+import db, { Transaction } from '@/libs/drizzleClient.lib';
 import { flashcardsTable, itemSpacedRepetitionTrackingTable, topicsTable } from '@/models';
+import { ICreateTopicService, IUpdateTopicService } from '@/services/topic/topic.service';
 import { ITopic } from '@/types/topic/topic.type';
 import { and, eq, sql } from 'drizzle-orm';
 
-export type ICreateTopicRepo = Pick<ITopic, 'name' | 'description'> & { userId: number };
-export type IUpdateTopicRepo = Pick<ITopic, 'name' | 'description'>;
+export type ICreateTopicRepo = ICreateTopicService & { userId: number; classId?: number | null };
+export type IUpdateTopicRepo = IUpdateTopicService;
 
 class TopicRepo {
     public async getTopicById(topicId: number): Promise<ITopic | undefined> {
@@ -16,7 +17,7 @@ class TopicRepo {
                 description: topicsTable.description,
                 imageUrl: topicsTable.imageUrl,
                 createdAt: topicsTable.createdAt,
-                classId: topicsTable.classId
+                classId: topicsTable.classId,
             })
             .from(topicsTable)
             .where(eq(topicsTable.topicId, topicId));
@@ -67,6 +68,7 @@ class TopicRepo {
             topicId: topicsTable.topicId,
             name: topicsTable.name,
             description: topicsTable.description,
+            imageUrl: topicsTable.imageUrl,
             createdAt: topicsTable.createdAt,
         });
 
@@ -78,41 +80,15 @@ class TopicRepo {
             topicId: topicsTable.topicId,
             name: topicsTable.name,
             description: topicsTable.description,
+            imageUrl: topicsTable.imageUrl,
             createdAt: topicsTable.createdAt,
         });
         return result;
     }
 
-    public async deleteTopicById(topicId: number): Promise<void> {
-        await db.delete(topicsTable).where(eq(topicsTable.topicId, topicId));
-    }
-
-    public async getTopicsForClass(classId: number, userId: number, currentDate: string): Promise<ITopic[]> {
-        let topics: ITopic[] = await db
-            .select({
-                topicId: topicsTable.topicId,
-                userId: topicsTable.userId,
-                name: topicsTable.name,
-                description: topicsTable.description,
-                imageUrl: topicsTable.imageUrl,
-                createdAt: topicsTable.createdAt,
-                // get flashcards-due-today, next_review <= today and last_reviewed should not null (if it is, it should be flashcardsNew)
-                flashcardsDueToday:
-                    sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${currentDate} AND item_spaced_repetition_tracking.last_reviewed IS NOT NULL THEN 1 END) AS INT)`.as(
-                        'flashcardsDueToday'
-                    ),
-            })
-            .from(topicsTable)
-            // some topics don't have a single flashcard, so using left join to get that topics
-            .leftJoin(flashcardsTable, eq(flashcardsTable.topicId, topicsTable.topicId))
-            .leftJoin(
-                itemSpacedRepetitionTrackingTable,
-                eq(itemSpacedRepetitionTrackingTable.itemId, flashcardsTable.flashcardId)
-            )
-            .where(and(eq(topicsTable.classId, classId), eq(itemSpacedRepetitionTrackingTable.userId, userId)))
-            .groupBy(topicsTable.topicId);
-
-        return topics;
+    public async deleteTopicById(topicId: number, tx?: Transaction): Promise<void> {
+        const executor = tx ?? db;
+        await executor.delete(topicsTable).where(eq(topicsTable.topicId, topicId));
     }
 
     public async getTopicsInClassForStudent(classId: number, userId: number, currentDate: string): Promise<ITopic[]> {

@@ -1,16 +1,15 @@
-import { DatabaseError } from '@/core/error';
 import { SuccessResponse } from '@/core/success';
-import logger from '@/utils/logger';
 import { Request, Response } from 'express';
 import topicService from '@/services/topic/topic.service';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import { getCurrentDateFromRequest } from '@/utils/date';
-import { topicsTable } from '@/models';
-import db from '@/libs/drizzleClient.lib';
 import { ICreateTopicInClassBody, ITopic, IUpdateTopicBody } from '@/types/topic/topic.type';
 import { updateTopicIdOfInputSet } from '@/repositories/inputSet.repo';
 import itemSpacedRepetitionTrackingService from '@/services/tracking/itemSpacedRepetitionTracking.service';
 import requestHelper from '@/core/request/request.helper';
+import { deleteImage, uploadImage } from '@/libs/cloudinary.lib';
+import classTopicService from '@/services/class-based-learning/classTopic.service';
+import { extractPublicId } from 'cloudinary-build-url';
 
 class ClassTopicController {
     public async getTopicsInClassForStudent(req: Request, res: Response) {
@@ -18,7 +17,7 @@ class ClassTopicController {
 
         const currentDate = getCurrentDateFromRequest(req);
         const userId = getUserIdFromRequest(req);
-        const result: ITopic[] = await topicService.getTopicsInClassForStudent(classId, userId, currentDate);
+        const result: ITopic[] = await classTopicService.getTopicsInClassForStudent(classId, userId, currentDate);
 
         SuccessResponse.ok(res, result);
     }
@@ -26,7 +25,7 @@ class ClassTopicController {
     public async getTopicsInClassForTeacher(req: Request, res: Response) {
         const classId = requestHelper.getIdParam(req, 'classId');
 
-        const result: ITopic[] = await topicService.getTopicsInClassForTeacher(classId);
+        const result: ITopic[] = await classTopicService.getTopicsInClassForTeacher(classId);
 
         SuccessResponse.ok(res, result);
     }
@@ -37,25 +36,21 @@ class ClassTopicController {
         const classId = requestHelper.getIdParam(req, 'classId');
 
         const { name, description } = req.body as ICreateTopicInClassBody;
+        const imageFile = req.file;
 
-        const dataInserted = { userId, classId, name, description };
-
-        let result;
-        try {
-            [result] = await db.insert(topicsTable).values(dataInserted).returning({
-                topicId: topicsTable.topicId,
-                classId: topicsTable.classId,
-                name: topicsTable.name,
-                description: topicsTable.description,
-                createdAt: topicsTable.createdAt,
-            });
-            if (inputSetId) {
-                const topicId = result.topicId;
-                await updateTopicIdOfInputSet({ topicId: topicId, inputSetId: parseInt(inputSetId) });
+        let imageUrl: string | null = null;
+        if (imageFile) {
+            const imageObject = await uploadImage(imageFile.buffer);
+            if (!imageObject) {
+                throw new Error('Cannot upload image');
             }
-        } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
+            imageUrl = imageObject.secure_url;
+        }
+
+        const result = await classTopicService.createTopicForClass(classId, userId, { name, description, imageUrl });
+        if (inputSetId) {
+            const topicId = result.topicId;
+            await updateTopicIdOfInputSet({ topicId: topicId, inputSetId: parseInt(inputSetId) });
         }
 
         SuccessResponse.created(res, result);
@@ -64,27 +59,31 @@ class ClassTopicController {
     public async updateTopicInClass(req: Request, res: Response) {
         const topicId = requestHelper.getIdParam(req, 'topicId');
         const { name, description } = req.body as IUpdateTopicBody;
+        const imageFile = req.file;
+        const topic = requestHelper.getResource(req, 'topic');
 
-        let result;
-        try {
-            result = await topicService.updateTopicById(topicId, { name, description });
-        } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
+        let imageUrl: string | null = null;
+        if (imageFile) {
+            if (topic.imageUrl) {
+                // delete old image of topic
+                await deleteImage(extractPublicId(topic.imageUrl));
+            }
+            // upload new image
+            const imageObject = await uploadImage(imageFile.buffer);
+            if (!imageObject) {
+                throw new Error('Cannot upload image');
+            }
+            imageUrl = imageObject.secure_url;
         }
 
+        const result = await topicService.updateTopicById(topicId, { name, description, imageUrl });
         SuccessResponse.ok(res, result);
     }
 
     public async deleteTopicInClass(req: Request, res: Response) {
         const topicId = requestHelper.getIdParam(req, 'topicId');
 
-        try {
-            await topicService.deleteTopicById(topicId);
-        } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
-        }
+        await topicService.deleteTopicById(topicId);
         SuccessResponse.ok(res, topicId);
     }
 
@@ -92,12 +91,7 @@ class ClassTopicController {
         const userId = getUserIdFromRequest(req);
         const topicId = requestHelper.getIdParam(req, 'topicId');
 
-        try {
-            await itemSpacedRepetitionTrackingService.initializeStudentTrackingForTopic(userId, topicId);
-        } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
-        }
+        await itemSpacedRepetitionTrackingService.initializeStudentTrackingForTopic(userId, topicId);
         SuccessResponse.ok(res, {});
     }
 }
