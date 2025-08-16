@@ -1,5 +1,5 @@
 import { ChatCompletionMessageParam } from 'openai/resources/chat';
-import { convertJsonToArray, generatePromptText, TYPE_PROMPT } from '../../../../utils/prompt';
+import { generatePromptText, TYPE_PROMPT } from '../../../../utils/prompt';
 import { decompressContent } from '../../../../utils/compress';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
@@ -182,7 +182,7 @@ async function generateContent(
         // Generate the appropriate prompt for the requested content type
         const prompt = generatePromptText(content, type);
 
-        console.log(`Generated prompt (first 100 chars): ${prompt.substring(0, 100)}...`);
+        console.log(`Generated prompt`);
 
         // Set up messages for the chat completion
         const messages: ChatCompletionMessageParam[] = [
@@ -196,33 +196,25 @@ async function generateContent(
             },
         ];
 
-        let fullContent = '';
-        // let chunkCount = 0;
+        console.log('Creating OpenAI completion...');
 
-        console.log('Creating OpenAI stream...');
-
-        // Create a streaming chat completion
-        const stream = await openai.chat.completions.create({
+        // Create a non-streaming chat completion
+        const completion = await openai.chat.completions.create({
             model,
             messages: messages,
-            stream: true,
+            stream: false,
             temperature: 0.7,
-            max_tokens: 30000,
+            max_tokens: 80000,
             response_format: {
                 type: 'json_object',
             },
         });
 
-        console.log('Stream created, processing chunks...');
+        console.log('Completion received, processing response...');
 
-        // Process the stream chunks
-        for await (const chunk of stream) {
-            const content = chunk.choices?.[0]?.delta?.content || '';
-            fullContent += content;
-            // chunkCount++;
-        }
+        const responseContent = completion.choices?.[0]?.message?.content;
 
-        if (fullContent.trim().length === 0) {
+        if (!responseContent || responseContent.trim().length === 0) {
             console.warn('Warning: Received empty content from OpenAI');
             return {
                 data: [],
@@ -231,14 +223,25 @@ async function generateContent(
             };
         }
 
-        // Parse the generated content
+        // Parse the generated content directly as JSON
         try {
-            const data = convertJsonToArray(fullContent);
-            console.log(`Successfully parsed JSON data, items: ${Array.isArray(data) ? data.length : 'not an array'}`);
+            const jsonData = JSON.parse(responseContent);
+
+            // If the response is already an array, use it directly
+            // If it's an object, try to extract the array from it
+            let data: any[];
+
+            if (Array.isArray(jsonData) || typeof jsonData === 'object') {
+                data = jsonData;
+            } else {
+                data = [jsonData];
+            }
+
+            console.log(`Successfully parsed JSON data, items: ${data.length}`);
 
             return {
                 data,
-                rawText: fullContent,
+                rawText: responseContent,
                 timestamp: new Date().toISOString(),
             };
         } catch (parseError) {
@@ -247,7 +250,7 @@ async function generateContent(
             // Return the raw text and error information if parsing fails
             return {
                 data: [],
-                rawText: fullContent,
+                rawText: responseContent,
                 error: 'Failed to parse LLM response as JSON',
                 timestamp: new Date().toISOString(),
             };
