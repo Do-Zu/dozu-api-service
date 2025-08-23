@@ -22,6 +22,7 @@ router.patch(
     flashcardController.reviewFlashcardWithQuality
 );
 router.post('/start-learning', classTopicController.startLearningFlashcards);
+router.post('/search-images', flashcardController.searchFlashcardImages);
 
 registerRoute('/flashcards', router, {
     description: 'Flashcards API for CRUD single flashcard',
