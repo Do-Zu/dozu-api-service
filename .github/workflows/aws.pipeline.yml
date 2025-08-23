@@ -138,6 +138,7 @@ jobs:
                   CLOUDFLARE_R2_BUCKET_NAME="${33}"
                   CLOUDFLARE_R2_ACCESS_KEY_ID="${34}"
                   CLOUDFLARE_R2_SECRET_ACCESS_KEY="${35}"
+                  UNSPLASH_ACCESS_KEY="${36}"
 
                   # Determine which env file to use
                   if [ "$ENV" = "production" ]; then
