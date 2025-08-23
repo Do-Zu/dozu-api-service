@@ -8,8 +8,8 @@ import itemSpacedRepetitionTrackingService from '@/services/tracking/itemSpacedR
 type IInsertFlashcard = Pick<IFlashcard, 'topicId' | 'front' | 'back'>;
 type IUpdateFlashcard = Pick<IFlashcard, 'flashcardId' | 'front' | 'back'>;
 
-export type ICreateFlashcardRepo = Pick<IFlashcard, 'topicId' | 'front' | 'back'>;
-export type IUpdateFlashcardRepo = Pick<IFlashcard, 'flashcardId' | 'front' | 'back'>;
+export type ICreateFlashcardRepo = Pick<IFlashcard, 'topicId' | 'front' | 'back'> & { imageUrl?: string | null };
+export type IUpdateFlashcardRepo = Pick<IFlashcard, 'flashcardId' | 'front' | 'back'> & { imageUrl?: string | null };
 
 class FlashcardRepo {
     constructor() {}
@@ -91,6 +91,7 @@ class FlashcardRepo {
                 topicName: topicsTable.name,
                 front: flashcardsTable.front,
                 back: flashcardsTable.back,
+                imageUrl: flashcardsTable.imageUrl,
                 createdAt: flashcardsTable.createdAt,
 
                 // learning state (sm-2)
@@ -131,6 +132,7 @@ class FlashcardRepo {
                 topicId: flashcardsTable.topicId,
                 front: flashcardsTable.front,
                 back: flashcardsTable.back,
+                imageUrl: flashcardsTable.imageUrl,
                 createdAt: flashcardsTable.createdAt,
             })
             .from(flashcardsTable)
@@ -147,6 +149,7 @@ class FlashcardRepo {
             topicId: flashcardsTable.topicId,
             front: flashcardsTable.front,
             back: flashcardsTable.back,
+            imageUrl: flashcardsTable.imageUrl,
             createdAt: flashcardsTable.createdAt,
         });
         return result;
@@ -170,21 +173,27 @@ class FlashcardRepo {
         );
     }
 
-    public async updateFlashcards(flashcards: IUpdateFlashcard[]): Promise<void> {
+    // !!this should not alter topicId of a flashcard
+    public async updateFlashcards(flashcards: IUpdateFlashcard[]): Promise<IFlashcard[]> {
+        let result: IFlashcard[] = [];
         for (const flashcard of flashcards) {
-            const { flashcardId, front, back } = flashcard;
+            const { flashcardId, ...rest } = flashcard;
 
-            await db
+            const [card] = await db
                 .update(flashcardsTable)
-                .set({ front, back })
+                .set(rest)
                 .where(eq(flashcardsTable.flashcardId, flashcardId))
                 .returning({
                     topicId: flashcardsTable.topicId,
                     flashcardId: flashcardsTable.flashcardId,
                     front: flashcardsTable.front,
                     back: flashcardsTable.back,
+                    imageUrl: flashcardsTable.imageUrl,
+                    createdAt: flashcardsTable.createdAt,
                 });
+            result.push(card);
         }
+        return result;
     }
 
     public async deleteFlashcards(flashcardsIds: number[], tx?: Transaction): Promise<void> {

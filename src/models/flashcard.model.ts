@@ -10,5 +10,6 @@ export const flashcardsTable = pgTable('flashcards', {
 
   front: text('front').notNull(),
   back: text('back').notNull(),
+  imageUrl: text('image_url'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
