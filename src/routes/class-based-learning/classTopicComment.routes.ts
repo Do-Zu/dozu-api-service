@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 import { authMiddleware } from '@/middleware/auth.middleware';
-import paramsValidator from '@/core/validations/params.validator';
 import validator from '@/core/validations/validator';
 import {
     createCommentSchema,
