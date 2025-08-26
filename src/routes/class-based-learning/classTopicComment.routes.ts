@@ -15,7 +15,7 @@ globalAsyncHandler(router);
 router.use(authMiddleware);
 
 router.post(
-    '/query',
+    '/node-comments',
     validator.validate({ selector: 'body', schema: getCommentsQuerySchema }),
     classTopicCommentController.getCommentsByNode
 );
@@ -28,7 +28,6 @@ router.post(
 
 router.post(
     '/add',
-    paramsValidator.validateId('topicId'),
     validator.validate({ selector: 'body', schema: createCommentSchema }),
     classTopicCommentController.createComment
 );
