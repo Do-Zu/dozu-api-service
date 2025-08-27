@@ -9,7 +9,7 @@ export const createCommentSchema = z.object({
         errorMap: () => ({ message: 'Type node must be one of: mindmap, flashcard, quiz' }),
     }),
     content: z.string().min(1, 'Content cannot be empty').max(2000, 'Content cannot exceed 2000 characters'),
-    parentCmtId: z.number().int().positive().optional(),
+    parentCmtId: z.number().int().positive().optional().or(z.literal(null)),
 });
 
 // Update comment validation schema
@@ -23,27 +23,32 @@ export const getCommentsQuerySchema = z.object({
         .string()
         .transform(val => parseInt(val))
         .pipe(z.number().int().positive())
-        .optional(),
+        .optional()
+        .or(z.number().int().positive().optional()),
     typeNode: z.enum(['mindmap', 'flashcard', 'quiz']).optional(),
     parentCmtId: z
         .string()
         .transform(val => parseInt(val))
         .pipe(z.number().int().positive())
-        .optional(),
+        .optional()
+        .or(z.number().int().optional()),
     level: z
         .string()
         .transform(val => parseInt(val))
         .pipe(z.number().int().min(0))
-        .optional(),
+        .optional()
+        .or(z.number().int().optional()),
     page: z
         .string()
         .transform(val => parseInt(val))
         .pipe(z.number().int().positive())
-        .optional(),
+        .optional()
+        .or(z.number().int().positive().optional()),
     limit: z
         .string()
         .transform(val => parseInt(val))
         .pipe(z.number().int().positive().max(100))
-        .optional(),
+        .optional()
+        .or(z.number().int().positive().optional()),
     includeReplies: z.enum(['true', 'false']).optional(),
 });
