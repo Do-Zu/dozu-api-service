@@ -22,7 +22,7 @@ class ClassTopicCommentService {
         return result;
     }
 
-    public async getCommentsWithReplies(nodeId: number, typeNode: NodeType): Promise<IClassTopicComment[]> {
+    public async getCommentsWithReplies(nodeId: string, typeNode: NodeType): Promise<IClassTopicComment[]> {
         // Get root comments
         const rootComments = await classTopicCommentRepo.getRootCommentsByNode(nodeId, typeNode);
 
