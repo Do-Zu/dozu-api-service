@@ -4,8 +4,7 @@ import classController from '@/controllers/class-based-learning/class.controller
 import classTopicController from '@/controllers/class-based-learning/classTopic.controller';
 import paramsValidator from '@/core/validations/params.validator';
 import classMiddleware from '@/middleware/class-based-learning/class.middleware';
-
-import { classTopicCommentRoutes } from '../classTopicComment.routes';
+import classTopicCommentRoutes from '../classTopicComment.routes';
 
 const router = Router({ mergeParams: true });
 globalAsyncHandler(router);
