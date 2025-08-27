@@ -21,7 +21,7 @@ export const classTopicCommentsTable = pgTable('class_topic_comments', {
     topicId: integer('topic_id')
         .notNull()
         .references(() => topicsTable.topicId, { onDelete: 'cascade' }),
-    nodeId: integer('node_id').notNull(),
+    nodeId: varchar('node_id', { length: 36 }).notNull(),
     author: jsonb('author').notNull().$type<{
         user_id: number;
         name: string;
