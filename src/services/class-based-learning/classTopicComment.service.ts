@@ -1,6 +1,4 @@
-import db from '@/libs/drizzleClient.lib';
-import { eq } from 'drizzle-orm';
-import { NodeType, usersTable } from '@/models';
+import { NodeType } from '@/models';
 import { BadRequest, NotFoundError } from '@/core/error';
 import classTopicCommentRepo, { ICreateCommentRepo } from '@/repositories/class-based-learning/classTopicComment.repo';
 import {
@@ -42,29 +40,15 @@ class ClassTopicCommentService {
         return commentsWithReplies;
     }
 
-    public async createComment(
-        userId: number,
-        topicId: number,
-        data: ICreateCommentService
-    ): Promise<IClassTopicComment> {
-        // Get user info for author field
-        const [user] = await db
-            .select({
-                userId: usersTable.userId,
-                fullName: usersTable.fullName,
-                avatarUrl: usersTable.avatarUrl,
-            })
-            .from(usersTable)
-            .where(eq(usersTable.userId, userId));
-
-        if (!user) {
-            throw new NotFoundError('User not found');
-        }
+    public async createComment(data: ICreateCommentService): Promise<IClassTopicComment> {
+        const { author, topicId } = data;
 
         // Calculate level for nested comments
         let level = 0;
+
         if (data.parentCmtId) {
             const parentComment = await classTopicCommentRepo.getCommentById(data.parentCmtId);
+
             if (!parentComment) {
                 throw new NotFoundError('Parent comment not found');
             }
@@ -75,12 +59,6 @@ class ClassTopicCommentService {
             await classTopicCommentRepo.incrementReplyCount(data.parentCmtId);
         }
 
-        const author = {
-            user_id: user.userId,
-            name: user.fullName || '',
-            avatar: user.avatarUrl,
-        };
-
         const createData: ICreateCommentRepo = {
             ...data,
             topicId,
@@ -89,6 +67,7 @@ class ClassTopicCommentService {
         };
 
         const result = await classTopicCommentRepo.createComment(createData);
+
         return result;
     }
 

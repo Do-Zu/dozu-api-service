@@ -1,17 +1,16 @@
 import { Router } from 'express';
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
-import { authMiddleware } from '@/middleware/auth.middleware';
 import validator from '@/core/validations/validator';
 import {
     createCommentSchema,
     getCommentsQuerySchema,
 } from '@/middleware/validations/class/comment/classTopicComment.validator';
-import classTopicCommentController from '@/controllers/class-based-learning/classTopicComment.controller';
+
+import { classTopicCommentController } from '@/controllers/class-based-learning/classTopicComment.controller';
 
 const router = Router({ mergeParams: true });
-globalAsyncHandler(router);
 
-router.use(authMiddleware);
+globalAsyncHandler(router);
 
 router.post(
     '/node-comments',
@@ -31,7 +30,7 @@ router.post(
     classTopicCommentController.createComment
 );
 
-router.post('/:commentId', classTopicCommentController.getCommentById);
+router.post('/single-comment', classTopicCommentController.getCommentById);
 
 // PUT /api/classes/:classId/topics/:topicId/comments/:commentId - Update comment
 // router.put(
@@ -44,7 +43,7 @@ router.post('/:commentId', classTopicCommentController.getCommentById);
 // router.delete('/:commentId', paramsValidator.validateId('commentId'), classTopicCommentController.deleteComment);
 
 router.post(
-    '/:commentId/replies',
+    '/replies',
     validator.validate({ selector: 'body', schema: getCommentsQuerySchema }),
     classTopicCommentController.getRepliesByComment
 );
@@ -62,4 +61,4 @@ router.post(
 //     classTopicCommentController.removeReaction
 // );
 
-export const classTopicCommentRoutes = router;
+export default router;

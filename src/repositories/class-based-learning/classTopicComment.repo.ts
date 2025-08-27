@@ -9,7 +9,7 @@ import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 
 export type ICreateCommentRepo = ICreateCommentService & {
     topicId: number;
-    author: { user_id: number; name: string; avatar: string };
+    author: { user_id: number; name: string; avatar?: string };
     level: number;
 };
 
@@ -35,12 +35,10 @@ class ClassTopicCommentRepo {
             conditions.push(eq(classTopicCommentsTable.typeNode, filters.typeNode));
         }
 
-        if (filters.parentCmtId !== undefined) {
-            if (filters.parentCmtId === null) {
-                conditions.push(isNull(classTopicCommentsTable.parentCmtId));
-            } else {
-                conditions.push(eq(classTopicCommentsTable.parentCmtId, filters.parentCmtId));
-            }
+        if (!filters?.parentCmtId) {
+            conditions.push(isNull(classTopicCommentsTable.parentCmtId));
+        } else {
+            conditions.push(eq(classTopicCommentsTable.parentCmtId, filters.parentCmtId));
         }
 
         const result = await db

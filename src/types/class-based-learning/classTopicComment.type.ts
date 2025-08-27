@@ -6,7 +6,7 @@ export interface IClassTopicComment {
     author: {
         user_id: number;
         name: string;
-        avatar: string;
+        avatar?: string;
     };
     typeNode: 'mindmap' | 'flashcard' | 'quiz';
     isDeleted: boolean;
@@ -23,7 +23,10 @@ export interface IClassTopicComment {
 }
 
 // Request/Response DTOs
-export type ICreateCommentBody = Pick<IClassTopicComment, 'nodeId' | 'typeNode' | 'content' | 'parentCmtId'>;
+export type ICreateCommentBody = Pick<
+    IClassTopicComment,
+    'nodeId' | 'typeNode' | 'content' | 'parentCmtId' | 'topicId' | 'author'
+>;
 export type IUpdateCommentBody = Pick<IClassTopicComment, 'content'>;
 
 export interface IGetCommentsQuery {

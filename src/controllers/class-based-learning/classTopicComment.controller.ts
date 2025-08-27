@@ -1,18 +1,28 @@
-import { BadRequest, NotFoundError } from '@/core/error';
-import { SuccessResponse } from '@/core/success';
-import requestHelper from '@/core/request/request.helper';
-import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import { Request, Response } from 'express';
+import { SuccessResponse } from '@/core/success';
+import { BadRequest, Forbidden, NotFoundError } from '@/core/error';
+import classTopicCommentService from '@/services/class-based-learning/classTopicComment.service';
+import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import {
     IClassTopicComment,
     ICreateCommentBody,
     IGetCommentsQuery,
 } from '@/types/class-based-learning/classTopicComment.type';
-import classTopicCommentService from '@/services/class-based-learning/classTopicComment.service';
 
 class ClassTopicCommentController {
-    private DEFAULT_LIMIT_GET_COMMENTS = 20;
-    private MAX_GET_COMMENTS_PER_PAGE = 100;
+    private DEFAULT_LIMIT_GET_COMMENTS: number;
+    private MAX_GET_COMMENTS_PER_PAGE: number;
+
+    constructor() {
+        this.DEFAULT_LIMIT_GET_COMMENTS = 20;
+        this.MAX_GET_COMMENTS_PER_PAGE = 100;
+
+        this.getCommentById = this.getCommentById.bind(this);
+        this.getCommentsByNode = this.getCommentsByNode.bind(this);
+        this.getRepliesByComment = this.getRepliesByComment.bind(this);
+        this.getCommentsByFilters = this.getCommentsByFilters.bind(this);
+        this.createComment = this.createComment.bind(this);
+    }
 
     public async getCommentById(req: Request, res: Response) {
         const commentId = req.body?.commentId;
@@ -60,18 +70,16 @@ class ClassTopicCommentController {
     }
 
     public async getRepliesByComment(req: Request, res: Response) {
-        const { limit, page, commentId, nodeId } = req.body;
+        const { limit, page, parentCmtId, nodeId, typeNode } = req.body;
 
         if (!limit || limit > this.MAX_GET_COMMENTS_PER_PAGE || !page || !nodeId) {
             throw new BadRequest('Invalid params');
         }
 
-        if (!commentId) {
-            throw new BadRequest('commentId is required');
-        }
-
         const filters: IGetCommentsQuery = {
-            parentCmtId: commentId,
+            nodeId,
+            parentCmtId,
+            typeNode,
             page,
             limit: limit || this.DEFAULT_LIMIT_GET_COMMENTS,
         };
@@ -108,10 +116,14 @@ class ClassTopicCommentController {
 
     public async createComment(req: Request, res: Response) {
         const userId = getUserIdFromRequest(req);
-        const topicId = requestHelper.getIdParam(req, 'topicId');
+
         const data: ICreateCommentBody = req.body;
 
-        const result = await classTopicCommentService.createComment(userId, topicId, data);
+        if (userId !== data?.author?.user_id) {
+            throw new Forbidden('user is not allowed to create this comment');
+        }
+
+        const result = await classTopicCommentService.createComment(data);
 
         SuccessResponse.created(res, result);
     }
@@ -158,5 +170,4 @@ class ClassTopicCommentController {
     // }
 }
 
-const classTopicCommentController = new ClassTopicCommentController();
-export default classTopicCommentController;
+export const classTopicCommentController = new ClassTopicCommentController();
