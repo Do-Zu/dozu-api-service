@@ -54,10 +54,10 @@ class ClassTopicCommentController {
         let result: IClassTopicComment[];
 
         if (includeReplies === 'true') {
-            result = await classTopicCommentService.getCommentsWithReplies(parseInt(nodeId), typeNode);
+            result = await classTopicCommentService.getCommentsWithReplies(nodeId, typeNode);
         } else {
             const filters: IGetCommentsQuery = {
-                nodeId: parseInt(nodeId),
+                nodeId,
                 typeNode,
                 parentCmtId: null, // Only root comments
                 page,

@@ -45,26 +45,26 @@ class ClassTopicCommentRepo {
             .select()
             .from(classTopicCommentsTable)
             .where(and(...conditions))
-            .orderBy(desc(classTopicCommentsTable.createdAt))
+            // .orderBy(desc(classTopicCommentsTable.createdAt))
             .limit(filters.limit || 20)
             .offset(((filters.page || 1) - 1) * (filters.limit || 20));
 
         return result;
     }
 
-    public async getRootCommentsByNode(nodeId: number, typeNode: NodeType): Promise<IClassTopicComment[]> {
+    public async getRootCommentsByNode(nodeId: number | string, typeNode: NodeType): Promise<IClassTopicComment[]> {
         const result = await db
             .select()
             .from(classTopicCommentsTable)
             .where(
                 and(
-                    eq(classTopicCommentsTable.nodeId, nodeId),
+                    eq(classTopicCommentsTable.nodeId, nodeId as string),
                     eq(classTopicCommentsTable.typeNode, typeNode),
                     isNull(classTopicCommentsTable.parentCmtId),
                     eq(classTopicCommentsTable.isDeleted, false)
                 )
-            )
-            .orderBy(desc(classTopicCommentsTable.createdAt));
+            );
+        // .orderBy(desc(classTopicCommentsTable.createdAt));
 
         return result;
     }

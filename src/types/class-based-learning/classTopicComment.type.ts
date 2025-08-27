@@ -2,7 +2,7 @@
 export interface IClassTopicComment {
     commentId: number;
     topicId: number;
-    nodeId: number;
+    nodeId: string;
     author: {
         user_id: number;
         name: string;
@@ -30,7 +30,7 @@ export type ICreateCommentBody = Pick<
 export type IUpdateCommentBody = Pick<IClassTopicComment, 'content'>;
 
 export interface IGetCommentsQuery {
-    nodeId?: number;
+    nodeId?: string;
     typeNode?: 'mindmap' | 'flashcard' | 'quiz';
     parentCmtId?: number | null;
     level?: number;
