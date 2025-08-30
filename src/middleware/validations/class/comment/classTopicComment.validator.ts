@@ -12,7 +12,7 @@ export const createCommentSchema = z.object({
     typeNode: z.enum(['mindmap', 'flashcard', 'quiz'], {
         errorMap: () => ({ message: 'Type node must be one of: mindmap, flashcard, quiz' }),
     }),
-    content: z.string().min(1, 'Content cannot be empty').max(2000, 'Content cannot exceed 2000 characters'),
+    content: z.string().trim().min(1, 'Content cannot be empty').max(2000, 'Content cannot exceed 2000 characters'),
     author: z.object({
         user_id: z
             .string()
