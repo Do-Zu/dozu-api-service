@@ -25,7 +25,7 @@ export const createCommentSchema = z.object({
             .max(100, 'Name cannot exceed 100 characters'),
         avatar: z.string().url('Avatar must be a valid URL').optional(),
     }),
-    parentCmtId: z.string().optional().or(z.number().int().positive().optional()),
+    parentCmtId: z.string().nullable().optional().or(z.number().int().positive().nullable().optional()),
 });
 
 // Update comment validation schema
