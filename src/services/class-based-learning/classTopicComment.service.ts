@@ -1,5 +1,6 @@
+import db from '@/libs/drizzleClient.lib';
 import { NodeType } from '@/models';
-import { BadRequest, NotFoundError } from '@/core/error';
+import { BadRequest, DatabaseError, NotFoundError } from '@/core/error';
 import classTopicCommentRepo, { ICreateCommentRepo } from '@/repositories/class-based-learning/classTopicComment.repo';
 import {
     IClassTopicComment,
@@ -43,32 +44,32 @@ class ClassTopicCommentService {
     public async createComment(data: ICreateCommentService): Promise<IClassTopicComment> {
         const { author, topicId } = data;
 
-        // Calculate level for nested comments
-        let level = 0;
+        return await db.transaction(async tx => {
+            try {
+                let level = 0;
 
-        if (data.parentCmtId) {
-            const parentComment = await classTopicCommentRepo.getCommentById(data.parentCmtId);
+                if (data.parentCmtId) {
+                    const parentComment = await classTopicCommentRepo.getCommentById(data.parentCmtId, tx);
 
-            if (!parentComment) {
-                throw new NotFoundError('Parent comment not found');
+                    if (!parentComment) {
+                        throw new NotFoundError('Parent comment not found');
+                    }
+
+                    level = parentComment.level + 1;
+                }
+
+                const createData: ICreateCommentRepo = { ...data, topicId, author, level };
+                const result = await classTopicCommentRepo.createComment(createData, tx);
+
+                if (data.parentCmtId) {
+                    await classTopicCommentRepo.incrementReplyCount(data.parentCmtId, tx);
+                }
+                return result;
+            } catch (err) {
+                if (err instanceof NotFoundError || err instanceof BadRequest) throw err;
+                throw new DatabaseError('Failed to create comment');
             }
-
-            level = parentComment.level + 1;
-
-            // Update parent comment reply count
-            await classTopicCommentRepo.incrementReplyCount(data.parentCmtId);
-        }
-
-        const createData: ICreateCommentRepo = {
-            ...data,
-            topicId,
-            author,
-            level,
-        };
-
-        const result = await classTopicCommentRepo.createComment(createData);
-
-        return result;
+        });
     }
 
     public async updateComment(

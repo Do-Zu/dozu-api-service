@@ -15,16 +15,21 @@ export type ICreateCommentRepo = ICreateCommentService & {
 
 export type IUpdateCommentRepo = IUpdateCommentService;
 
+type DBExecutor = typeof db;
+
 class ClassTopicCommentRepo {
-    public async getCommentById(commentId: number): Promise<IClassTopicComment | undefined> {
-        const [result] = await db
+    public async getCommentById(commentId: number, executor: DBExecutor = db): Promise<IClassTopicComment | undefined> {
+        const [result] = await executor
             .select()
             .from(classTopicCommentsTable)
             .where(and(eq(classTopicCommentsTable.commentId, commentId), eq(classTopicCommentsTable.isDeleted, false)));
         return result;
     }
 
-    public async getCommentsByFilters(filters: IGetCommentsQuery): Promise<IClassTopicComment[]> {
+    public async getCommentsByFilters(
+        filters: IGetCommentsQuery,
+        executor: DBExecutor = db
+    ): Promise<IClassTopicComment[]> {
         const conditions = [eq(classTopicCommentsTable.isDeleted, false)];
 
         if (filters.nodeId) {
@@ -41,7 +46,7 @@ class ClassTopicCommentRepo {
             conditions.push(eq(classTopicCommentsTable.parentCmtId, filters.parentCmtId));
         }
 
-        const result = await db
+        const result = await executor
             .select()
             .from(classTopicCommentsTable)
             .where(and(...conditions))
@@ -52,8 +57,12 @@ class ClassTopicCommentRepo {
         return result;
     }
 
-    public async getRootCommentsByNode(nodeId: number | string, typeNode: NodeType): Promise<IClassTopicComment[]> {
-        const result = await db
+    public async getRootCommentsByNode(
+        nodeId: number | string,
+        typeNode: NodeType,
+        executor: DBExecutor = db
+    ): Promise<IClassTopicComment[]> {
+        const result = await executor
             .select()
             .from(classTopicCommentsTable)
             .where(
@@ -69,8 +78,8 @@ class ClassTopicCommentRepo {
         return result;
     }
 
-    public async getRepliesByParentId(parentCmtId: number): Promise<IClassTopicComment[]> {
-        const result = await db
+    public async getRepliesByParentId(parentCmtId: number, executor: DBExecutor = db): Promise<IClassTopicComment[]> {
+        const result = await executor
             .select()
             .from(classTopicCommentsTable)
             .where(
@@ -81,14 +90,18 @@ class ClassTopicCommentRepo {
         return result;
     }
 
-    public async createComment(data: ICreateCommentRepo): Promise<IClassTopicComment> {
-        const [result] = await db.insert(classTopicCommentsTable).values(data).returning();
+    public async createComment(data: ICreateCommentRepo, executor: DBExecutor = db): Promise<IClassTopicComment> {
+        const [result] = await executor.insert(classTopicCommentsTable).values(data).returning();
 
         return result;
     }
 
-    public async updateComment(commentId: number, data: IUpdateCommentRepo): Promise<IClassTopicComment> {
-        const [result] = await db
+    public async updateComment(
+        commentId: number,
+        data: IUpdateCommentRepo,
+        executor: DBExecutor = db
+    ): Promise<IClassTopicComment> {
+        const [result] = await executor
             .update(classTopicCommentsTable)
             .set({ ...data, updatedAt: sql`NOW()` })
             .where(eq(classTopicCommentsTable.commentId, commentId))
@@ -97,8 +110,8 @@ class ClassTopicCommentRepo {
         return result;
     }
 
-    public async softDeleteComment(commentId: number): Promise<void> {
-        await db
+    public async softDeleteComment(commentId: number, executor: DBExecutor = db): Promise<void> {
+        await executor
             .update(classTopicCommentsTable)
             .set({
                 isDeleted: true,
@@ -107,8 +120,8 @@ class ClassTopicCommentRepo {
             .where(eq(classTopicCommentsTable.commentId, commentId));
     }
 
-    public async incrementReplyCount(commentId: number): Promise<void> {
-        await db
+    public async incrementReplyCount(commentId: number, executor: DBExecutor = db): Promise<void> {
+        await executor
             .update(classTopicCommentsTable)
             .set({
                 replyCount: sql`${classTopicCommentsTable.replyCount} + 1`,
@@ -117,8 +130,8 @@ class ClassTopicCommentRepo {
             .where(eq(classTopicCommentsTable.commentId, commentId));
     }
 
-    public async decrementReplyCount(commentId: number): Promise<void> {
-        await db
+    public async decrementReplyCount(commentId: number, executor: DBExecutor = db): Promise<void> {
+        await executor
             .update(classTopicCommentsTable)
             .set({
                 replyCount: sql`${classTopicCommentsTable.replyCount} - 1`,
@@ -127,8 +140,8 @@ class ClassTopicCommentRepo {
             .where(eq(classTopicCommentsTable.commentId, commentId));
     }
 
-    public async updateReactionCount(commentId: number, count: number): Promise<void> {
-        await db
+    public async updateReactionCount(commentId: number, count: number, executor: DBExecutor = db): Promise<void> {
+        await executor
             .update(classTopicCommentsTable)
             .set({
                 reactionCount: count,
@@ -137,8 +150,8 @@ class ClassTopicCommentRepo {
             .where(eq(classTopicCommentsTable.commentId, commentId));
     }
 
-    public async getCommentsByAuthor(authorUserId: number): Promise<IClassTopicComment[]> {
-        const result = await db
+    public async getCommentsByAuthor(authorUserId: number, executor: DBExecutor = db): Promise<IClassTopicComment[]> {
+        const result = await executor
             .select()
             .from(classTopicCommentsTable)
             .where(
