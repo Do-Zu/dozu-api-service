@@ -36,6 +36,7 @@ export interface IGetCommentsQuery {
     level?: number;
     page?: number;
     limit?: number;
+    includeReplies?: boolean;
 }
 
 export interface ICreateCommentResponse {
