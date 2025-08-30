@@ -16,15 +16,9 @@ class ClassTopicCommentController {
     constructor() {
         this.DEFAULT_LIMIT_GET_COMMENTS = 20;
         this.MAX_GET_COMMENTS_PER_PAGE = 100;
-
-        this.getCommentById = this.getCommentById.bind(this);
-        this.getCommentsByNode = this.getCommentsByNode.bind(this);
-        this.getRepliesByComment = this.getRepliesByComment.bind(this);
-        this.getCommentsByFilters = this.getCommentsByFilters.bind(this);
-        this.createComment = this.createComment.bind(this);
     }
 
-    public async getCommentById(req: Request, res: Response) {
+    public getCommentById = async (req: Request, res: Response) => {
         const commentId = req.body?.commentId;
 
         const result: IClassTopicComment | undefined = await classTopicCommentService.getCommentById(commentId);
@@ -34,9 +28,9 @@ class ClassTopicCommentController {
         }
 
         SuccessResponse.ok(res, result);
-    }
+    };
 
-    public async getCommentsByNode(req: Request, res: Response) {
+    public getCommentsByNode = async (req: Request, res: Response) => {
         let { nodeId, typeNode, includeReplies, limit, page } = req.body;
 
         if (!nodeId || !typeNode) {
@@ -67,9 +61,9 @@ class ClassTopicCommentController {
         }
 
         SuccessResponse.ok(res, result);
-    }
+    };
 
-    public async getRepliesByComment(req: Request, res: Response) {
+    public getRepliesByComment = async (req: Request, res: Response) => {
         const { limit, page, parentCmtId, nodeId, typeNode } = req.body;
 
         if (!limit || limit > this.MAX_GET_COMMENTS_PER_PAGE || !page || !nodeId) {
@@ -87,9 +81,9 @@ class ClassTopicCommentController {
         const result = await classTopicCommentService.getCommentsByFilters(filters);
 
         SuccessResponse.ok(res, result);
-    }
+    };
 
-    public async getCommentsByFilters(req: Request, res: Response) {
+    public getCommentsByFilters = async (req: Request, res: Response) => {
         let { nodeId, typeNode, parentCmtId, level, page, limit } = req.body;
 
         if (!nodeId || !typeNode || !page) {
@@ -112,9 +106,9 @@ class ClassTopicCommentController {
         const result = await classTopicCommentService.getCommentsByFilters(filters);
 
         SuccessResponse.ok(res, result);
-    }
+    };
 
-    public async createComment(req: Request, res: Response) {
+    public createComment = async (req: Request, res: Response) => {
         const userId = getUserIdFromRequest(req);
 
         const data: ICreateCommentBody = req.body;
@@ -126,7 +120,7 @@ class ClassTopicCommentController {
         const result = await classTopicCommentService.createComment(data);
 
         SuccessResponse.created(res, result);
-    }
+    };
 
     // public async updateComment(req: Request, res: Response) {
     //     const userId = getUserIdFromRequest(req);
