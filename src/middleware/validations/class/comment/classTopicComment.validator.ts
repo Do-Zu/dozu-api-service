@@ -8,7 +8,7 @@ export const createCommentSchema = z.object({
         .pipe(z.number().int().positive('Topic ID must be a positive integer'))
         .or(z.number().int().positive('Topic ID must be a positive integer')),
 
-    nodeId: z.string(),
+    nodeId: z.coerce.string().trim().min(1, 'nodeId is required'),
     typeNode: z.enum(['mindmap', 'flashcard', 'quiz'], {
         errorMap: () => ({ message: 'Type node must be one of: mindmap, flashcard, quiz' }),
     }),
