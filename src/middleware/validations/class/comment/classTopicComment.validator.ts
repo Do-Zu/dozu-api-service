@@ -35,7 +35,7 @@ export const updateCommentSchema = z.object({
 
 // Query parameters for getting comments
 export const getCommentsQuerySchema = z.object({
-    nodeId: z.string().optional(),
+    nodeId: z.coerce.string().trim().min(1).optional(),
     typeNode: z.enum(['mindmap', 'flashcard', 'quiz']).optional(),
     parentCmtId: z.string().optional().or(z.number().int().positive().optional()),
     level: z
