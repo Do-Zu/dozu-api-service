@@ -34,11 +34,11 @@ class ClassTopicCommentController {
         let { nodeId, typeNode, includeReplies, limit, page } = req.body;
 
         if (!nodeId || !typeNode) {
-            throw new NotFoundError('nodeId and typeNode are required');
+            throw new BadRequest('nodeId and typeNode are required');
         }
 
         if (!page) {
-            throw new NotFoundError('page is required');
+            throw new BadRequest('page is required');
         }
 
         if (!limit || limit < 1 || limit > this.MAX_GET_COMMENTS_PER_PAGE) {
