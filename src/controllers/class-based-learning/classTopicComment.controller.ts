@@ -98,7 +98,7 @@ class ClassTopicCommentController {
             nodeId: nodeId ?? undefined,
             typeNode,
             parentCmtId: parentCmtId ?? undefined,
-            level: level ?? null,
+            level: level ?? undefined,
             page,
             limit,
         };
