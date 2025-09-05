@@ -44,6 +44,7 @@ export interface IFlashcard {
     nodeId?: string | null;
     front: string;
     back: string;
+    imageUrl?: string | null;
     createdAt: Date;
     learningState?: IFlashcardLearningState;
 
@@ -55,11 +56,24 @@ export type IFlashcardLearningState = Pick<
     'status' | 'lastReviewed' | 'nextReview' | 'repetitionNumber' | 'easinessFactor' | 'reviewInterval'
 > & { flashcardId?: number };
 
-export type IFlashcardCreateInput = Pick<IFlashcard, 'front' | 'back'>;
-export type IFlashcardUpdateInput = Pick<IFlashcard, 'flashcardId' | 'front' | 'back'>;
+export type IFlashcardCreateInput = Pick<IFlashcard, 'front' | 'back'> & { image?: IImageSaveInput | null };
+export type IFlashcardUpdateInput = Pick<IFlashcard, 'flashcardId' | 'front' | 'back'> & {
+    image?: IImageSaveInput | null;
+};
 
 export type IFlashcardsBatchInput = {
     flashcardsAdded?: IFlashcardCreateInput[];
     flashcardsUpdated?: IFlashcardUpdateInput[];
     flashcardsDeleted?: number[];
 };
+
+export type IFlashcardBatchResult = {
+    flashcardsAdded: IFlashcard[];
+    flashcardsUpdated: IFlashcard[];
+};
+
+export interface IImageSaveInput {
+    id: string;
+    url: string;
+    downloadLocation: string;
+}

@@ -2,13 +2,19 @@ import { BadRequest, DatabaseError } from '@/core/error';
 import { SuccessResponse } from '@/core/success';
 import flashcardService, { IFlashcardWithReviewPrediction } from '@/services/flashcard/flashcard.service';
 import topicService from '@/services/topic/topic.service';
-import { IFlashcard, IFlashcardLearningState, IFlashcardsBatchInput } from '@/types/flashcard/flashcard.type';
+import {
+    IFlashcard,
+    IFlashcardLearningState,
+    IFlashcardsBatchInput,
+    IFlashcardBatchResult,
+} from '@/types/flashcard/flashcard.type';
 import logger from '@/utils/logger';
 import { Request, Response } from 'express';
 import SuperMemo2, { IQualityResponse } from '@/services/spaced-repetition-system/super-memo-2/superMemo2.origin';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import { getCurrentDateFromRequest } from '@/utils/date';
 import requestHelper from '@/core/request/request.helper';
+import unsplashLib, { IUnspashImage } from '@/libs/unsplash.lib';
 class FlashcardController {
     constructor() {}
 
@@ -16,13 +22,7 @@ class FlashcardController {
         const topicId = requestHelper.getIdParam(req, 'topicId');
         const topic = requestHelper.getResource(req, 'topic');
 
-        let flashcards: IFlashcard[];
-        try {
-            flashcards = await flashcardService.getFlashcardsForTopic(topicId);
-        } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong, cannot get flashcards');
-        }
+        const flashcards: IFlashcard[] = await flashcardService.getFlashcardsForTopic(topicId);
 
         let { includeTopic } = req.query as { includeTopic: string | boolean };
         // !! should check other dev using this API (for including includeTopic)
@@ -41,18 +41,13 @@ class FlashcardController {
 
         const { flashcardsAdded, flashcardsUpdated, flashcardsDeleted }: IFlashcardsBatchInput = req.body;
 
-        try {
-            await flashcardService.batchFlashcardsForTopic(userId, topicId, {
-                flashcardsAdded,
-                flashcardsUpdated,
-                flashcardsDeleted,
-            });
-        } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
-        }
+        const result: IFlashcardBatchResult = await flashcardService.batchFlashcardsForTopic(userId, topicId, {
+            flashcardsAdded,
+            flashcardsUpdated,
+            flashcardsDeleted,
+        });
 
-        SuccessResponse.created(res, {});
+        SuccessResponse.created(res, result);
     }
 
     public async handleBatchFlashcardsForNode(req: Request, res: Response): Promise<void> {
@@ -119,13 +114,7 @@ class FlashcardController {
         const userId = getUserIdFromRequest(req);
         const topicId = requestHelper.getIdParam(req, 'topicId');
 
-        let flashcards: IFlashcard[];
-        try {
-            flashcards = await flashcardService.getDueFlashcardsForTopicAndUser(topicId, userId, currentDate);
-        } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
-        }
+        const flashcards = await flashcardService.getDueFlashcardsForTopicAndUser(topicId, userId, currentDate);
 
         const flashcardsReturned: IFlashcardWithReviewPrediction[] =
             await flashcardService.getReviewIntervalsByQualityResponses(flashcards);
@@ -138,13 +127,8 @@ class FlashcardController {
         const flashcardId = requestHelper.getIdParam(req, 'flashcardId');
         const { qualityResponse } = req.body as { qualityResponse: IQualityResponse };
 
-        let flashcard: IFlashcardLearningState;
-        try {
-            flashcard = await flashcardService.getSpacedRepetitionDataForFlashcard(flashcardId);
-        } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
-        }
+        const flashcard: IFlashcardLearningState =
+            await flashcardService.getSpacedRepetitionDataForFlashcard(flashcardId);
 
         if (!flashcard) {
             throw new BadRequest('Flashcard is invalid');
@@ -173,6 +157,30 @@ class FlashcardController {
         }
 
         SuccessResponse.ok(res, {});
+    }
+
+    public async searchFlashcardImages(req: Request, res: Response) {
+        const { search } = req.body as { search?: string | null };
+        if (!search) {
+            throw new BadRequest('Search params must be provided');
+        }
+        const unsplashResult = await unsplashLib.searchImages(search);
+        const result: IUnspashImage[] = unsplashResult.results.map(element => {
+            return {
+                id: element.id,
+                width: element.width, // original width (px) of image
+                height: element.height, // original height (px) of image
+                description: element.description,
+                url: {
+                    thumb: element.urls.thumb, // thumb for preview image,
+                    small: element.urls.small, // image for flashcards later
+                },
+                user: element.user, // attribute Unsplash & the Unsplash photographer
+                links: element.links, // links for storing download_location (using an image from client must 'download' the image to use)
+            };
+        });
+
+        SuccessResponse.ok(res, result);
     }
 }
 

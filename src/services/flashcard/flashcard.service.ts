@@ -1,5 +1,5 @@
 import db from '@/libs/drizzleClient.lib';
-import flashcardRepo, { ICreateFlashcardRepo } from '@/repositories/flashcard.repo';
+import flashcardRepo, { ICreateFlashcardRepo, IUpdateFlashcardRepo } from '@/repositories/flashcard.repo';
 import {
     IFlashcardCreateInput,
     IFlashcard,
@@ -7,6 +7,8 @@ import {
     IFlashcardsBatchInput,
     IQualityResponseNextReviewInterval,
     IFlashcardUpdateInput,
+    IImageSaveInput,
+    IFlashcardBatchResult,
 } from '@/types/flashcard/flashcard.type';
 import { IQualityResponse } from '../spaced-repetition-system/super-memo-2/superMemo2.origin';
 import SuperMemo2 from '../spaced-repetition-system/super-memo-2/superMemo2.origin';
@@ -16,8 +18,12 @@ import itemSpacedRepetitionTrackingRepo from '@/repositories/tracking/itemSpaced
 import { getUserRoles } from '@/repositories/auth.repo';
 import classEnrollmentService from '../class-based-learning/classEnrollment.service';
 import topicService from '../topic/topic.service';
+import unsplashLib from '@/libs/unsplash.lib';
 
-export type IFlashcardWithReviewPrediction = Pick<IFlashcard, 'flashcardId' | 'front' | 'back' | 'topicName'> & {
+export type IFlashcardWithReviewPrediction = Pick<
+    IFlashcard,
+    'flashcardId' | 'front' | 'back' | 'imageUrl' | 'topicName'
+> & {
     qualityResponsesNextReviewInterval: IQualityResponseNextReviewInterval[];
 };
 
@@ -38,21 +44,35 @@ class FlashcardService {
         userId: number,
         topicId: number,
         flashcards: IFlashcardCreateInput[]
-    ): Promise<void> {
+    ): Promise<IFlashcard[]> {
         const roles = await getUserRoles(userId);
         const isTeacher = roles.find(role => role.name === 'teacher') !== undefined;
 
+        for (const card of flashcards) {
+            if (card.image) await this.saveFlashcardImage(card.image);
+        }
+
         const data: ICreateFlashcardRepo[] = flashcards.map(flashcard => {
-            return { topicId, front: flashcard.front, back: flashcard.back };
+            const card = {
+                topicId,
+                front: flashcard.front,
+                back: flashcard.back,
+                imageUrl: flashcard.image?.url, // insert imageUrl
+            };
+            if (card.imageUrl === undefined) {
+                delete card['imageUrl'];
+            }
+            return card;
         });
 
+        let result: IFlashcard[] = [];
         // belong to personal topic
         if (!isTeacher) {
             await db.transaction(async tx => {
-                const flashcards = await flashcardRepo.insertFlashcards(data, tx);
+                result = await flashcardRepo.insertFlashcards(data, tx);
 
                 // insert tracking records for user
-                const trackingRecords: ICreateTrackingRecord[] = flashcards.map(flashcard => {
+                const trackingRecords: ICreateTrackingRecord[] = result.map(flashcard => {
                     return {
                         userId,
                         topicId,
@@ -71,11 +91,11 @@ class FlashcardService {
             let { classId } = topic!;
             classId = classId!;
             await db.transaction(async tx => {
-                const flashcards = await flashcardRepo.insertFlashcards(data, tx);
+                result = await flashcardRepo.insertFlashcards(data, tx);
                 const students = await classEnrollmentService.getStudentsInClass(classId);
 
                 // insert tracking records for teacher
-                const trackingRecords: ICreateTrackingRecord[] = flashcards.map(flashcard => {
+                const trackingRecords: ICreateTrackingRecord[] = result.map(flashcard => {
                     return {
                         userId,
                         topicId,
@@ -106,7 +126,7 @@ class FlashcardService {
 
                 // create sm-2 records for students learning
                 for (const student of studentsLearning) {
-                    const trackingRecords: ICreateTrackingRecord[] = flashcards.map(flashcard => {
+                    const trackingRecords: ICreateTrackingRecord[] = result.map(flashcard => {
                         return {
                             userId: student.studentId,
                             topicId,
@@ -119,6 +139,8 @@ class FlashcardService {
                 }
             });
         }
+
+        return result;
     }
 
     public async handleInsertFlashcardsForNode(
@@ -139,8 +161,25 @@ class FlashcardService {
         await flashcardRepo.insertFlashcardsIntoTopic(userId, topicId, data);
     }
 
-    public async updateFlashcardsInTopic(flashcards: IFlashcardUpdateInput[]): Promise<void> {
-        await flashcardRepo.updateFlashcards(flashcards);
+    public async updateFlashcardsInTopic(flashcards: IFlashcardUpdateInput[]): Promise<IFlashcard[]> {
+        for (const card of flashcards) {
+            if (card.image) await this.saveFlashcardImage(card.image);
+        }
+        const data: IUpdateFlashcardRepo[] = flashcards.map(flashcard => {
+            const card = {
+                flashcardId: flashcard.flashcardId,
+                front: flashcard.front,
+                back: flashcard.back,
+                imageUrl: flashcard.image?.url, // insert imageUrl
+            };
+            if (card.imageUrl === undefined) {
+                delete card['imageUrl'];
+            }
+            return card;
+        });
+
+        const result = await flashcardRepo.updateFlashcards(data);
+        return result;
     }
 
     public async deleteFlashcardsByIds(flashcardsIds: number[]): Promise<void> {
@@ -154,18 +193,22 @@ class FlashcardService {
         userId: number,
         topicId: number,
         { flashcardsAdded, flashcardsUpdated, flashcardsDeleted }: IFlashcardsBatchInput
-    ): Promise<void> {
+    ): Promise<IFlashcardBatchResult> {
+        let result: IFlashcardBatchResult = { flashcardsAdded: [], flashcardsUpdated: [] };
+
         if (flashcardsAdded && flashcardsAdded.length > 0) {
-            await this.createFlashcardsForTopic(userId, topicId, flashcardsAdded);
+            result.flashcardsAdded = await this.createFlashcardsForTopic(userId, topicId, flashcardsAdded);
         }
 
         if (flashcardsUpdated && flashcardsUpdated.length > 0) {
-            await this.updateFlashcardsInTopic(flashcardsUpdated);
+            result.flashcardsUpdated = await this.updateFlashcardsInTopic(flashcardsUpdated);
         }
 
         if (flashcardsDeleted && flashcardsDeleted.length > 0) {
             await this.deleteFlashcardsByIds(flashcardsDeleted);
         }
+
+        return result;
     }
 
     public async handleBatchFlashcardsForNode(
@@ -231,6 +274,7 @@ class FlashcardService {
                 flashcardId: flashcard.flashcardId,
                 front: flashcard.front,
                 back: flashcard.back,
+                imageUrl: flashcard.imageUrl,
 
                 topicName: flashcard.topicName ? flashcard.topicName : '',
                 qualityResponsesNextReviewInterval: [],
@@ -251,6 +295,10 @@ class FlashcardService {
             result.push(data);
         }
         return result;
+    }
+
+    public async saveFlashcardImage(image: IImageSaveInput) {
+        await unsplashLib.downloadImage(image.downloadLocation);
     }
 }
 
