@@ -1,5 +1,6 @@
 import db from '@/libs/drizzleClient.lib';
 import flashcardRepo from '@/repositories/flashcard.repo';
+import { deleteMindmapByTopicId } from '@/repositories/mindmap/mindmap.repo';
 import topicRepo, { ICreateTopicRepo, IUpdateTopicRepo } from '@/repositories/topic.repo';
 import itemSpacedRepetitionTrackingRepo from '@/repositories/tracking/itemSpacedRepetitionTracking.repo';
 import { ICreateTopicBody, ITopic, IUpdateTopicBody } from '@/types/topic/topic.type';
@@ -45,6 +46,7 @@ class TopicService {
         await db.transaction(async tx => {
             // mindmap deletion
             //... (delete resources related to ONLY mindmap if necessary)
+            await deleteMindmapByTopicId(topicId, tx);//needs testing
 
             // flashcard deletion
             await flashcardRepo.deleteFlashcardsInTopic(topicId, tx);
