@@ -1,10 +1,10 @@
+import { Router } from 'express';
+import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 import classTopicController from '@/controllers/class-based-learning/classTopic.controller';
 import paramsValidator from '@/core/validations/params.validator';
 import { fileUploadSingleMiddleware } from '@/libs/multer.lib';
 import classTopicMiddleware from '@/middleware/class-based-learning/classTopic.middleware';
-import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 import topicMiddleware from '@/middleware/topic/topic.middleware';
-import { Router } from 'express';
 
 const router = Router({ mergeParams: true });
 globalAsyncHandler(router);
