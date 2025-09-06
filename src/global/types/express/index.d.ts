@@ -11,6 +11,7 @@ declare global {
                     topicId?: number;
                     flashcardId?: number;
                     requestId?: number;
+                    feedId?: number;
                 };
                 body?: any;
                 query?: any;
