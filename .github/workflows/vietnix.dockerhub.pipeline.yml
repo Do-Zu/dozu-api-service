@@ -50,8 +50,9 @@ jobs:
         runs-on: ubuntu-latest
         needs: check-connection
         outputs:
-            image: ${{ steps.meta.outputs.image }}
-            tag: ${{ steps.meta.outputs.tag }}
+            # Use base64-encoded outputs to avoid masking by GitHub runner
+            image_b64: ${{ steps.meta.outputs.image_b64 }}
+            tag_b64: ${{ steps.meta.outputs.tag_b64 }}
         steps:
             - name: Checkout
               uses: actions/checkout@v4
@@ -65,12 +66,14 @@ jobs:
                   ENV_INPUT: ${{ github.event.inputs.environment }}
               run: |
                   set -euo pipefail
-                  IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/dozu-api-service"
+                  USER_LC="$(printf '%s' '${{ secrets.DOCKERHUB_USERNAME }}' | tr '[:upper:]' '[:lower:]')"
+                  IMAGE="$USER_LC/dozu-api-service"
                   BRANCH_TAG="${BRANCH_INPUT//\//-}"
                   SHORT_SHA="${GITHUB_SHA::7}"
                   TAG="${ENV_INPUT}-${BRANCH_TAG}-${SHORT_SHA}"
-                  echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
-                  echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+                  # Emit base64 to bypass output masking
+                  echo "image_b64=$(printf '%s' "$IMAGE" | base64 -w0)" >> "$GITHUB_OUTPUT"
+                  echo "tag_b64=$(printf '%s' "$TAG" | base64 -w0)" >> "$GITHUB_OUTPUT"
 
             - name: Create ENV file for build
               id: envfile
@@ -164,11 +167,11 @@ jobs:
 
             - name: Build and Push
               env:
-                  IMAGE: ${{ steps.meta.outputs.image }}
-                  TAG: ${{ steps.meta.outputs.tag }}
                   ENV_FILE: ${{ steps.envfile.outputs.env_file }}
               run: |
                   set -euo pipefail
+                  IMAGE="$(printf '%s' '${{ steps.meta.outputs.image_b64 }}' | base64 -d)"
+                  TAG="$(printf '%s' '${{ steps.meta.outputs.tag_b64 }}' | base64 -d)"
                   docker buildx build \
                     --platform linux/amd64 \
                     --build-arg ENV_FILE="$ENV_FILE" \
@@ -185,10 +188,6 @@ jobs:
               run: |
                   sudo apt-get update
                   sudo apt-get install -y sshpass
-            - name: Debug image/tag from previous job
-              run: |
-                  echo "IMAGE=${{ needs.build-push.outputs.image }}"
-                  echo "TAG=${{ needs.build-push.outputs.tag }}"
 
             - name: Pull image and restart container
               env:
@@ -197,11 +196,21 @@ jobs:
                   PASSWORD: ${{ secrets.VIETNIX_PASSWORD }}
                   DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME }}
                   DOCKER_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-                  IMAGE: ${{ needs.build-push.outputs.image }}
-                  TAG: ${{ needs.build-push.outputs.tag }}
               run: |
                   set -e
-                  REMOTE_CMDS=$(cat <<BASH
+                  IMAGE="$(printf '%s' '${{ needs.build-push.outputs.image_b64 }}' | base64 -d)"
+                  TAG="$(printf '%s' '${{ needs.build-push.outputs.tag_b64 }}' | base64 -d)"
+                  # Fallback in case outputs were masked/empty
+                  if [ -z "$IMAGE" ]; then IMAGE="$(printf '%s' "$DOCKER_USER" | tr '[:upper:]' '[:lower:]')/dozu-api-service"; fi
+                  if [ -z "$TAG" ]; then
+                    BRANCH_INPUT='${{ github.event.inputs.branch }}'
+                    ENV_INPUT='${{ github.event.inputs.environment }}'
+                    BRANCH_TAG="${BRANCH_INPUT//\//-}"
+                    SHORT_SHA="${GITHUB_SHA::7}"
+                    TAG="${ENV_INPUT}-${BRANCH_TAG}-${SHORT_SHA}"
+                  fi
+
+                  REMOTE_CMDS=$(cat <<'BASH'
                   set -e
                   # login to Docker Hub
                   if command -v docker >/dev/null 2>&1; then
@@ -222,9 +231,10 @@ jobs:
                     -v api-logs:/app/logs \
                     "$IMAGE:$TAG"
                   # cleanup unused images
-                  docker image prune -f
+                  docker image prune -a -f
                   docker ps
                   BASH
                   )
-                  # run remote with sudo if needed
-                  sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "$USERNAME@$HOST" "command -v docker >/dev/null 2>&1 || { echo 'Docker is not installed on remote'; exit 1; }; echo \"$PASSWORD\" | sudo -S -p '' bash -lc '$REMOTE_CMDS' || bash -lc '$REMOTE_CMDS'"
+
+                  # run remote with sudo and pass env vars explicitly
+                  sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "$USERNAME@$HOST" "command -v docker >/dev/null 2>&1 || { echo 'Docker is not installed on remote'; exit 1; }; echo \"$PASSWORD\" | sudo -S -p '' env DOCKER_USER='$DOCKER_USER' DOCKER_TOKEN='$DOCKER_TOKEN' IMAGE='$IMAGE' TAG='$TAG' bash -lc '$REMOTE_CMDS'"
