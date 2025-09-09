@@ -79,6 +79,14 @@ jobs:
               id: envfile
               env:
                   ENV_INPUT: ${{ github.event.inputs.environment }}
+                  PORT: ${{ secrets.PORT }}
+                  HOST: ${{ secrets.HOST }}
+                  NODE_ENV: ${{ secrets.NODE_ENV }}
+                  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+                  DATABASE_URL_DRIZZLE_MIGRATE: ${{ secrets.DATABASE_URL_DRIZZLE_MIGRATE }}
+                  POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+                  POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+                  POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
                   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
                   GOOGLE_STUDIO_API_KEY: ${{ secrets.GOOGLE_STUDIO_API_KEY }}
                   REDIS_HOST: ${{ secrets.REDIS_HOST }}
@@ -120,6 +128,14 @@ jobs:
                     ENV_FILE=".env.development"
                   fi
                   {
+                    echo "PORT=$PORT"
+                    echo "HOST=$HOST"
+                    echo "NODE_ENV=$NODE_ENV"
+                    echo "DATABASE_URL=$DATABASE_URL"
+                    echo "DATABASE_URL_DRIZZLE_MIGRATE=$DATABASE_URL_DRIZZLE_MIGRATE"
+                    echo "POSTGRES_DB=$POSTGRES_DB"
+                    echo "POSTGRES_USER=$POSTGRES_USER"
+                    echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD"
                     echo "OPENAI_API_KEY=$OPENAI_API_KEY"
                     echo "GOOGLE_STUDIO_API_KEY=$GOOGLE_STUDIO_API_KEY"
                     echo "REDIS_HOST=$REDIS_HOST"
@@ -191,6 +207,7 @@ jobs:
 
             - name: Pull image and restart container
               env:
+                  ENV_FILE: ${{ steps.envfile.outputs.env_file }}
                   HOST: ${{ secrets.VIETNIX_HOST }}
                   USERNAME: ${{ secrets.VIETNIX_USERNAME }}
                   PASSWORD: ${{ secrets.VIETNIX_PASSWORD }}
@@ -227,6 +244,7 @@ jobs:
                   docker run -d \
                     --name api-service \
                     --restart always \
+                    -e NODE_ENV=production \
                     -p 3444:3444 \
                     -v api-logs:/app/logs \
                     "$IMAGE:$TAG"

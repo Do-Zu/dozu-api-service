@@ -24,6 +24,6 @@ ARG ENV_FILE=.env.production
 COPY --from=builder /app/${ENV_FILE} ./.env
 COPY --from=builder /app/${ENV_FILE} ./${ENV_FILE}
 
-EXPOSE 3333
+EXPOSE 3444
 
 CMD ["npm", "start"]
