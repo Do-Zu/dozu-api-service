@@ -15,7 +15,7 @@ on:
             environment:
                 description: 'Environment to deploy to'
                 required: true
-                default: 'development'
+                default: 'production'
                 type: choice
                 options:
                     - development
@@ -198,11 +198,11 @@ jobs:
                   TAG: ${{ needs.build-push.outputs.tag }}
               run: |
                   set -e
-                  REMOTE_CMDS=$(cat <<'BASH'
+                  REMOTE_CMDS=$(cat <<BASH
                   set -e
-                  # login to Docker Hub (may require sudo)
+                  # login to Docker Hub
                   if command -v docker >/dev/null 2>&1; then
-                    echo "$DOCKER_TOKEN" | docker login -u "$DOCKER_USER" --password-stdin || true
+                    echo "$DOCKER_TOKEN" | docker login -u "$DOCKER_USER" --password-stdin --quiet || true
                   fi
                   # pull latest image
                   docker pull "$IMAGE:$TAG" || { echo "docker pull failed"; exit 1; }
@@ -219,7 +219,7 @@ jobs:
                     -v api-logs:/app/logs \
                     "$IMAGE:$TAG"
                   # cleanup unused images
-                  docker image prune -a -f
+                  docker image prune -f
                   docker ps
                   BASH
                   )
