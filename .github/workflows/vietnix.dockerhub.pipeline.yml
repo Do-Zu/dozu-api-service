@@ -229,6 +229,15 @@ jobs:
 
                   REMOTE_CMDS=$(cat <<'BASH'
                   set -e
+
+                  # Define variables
+                  CONTAINER_NAME="api-service"
+                  NETWORK_NAME="dozu-app-network"
+                  CONTAINER_PORT="3444"
+                  HOST_PORT="3444"
+                  VOLUME_NAME="api-logs"
+                  VOLUME_PATH="/app/logs"
+
                   # login to Docker Hub
                   if command -v docker >/dev/null 2>&1; then
                     echo "$DOCKER_TOKEN" | docker login -u "$DOCKER_USER" --password-stdin || true
@@ -242,11 +251,12 @@ jobs:
                   fi
                   # run container
                   docker run -d \
-                    --name api-service \
+                    --name "$CONTAINER_NAME"  \
                     --restart always \
+                    --network "$NETWORK_NAME" \
                     -e NODE_ENV=production \
-                    -p 3444:3444 \
-                    -v api-logs:/app/logs \
+                    -p "$HOST_PORT:$CONTAINER_PORT" \
+                    -v "$VOLUME_NAME:$VOLUME_PATH" \
                     "$IMAGE:$TAG"
                   # cleanup unused images
                   docker image prune -a -f
