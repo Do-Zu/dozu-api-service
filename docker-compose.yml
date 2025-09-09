@@ -64,7 +64,7 @@ services:
           memory: 500M
 
 networks:
-  app-network:
+  dozu-app-network:
     driver: bridge
 
 volumes:
