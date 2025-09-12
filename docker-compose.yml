@@ -37,7 +37,7 @@ services:
 
   postgres:
     container_name: postgres-db
-    image: postgres:14-alpine
+    image: postgres:17
     restart: always
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
@@ -64,7 +64,7 @@ services:
           memory: 500M
 
 networks:
-  app-network:
+  dozu-app-network:
     driver: bridge
 
 volumes:

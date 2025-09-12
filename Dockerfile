@@ -19,8 +19,11 @@ RUN npm ci --omit=dev
 
 COPY --from=builder /app/dist ./dist
 
-COPY --from=builder /app/.env.production ./.env.production
+ARG ENV_FILE=.env.production
 
-EXPOSE 3333
+COPY --from=builder /app/${ENV_FILE} ./.env
+COPY --from=builder /app/${ENV_FILE} ./${ENV_FILE}
+
+EXPOSE 3444
 
 CMD ["npm", "start"]
