@@ -4,6 +4,7 @@ import { generativeService } from '../v3/generative.service';
 
 export class PubSubGenerateManager extends BullMQService {
     protected static instance: PubSubGenerateManager;
+    private jobCompletionHandlers: Map<string, (jobId: string) => Promise<void> | void> = new Map();
 
     constructor() {
         super();
@@ -16,12 +17,14 @@ export class PubSubGenerateManager extends BullMQService {
         return PubSubGenerateManager.instance;
     }
 
+    // public registerJobCompletionHandler(queueName: string, handler: (jobId: string) => Promise<void> | void): void {
+    //     this.jobCompletionHandlers.set(queueName, handler);
+    // }
+
     /**
      * Override the event handlers for PubSub-specific behavior
      */
     protected override handleJobCompleted(jobId: string, queueName: string): void {
-        super.handleJobCompleted(jobId, queueName);
-
         generativeService.checkStatusDataGeneratedCache(jobId);
     }
 

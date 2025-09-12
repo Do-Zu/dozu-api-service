@@ -39,6 +39,7 @@ class GenerativeService extends BaseGenerativeService {
     private readonly DEFAULT_MAX_TOKEN_CONFIG = 8000;
     private readonly DEFAULT_TEMP = 0.2;
     private readonly CLIENT_WAIT_TIMEOUT = 60 * 10; // 10 minutes max wait for client connection
+    private readonly PREFIX_KEY_CACHED_JOB = 'JOB_GENERATED_MESSAGE_BULL_JOB_INDEX';
 
     constructor() {
         super();
@@ -48,9 +49,6 @@ class GenerativeService extends BaseGenerativeService {
 
         // Set up error handling for worker
         this.setupWorkerErrorHandlers();
-
-        // Set up callback for when SSE clients connect to check for pending results
-        sseManager.setOnClientConnectCallback(this.checkAndSendPendingResults.bind(this));
     }
 
     /**
@@ -105,19 +103,34 @@ class GenerativeService extends BaseGenerativeService {
                 throw new ServiceUnavailable('Processor received invalid data!');
             }
 
-            // Send data to client via SSE if connected
-            if (sseManager.isClientConnected(jobId)) {
-                const dataResponse = { ...dataGenerated, type };
-                const clientNotified = sseManager.sendEvent(jobId, dataResponse);
-                if (clientNotified) {
-                    logger.info(`Data sent to client for job ${jobId}`);
-                }
-            } else {
-                logger.info(`No client connected for job ${jobId}, storing result in Redis`);
+            const { id } = job;
+
+            if (id) {
+                await redisInstance.set(
+                    `${this.PREFIX_KEY_CACHED_JOB}:${id}`,
+                    {
+                        type,
+                        jobId,
+                    },
+                    this.RESULT_TTL
+                );
             }
+
+            //NOTE: Only store; do not emit SSE here (cross-instance emission handled in completion handler)
+            // Send data to client via SSE if connected
+            // if (sseManager.isClientConnected(jobId)) {
+            //     const dataResponse = { ...dataGenerated, type };
+            //     const clientNotified = sseManager.sendEvent(jobId, dataResponse);
+            //     if (clientNotified) {
+            //         logger.info(`Data sent to client for job ${jobId}`);
+            //     }
+            // } else {
+            //     logger.info(`No client connected for job ${jobId}, storing result in Redis`);
+            // }
 
             // Store result in Redis for later retrieval
             logger.info(`Storing result in Redis for job ${jobId}`);
+
             await this.storeData(dataGenerated, jobId, type);
         } catch (error) {
             this.handleProcessorError(error, jobId);
@@ -162,11 +175,17 @@ class GenerativeService extends BaseGenerativeService {
         await redisInstance.set(key, data, this.RESULT_TTL);
     }
 
+    private async makeResultGenerateSent(type: string, jobId: string): Promise<boolean> {
+        const key = `result:sent:${type}:${jobId}`;
+        const res = await redisInstance.setnx(key, '1');
+        return res === 1;
+    }
+
     /**
      *
      */
-    public async checkStatusDataGeneratedCache(jobId: string, type?: string): Promise<boolean> {
-        return await this.checkAndSendPendingResults(jobId, type);
+    public async checkStatusDataGeneratedCache(bullJobId: string): Promise<boolean> {
+        return await this.checkAndSendPendingResults(bullJobId);
     }
 
     /**
@@ -469,29 +488,61 @@ class GenerativeService extends BaseGenerativeService {
         }
     }
 
+    private async checkStatusOfMessage(bullJobId: string) {
+        const bullJob = await queue.getJob(WORKER_NAME, bullJobId);
+
+        if (bullJob && bullJob?.data)
+            return {
+                jobId: bullJob?.data?.jobId,
+                type: bullJob?.data?.type,
+            };
+
+        return await redisInstance.get(`${this.PREFIX_KEY_CACHED_JOB}:${bullJobId}`);
+    }
+
     /**
      * Check and send pending results when a client connects
      * This method is called when SSE client connects to check if there are already processed results
      */
-    private async checkAndSendPendingResults(jobId: string, type?: string): Promise<boolean> {
+    private async checkAndSendPendingResults(bullJobId: string): Promise<boolean> {
         try {
-            // Check all possible result types for this jobId
-            const resultTypes = type ? [...type] : ['FLASH_CARD', 'MULTIPLE_CHOICE', 'MIND_MAP'];
+            const messageInfo = await this.checkStatusOfMessage(bullJobId);
 
-            for (const type of resultTypes) {
-                const cachedResult = await redisInstance.get(`${type}:result:${jobId}`);
-                if (cachedResult) {
-                    sseManager.sendEvent(jobId, cachedResult);
+            if (!messageInfo?.jobId || !messageInfo.type) return false;
 
-                    return true;
+            const { jobId, type } = messageInfo;
+
+            if (!sseManager.isClientConnected(jobId)) {
+                // No local client; nothing to do (another instance may own it)
+                return false;
+            }
+
+            let cached;
+
+            const resultTypes = type ? [type] : ['FLASH_CARD', 'MULTIPLE_CHOICE', 'MIND_MAP'];
+
+            for (const typeMethod of resultTypes) {
+                const resultKey = `${typeMethod}:result:${jobId}`;
+
+                // Retry 5 times for result presence
+                for (let i = 0; i < 5; i++) {
+                    cached = await redisInstance.get(resultKey);
+                    if (cached) break;
                 }
             }
 
-            return false;
-        } catch (error) {
-            logger.error(
-                `Error checking pending results for job ${jobId}: ${error instanceof Error ? error.message : String(error)}`
-            );
+            if (!cached) {
+                logger.warn(`Cached result not found yet for job ${jobId} (type ${type}) on completion`);
+                return false;
+            }
+
+            sseManager.sendEvent(jobId, { ...cached, type });
+
+            logger.info(`SSE result delivered for job ${jobId}`);
+
+            return true;
+        } catch (err) {
+            logger.error(`Error in completion handler dispatch for job ${bullJobId}: ${(err as Error).message}`);
             return false;
         }
     }

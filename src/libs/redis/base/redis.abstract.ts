@@ -115,10 +115,19 @@ export abstract class AbstractRedisManager implements IRedisManager {
     public async set(key: string, value: unknown, ttlSeconds?: number): Promise<'OK'> {
         const redis = this.connect();
         const dataParse = JSON.stringify(value);
+
         if (ttlSeconds) {
             return redis.set(key, dataParse, 'EX', ttlSeconds);
         }
+
         return redis.set(key, dataParse);
+    }
+
+    public async setnx(key: string, value: unknown): Promise<number> {
+        const redis = this.connect();
+        const dataParse = JSON.stringify(value);
+
+        return redis.setnx(key, dataParse);
     }
 
     public async del(...keys: string[]): Promise<number> {
