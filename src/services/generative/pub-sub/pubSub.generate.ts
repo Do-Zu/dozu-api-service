@@ -21,10 +21,11 @@ export class PubSubGenerateManager extends BullMQService {
     //     this.jobCompletionHandlers.set(queueName, handler);
     // }
 
+    /* eslint-disable no-unused-vars */
     /**
      * Override the event handlers for PubSub-specific behavior
      */
-    protected override handleJobCompleted(jobId: string, queueName: string): void {
+    protected override handleJobCompleted(jobId: string, _queueName: string): void {
         generativeService.checkStatusDataGeneratedCache(jobId);
     }
 
