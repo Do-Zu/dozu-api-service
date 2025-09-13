@@ -1,7 +1,6 @@
 import db, { Transaction } from '@/libs/drizzleClient.lib';
 import { flashcardsTable, itemSpacedRepetitionTrackingTable, topicsTable } from '@/models';
 import { IFlashcardLearningState, IFlashcard } from '@/types/flashcard/flashcard.type';
-import { getDateFormatted } from '@/utils/date';
 import { and, asc, eq, lte } from 'drizzle-orm';
 import itemSpacedRepetitionTrackingService from '@/services/tracking/itemSpacedRepetitionTracking.service';
 
@@ -24,6 +23,7 @@ class FlashcardRepo {
                 reviewInterval: itemSpacedRepetitionTrackingTable.reviewInterval,
                 easinessFactor: itemSpacedRepetitionTrackingTable.easinessFactor,
                 repetitionNumber: itemSpacedRepetitionTrackingTable.repetitionNumber,
+                step: itemSpacedRepetitionTrackingTable.step,
             })
             .from(flashcardsTable)
             .innerJoin(
@@ -38,51 +38,10 @@ class FlashcardRepo {
         return flashcards[0];
     }
 
-    // public async getDueFlashcardsForUser(
-    //     userId: number,
-    //     currentDate: string
-    // ): Promise<IFlashcardsLearningForUserReturned> {
-    //     const flashcards = await db
-    //         .select({
-    //             flashcardId: flashcardsTable.flashcardId,
-    //             topicId: topicsTable.topicId,
-    //             topicName: topicsTable.name,
-    //             front: flashcardsTable.front,
-    //             back: flashcardsTable.back,
-
-    //             // learning state (sm-2)
-    //             status: itemSpacedRepetitionTrackingTable.status,
-    //             nextReview: itemSpacedRepetitionTrackingTable.nextReview,
-    //             reviewInterval: itemSpacedRepetitionTrackingTable.reviewInterval,
-    //             easinessFactor: itemSpacedRepetitionTrackingTable.easinessFactor,
-    //             repetitionNumber: itemSpacedRepetitionTrackingTable.repetitionNumber,
-    //         })
-    //         .from(flashcardsTable)
-    //         .innerJoin(topicsTable, eq(flashcardsTable.topicId, topicsTable.topicId))
-    //         .innerJoin(usersTable, eq(topicsTable.userId, usersTable.userId))
-    //         .innerJoin(
-    //             itemSpacedRepetitionTrackingTable,
-    //             and(
-    //                 eq(itemSpacedRepetitionTrackingTable.type, 'flashcard'),
-    //                 eq(itemSpacedRepetitionTrackingTable.itemId, flashcardsTable.flashcardId)
-    //             )
-    //         )
-    //         .where(
-    //             and(
-    //                 eq(usersTable.userId, userId),
-    //                 // ne(itemSpacedRepetitionTrackingTable.status, 'new'),
-    //                 lte(itemSpacedRepetitionTrackingTable.nextReview, getDateFormatted(currentDate))
-    //             )
-    //         )
-    //         .orderBy(asc(itemSpacedRepetitionTrackingTable.nextReview));
-
-    //     return flashcards;
-    // }
-
     public async getDueFlashcardsForTopicAndUser(
         topicId: number,
         userId: number,
-        currentDate: string
+        dueDate: string
     ): Promise<IFlashcard[]> {
         const flashcards = await db
             .select({
@@ -102,6 +61,7 @@ class FlashcardRepo {
                     reviewInterval: itemSpacedRepetitionTrackingTable.reviewInterval,
                     easinessFactor: itemSpacedRepetitionTrackingTable.easinessFactor,
                     repetitionNumber: itemSpacedRepetitionTrackingTable.repetitionNumber,
+                    step: itemSpacedRepetitionTrackingTable.step,
                 },
             })
             .from(flashcardsTable)
@@ -114,12 +74,7 @@ class FlashcardRepo {
                     eq(itemSpacedRepetitionTrackingTable.userId, userId) // specific user
                 )
             )
-            .where(
-                and(
-                    eq(topicsTable.topicId, topicId),
-                    lte(itemSpacedRepetitionTrackingTable.nextReview, getDateFormatted(currentDate))
-                )
-            )
+            .where(and(eq(topicsTable.topicId, topicId), lte(itemSpacedRepetitionTrackingTable.nextReview, dueDate)))
             .orderBy(asc(itemSpacedRepetitionTrackingTable.nextReview));
 
         return flashcards;

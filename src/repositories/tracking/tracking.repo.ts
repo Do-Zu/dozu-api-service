@@ -1,5 +1,5 @@
 import db from '@/libs/drizzleClient.lib';
-import { itemSpacedRepetitionTrackingTable } from '@/models';
+import { IItemStatus, itemSpacedRepetitionTrackingTable } from '@/models';
 import { and, desc, eq, inArray, isNotNull } from 'drizzle-orm';
 
 /**
@@ -32,7 +32,7 @@ class TrackingRepository {
             reviewInterval: number;
             lastReviewed: string | null;
             nextReview: string | null;
-            status: 'new' | 'learning' | 'review';
+            status: IItemStatus;
         }[] = await db
             .select({
                 topicId: itemSpacedRepetitionTrackingTable.topicId,
