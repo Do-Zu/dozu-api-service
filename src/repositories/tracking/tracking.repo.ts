@@ -1,6 +1,6 @@
 import db from '@/libs/drizzleClient.lib';
 import { IItemStatus, itemSpacedRepetitionTrackingTable } from '@/models';
-import { and, desc, eq, inArray, isNotNull } from 'drizzle-orm';
+import { and, desc, eq, isNotNull } from 'drizzle-orm';
 
 /**
  * Repository for Tracking data access operations
@@ -10,9 +10,12 @@ class TrackingRepository {
         return this.getTrackingByEarliestReviewedTopic(userId);
     }
 
-    private async getTrackingByEarliestReviewedTopic(userId: number) {
-        const earliestTopicSubquery = db
-            .select({ topicId: itemSpacedRepetitionTrackingTable.topicId })
+    public async getTopicLastUserReview(userId: number) {
+        const [earliestTopicSubquery] = await db
+            .select({
+                topicId: itemSpacedRepetitionTrackingTable.topicId,
+                type: itemSpacedRepetitionTrackingTable.type,
+            })
             .from(itemSpacedRepetitionTrackingTable)
             .where(
                 and(
@@ -23,6 +26,12 @@ class TrackingRepository {
             )
             .orderBy(desc(itemSpacedRepetitionTrackingTable.lastReviewed))
             .limit(1);
+
+        return earliestTopicSubquery;
+    }
+
+    private async getTrackingByEarliestReviewedTopic(userId: number) {
+        const { topicId } = await this.getTopicLastUserReview(userId);
 
         const result: {
             topicId: number;
@@ -45,7 +54,7 @@ class TrackingRepository {
                 status: itemSpacedRepetitionTrackingTable.status,
             })
             .from(itemSpacedRepetitionTrackingTable)
-            .where(inArray(itemSpacedRepetitionTrackingTable.topicId, earliestTopicSubquery));
+            .where(eq(itemSpacedRepetitionTrackingTable.topicId, topicId));
 
         return result;
     }

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { trackingService } from '@/services/tracking/tracking.service';
 import { SuccessResponse } from '@/core/success';
 import { BadRequest } from '@/core/error';
+import { getCurrentTimestampFromRequest } from '@/utils/date';
 
 /**
  * Controller class for Tracking functionality
@@ -19,8 +20,11 @@ class TrackingController {
             throw new BadRequest('User ID is required');
         }
 
+        const currentDate = getCurrentTimestampFromRequest(req);
+
         const result = await trackingService.getCurrentLearningTopicProgressTracking({
             userId,
+            currentDate,
         });
 
         SuccessResponse.ok(res, result, 'Current learning topic progress tracking retrieved successfully');
