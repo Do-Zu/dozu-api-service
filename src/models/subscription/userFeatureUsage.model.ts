@@ -1,4 +1,4 @@
-import { boolean, decimal, foreignKey, integer, pgTable, serial, timestamp } from 'drizzle-orm/pg-core';
+import { boolean, decimal, foreignKey, integer, pgTable, serial, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 import { usersTable } from '../user.model';
 import { featuresTable } from './feature.model';
 import { userSubscriptionsTable } from './userSubscription.model';
@@ -47,6 +47,11 @@ export const userFeatureUsageTable = pgTable(
             foreignColumns: [userSubscriptionsTable.subscriptionId],
             name: 'user_feature_usage_subscription_id_fk',
         }),
+        userFeatureUsagePeriodIdx: uniqueIndex('user_feature_usage_user_id_feature_id_reset_period_start_idx').on(
+            table.userId,
+            table.featureId,
+            table.resetPeriodStart
+        ),
     })
 );
 
