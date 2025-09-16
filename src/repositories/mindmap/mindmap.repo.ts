@@ -9,7 +9,7 @@ export const insertMindmap = async (inputMindmap: InsertMindmap): Promise<Select
     return insertedMindmap;
 };
 
-export const getMindmapByTopicId = async (topicId: number): Promise<SelectMindmap> => {
+export const getMindmapByTopicId = async (topicId: number): Promise<SelectMindmap | undefined> => {
     const [result] = await db.select().from(mindmapsTable).where(eq(mindmapsTable.topicId, topicId));
     return result;
 };
@@ -64,6 +64,9 @@ export const getFlashcardsByNodeId = async (nodeId: string) => {
 };
 
 export const getFlashcardProgress = async (userId: number, flashcardIds: number[]) => {
+    if (flashcardIds.length === 0) {
+        return { total: 0, mature: 0 };
+    } //Short-circuit when flashcardIds is empty.
     const result = await db
         .select({
             total: sql<number>`COUNT(*)`,
@@ -83,6 +86,9 @@ export const getFlashcardProgress = async (userId: number, flashcardIds: number[
     return result[0];
 };
 export const getFlashcardClassProgress = async (userIds: number[], flashcardIds: number[]) => {
+    if (userIds.length === 0 || flashcardIds.length === 0) {
+        return [];
+    }
     const result = await db
         .select({
             userId: itemSpacedRepetitionTrackingTable.userId,
@@ -107,11 +113,7 @@ export const getFlashcardClassProgress = async (userIds: number[], flashcardIds:
     return result;
 };
 
-export const getFlashcardsProgressByNodeId = async (nodeId: string) => {
-    const result = await db.select().from(flashcardsTable).where(eq(flashcardsTable.nodeId, nodeId));
 
-    return result;
-};
 
 export const deleteMindmapByTopicId = async (topicId: number, tx?: Transaction) => {
     const executor = tx ?? db;

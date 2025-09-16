@@ -45,12 +45,14 @@ export const saveTopicMindmapController = async (req: Request, res: Response) =>
 
 export const getTopicMindmapController = async (req: Request, res: Response) => {
     const topicId = parseInt(req.params.topicId);
+    // const userId = getUserIdFromRequest(req);
     const userId = getUserIdFromRequest(req);
+    if (!Number.isFinite(userId)) {
+        throw new BadRequest('Missing user id');
+    }
 
     if (!topicId) {
         throw new BadRequest('Missing topic id');
-    } else if (!userId) {
-        throw new BadRequest('Missing user id'); //?Consider if correct error
     } else {
         // const resultMindmap = await getMindmapByTopicId(topicId);npm
         const result = await getMindmapAndProgressSummaryService(topicId, userId);

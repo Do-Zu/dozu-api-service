@@ -30,10 +30,9 @@ router.post('/:topicId', saveTopicMindmapController);
 router.get('/:topicId', getTopicMindmapController);
 router.get('/:topicId/nodes', getAllNodesOfMindmapController);
 router.get('/:topicId/nodes/:nodeId/children', getAllChildrenOfANodeController);
-router.get('/:topicId/nodes/:nodeId', getSingularNodeController);
-router.get('/nodes/:nodeId', getFlashcardsOfNodeController);//todo - Duy: Check if  need to improve url structure
-router.get('/nodes/:nodeId/progress', getProgressOfNodeController);//todo - Duy: Check if  need to improve url structure
-router.get('/nodes/:nodeId/class-progress', getClassProgressOfNodeController);//todo - Duy: Consider if need to separate to class route
+// router.get('/:topicId/nodes/:nodeId', getSingularNodeController);
+router.get('/nodes/:nodeId', getFlashcardsOfNodeController); //todo - Duy: Check if  need to improve url structure
+router.get('/nodes/:nodeId/progress', getProgressOfNodeController); //todo - Duy: Check if  need to improve url structure
 router.get(
     '/:classId/:nodeId/class-progress',
     paramsValidator.validateId('classId'),

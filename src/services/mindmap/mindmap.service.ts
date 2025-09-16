@@ -4,7 +4,6 @@ import {
     getFlashcardClassProgress,
     getFlashcardProgress,
     getFlashcardsByNodeId,
-    getFlashcardsProgressByNodeId,
     getMindmapByTopicId,
     getNodesStats,
 } from '@/repositories/mindmap/mindmap.repo';
@@ -22,10 +21,14 @@ export const getSingleNodeService = async (topicId: number, nodeId: string) => {
 export const getMindmapAndProgressSummaryService = async (
     topicId: number,
     userId: number
-): Promise<{ mindmap: SelectMindmap; nodeStats: NodeStat[] }> => {
+): Promise<{ mindmap: SelectMindmap | undefined; nodeStats: NodeStat[] }> => {
     const mindmap = await getMindmapByTopicId(topicId);
     let nodeStats: NodeStat[] = [];
     // check null
+    if (!mindmap) {
+        return { mindmap: undefined, nodeStats: [] };
+    }//returns empty, handled on frontend
+
     if (!mindmap.mindmapData) {
         //returns empty, check on frontend if handled correctly
         return {
@@ -118,15 +121,15 @@ export const getFlashcardsOfNodeWithClassProgressSummaryService = async (
     return { flashcards: flashcardResult, summaryData: summaryData };
 };
 
-export const getProgressOfNodeService = async (
-    //todo:Split to repo layer
-    nodeId: string
-) => {
-    //todo:type array
-    const result = await getFlashcardsProgressByNodeId(nodeId);
+// export const getProgressOfNodeService = async (
+//     //todo:Split to repo layer
+//     nodeId: string
+// ) => {
+//     //todo:type array
+//     const result = await getFlashcardsProgressByNodeId(nodeId);
 
-    return result;
-};
+//     return result;
+// };
 
 export const changeNodeIdOfFlashcardsService = async (
     //todo:Split to repo layer
