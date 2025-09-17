@@ -1,7 +1,7 @@
 import { itemSpacedRepetitionTrackingTable } from '@/models/tracking/itemSpacedRepetitionTracking.model';
 import db from '@/libs/drizzleClient.lib';
 import { eq, and } from 'drizzle-orm';
-import SuperMemo2 from '@/services/spaced-repetition-system/super-memo-2/superMemo2.origin';
+import SuperMemo2 from '@/services/spaced-repetition-system/super-memo-2/superMemo2.service';
 
 export async function applySM2ForQuestion(userId: number, questionId: number, topicId: number, correct: boolean) {
   const now = new Date();

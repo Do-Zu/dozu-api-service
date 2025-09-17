@@ -8,24 +8,26 @@ class ItemSpacedRepetitionTrackingService {
         topicId: number,
         flashcardIds: number[]
     ): Promise<void> {
-        const data : ICreateTrackingRecord[] = flashcardIds.map(flashcardId => ({
+        const data: ICreateTrackingRecord[] = flashcardIds.map(flashcardId => ({
             userId,
             topicId,
             itemId: flashcardId,
             type: 'flashcard',
+            step: 0,
         }));
 
         await itemSpacedRepetitionTrackingRepo.initializeTrackingRecords(data);
     }
 
-    public async initializeStudentTrackingForTopic(studentId: number, topicId: number) : Promise<void> {
+    public async initializeStudentTrackingForTopic(studentId: number, topicId: number): Promise<void> {
         const flashcards = await flashcardRepo.getFlashcardsForTopic(topicId);
-        const data : ICreateTrackingRecord[] = flashcards.map(flashcard => ({
+        const data: ICreateTrackingRecord[] = flashcards.map(flashcard => ({
             userId: studentId,
             topicId,
             itemId: flashcard.flashcardId,
-            type: 'flashcard'
-        }))
+            type: 'flashcard',
+            step: 0,
+        }));
         await itemSpacedRepetitionTrackingRepo.initializeTrackingRecords(data);
     }
 }

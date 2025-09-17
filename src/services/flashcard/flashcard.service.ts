@@ -10,8 +10,8 @@ import {
     IImageSaveInput,
     IFlashcardBatchResult,
 } from '@/types/flashcard/flashcard.type';
-import { IQualityResponse } from '../spaced-repetition-system/super-memo-2/superMemo2.origin';
-import SuperMemo2 from '../spaced-repetition-system/super-memo-2/superMemo2.origin';
+import { IQualityResponse } from '../spaced-repetition-system/super-memo-2/superMemo2.service';
+import SuperMemo2 from '../spaced-repetition-system/super-memo-2/superMemo2.service';
 import { FlashcardItemInterface } from '@/dtos/generate';
 import { ICreateTrackingRecord } from '@/types/tracking/itemSpacedRepetitionTracking.type';
 import itemSpacedRepetitionTrackingRepo from '@/repositories/tracking/itemSpacedRepetitionTracking.repo';
@@ -19,12 +19,24 @@ import { getUserRoles } from '@/repositories/auth.repo';
 import classEnrollmentService from '../class-based-learning/classEnrollment.service';
 import topicService from '../topic/topic.service';
 import unsplashLib from '@/libs/unsplash.lib';
+import ankiService, {
+    IAnkiCard,
+    IAnkiRating,
+    INextReviewIntervalForRating,
+    learnAheadLimit,
+} from '../spaced-repetition-system/super-memo-2/anki.service';
+import { addMinutes } from 'date-fns';
 
 export type IFlashcardWithReviewPrediction = Pick<
     IFlashcard,
     'flashcardId' | 'front' | 'back' | 'imageUrl' | 'topicName'
 > & {
     qualityResponsesNextReviewInterval: IQualityResponseNextReviewInterval[];
+};
+
+export type ICardNextReviewSchedule = {
+    flashcardId: number;
+    nextReviewIntervalsForRating: INextReviewIntervalForRating[];
 };
 
 class FlashcardService {
@@ -78,6 +90,7 @@ class FlashcardService {
                         topicId,
                         itemId: flashcard.flashcardId,
                         type: 'flashcard',
+                        step: 0,
                     };
                 });
 
@@ -101,6 +114,7 @@ class FlashcardService {
                         topicId,
                         itemId: flashcard.flashcardId,
                         type: 'flashcard',
+                        step: 0,
                     };
                 });
 
@@ -132,6 +146,7 @@ class FlashcardService {
                             topicId,
                             itemId: flashcard.flashcardId,
                             type: 'flashcard',
+                            step: 0,
                         };
                     });
 
@@ -240,20 +255,14 @@ class FlashcardService {
         await flashcardRepo.applySM2ToFlashcard(userId, flashcardId, sm2);
     }
 
-    // public async getDueFlashcardsForUser(
-    //     userId: number,
-    //     currentDate: string
-    // ): Promise<IFlashcardsLearningForUserReturned> {
-    //     const flashcards = await flashcardRepo.getDueFlashcardsForUser(userId, currentDate);
-    //     return flashcards;
-    // }
-
     public async getDueFlashcardsForTopicAndUser(
         topicId: number,
         userId: number,
         currentDate: string
     ): Promise<IFlashcard[]> {
-        const flashcards = await flashcardRepo.getDueFlashcardsForTopicAndUser(topicId, userId, currentDate);
+        // serve for Anki algorithm
+        const dueDate = addMinutes(new Date(currentDate), learnAheadLimit);
+        const flashcards = await flashcardRepo.getDueFlashcardsForTopicAndUser(topicId, userId, dueDate.toISOString());
         return flashcards;
     }
 
@@ -293,6 +302,31 @@ class FlashcardService {
                 });
             }
             result.push(data);
+        }
+        return result;
+    }
+
+    public getCardNextReview(flashcardId: number, learningState: IFlashcardLearningState): ICardNextReviewSchedule {
+        if (!learningState) {
+            throw new Error('Flashcard does not have learningState');
+        }
+        let result: ICardNextReviewSchedule = {
+            flashcardId,
+            nextReviewIntervalsForRating: [],
+        };
+        let rating = IAnkiRating.AGAIN;
+        for (; rating <= IAnkiRating.EASY; ++rating) {
+            const ankiCard: IAnkiCard = {
+                ...learningState,
+                step: learningState.step,
+                flashcardId,
+                lastReviewed: learningState.lastReviewed ? new Date(learningState.lastReviewed) : null,
+            };
+            const ankiResult = ankiService.schedule(ankiCard, rating);
+            result.nextReviewIntervalsForRating.push({
+                rating,
+                interval: ankiResult.nextReviewInterval,
+            });
         }
         return result;
     }

@@ -439,3 +439,13 @@ export function getUTCDate(): Date {
 export function getSystemDate(): Date {
     return new Date();
 }
+
+export enum TimeUnit {
+    SECOND = 'seconds',
+    MINUTE = 'minutes',
+    HOUR = 'hours',
+    DAY = 'days',
+    WEEK = 'weeks',
+    MONTH = 'months',
+    YEAR = 'years',
+}

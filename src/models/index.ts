@@ -63,3 +63,8 @@ export * from '@/models/teacher-request/teacherRequest.model';
 
 export * from '@/models/class-based-learning/classFeed.model';
 
+
+// progress
+export * from '@/models/progress/progress.model';
+
+export * from '@/models/progress/dailyStudy.model';
