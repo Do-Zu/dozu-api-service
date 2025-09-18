@@ -12,6 +12,7 @@ export interface IItemSpacedRepetition {
     lastReviewed: string | null;
     nextReview: string;
     status: IFlashcardStatus;
+    step: number | null;
 }
 
 export type ICreateTrackingRecord = Pick<IItemSpacedRepetition, 'userId' | 'topicId' | 'itemId' | 'type'>;

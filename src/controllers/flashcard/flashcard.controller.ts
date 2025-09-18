@@ -1,4 +1,4 @@
-import { BadRequest, DatabaseError } from '@/core/error';
+import { BadRequest } from '@/core/error';
 import { SuccessResponse } from '@/core/success';
 import flashcardService, { IFlashcardWithReviewPrediction } from '@/services/flashcard/flashcard.service';
 import topicService from '@/services/topic/topic.service';
@@ -7,14 +7,21 @@ import {
     IFlashcardLearningState,
     IFlashcardsBatchInput,
     IFlashcardBatchResult,
+    IDueAnkiCard,
+    IAnkiCardReviewed,
 } from '@/types/flashcard/flashcard.type';
 import logger from '@/utils/logger';
 import { Request, Response } from 'express';
-import SuperMemo2, { IQualityResponse } from '@/services/spaced-repetition-system/super-memo-2/superMemo2.origin';
+import SuperMemo2, { IQualityResponse } from '@/services/spaced-repetition-system/super-memo-2/superMemo2.service';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
-import { getCurrentDateFromRequest } from '@/utils/date';
+import { getCurrentDateFromRequest, getCurrentTimestampFromRequest, TimeUnit } from '@/utils/date';
 import requestHelper from '@/core/request/request.helper';
 import unsplashLib, { IUnspashImage } from '@/libs/unsplash.lib';
+import ankiService, {
+    IAnkiCard,
+    IAnkiRating,
+    learnAheadLimit,
+} from '@/services/spaced-repetition-system/super-memo-2/anki.service';
 class FlashcardController {
     constructor() {}
 
@@ -53,7 +60,6 @@ class FlashcardController {
     public async handleBatchFlashcardsForNode(req: Request, res: Response): Promise<void> {
         const userId = getUserIdFromRequest(req);
 
-        // let { topicId } = req.body as { topicId: string };
         let { topicId } = req.params as { topicId: string };
         let { nodeId } = req.body as { nodeId: string };
 
@@ -76,41 +82,17 @@ class FlashcardController {
 
         const { flashcardsAdded, flashcardsUpdated, flashcardsDeleted }: IFlashcardsBatchInput = req.body.flashcards;
 
-        try {
-            await flashcardService.handleBatchFlashcardsForNode(userId, parsedTopicId, nodeId, {
-                flashcardsAdded,
-                flashcardsUpdated,
-                flashcardsDeleted,
-            });
-        } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
-        }
+        await flashcardService.handleBatchFlashcardsForNode(userId, parsedTopicId, nodeId, {
+            flashcardsAdded,
+            flashcardsUpdated,
+            flashcardsDeleted,
+        });
 
         SuccessResponse.created(res, {});
     }
 
-    // todo-ka: check if this necessary, yes => create middleware for security
-    // public async getDueFlashcardsForUser(req: Request, res: Response): Promise<void> {
-    //     const currentDate = getCurrentDateFromRequest(req);
-    //     const userId = getUserIdFromRequest(req);
-
-    //     let flashcards: IFlashcardsLearningForUserReturned;
-    //     try {
-    //         flashcards = await flashcardService.getDueFlashcardsForUser(userId, currentDate);
-    //     } catch (err) {
-    //         logger.error(err);
-    //         throw new DatabaseError('Something went wrong :((');
-    //     }
-
-    //     let flashcardsReturned: IFlashcardNextReviewReturned[] =
-    //         await flashcardService.getReviewIntervalsByQualityResponses(flashcards);
-
-    //     SuccessResponse.ok(res, flashcardsReturned);
-    // }
-
     public async getDueFlashcardsForTopic(req: Request, res: Response): Promise<void> {
-        const currentDate = getCurrentDateFromRequest(req);
+        const currentDate = getCurrentTimestampFromRequest(req);
         const userId = getUserIdFromRequest(req);
         const topicId = requestHelper.getIdParam(req, 'topicId');
 
@@ -122,6 +104,7 @@ class FlashcardController {
         SuccessResponse.ok(res, flashcardsReturned);
     }
 
+    // original SM-2 algorithm
     public async reviewFlashcardWithQuality(req: Request, res: Response): Promise<void> {
         const userId = getUserIdFromRequest(req);
         const flashcardId = requestHelper.getIdParam(req, 'flashcardId');
@@ -147,14 +130,10 @@ class FlashcardController {
             reviewInterval: sm2.reviewInterval,
             lastReviewed: currentDate,
             nextReview,
+            step: null,
         };
 
-        try {
-            await flashcardService.applySM2ToFlashcard(userId, flashcardId, sm2Info);
-        } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
-        }
+        await flashcardService.applySM2ToFlashcard(userId, flashcardId, sm2Info);
 
         SuccessResponse.ok(res, {});
     }
@@ -180,6 +159,80 @@ class FlashcardController {
             };
         });
 
+        SuccessResponse.ok(res, result);
+    }
+
+    // Anki SM2 algorithm
+    public async reviewFlashcardByAnki(req: Request, res: Response): Promise<void> {
+        const userId = getUserIdFromRequest(req);
+        const flashcardId = requestHelper.getIdParam(req, 'flashcardId');
+        const { rating } = req.body as { rating: IAnkiRating };
+
+        const flashcard: IFlashcardLearningState =
+            await flashcardService.getSpacedRepetitionDataForFlashcard(flashcardId);
+
+        if (!flashcard) {
+            throw new BadRequest('Flashcard is invalid');
+        }
+
+        const ankiCard: IAnkiCard = {
+            ...flashcard,
+            step: flashcard.step,
+            flashcardId,
+            lastReviewed: flashcard.lastReviewed ? new Date(flashcard.lastReviewed) : null,
+        };
+
+        const ankiResult = ankiService.schedule(ankiCard, rating);
+
+        const sm2Info: IFlashcardLearningState = {
+            repetitionNumber: 0,
+            status: ankiResult.status,
+            easinessFactor: ankiResult.easinessFactor,
+            reviewInterval: ankiResult.reviewInterval,
+            lastReviewed: ankiResult.lastReviewed ? ankiResult.lastReviewed.toISOString() : null,
+            nextReview: ankiResult.nextReview.toISOString(),
+            step: ankiResult.step,
+        };
+
+        await flashcardService.applySM2ToFlashcard(userId, flashcardId, sm2Info);
+
+        let result: IAnkiCardReviewed | null;
+        if (
+            ankiResult.nextReviewInterval.timeUnit === TimeUnit.MINUTE &&
+            ankiResult.nextReviewInterval.interval <= learnAheadLimit
+        ) {
+            result = {
+                flashcardId,
+                nextReview: sm2Info.nextReview,
+                status: sm2Info.status,
+                nextReviewSchedule: flashcardService.getCardNextReview(flashcardId, sm2Info),
+            };
+        } else {
+            result = null;
+        }
+
+        SuccessResponse.ok(res, result);
+    }
+
+    public async getDueAnkiCardsForTopic(req: Request, res: Response) {
+        const currentTimestamp = getCurrentTimestampFromRequest(req);
+        const userId = getUserIdFromRequest(req);
+        const topicId = requestHelper.getIdParam(req, 'topicId');
+
+        const flashcards = await flashcardService.getDueFlashcardsForTopicAndUser(topicId, userId, currentTimestamp);
+
+        const result: IDueAnkiCard[] = flashcards.map(card => {
+            return {
+                flashcardId: card.flashcardId,
+                front: card.front,
+                back: card.back,
+                iamgeUrl: card.imageUrl,
+                topicName: card.topicName,
+                nextReviewSchedule: flashcardService.getCardNextReview(card.flashcardId, card.learningState!),
+                nextReview: card.learningState!.nextReview,
+                status: card.learningState!.status,
+            };
+        });
         SuccessResponse.ok(res, result);
     }
 }
