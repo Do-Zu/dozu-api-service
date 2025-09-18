@@ -1,4 +1,6 @@
 import ProfileRepository from '@/repositories/profile/profile.repo';
+import pointsService from '@/services/gamification/points.service';
+import streakService from '@/services/gamification/streak.service';
 import { NotFoundError, BadRequest } from '@/core/error';
 import { hashPassword, verifyPassword } from '@/utils/auth/hash.utils';
 import path from 'path';
@@ -32,7 +34,34 @@ class ProfileService {
   public async getProfile(userId: number): Promise<ProfileData> {
     const user = await this.profileRepo.getUserById(userId);
     if (!user) throw new NotFoundError('User not found');
-    return this.mapUserToProfileData(user);
+    
+    // Get gamification data
+    const profileData = this.mapUserToProfileData(user);
+    
+    try {
+      const points = await pointsService.getUserPoints(userId);
+      const streak = await streakService.getUserStreak(userId);
+      
+      profileData.gamificationStats = {
+        totalPoints: points?.totalPoints || 0,
+        currentStreak: streak?.currentStreak || 0,
+        longestStreak: streak?.longestStreak || 0,
+        level: Math.floor((points?.totalPoints || 0) / 200) + 1,
+        experiencePoints: (points?.totalPoints || 0) % 200,
+        nextLevelExperience: 200,
+        achievements: [], // TODO: Add achievements when implemented
+        weeklyActivity: [0, 0, 0, 0, 0, 0, 0], // TODO: Get real weekly activity
+        totalLessonsCompleted: 0, // TODO: Calculate from transactions
+        totalQuizzesCompleted: 0, // TODO: Calculate from transactions
+        totalFlashcardsReviewed: 0, // TODO: Calculate from transactions
+        averageScore: 85.0 // TODO: Calculate real average score
+      };
+    } catch (error) {
+      logger.warn('Failed to get gamification stats for user', { userId, error });
+      // Continue without gamification stats
+    }
+    
+    return profileData;
   }
 
   /**

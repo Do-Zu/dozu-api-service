@@ -68,6 +68,13 @@ export const usersTable = pgTable('users', {
   isNewUser: boolean('is_new_user').default(true),
   hasCompletedOnboarding: boolean('has_completed_onboarding').default(false),
   
+  // Streak and gamification
+  currentStreak: serial('current_streak').default(0),
+  longestStreak: serial('longest_streak').default(0),
+  lastStudyDate: timestamp('last_study_date', { withTimezone: true }).defaultNow(),
+  streakFreezeUsed: boolean('streak_freeze_used').default(false),
+  streakFreezeCount: serial('streak_freeze_count').default(0),
+  
   // Timestamps
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }),

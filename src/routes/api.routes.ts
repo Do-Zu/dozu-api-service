@@ -31,6 +31,8 @@ import './notification/notification.route';
 import './onboarding/onboarding.routes';
 import './teacher-request/teacherRequest.routes';
 import './class-based-learning/classEnrollment.routes';
+import './gamification/streak.routes';
+import './gamification/points.routes';
 
 // Apply global async handler to router
 globalAsyncHandler(router);
