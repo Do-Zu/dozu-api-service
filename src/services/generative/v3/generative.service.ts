@@ -20,6 +20,7 @@ import { STATUS_GEN } from '../utils/constant';
 import { JOB_NAME, WORKER_NAME } from '../constants/constant';
 import { HTTP_STATUS } from '@/constants/index.constant';
 import { validatePayloadSizeBuffer } from '../utils/validate';
+import { lowercase } from '@/utils/common';
 
 /**
  * Main generative service implementation
@@ -32,6 +33,14 @@ import { validatePayloadSizeBuffer } from '../utils/validate';
  * 5. Result caching in Redis
  */
 class GenerativeService extends BaseGenerativeService {
+    private readonly TYPE_PROMPT_MAPPING: Record<string, TYPE_PROMPT> = {
+        flashcard: 'FLASH_CARD',
+        quiz: 'QUIZ',
+        mindmap: 'MIND_MAP',
+        feynman_review: 'FEYNMAN_REVIEW',
+        feynman_question: 'FEYNMAN_QUESTION',
+    };
+
     // BullMQ Worker configuration
     private worker: Worker;
     private readonly RESULT_TTL: number = 60 * 5; // 5 minutes
@@ -188,6 +197,11 @@ class GenerativeService extends BaseGenerativeService {
         return await this.checkAndSendPendingResults(bullJobId);
     }
 
+    private mapRequestType(input: string): TYPE_PROMPT {
+        const key = lowercase(input);
+        return this.TYPE_PROMPT_MAPPING[key] ?? 'FLASH_CARD';
+    }
+
     /**
      * Register a content generation request
      * This is the main entry point for content generation
@@ -201,18 +215,7 @@ class GenerativeService extends BaseGenerativeService {
         const jobId = uuidv4();
 
         // Map request type to prompt type
-        let typeSending: TYPE_PROMPT = 'FLASH_CARD';
-        switch (type) {
-            case 'flashcard':
-                typeSending = 'FLASH_CARD';
-                break;
-            case 'quiz':
-                typeSending = 'QUIZ';
-                break;
-            case 'mindmap':
-                typeSending = 'MIND_MAP';
-                break;
-        }
+        const typeSending: TYPE_PROMPT = this.mapRequestType(type);
 
         // Create job data
         const dataSend: ContentGenerationJobDataInterface = {

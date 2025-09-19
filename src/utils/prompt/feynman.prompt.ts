@@ -12,7 +12,7 @@ type FeynmanPromptOptions = {
     customInstructions?: string; // extra caller-supplied instructions
 };
 
-function createFeynmanPrompt(content: string, topic?: string): string {
+function createFeynmanPromptGenerateQuestion(content: string, topic?: string): string {
     return buildFeynmanPromptTemplate(content, topic, {
         maxQuestions: 10,
         maxHints: 7,
@@ -22,7 +22,11 @@ function createFeynmanPrompt(content: string, topic?: string): string {
     });
 }
 
-function createCustomFeynmanPrompt(content: string, topic?: string, options: FeynmanPromptOptions = {}): string {
+function createCustomFeynmanPromptGenerateQuestion(
+    content: string,
+    topic?: string,
+    options: FeynmanPromptOptions = {}
+): string {
     return buildFeynmanPromptTemplate(content, topic, options);
 }
 
@@ -217,7 +221,7 @@ Generation guidelines:
 
 Topic: ${topic ?? 'N/A'}
 
-Learner explanation:
+Learner requirement and explanation:
 ${userExplanation}
 
 Reference content (optional)${wasTruncated ? ' (truncated for processing)' : ''}:
@@ -228,4 +232,8 @@ ${customInstructions ? `Additional instructions: ${customInstructions}` : ''}
 Return only the JSON object with exactly these keys: "scores", "feedback", "improvedExplanation", "stepByStep", "hints", "questions", "detectedGaps", "glossary", "actionPlan".`;
 }
 
-export { createFeynmanPrompt, createCustomFeynmanPrompt, createFeynmanEvaluationPrompt };
+export {
+    createFeynmanPromptGenerateQuestion,
+    createCustomFeynmanPromptGenerateQuestion,
+    createFeynmanEvaluationPrompt,
+};
