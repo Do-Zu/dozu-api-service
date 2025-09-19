@@ -2,7 +2,7 @@ import { SuccessResponse } from '@/core/success';
 import { Request, Response } from 'express';
 import topicService from '@/services/topic/topic.service';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
-import { getCurrentDateFromRequest } from '@/utils/date';
+import { getCurrentTimestampFromRequest } from '@/utils/date';
 import { ICreateTopicBody, ITopic, IUpdateTopicBody } from '@/types/topic/topic.type';
 import { updateTopicIdOfInputSet } from '@/repositories/inputSet.repo';
 import requestHelper from '@/core/request/request.helper';
@@ -20,7 +20,7 @@ class TopicController {
     }
 
     public async getTopicsForUser(req: Request, res: Response): Promise<void> {
-        const currentDate = getCurrentDateFromRequest(req);
+        const currentDate = getCurrentTimestampFromRequest(req);
         const userId = getUserIdFromRequest(req);
 
         const topics: ITopic[] = await topicService.getTopicsForUser(userId, currentDate);
