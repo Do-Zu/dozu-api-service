@@ -118,6 +118,7 @@ ${topic ?? 'N/A'}
 Content${wasTruncated ? ' (truncated for processing)' : ''}:
 <<__CONTENT__>>
 ${truncated}${wasTruncated ? '\n...(content continues)...' : ''}
+${customInstructions ? `Additional instructions: ${customInstructions}` : ''}
 <<__END_CONTENT__>>
 
 Return only the JSON object described above, with exactly the three keys: "questions", "hints", "detectedGaps". Begin your response with '{' and end with '}'.`;
