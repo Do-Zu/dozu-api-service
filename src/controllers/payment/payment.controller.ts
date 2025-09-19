@@ -1,4 +1,4 @@
-import { BadRequest } from '@/core/error';
+import { AuthenticationError, BadRequest } from '@/core/error';
 import { SuccessResponse } from '@/core/success';
 import { paymentService } from '@/services/payment/payment.service';
 import { sepayWebhookService } from '@/services/payment/sepay-webhook.service';
@@ -15,6 +15,9 @@ export const PREFIX_KEY_SSE_SEPAY = 'PAYMENT-SEPAY-SSE-WEBHOOK';
  */
 class PaymentController {
     async createLinkPaymentWithPayOS(req: Request, res: Response) {
+         if (!req.currentUser) {
+            throw new AuthenticationError('Login information is invalid');
+        }
         const userId = req.currentUser.userId;
         const timeZone = getTimezoneClient(req);
         const paymentData = req.body;
@@ -29,13 +32,16 @@ class PaymentController {
             ...paymentData,
             userId,
             planId,
-            timeZone
+            timeZone,
         });
 
         SuccessResponse.created(res, paymentLink);
     }
 
     async createLinkPaymentWithSepay(req: Request, res: Response) {
+        if (!req.currentUser) {
+            throw new AuthenticationError('Login information is invalid');
+        }
         const userId = req.currentUser.userId;
         const timeZone = getTimezoneClient(req);
         const paymentData = req.body;

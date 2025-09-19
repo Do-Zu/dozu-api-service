@@ -1,3 +1,4 @@
+import { InternalServerError } from '@/core/error';
 import { getOAuthToken } from '@/libs/googleOAuth2Client';
 import { sendVerificationLinkEmail } from '@/libs/nodeMailerTransporter.lib';
 import { InsertAuthAccount } from '@/models';
@@ -19,25 +20,101 @@ import {
     updateLastLoginAt,
     updateUserIsVerified,
 } from '@/repositories/auth.repo';
+import { DecodedTokenPayload } from '@/types/auth/jwtPayload.type';
+import { SanitizedUser } from '@/types/auth/sanitizedUser.type';
+import { sanitizeUserObject } from '@/utils/auth/authHelpers.utils';
 import { hashPassword, verifyPassword } from '@/utils/auth/hash.utils';
-import { decodeJwtToken } from '@/utils/auth/jwt.utils';
+import { decodeJwtToken, signAccessJwtToken, signRefreshJwtToken } from '@/utils/auth/jwt.utils';
+import jwt from 'jsonwebtoken';
+
+const SECRET = process.env.JWT_SECRET;
 
 // type for getLoginData response
 export interface UserLoginDataResponse extends SelectUser {
     roles: string[];
     permissions?: string[]; // optional, implement in the future
-}  
+}
+
+type LoginResult2 =
+    | { success: true; user: SanitizedUser; accessToken: string; refreshToken: string }
+    | { success: false; reason: string }; //todo:reformat as template type for every services
 
 type LoginResult = { success: true; user: UserLoginDataResponse } | { success: false; reason: string }; //todo:reformat as template type for every services
 
-const getLoginData = async (userId: number) : Promise<UserLoginDataResponse> => {
+type RefreshTokenResult =
+    | { success: true; user: SanitizedUser; accessToken: string }
+    | { success: false; reason: string };
+
+export const loginService = async ({
+    username,
+    password,
+}: {
+    username: string;
+    password: string;
+}): Promise<LoginResult2> => {
+    const userData = await selectOneUserByUsername(username);
+    if (!userData) return { success: false, reason: 'Username does not exist' };
+    if (!userData.passwordHash) return { success: false, reason: 'Password is not set up' };
+
+    const isCorrectPassword = await verifyPassword(password, userData.passwordHash);
+    if (!userData.isActive) {
+        //checks if user is banned
+        return { success: false, reason: 'Account is inactive' };
+    } else if (isCorrectPassword) {
+        const updatedUser = await getLoginData(userData.userId);
+        const sanitizedUser = sanitizeUserObject(updatedUser);
+
+        const accessToken = signAccessJwtToken(sanitizedUser);
+        const refreshToken = signRefreshJwtToken(sanitizedUser);
+
+        return {
+            success: true,
+            user: sanitizedUser,
+            accessToken,
+            refreshToken,
+        };
+    } else {
+        return { success: false, reason: 'Username or password is not correct' };
+    }
+};
+
+export const refreshTokenService = async ({ refreshToken }: { refreshToken: string }): Promise<RefreshTokenResult> => {
+    if (!SECRET) {
+        throw new InternalServerError('JWT_SECRET is not defined in environment variables');
+    }
+    let decoded: DecodedTokenPayload;
+    try {
+        decoded = jwt.verify(refreshToken, SECRET) as DecodedTokenPayload;
+        //.verify Validates expiration by default
+    } catch (error) {
+        console.log(error);
+        return { success: false, reason: 'refresh token does not exist or is invalid' };
+    }
+
+    //fetch updated user information
+    if (!decoded.user) {
+        return { success: false, reason: 'Password is not set up' };
+    }
+    const userId = decoded.user.userId;
+    const userData = await getLoginData(userId);
+    if (!userData) return { success: false, reason: 'User does not exist' };
+    if (!userData.passwordHash) return { success: false, reason: 'Password is not set up' };
+
+    const sanitizedUser = sanitizeUserObject(userData);
+
+    const accessToken = signAccessJwtToken(sanitizedUser);
+
+    return { success: true, user: sanitizedUser, accessToken: accessToken };
+};
+
+const getLoginData = async (userId: number): Promise<UserLoginDataResponse> => {
     const updatedUser = await updateLastLoginAt(userId);
     const rolesSystem = await getRoles(); //get all roles in system from db
     const userRoleEntries = await getUserRoles(userId); //get all roles of user
     const userRoles = [];
     for (let roleEntry of userRoleEntries) {
         const role = rolesSystem.find(role => role.roleId === roleEntry.roleId);
-        if(role) userRoles.push(role.name); // to not add undefined to the array
+        if (role) userRoles.push(role.name); // to not add undefined to the array
     }
     return { ...updatedUser, roles: userRoles };
 };
@@ -51,24 +128,6 @@ const addRoleUserForAccount = async (userId: number) => {
 export const addRoleTeacherForAccount = async (userId: number) => {
     const teacherRoleId = await getTeacherRoleId();
     await addRole(teacherRoleId, userId);
-}
-
-export const loginService = async (username: string, password: string): Promise<LoginResult> => {
-    const userData = await selectOneUserByUsername(username);
-    if (!userData) return { success: false, reason: 'Username does not exist' };
-    if (!userData.passwordHash) return { success: false, reason: 'Password is not set up' };
-
-    const isCorrectPassword = await verifyPassword(password, userData.passwordHash);
-    if (isCorrectPassword) {
-        const updatedUser = await getLoginData(userData.userId);
-
-        return {
-            success: true,
-            user: updatedUser,
-        };
-    } else {
-        return { success: false, reason: 'Username or password is not correct' };
-    }
 };
 
 //todo:format response with types

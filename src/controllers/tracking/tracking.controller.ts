@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { trackingService } from '@/services/tracking/tracking.service';
 import { SuccessResponse } from '@/core/success';
-import { BadRequest } from '@/core/error';
+import { AuthenticationError, BadRequest } from '@/core/error';
 
 /**
  * Controller class for Tracking functionality
@@ -13,6 +13,9 @@ class TrackingController {
      * @param res - Express response object
      */
     public async getCurrentLearningTopicProgressTracking(req: Request, res: Response): Promise<void> {
+        if (!req.currentUser) {
+            throw new AuthenticationError('Login information is invalid');
+        }
         const { userId } = req.currentUser;
 
         if (isNaN(userId) || userId <= 0) {
@@ -32,6 +35,9 @@ class TrackingController {
      * @param res - Express response object
      */
     public async requestTrackingTimeLearningActive(req: Request, res: Response): Promise<void> {
+         if (!req.currentUser) {
+            throw new AuthenticationError('Login information is invalid');
+        }
         const { userId } = req.currentUser;
 
         if (isNaN(userId) || userId <= 0) {
