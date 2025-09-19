@@ -22,7 +22,6 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
     }
 
     try {
-        console.log(accessToken, 'accessTOken');
         const decoded: any = jwt.verify(accessToken, SECRET);
         //.verify Validates expiration by default
 
@@ -30,8 +29,7 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
 
         next();
     } catch (error) {
-        console.log(error);
-        logger.warn('Invalid token');
+        logger.warn('Invalid token', error);
         throw new AuthenticationError('Unauthorized: Invalid token');
     }
 };
