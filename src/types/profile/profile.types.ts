@@ -2,14 +2,14 @@ import { Request } from 'express';
 import type { NotificationSettings, PrivacySettings } from '@/models/user.model';
 
 // Extend Express Request to include user
-export interface AuthenticatedRequest extends Request {
-  currentUser?: {
-    userId: string;
-    username: string;
-    email: string;
-    role: string;
-  };
-}
+// export interface AuthenticatedRequest extends Request {
+//   currentUser?: {
+//     userId: string;
+//     username: string;
+//     email: string;
+//     role: string;
+//   };
+// }
 
 // Profile data interface - extends the database model
 export interface ProfileData {
