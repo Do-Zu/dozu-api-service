@@ -12,9 +12,13 @@ import {
 import {
     changeNodeIdOfFlashcardsService,
     getFlashcardsOfNodeService,
+    getFlashcardsOfNodeWithClassProgressSummaryService,
+    getFlashcardsOfNodeWithSummaryService,
+    getMindmapAndProgressSummaryService,
     getSingleNodeService,
 } from '@/services/mindmap/mindmap.service';
 import { uploadImage } from '@/libs/cloudinary.lib';
+import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 
 export const saveTopicMindmapController = async (req: Request, res: Response) => {
     const topicId = parseInt(req.params.topicId);
@@ -41,12 +45,19 @@ export const saveTopicMindmapController = async (req: Request, res: Response) =>
 
 export const getTopicMindmapController = async (req: Request, res: Response) => {
     const topicId = parseInt(req.params.topicId);
+    // const userId = getUserIdFromRequest(req);
+    const userId = getUserIdFromRequest(req);
+    if (!Number.isFinite(userId)) {
+        throw new BadRequest('Missing user id');
+    }
 
     if (!topicId) {
         throw new BadRequest('Missing topic id');
     } else {
-        const resultMindmap = await getMindmapByTopicId(topicId);
-        SuccessResponse.ok(res, { resultMindmap });
+        // const resultMindmap = await getMindmapByTopicId(topicId);npm
+        const result = await getMindmapAndProgressSummaryService(topicId, userId);
+
+        SuccessResponse.ok(res, { ...result });
     }
 };
 
@@ -116,7 +127,29 @@ export const addFlashcardsToNodeController = async (req: Request, res: Response)
 
 export const getFlashcardsOfNodeController = async (req: Request, res: Response) => {
     const nodeId = req.params.nodeId;
+    const userId = getUserIdFromRequest(req);
+    const result = await getFlashcardsOfNodeWithSummaryService(userId, nodeId);
+    SuccessResponse.ok(res, result);
+};
+
+export const getProgressOfNodeController = async (req: Request, res: Response) => {
+    const nodeId = req.params.nodeId;
     const result = await getFlashcardsOfNodeService(nodeId);
+    SuccessResponse.ok(res, result);
+};
+
+export const getClassProgressOfNodeController = async (req: Request, res: Response) => {
+    let { classId } = req.params as { classId: string | number };
+    classId = parseInt(classId as string);
+    if (isNaN(classId)) {
+        throw new BadRequest('Invalid param, cannot get students');
+    }
+
+    //  const studentResult: IStudentInClass[] = await classEnrollmentService.getStudentsInClass(classId);
+    //         // SuccessResponse.ok(res, result);
+
+    const nodeId = req.params.nodeId;
+    const result = await getFlashcardsOfNodeWithClassProgressSummaryService(classId, nodeId);
     SuccessResponse.ok(res, result);
 };
 

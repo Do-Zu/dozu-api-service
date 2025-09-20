@@ -321,6 +321,7 @@ class FlashcardService {
                 step: learningState.step,
                 flashcardId,
                 lastReviewed: learningState.lastReviewed ? new Date(learningState.lastReviewed) : null,
+                nextReview: new Date(learningState.nextReview),
             };
             const ankiResult = ankiService.schedule(ankiCard, rating);
             result.nextReviewIntervalsForRating.push({

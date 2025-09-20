@@ -91,6 +91,7 @@ class FlashcardController {
         SuccessResponse.created(res, {});
     }
 
+    // !old version: get due flashcards by original SM2 algorithm, replaced by get cards by Anki algorithm
     public async getDueFlashcardsForTopic(req: Request, res: Response): Promise<void> {
         const currentDate = getCurrentTimestampFromRequest(req);
         const userId = getUserIdFromRequest(req);
@@ -104,8 +105,8 @@ class FlashcardController {
         SuccessResponse.ok(res, flashcardsReturned);
     }
 
-    // original SM-2 algorithm
-    public async reviewFlashcardWithQuality(req: Request, res: Response): Promise<void> {
+    // !old version: review flashcards by old original SM-2 algorithm
+    public async reviewFlashcardByOriginalSM2(req: Request, res: Response): Promise<void> {
         const userId = getUserIdFromRequest(req);
         const flashcardId = requestHelper.getIdParam(req, 'flashcardId');
         const { qualityResponse } = req.body as { qualityResponse: IQualityResponse };
@@ -180,6 +181,7 @@ class FlashcardController {
             step: flashcard.step,
             flashcardId,
             lastReviewed: flashcard.lastReviewed ? new Date(flashcard.lastReviewed) : null,
+            nextReview: new Date(flashcard.nextReview),
         };
 
         const ankiResult = ankiService.schedule(ankiCard, rating);
@@ -206,6 +208,7 @@ class FlashcardController {
                 nextReview: sm2Info.nextReview,
                 status: sm2Info.status,
                 nextReviewSchedule: flashcardService.getCardNextReview(flashcardId, sm2Info),
+                rating,
             };
         } else {
             result = null;

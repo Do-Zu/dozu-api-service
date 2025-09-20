@@ -61,12 +61,18 @@ export * from '@/models/class-based-learning/classTopicComment.model';
 
 export * from '@/models/teacher-request/teacherRequest.model';
 
+
+export * from '@/models/class-based-learning/classFeed.model';
+
+
 // progress
 export * from '@/models/progress/progress.model';
 
 export * from '@/models/progress/dailyStudy.model';
 
+
 // gamification
 export * from '@/models/gamification/points.model';
 
 export * from '@/models/gamification/achievement.model';
+
