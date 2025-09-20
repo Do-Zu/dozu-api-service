@@ -66,7 +66,7 @@ jobs:
             - name: Run tests
               run: |
                   if [ -f package.json ] && jq -e '.scripts.test' package.json >/dev/null 2>&1; then
-                    npm run test --if-present
+                    npm test --if-present
                   else
                     echo "No test script"
                   fi
