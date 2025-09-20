@@ -38,4 +38,4 @@ registerRoute('/gamification/points', router, {
     isEnabled: true,
 });
 
-export default router;
+export const pointsRouter = router;

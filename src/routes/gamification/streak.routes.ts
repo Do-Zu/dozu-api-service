@@ -31,4 +31,4 @@ registerRoute('/gamification/streak', router, {
     isEnabled: true,
 });
 
-export default router;
+export const streakRouter = router;
