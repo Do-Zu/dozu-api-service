@@ -3,6 +3,7 @@ import { SanitizedUser } from '@/types/auth/sanitizedUser.type';
 import { Request } from 'express';
 import { getDateFormatted } from '../date';
 import { UserLoginDataResponse } from '@/services/auth.service';
+import { DecodedTokenPayload } from '@/types/auth/jwtPayload.type';
 
 export const sanitizeUserObject = (userData: UserLoginDataResponse): SanitizedUser => {
     const returnData = {
@@ -25,7 +26,7 @@ export const sanitizeUserObject = (userData: UserLoginDataResponse): SanitizedUs
 
 export const getUserIdFromRequest = (req: Request): number => {
     const user = req.currentUser;
-    let { userId } = user as { userId: string | number };
+    let { userId } = user as DecodedTokenPayload;
     userId = parseInt(userId as string);
     return userId;
 };
