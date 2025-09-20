@@ -4,6 +4,8 @@ import { deleteMindmapByTopicId } from '@/repositories/mindmap/mindmap.repo';
 import topicRepo, { ICreateTopicRepo, IUpdateTopicRepo } from '@/repositories/topic.repo';
 import itemSpacedRepetitionTrackingRepo from '@/repositories/tracking/itemSpacedRepetitionTracking.repo';
 import { ICreateTopicBody, ITopic, IUpdateTopicBody } from '@/types/topic/topic.type';
+import { addMinutes } from 'date-fns';
+import { learnAheadLimit } from '../spaced-repetition-system/super-memo-2/anki.service';
 
 export type ICreateTopicService = ICreateTopicBody & { imageUrl?: string | null };
 export type IUpdateTopicService = IUpdateTopicBody & { imageUrl?: string | null };
@@ -20,7 +22,8 @@ class TopicService {
     }
 
     public async getTopicsForUser(userId: number, currentDate: string): Promise<ITopic[]> {
-        const topics = await topicRepo.getTopicsForUser(userId, currentDate);
+        const dueDate = addMinutes(new Date(currentDate), learnAheadLimit);
+        const topics = await topicRepo.getTopicsForUser(userId, dueDate.toISOString());
         return topics;
     }
 

@@ -8,9 +8,12 @@ export interface ITopic {
     userId?: number;
     classId?: number | null;
     imageUrl?: string | null;
-    flashcardsCount?: number;
-    flashcardsDueToday?: number;
-    flashcardsNew?: number;
+    flashcardCounts?: {
+        total?: number;
+        new?: number;
+        learning?: number; // SM-2 algorithm
+        dueToday?: number;
+    }
     hasProgress?: boolean;
 }
 

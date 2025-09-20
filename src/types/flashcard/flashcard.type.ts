@@ -1,6 +1,9 @@
-import { IQualityResponse } from '@/services/spaced-repetition-system/super-memo-2/superMemo2.origin';
+import { IQualityResponse } from '@/services/spaced-repetition-system/super-memo-2/superMemo2.service';
 import { z } from 'zod';
 import { IItemSpacedRepetition } from '../tracking/itemSpacedRepetitionTracking.type';
+import { ICardNextReviewSchedule } from '@/services/flashcard/flashcard.service';
+import { IItemStatus } from '@/models';
+import { IAnkiRating } from '@/services/spaced-repetition-system/super-memo-2/anki.service';
 
 export const ZFlashcardAdded = z.object({
     front: z.string(),
@@ -53,7 +56,7 @@ export interface IFlashcard {
 
 export type IFlashcardLearningState = Pick<
     IItemSpacedRepetition,
-    'status' | 'lastReviewed' | 'nextReview' | 'repetitionNumber' | 'easinessFactor' | 'reviewInterval'
+    'status' | 'lastReviewed' | 'nextReview' | 'repetitionNumber' | 'easinessFactor' | 'reviewInterval' | 'step'
 > & { flashcardId?: number };
 
 export type IFlashcardCreateInput = Pick<IFlashcard, 'front' | 'back'> & { image?: IImageSaveInput | null };
@@ -77,3 +80,16 @@ export interface IImageSaveInput {
     url: string;
     downloadLocation: string;
 }
+
+export type IDueAnkiCard = Pick<IFlashcard, 'flashcardId' | 'front' | 'back' | 'imageUrl' | 'topicName'> & {
+    nextReviewSchedule: ICardNextReviewSchedule;
+    nextReview: string;
+    status: IItemStatus;
+};
+
+export type IAnkiCardReviewed = Pick<IFlashcard, 'flashcardId'> & {
+    nextReview: string;
+    status: IItemStatus;
+    nextReviewSchedule: ICardNextReviewSchedule;
+    rating: IAnkiRating;
+};

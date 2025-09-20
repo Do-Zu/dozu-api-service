@@ -13,13 +13,13 @@ globalAsyncHandler(router);
 router.use(authMiddleware);
 
 router.get('/', flashcardController.getFlashcardsForTopic);
-router.get('/learning', flashcardController.getDueFlashcardsForTopic);
+router.get('/learning', flashcardController.getDueAnkiCardsForTopic);
 router.post('/batch', validateFlashcardsBatch(), flashcardController.batchFlashcardsForTopic);
 router.post('/batch/node', validateFlashcardsBatch(), flashcardController.handleBatchFlashcardsForNode); //for use with mindmap's node
 router.patch(
     '/:flashcardId/review',
     paramsValidator.validateId('flashcardId'),
-    flashcardController.reviewFlashcardWithQuality
+    flashcardController.reviewFlashcardByAnki
 );
 router.post('/start-learning', classTopicController.startLearningFlashcards);
 router.post('/search-images', flashcardController.searchFlashcardImages);
