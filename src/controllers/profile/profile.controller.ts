@@ -1,9 +1,13 @@
 import { Request,Response } from 'express';
 import { SuccessResponse } from '@/core/success';
 import ProfileService from '@/services/profile/profile.service';
+<<<<<<< HEAD
 import type { AuthenticatedRequest } from '@/types/profile/profile.types';
 import { isTeacher } from '@/utils/auth/authHelpers.utils';
 import { Forbidden } from '@/core/error';
+=======
+
+>>>>>>> af6eeebad48967cd25f720822fead15753ea812e
 
 class ProfileController {
   // Get user profile

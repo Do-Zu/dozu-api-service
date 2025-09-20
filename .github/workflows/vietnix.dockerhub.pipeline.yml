@@ -44,7 +44,40 @@ jobs:
                   sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "$USERNAME@$HOST" "echo 'VIETNIX connection OK'; \
                     echo 'Checking sudo access (may prompt internally)...'; \
                     echo \"$PASSWORD\" | sudo -S -p '' echo 'Sudo access confirmed' || echo 'Sudo access not required or failed'"
+    build-source:
+        name: Build Source
+        runs-on: ubuntu-latest
+        needs: check-connection
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event.inputs.branch }}
 
+            - name: Use Node ${{ env.NODE_VERSION }}
+              uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ env.NODE_VERSION }}
+                  cache: 'npm'
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Run tests
+              run: |
+                  if [ -f package.json ] && jq -e '.scripts.test' package.json >/dev/null 2>&1; then
+                    npm run test --if-present
+                  else
+                    echo "No test script"
+                  fi
+
+            - name: Build
+              run: |
+                  if [ -f package.json ] && jq -e '.scripts.build' package.json >/dev/null 2>&1; then
+                    npm run build
+                  else
+                    echo "No build script"
+                  fi
     build-push:
         name: Build and Push Docker Image
         runs-on: ubuntu-latest
