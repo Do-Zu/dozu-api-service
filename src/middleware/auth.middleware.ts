@@ -87,9 +87,8 @@ export const authMiddlewareIfHeadersPresent = async (req: Request, res: Response
             req.currentUser = decoded; // add `user` to Request via type augmentation
 
             next();
-        } catch (error) {
-            //!remove console.log with proper logger
-            console.log(error);
+        } catch {
+
             logger.warn('Invalid token');
             throw new BadRequest('Unauthorized: Invalid token');
         }
