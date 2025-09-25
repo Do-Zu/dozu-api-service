@@ -32,7 +32,7 @@ export interface IFeynmanGlossaryEntry {
     simpleDefinition: string;
 }
 
-export interface IFeynmanSessionAIState {
+export interface IFeynmanSessionQuestions {
     questions: { content: string }[];
     hints: string[];
     detectedGaps: IFeynmanDetectedGap[];
@@ -52,20 +52,7 @@ export interface IFeynmanSessionReviewState {
     actionPlan: string[];
 }
 
-export interface FeynmanSessionSavePayload {
-    topicId: string;
-    method: string;
-    explanationText: string;
-    explanationHtml: string;
-    highlightedWords: string[];
-    questions: IFeynmanSessionAIState;
-    review?: IFeynmanSessionReviewState;
-    step: number;
-    version?: number;
-    savedAt: string;
-}
-
-export const feynmanSessions = pgTable('feynman_sessions', {
+export const feynmanSessionsTable = pgTable('feynman_sessions', {
     id: serial('id').primaryKey(),
     topicId: integer('topic_id')
         .notNull()
@@ -73,13 +60,13 @@ export const feynmanSessions = pgTable('feynman_sessions', {
             onDelete: 'cascade',
         }),
     method: varchar({ length: 50 }).notNull(),
-    explanationText: text('explanation_text').notNull(),
-    explanationHtml: text('explanation_html').notNull(),
+    explanationText: text('explanation_text').notNull().default(''),
+    explanationHtml: text('explanation_html').notNull().default(''),
     highlightedWords: text('highlighted_words')
         .array()
         .notNull()
         .default(sql`ARRAY[]::text[]`),
-    questions: jsonb('questions').$type<IFeynmanSessionAIState>().notNull(),
+    questions: jsonb('questions').$type<IFeynmanSessionQuestions>().notNull(),
     review: jsonb('review').$type<IFeynmanSessionReviewState | null>().default(null),
     step: integer('step').notNull().default(1),
     version: integer('version').default(1),
@@ -96,5 +83,5 @@ export const feynmanSessionsIndexes = {
     topicMethodIdx: sql`CREATE INDEX IF NOT EXISTS idx_feynman_topic_method ON feynman_sessions (topic_id, method)`,
 };
 
-export type FeynmanSessionRecord = typeof feynmanSessions.$inferSelect;
-export type NewFeynmanSessionRecord = typeof feynmanSessions.$inferInsert;
+export type FeynmanSessionRecord = typeof feynmanSessionsTable.$inferSelect;
+export type NewFeynmanSessionRecord = typeof feynmanSessionsTable.$inferInsert;
