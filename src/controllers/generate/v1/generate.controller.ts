@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { generateService } from '@/services/generative/v1/generate.service';
-import { BadRequest, InternalServerError } from '@/core/error';
+import { AuthenticationError, BadRequest, InternalServerError } from '@/core/error';
 import { FileUploadRequestInterface } from '@/dtos/generate';
 import { SuccessResponse } from '@/core/success';
 import logger from '@/utils/logger';
@@ -100,6 +100,9 @@ class GenerateController {
      */
     public async generateMindmapFromText(req: Request, res: Response): Promise<void> {
         const { content, customPrompt, type } = req.body;
+         if (!req.currentUser) {
+            throw new AuthenticationError('Login information is invalid');
+        }
         const { userId } = req.currentUser;
 
         if (!content) {

@@ -3,21 +3,45 @@ import { SuccessResponse } from '@/core/success';
 import {
     googleOAuthLoginService,
     loginService,
+    refreshTokenService,
     registerUserService,
     verifyEmailService,
 } from '@/services/auth.service';
 
 import { AuthenticationError, BadRequest } from '@/core/error';
-import { signAccessJwtToken, signRefreshJwtToken } from '@/utils/auth/jwt.utils';
+import { signAccessJwtToken } from '@/utils/auth/jwt.utils';
 import { sanitizeUserObject } from '@/utils/auth/authHelpers.utils';
-import jwt from 'jsonwebtoken';
 
 const frontEndBaseUrl = process.env.FRONTEND_BASE_URL;
-const SECRET = process.env.JWT_SECRET;
 
 export const testingAuthPath = async (req: Request, res: Response) => {
     // const data = await handleServiceDemo(req.body);
     SuccessResponse.ok(res, { message: 'Auth running' });
+};
+
+export const loginController = async (req: Request, res: Response) => {
+    if (!req.body.username || !req.body.password) {
+        throw new BadRequest('Both username and password are required');
+    }
+    const username = req.body.username;
+    const password = req.body.password;
+    const data = await loginService({ username, password });
+    if (!data.success) {
+        throw new AuthenticationError(data.reason);
+    }
+
+    res.cookie('refreshToken', data.refreshToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+    });
+
+    const returnData = {
+        ...data.user,
+        isNewUser: false, //technically business logic, can move to service
+        accessToken: data.accessToken,
+    };
+    SuccessResponse.ok(res, returnData);
 };
 
 export const registerUserController = async (req: Request, res: Response) => {
@@ -36,42 +60,6 @@ export const registerUserController = async (req: Request, res: Response) => {
     SuccessResponse.created(res, returnData);
 };
 
-export const loginController = async (req: Request, res: Response) => {
-    if (!req.body.username || !req.body.password) {
-        throw new BadRequest('Both username and password are required');
-    }
-
-    const username = req.body.username;
-    const password = req.body.password;
-    const data = await loginService(username, password);
-    if (!data.success) {
-        throw new AuthenticationError(data.reason);
-    }
-    if (!data.user.isActive) {
-        //checks if user is banned
-        throw new AuthenticationError('Account is disabled');
-    }
-    //add cookie and more
-    const sanitizedUser = sanitizeUserObject(data.user);
-    const accessToken = signAccessJwtToken(sanitizedUser);
-    const refreshToken = signRefreshJwtToken(sanitizedUser);
-
-    res.cookie('refreshToken', refreshToken, {
-        // httpOnly: true,
-        // secure: false, // ❌ Set to true in production (HTTPS)
-        // sameSite: 'none',
-    });
-
-    const returnData = {
-        ...sanitizedUser,
-        isNewUser: false,
-        refreshToken,
-        accessToken,
-    };
-
-    SuccessResponse.ok(res, returnData);
-};
-
 export const logoutController = async (req: Request, res: Response) => {
     //?Consider blacklist if more security is wanted
     res.clearCookie('refreshToken');
@@ -79,30 +67,21 @@ export const logoutController = async (req: Request, res: Response) => {
 };
 
 export const refreshTokenController = async (req: Request, res: Response) => {
-    //?Consider blacklist if more security is wanted
-    //todo:delete refresh token when it is implemented
     const refreshToken = req.cookies.refreshToken;
-    if (!SECRET) {
-        throw new Error('JWT_SECRET is not defined in environment variables');
-    }
     if (!refreshToken) {
-        throw new BadRequest('Refresh token is required');
+        throw new AuthenticationError('Refresh token does not exist');
     }
-    try {
-        const decoded: any = jwt.verify(refreshToken, SECRET);
-
-        const sanitizedUser = sanitizeUserObject(decoded.user);
-        //.verify Validates expiration by default
-        //todo: enforce type for decoded
-        //todo: requery by userId
-        const accessToken = signAccessJwtToken(sanitizedUser);
-        const returnData: any = sanitizedUser;
-        returnData.accessToken = accessToken;
+    const refreshTokenServiceData = await refreshTokenService({refreshToken:refreshToken});
+    if (!refreshTokenServiceData.success) {
+        throw new AuthenticationError(refreshTokenServiceData.reason);
+    } else {
+        const returnData = {
+            user: refreshTokenServiceData.user,
+            isNewUser: false,
+            accessToken: refreshTokenServiceData.accessToken,
+        };
         SuccessResponse.ok(res, returnData);
-    } catch {
-        throw new BadRequest('Unauthorized: Invalid token');
     }
-    // SuccessResponse.ok(res, {}); //todo:check if empty data is ok
 };
 
 export const verifyEmailController = async (req: Request, res: Response) => {
@@ -125,9 +104,11 @@ export const verifyEmailController = async (req: Request, res: Response) => {
 };
 
 export const getProfileController = async (req: Request, res: Response) => {
-    const returnData: any = sanitizeUserObject(req.currentUser);
+    // const returnData: any = sanitizeUserObject(req.currentUser?.user);
 
-    SuccessResponse.ok(res, returnData);
+    // todo - implement logic for getting new data here
+
+    SuccessResponse.ok(res, req.currentUser?.user);
 };
 
 export const googleOAuthRedirectController = async (req: Request, res: Response) => {

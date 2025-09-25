@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 const jwtSecretKey = process.env.JWT_SECRET; //todo:check types better
 
 const expiresIn = 86400; //Seconds until expiration - 86400= 1 day
-const refreshExpiresIn = 604800; //7 days
+const refreshExpiresIn = 2592000; //30 days
 
 type GoogleIdTokenPayload = {
   sub: string;
@@ -60,7 +60,6 @@ export const decodeJwtToken = (token: string): GoogleIdTokenPayload => {
     typeof decoded.sub !== 'string' ||
     typeof decoded.email !== 'string'
   ) {
-    console.log('google token:', token);
     throw new Error('Invalid token payload');
   }
   return decoded as GoogleIdTokenPayload;
