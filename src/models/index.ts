@@ -65,3 +65,5 @@ export * from '@/models/teacher-request/teacherRequest.model';
 export * from '@/models/progress/progress.model';
 
 export * from '@/models/progress/dailyStudy.model';
+
+export * from '@/models/feynman';
