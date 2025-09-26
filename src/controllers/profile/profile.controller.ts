@@ -1,13 +1,8 @@
 import { Request,Response } from 'express';
 import { SuccessResponse } from '@/core/success';
 import ProfileService from '@/services/profile/profile.service';
-<<<<<<< HEAD
-import type { AuthenticatedRequest } from '@/types/profile/profile.types';
 import { isTeacher } from '@/utils/auth/authHelpers.utils';
 import { Forbidden } from '@/core/error';
-=======
-
->>>>>>> af6eeebad48967cd25f720822fead15753ea812e
 
 class ProfileController {
   // Get user profile
@@ -18,7 +13,7 @@ class ProfileController {
   }
 
   // Get user profile by ID (for teachers to view student profiles)
-  public async getProfileById(req: AuthenticatedRequest, res: Response): Promise<void> {
+  public async getProfileById(req: Request, res: Response): Promise<void> {
     // Check if the current user is a teacher
     const teacherCheck = await isTeacher(req);
     if (!teacherCheck) {
@@ -29,7 +24,7 @@ class ProfileController {
     if (isNaN(userId)) {
       throw new Error('Invalid user ID');
     }
-    
+
     const profile = await ProfileService.getProfile(userId);
     SuccessResponse.ok(res, profile);
   }
