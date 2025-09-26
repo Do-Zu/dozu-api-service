@@ -10,7 +10,6 @@ export interface FeynmanSessionSavePayload {
     review?: IFeynmanSessionReviewState;
     step: number;
     version?: number;
-    savedAt: string;
 }
 
 export type FeynmanSessionUpdate = Pick<FeynmanSessionSavePayload, 'topicId' | 'method'> &
