@@ -1,15 +1,15 @@
 type PageInfo = { start: number; end: number; total: number };
 
 type FeynmanPromptOptions = {
-    maxQuestions?: number; // cap count of questions
-    maxHints?: number; // cap count of hints
-    maxGaps?: number; // cap count of detected gaps
-    contentTruncateLength?: number; // max content length to embed
-    language?: string; // force response language; default: match source language
+    maxQuestions?: number;
+    maxHints?: number;
+    maxGaps?: number;
+    contentTruncateLength?: number;
+    language?: string;
     educationLevel?: 'child' | 'beginner' | 'intermediate' | 'advanced';
     forbidTerms?: string[]; // terms to avoid in questions/hints
     pageInfo?: PageInfo; // optional page range context
-    customInstructions?: string; // extra caller-supplied instructions
+    customInstructions?: string;
 };
 
 function createFeynmanPromptGenerateQuestion(content: string, topic?: string): string {
