@@ -437,7 +437,7 @@ export function getUTCDate(): Date {
  * This function returns the current date based on the system's local timezone.
  */
 export function getSystemDate(): Date {
-    return getUTCDate();
+    return new Date();
 }
 
 export enum TimeUnit {
