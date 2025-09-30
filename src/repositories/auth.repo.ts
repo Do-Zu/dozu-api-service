@@ -11,6 +11,7 @@ import {
     usersTable,
 } from '@/models';
 import { emailVerificationCodesTable, InsertEmailVerificationCode } from '@/models/auth/emailVerificationCode.model';
+import { changePasswordRequestTable, SelectChangePasswordRequest } from '@/models/auth/passswordResetCode.model';
 import type { InsertUser, SelectUser } from '@/models/user.model';
 import { generateSecureCode } from '@/utils/auth/crypto.utils';
 import { and, eq } from 'drizzle-orm';
@@ -151,7 +152,6 @@ export const getUserRoleId = async (): Promise<number> => {
     return userRoleId;
 };
 
-
 export const getTeacherRoleId = async (): Promise<number> => {
     let teacherRoleId = -1;
     const [result] = await db.select().from(rolesTable).where(eq(rolesTable.name, 'teacher'));
@@ -166,7 +166,7 @@ export const getTeacherRoleId = async (): Promise<number> => {
         teacherRoleId = result.roleId;
     }
     return teacherRoleId;
-}
+};
 
 export const addRole = async (userRoleId: number, userId: number): Promise<void> => {
     const userRole: InsertUserRolesPermission = {
@@ -174,4 +174,49 @@ export const addRole = async (userRoleId: number, userId: number): Promise<void>
         userId: userId,
     };
     await db.insert(userRolesTable).values(userRole);
+};
+
+export const selectOnePasswordRequestByEmail = async ({
+    email,
+}: {
+    email: string;
+}): Promise<SelectChangePasswordRequest> => {
+    const [changePasswordRequest] = await db
+        .select({
+            changePasswordRequestId: changePasswordRequestTable.changePasswordRequestId,
+            userId: changePasswordRequestTable.userId,
+            verificationCode: changePasswordRequestTable.verificationCode,
+            expiration: changePasswordRequestTable.expiration,
+        })
+        .from(changePasswordRequestTable)
+        .innerJoin(usersTable, eq(changePasswordRequestTable.userId, usersTable.userId))
+        .where(eq(usersTable.email, email));
+    return changePasswordRequest;
+};
+
+export const deletePasswordRequestsByUserId = async ({
+    userId,
+}: {
+    userId: number;
+}): Promise<SelectChangePasswordRequest[]> => {
+    const deletedChangePasswordRequests = await db
+        .delete(changePasswordRequestTable)
+        .where(eq(changePasswordRequestTable.userId, userId))
+        .returning();
+    return deletedChangePasswordRequests;
+};
+
+export const updateUserPassword = async ({
+    userId,
+    hashedPassword,
+}: {
+    userId: number;
+    hashedPassword: string;
+}): Promise<SelectUser> => {
+    const [updatedUser] = await db
+        .update(usersTable)
+        .set({ passwordHash: hashedPassword })
+        .where(eq(usersTable.userId, userId))
+        .returning();
+    return updatedUser;
 };
