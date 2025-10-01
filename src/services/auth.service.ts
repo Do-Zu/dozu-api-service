@@ -2,11 +2,10 @@ import { InternalServerError } from '@/core/error';
 import { getOAuthToken } from '@/libs/googleOAuth2Client';
 import { sendChangePasswordLinkEmail, sendVerificationLinkEmail } from '@/libs/nodeMailerTransporter.lib';
 import { InsertAuthAccount } from '@/models';
-import { InsertChangePasswordRequest, SelectChangePasswordRequest } from '@/models/auth/passswordResetCode.model';
+import { InsertChangePasswordRequest, SelectChangePasswordRequest } from '@/models/auth/changePasswordRequest.model';
 import { InsertUser, SelectUser } from '@/models/user.model';
 import {
     addRole,
-    deletePasswordRequestsByUserId,
     deleteVerificationCodeByEmailVerificationId,
     findByProviderId,
     getRoles,
@@ -18,14 +17,17 @@ import {
     insertUserObject,
     insertVerificationCode,
     queryVerificationCode,
-    selectOnePasswordRequestByEmail,
     selectOneUserByEmail,
     selectOneUserByUsername,
     updateLastLoginAt,
     updateUserIsVerified,
     updateUserPassword,
 } from '@/repositories/auth.repo';
-import { insertChangePasswordRequest } from '@/repositories/auth/changePasswordRequest.repo';
+import {
+    deletePasswordRequestsByUserId,
+    insertChangePasswordRequest,
+    selectOneChangePasswordRequestByEmail,
+} from '@/repositories/auth/changePasswordRequest.repo';
 import { DecodedTokenPayload } from '@/types/auth/jwtPayload.type';
 import { SanitizedUser } from '@/types/auth/sanitizedUser.type';
 import { sanitizeUserObject } from '@/utils/auth/authHelpers.utils';
@@ -53,7 +55,9 @@ type RefreshTokenResult =
     | { success: true; user: SanitizedUser; accessToken: string }
     | { success: false; reason: string };
 
-type StartChangePasswordResult = { success: true; changePasswordRequest: SelectChangePasswordRequest };
+type StartChangePasswordResult =
+    | { success: true; changePasswordRequest: SelectChangePasswordRequest }
+    | { success: false; reason: string };
 
 export const loginService = async ({
     username,
@@ -257,13 +261,16 @@ export const sendChangePasswordLinkService = async ({
 }: {
     email: string;
 }): Promise<StartChangePasswordResult> => {
-    const changePasswordRequestData = await selectOnePasswordRequestByEmail({ email });
+    const changePasswordRequestData = await selectOneChangePasswordRequestByEmail({ email });
 
     if (changePasswordRequestData) {
         await deletePasswordRequestsByUserId({ userId: changePasswordRequestData.userId });
     }
 
     const userData = await selectOneUserByEmail(email);
+    if (!userData) {
+        return { success: false, reason: 'User not found' };
+    }
 
     const verificationCode = generateSecureCode();
     const expirationDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // 1 day later
@@ -292,16 +299,21 @@ export const changePasswordService = async ({
     verificationCode: string;
     password: string;
 }): Promise<LoginResult> => {
-    const changePasswordRequest = await selectOnePasswordRequestByEmail({ email });
+    const changePasswordRequest = await selectOneChangePasswordRequestByEmail({ email });
     const currentTime = new Date();
     if (!changePasswordRequest || !changePasswordRequest.verificationCode || !changePasswordRequest.expiration) {
         return { success: false, reason: 'Invalid or expired change password request link' };
     }
-    if (verificationCode != changePasswordRequest.verificationCode) {
+    if (verificationCode !== changePasswordRequest.verificationCode) {
         return { success: false, reason: 'Invalid or expired change password request link' };
     }
     if (currentTime > changePasswordRequest.expiration) {
         return { success: false, reason: 'Invalid or expired change password request link' };
+    }
+
+    const userDataForCheck = await getLoginData(changePasswordRequest.userId);
+    if (!userDataForCheck.isActive) {
+        return { success: false, reason: 'Account is inactive' };
     }
 
     //change password here

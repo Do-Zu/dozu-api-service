@@ -11,7 +11,6 @@ import {
     usersTable,
 } from '@/models';
 import { emailVerificationCodesTable, InsertEmailVerificationCode } from '@/models/auth/emailVerificationCode.model';
-import { changePasswordRequestTable, SelectChangePasswordRequest } from '@/models/auth/passswordResetCode.model';
 import type { InsertUser, SelectUser } from '@/models/user.model';
 import { generateSecureCode } from '@/utils/auth/crypto.utils';
 import { and, eq } from 'drizzle-orm';
@@ -176,35 +175,6 @@ export const addRole = async (userRoleId: number, userId: number): Promise<void>
     await db.insert(userRolesTable).values(userRole);
 };
 
-export const selectOnePasswordRequestByEmail = async ({
-    email,
-}: {
-    email: string;
-}): Promise<SelectChangePasswordRequest> => {
-    const [changePasswordRequest] = await db
-        .select({
-            changePasswordRequestId: changePasswordRequestTable.changePasswordRequestId,
-            userId: changePasswordRequestTable.userId,
-            verificationCode: changePasswordRequestTable.verificationCode,
-            expiration: changePasswordRequestTable.expiration,
-        })
-        .from(changePasswordRequestTable)
-        .innerJoin(usersTable, eq(changePasswordRequestTable.userId, usersTable.userId))
-        .where(eq(usersTable.email, email));
-    return changePasswordRequest;
-};
-
-export const deletePasswordRequestsByUserId = async ({
-    userId,
-}: {
-    userId: number;
-}): Promise<SelectChangePasswordRequest[]> => {
-    const deletedChangePasswordRequests = await db
-        .delete(changePasswordRequestTable)
-        .where(eq(changePasswordRequestTable.userId, userId))
-        .returning();
-    return deletedChangePasswordRequests;
-};
 
 export const updateUserPassword = async ({
     userId,
@@ -218,5 +188,8 @@ export const updateUserPassword = async ({
         .set({ passwordHash: hashedPassword })
         .where(eq(usersTable.userId, userId))
         .returning();
+    if (!updatedUser) {
+        throw new Error('User not found');
+    }
     return updatedUser;
 };

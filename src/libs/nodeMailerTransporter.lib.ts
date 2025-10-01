@@ -3,8 +3,39 @@ import nodemailer from 'nodemailer';
 const mailUser = process.env.MAIL_USERNAME;
 const host = process.env.MAIL_HOST;
 const appPassword = process.env.MAIL_APP_PASSWORD;
-const backendBaseUrl = process.env.BACKEND_BASE_URL;
-const frontendBaseUrl = process.env.FRONTEND_BASE_URL;
+
+const getFrontendBaseUrl = (): string => {
+    const frontendBaseUrl = process.env.FRONTEND_BASE_URL;
+
+    if (!frontendBaseUrl) {
+        throw new Error('FRONTEND_BASE_URL is missing');
+    }
+
+    return frontendBaseUrl;
+
+    // try {
+    //     const url = new URL(frontendBaseUrl);
+    //     if (process.env.NODE_ENV === 'production' && url.protocol !== 'https:') {
+    //         throw new Error('FRONTEND_BASE_URL must use HTTPS in production');
+    //     }
+    //     return url.toString().replace(/\/$/, '');
+    // } catch {
+    //     throw new Error(`FRONTEND_BASE_URL is not a valid URL: ${frontendBaseUrl}`);
+    // }
+};
+
+const getBackendBaseUrl = (): string => {
+    const backendBaseUrl = process.env.BACKEND_BASE_URL;
+
+    if (!backendBaseUrl) {
+        throw new Error('BACKEND_BASE_URL is missing');
+    }
+
+    return backendBaseUrl;
+};
+
+const backendBaseUrl = getBackendBaseUrl();
+const frontendBaseUrl = getFrontendBaseUrl();
 
 export const nodemailerTransporter = nodemailer.createTransport({
     service: 'gmail',
@@ -41,7 +72,8 @@ export const sendChangePasswordLinkEmail = async ({
         text: `You requested to reset your password. 
 Please click the link below to proceed:
 
-${frontendBaseUrl}/auth/changePassword?email=${email}&verificationCode=${verificationCode}
+${frontendBaseUrl}/auth/changePassword?email=${encodeURIComponent(email)}&verificationCode=${encodeURIComponent(verificationCode)}
+ 
 
 If you did not request this, you can safely ignore this email.`,
         // html: `<p>You requested to reset your password. Click the link below:</p>

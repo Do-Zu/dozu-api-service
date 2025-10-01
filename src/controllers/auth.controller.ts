@@ -158,8 +158,7 @@ export const sendChangePasswordLinkController = async (req: Request, res: Respon
     if (data.success) {
         SuccessResponse.ok(res, { message: 'ok' });
     } else {
-        // //todo: include message of some kind for FE
-        throw new InternalServerError('Error starting change password process');
+        throw new BadRequest(data.reason);
     }
 };
 
