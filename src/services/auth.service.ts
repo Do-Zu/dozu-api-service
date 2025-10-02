@@ -107,7 +107,7 @@ export const refreshTokenService = async ({ refreshToken }: { refreshToken: stri
 
     //fetch updated user information
     if (!decoded.user) {
-        return { success: false, reason: 'Password is not set up' };
+        return { success: false, reason: 'JWT Error' };
     }
     const userId = decoded.user.userId;
     const userData = await getLoginData(userId);
@@ -117,7 +117,8 @@ export const refreshTokenService = async ({ refreshToken }: { refreshToken: stri
         //checks if user is banned
         return { success: false, reason: 'Account is inactive' };
     }
-    if (!userData.passwordHash) return { success: false, reason: 'Password is not set up' };
+    // if (!userData.passwordHash) return { success: false, reason: 'Password is not set up' };
+    //^Cannot handle googleAuth
 
     const sanitizedUser = sanitizeUserObject(userData);
 
