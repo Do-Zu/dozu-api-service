@@ -25,7 +25,7 @@ class TopicRepo {
         return topic;
     }
 
-    public async getTopicsForUser(userId: number, currentDate: string): Promise<ITopic[]> {
+    public async getTopicsForUser(userId: number, dueDate: string): Promise<ITopic[]> {
         let topics: ITopic[] = await db
             .select({
                 topicId: topicsTable.topicId,
@@ -34,21 +34,22 @@ class TopicRepo {
                 description: topicsTable.description,
                 imageUrl: topicsTable.imageUrl,
                 createdAt: topicsTable.createdAt,
-                flashcardsCount:
-                    // get number of flashcards in a topic, flashcards.flashcard_id IS NOT NULL because using below left join
-                    sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL THEN 1 END) AS INT)`.as(
-                        'flashcardsCount'
+                flashcardCounts: {
+                    total: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL THEN 1 END) AS INT)`.as(
+                        'total'
                     ),
-                // get flashcards-due-today, next_review <= today and last_reviewed should not null (if it is, it should be flashcardsNew)
-                flashcardsDueToday:
-                    sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${currentDate} AND item_spaced_repetition_tracking.last_reviewed IS NOT NULL THEN 1 END) AS INT)`.as(
-                        'flashcardsDueToday'
+                    dueToday:
+                        sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${dueDate} AND item_spaced_repetition_tracking.status = 'review' THEN 1 END) AS INT)`.as(
+                            'dueToday'
+                        ),
+                    new: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.status = 'new' THEN 1 END) AS INT)`.as(
+                        'new'
                     ),
-                // get number of new flashcards item_spaced_repetition_tracking.last_reviewed IS NULL because flashcards inserted have last_reviewed NULL
-                flashcardsNew:
-                    sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.last_reviewed IS NULL THEN 1 END) AS INT)`.as(
-                        'flashcardsNew'
-                    ),
+                    learning:
+                        sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${dueDate} AND item_spaced_repetition_tracking.status IN ('learning', 'relearning') THEN 1 END) AS INT)`.as(
+                            `learning`
+                        ),
+                },
             })
             .from(topicsTable)
             // some topics don't have a single flashcard, so using left join to get that topics
@@ -91,7 +92,7 @@ class TopicRepo {
         await executor.delete(topicsTable).where(eq(topicsTable.topicId, topicId));
     }
 
-    public async getTopicsInClassForStudent(classId: number, userId: number, currentDate: string): Promise<ITopic[]> {
+    public async getTopicsInClassForStudent(classId: number, userId: number, dueDate: string): Promise<ITopic[]> {
         let topics: ITopic[] = await db
             .select({
                 topicId: topicsTable.topicId,
@@ -110,10 +111,22 @@ class TopicRepo {
             const [result] = await db
                 .select({
                     topicId: flashcardsTable.topicId,
-                    flashcardsDueToday:
-                        sql<number>`CAST(COUNT(CASE WHEN item_spaced_repetition_tracking.next_review <= ${currentDate} THEN 1 END) AS INT)`.as(
-                            'flashcardsDueToday'
+                    flashcardCounts: {
+                        total: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL THEN 1 END) AS INT)`.as(
+                            'total'
                         ),
+                        dueToday:
+                            sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${dueDate} AND item_spaced_repetition_tracking.status = 'review' THEN 1 END) AS INT)`.as(
+                                'dueToday'
+                            ),
+                        new: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.status = 'new' THEN 1 END) AS INT)`.as(
+                            'new'
+                        ),
+                        learning:
+                            sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${dueDate} AND item_spaced_repetition_tracking.status IN ('learning', 'relearning') THEN 1 END) AS INT)`.as(
+                                `learning`
+                            ),
+                    },
                     hasProgress: sql<boolean>`BOOL_OR(item_spaced_repetition_tracking.item_id IS NOT NULL)`.as(
                         'hasProgress'
                     ),
@@ -132,7 +145,8 @@ class TopicRepo {
 
             if (result) {
                 topic.hasProgress = true;
-                topic.flashcardsDueToday = result.flashcardsDueToday;
+                // topic.flashcardsDueToday = result.flashcardsDueToday;
+                topic.flashcardCounts = result.flashcardCounts;
             } else {
                 topic.hasProgress = false;
             }

@@ -1,4 +1,5 @@
 import { createCustomMindmapPrompt } from './prompt/mindmap.prompt';
+import { createFeynmanEvaluationPrompt, createFeynmanPromptGenerateQuestion } from './prompt/feynman.prompt';
 
 const PROMPT_TEMPLATE_FLASHCARD = `Create flashcards from the following content.
   - Focus on essential concepts and key points only
@@ -29,7 +30,15 @@ const PROMPT_SUMMARY_CONTENT = `Create a summary of the following content.
 - Output should be in only one string
 `;
 
-export type TYPE_PROMPT = 'FLASH_CARD' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'FILL_BANK' | 'MIND_MAP' | 'QUIZ';
+export type TYPE_PROMPT =
+    | 'FLASH_CARD'
+    | 'MULTIPLE_CHOICE'
+    | 'TRUE_FALSE'
+    | 'FILL_BANK'
+    | 'MIND_MAP'
+    | 'QUIZ'
+    | 'FEYNMAN_QUESTION'
+    | 'FEYNMAN_REVIEW';
 
 const generatePromptText = (content: string, type: TYPE_PROMPT): string => {
     switch (type) {
@@ -44,6 +53,10 @@ const generatePromptText = (content: string, type: TYPE_PROMPT): string => {
                 Content: ${content}`;
         case 'MIND_MAP':
             return createCustomMindmapPrompt(content);
+        case 'FEYNMAN_QUESTION':
+            return createFeynmanPromptGenerateQuestion(content);
+        case 'FEYNMAN_REVIEW':
+            return createFeynmanEvaluationPrompt(content);
         default:
             return `${PROMPT_SUMMARY_CONTENT} 
                 Content: ${content}`;

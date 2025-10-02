@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { IItemSpacedRepetition } from '../tracking/itemSpacedRepetitionTracking.type';
 import { ICardNextReviewSchedule } from '@/services/flashcard/flashcard.service';
 import { IItemStatus } from '@/models';
+import { IAnkiRating } from '@/services/spaced-repetition-system/super-memo-2/anki.service';
 
 export const ZFlashcardAdded = z.object({
     front: z.string(),
@@ -90,4 +91,5 @@ export type IAnkiCardReviewed = Pick<IFlashcard, 'flashcardId'> & {
     nextReview: string;
     status: IItemStatus;
     nextReviewSchedule: ICardNextReviewSchedule;
+    rating: IAnkiRating;
 };

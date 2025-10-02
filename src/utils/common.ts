@@ -6,7 +6,16 @@
  * @returns boolean - Returns true if both strings are equal ignoring case, false otherwise.
  */
 export function compareIgnoreCapitalization(str1: string, str2: string): boolean {
-    return str1?.toLowerCase() === str2?.toLowerCase();
+    if (str1 === str2) return true;
+    return lowercase(str1) === lowercase(str2);
+}
+
+/**
+ * Safely normalizes a string to lowercase and trims surrounding whitespace.
+ * Returns empty string for nullish input.
+ */
+export function lowercase(str: string): string {
+    return str ? str.trim().toLowerCase() : '';
 }
 
 /**
