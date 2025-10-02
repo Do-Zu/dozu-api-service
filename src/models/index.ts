@@ -47,6 +47,8 @@ export * from '@/models/auth/permission.model';
 
 export * from '@/models/auth/rolePermission.model';
 
+export * from '@/models/auth/changePasswordRequest.model';
+
 //payment
 export * from '@/models/subscription';
 
