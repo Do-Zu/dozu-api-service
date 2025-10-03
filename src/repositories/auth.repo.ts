@@ -151,7 +151,6 @@ export const getUserRoleId = async (): Promise<number> => {
     return userRoleId;
 };
 
-
 export const getTeacherRoleId = async (): Promise<number> => {
     let teacherRoleId = -1;
     const [result] = await db.select().from(rolesTable).where(eq(rolesTable.name, 'teacher'));
@@ -166,7 +165,7 @@ export const getTeacherRoleId = async (): Promise<number> => {
         teacherRoleId = result.roleId;
     }
     return teacherRoleId;
-}
+};
 
 export const addRole = async (userRoleId: number, userId: number): Promise<void> => {
     const userRole: InsertUserRolesPermission = {
@@ -174,4 +173,23 @@ export const addRole = async (userRoleId: number, userId: number): Promise<void>
         userId: userId,
     };
     await db.insert(userRolesTable).values(userRole);
+};
+
+
+export const updateUserPassword = async ({
+    userId,
+    hashedPassword,
+}: {
+    userId: number;
+    hashedPassword: string;
+}): Promise<SelectUser> => {
+    const [updatedUser] = await db
+        .update(usersTable)
+        .set({ passwordHash: hashedPassword })
+        .where(eq(usersTable.userId, userId))
+        .returning();
+    if (!updatedUser) {
+        throw new Error('User not found');
+    }
+    return updatedUser;
 };

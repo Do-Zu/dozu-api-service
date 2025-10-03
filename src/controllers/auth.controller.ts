@@ -1,17 +1,16 @@
 import { Response, Request } from 'express';
 import { SuccessResponse } from '@/core/success';
 import {
+    changePasswordService,
     googleOAuthLoginService,
     loginService,
     refreshTokenService,
     registerUserService,
+    sendChangePasswordLinkService,
     verifyEmailService,
 } from '@/services/auth.service';
 
-import { AuthenticationError, BadRequest } from '@/core/error';
-import { signAccessJwtToken } from '@/utils/auth/jwt.utils';
-import { sanitizeUserObject } from '@/utils/auth/authHelpers.utils';
-
+import { AuthenticationError, BadRequest, InternalServerError } from '@/core/error';
 const frontEndBaseUrl = process.env.FRONTEND_BASE_URL;
 
 export const testingAuthPath = async (req: Request, res: Response) => {
@@ -49,13 +48,24 @@ export const registerUserController = async (req: Request, res: Response) => {
         throw new BadRequest('Username, password and email are required');
     }
     const data = await registerUserService(req.body.username, req.body.password, req.body.email);
-    const sanitizedUser = sanitizeUserObject(data.user);
-    const accessToken = signAccessJwtToken(sanitizedUser);
+    // const sanitizedUser = sanitizeUserObject(data.user);
+    // const accessToken = signAccessJwtToken(sanitizedUser);
+
+    if (!data.success) {
+        throw new AuthenticationError(data.reason);
+    }
+
+    //sets refreshToken cookie
+    res.cookie('refreshToken', data.refreshToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+    });
 
     const returnData = {
-        ...sanitizedUser,
-        isNewUser: true,
-        accessToken,
+        ...data.user,
+        isNewUser: true, //technically business logic, can move to service
+        accessToken: data.accessToken,
     };
     SuccessResponse.created(res, returnData);
 };
@@ -71,7 +81,7 @@ export const refreshTokenController = async (req: Request, res: Response) => {
     if (!refreshToken) {
         throw new AuthenticationError('Refresh token does not exist');
     }
-    const refreshTokenServiceData = await refreshTokenService({refreshToken:refreshToken});
+    const refreshTokenServiceData = await refreshTokenService({ refreshToken: refreshToken });
     if (!refreshTokenServiceData.success) {
         throw new AuthenticationError(refreshTokenServiceData.reason);
     } else {
@@ -116,24 +126,68 @@ export const googleOAuthRedirectController = async (req: Request, res: Response)
     if (!code || typeof code !== 'string') {
         throw new AuthenticationError('Google authentication failed');
     }
-    //todo:chase these into services
+
     // const data = await getOAuthJwtTokenService(code);
     // const decoded = decodeJwtToken(data);
-    const data: any = await googleOAuthLoginService(code);
+    const data = await googleOAuthLoginService(code);
 
     if (data.success) {
-        const sanitizedUser: any = sanitizeUserObject(data.user);
-        if (!sanitizedUser.isActive) {
-            //checks if user is banned
-            throw new AuthenticationError('Account is disabled');
-        }
-        const accessToken = signAccessJwtToken(sanitizedUser);
-        sanitizedUser.accessToken = accessToken;
-        SuccessResponse.ok(res, sanitizedUser);
-
-        //todo: includes token of some kind for FE & handle on frontend
+        res.cookie('refreshToken', data.refreshToken, {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'none',
+        });
+        const returnData = {
+            user: data.user,
+            isNewUser: false,
+            accessToken: data.accessToken,
+        };
+        SuccessResponse.ok(res, returnData);
     } else {
-        res.redirect(`${frontEndBaseUrl}/auth/login`);
-        //todo: include message of some kind for FE
+        res.status(409).json({
+            error: 'AUTH_METHOD_CONFLICT',
+            message: 'This email is already registered with password login.',
+        });
     }
+};
+
+export const sendChangePasswordLinkController = async (req: Request, res: Response) => {
+    if (!req.body.email) {
+        throw new BadRequest('Email is required');
+    }
+    const data = await sendChangePasswordLinkService({ email: req.body.email });
+
+    if (data.success) {
+        SuccessResponse.ok(res, { message: 'ok' });
+    } else {
+        throw new BadRequest(data.reason);
+    }
+};
+
+export const changePasswordController = async (req: Request, res: Response) => {
+    if (!req.body.email || !req.body.verificationCode || !req.body.password) {
+        throw new BadRequest('Invalid or expired password reset link');
+    }
+    const data = await changePasswordService({
+        email: req.body.email,
+        verificationCode: req.body.verificationCode,
+        password: req.body.password,
+    });
+
+    if (!data.success) {
+        throw new BadRequest(data.reason);
+    }
+
+    res.cookie('refreshToken', data.refreshToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+    });
+
+    const returnData = {
+        ...data.user,
+        isNewUser: false, //technically business logic, can move to service
+        accessToken: data.accessToken,
+    };
+    SuccessResponse.ok(res, returnData);
 };
