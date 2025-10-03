@@ -42,6 +42,9 @@ class ProfileService {
       const points = await pointsService.getUserPoints(userId);
       const streak = await streakService.getUserStreak(userId);
       
+      // Calculate real learning statistics
+      const learningStats = await this.calculateLearningStatistics(userId);
+      
       profileData.gamificationStats = {
         totalPoints: points?.totalPoints || 0,
         currentStreak: streak?.currentStreak || 0,
@@ -51,10 +54,10 @@ class ProfileService {
         nextLevelExperience: 200,
         achievements: [], // TODO: Add achievements when implemented
         weeklyActivity: [0, 0, 0, 0, 0, 0, 0], // TODO: Get real weekly activity
-        totalLessonsCompleted: 0, // TODO: Calculate from transactions
-        totalQuizzesCompleted: 0, // TODO: Calculate from transactions
-        totalFlashcardsReviewed: 0, // TODO: Calculate from transactions
-        averageScore: 85.0 // TODO: Calculate real average score
+        totalLessonsCompleted: learningStats.totalLessonsCompleted,
+        totalQuizzesCompleted: learningStats.totalQuizzesCompleted,
+        totalFlashcardsReviewed: learningStats.totalFlashcardsReviewed,
+        averageScore: learningStats.averageScore
       };
     } catch (error) {
       logger.warn('Failed to get gamification stats for user', { userId, error });
@@ -136,6 +139,82 @@ class ProfileService {
     }
 
     await this.profileRepo.deleteAccount(userId);
+  }
+
+  /**
+   * Calculate real learning statistics from points transactions
+   */
+  private async calculateLearningStatistics(userId: number): Promise<{
+    totalLessonsCompleted: number;
+    totalQuizzesCompleted: number;
+    totalFlashcardsReviewed: number;
+    averageScore: number;
+  }> {
+    try {
+      // Get all points transactions for this user
+      const transactions = await pointsService.getPointHistory(userId, 1000); // Get more transactions for accurate calculation
+      
+      let totalLessonsCompleted = 0;
+      let totalQuizzesCompleted = 0;
+      let totalFlashcardsReviewed = 0;
+      let totalQuizScore = 0;
+      let quizCount = 0;
+
+      // Count activities based on transaction types and points
+      for (const transaction of transactions) {
+        switch (transaction.type) {
+          case 'lesson_completed':
+            if (transaction.points === 10) { // +10 points for completing a lesson
+              totalLessonsCompleted++;
+            }
+            break;
+            
+          case 'quiz_completed':
+          case 'quiz_high_score':
+            if (transaction.points === 20) { // +20 points for high score in quiz
+              totalQuizzesCompleted++;
+              // High score quiz (assuming 90+ is high score)
+              totalQuizScore += 95; // Estimate high score
+              quizCount++;
+            } else if (transaction.points > 0) {
+              totalQuizzesCompleted++;
+              // Regular quiz score estimation based on points
+              const estimatedScore = Math.min(100, Math.max(60, (transaction.points / 20) * 100));
+              totalQuizScore += estimatedScore;
+              quizCount++;
+            }
+            break;
+            
+          case 'flashcard_reviewed':
+          case 'streak_maintained':
+            if (transaction.points === 5) { // +5 points for maintaining streak (flashcard review)
+              totalFlashcardsReviewed++;
+            }
+            break;
+            
+          default:
+            // Handle other transaction types if needed
+            break;
+        }
+      }
+
+      const averageScore = quizCount > 0 ? totalQuizScore / quizCount : 0;
+
+      return {
+        totalLessonsCompleted,
+        totalQuizzesCompleted,
+        totalFlashcardsReviewed,
+        averageScore: Math.round(averageScore * 10) / 10 // Round to 1 decimal place
+      };
+    } catch (error) {
+      logger.warn('Failed to calculate learning statistics', { userId, error });
+      return {
+        totalLessonsCompleted: 0,
+        totalQuizzesCompleted: 0,
+        totalFlashcardsReviewed: 0,
+        averageScore: 0
+      };
+    }
   }
 
   /**

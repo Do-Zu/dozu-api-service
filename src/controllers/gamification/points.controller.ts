@@ -252,3 +252,5 @@ export class PointsController {
     }
   };
 }
+
+export default new PointsController();
