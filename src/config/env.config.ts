@@ -48,6 +48,7 @@ interface AppConfig {
   server: ServerConfig;
   isProduction: boolean;
   isDevelopment: boolean;
+  trustProxy: boolean | number;
 }
 
 export const config: AppConfig = {
@@ -55,7 +56,19 @@ export const config: AppConfig = {
   isProduction: environment === 'production',
   isDevelopment: environment === 'development',
   server: {
-    port: parseInt(process.env.PORT || '3000', 10),
+    port: parseInt(process.env.PORT || '3333', 10),
     host: process.env.HOST || 'localhost',
   },
+  // Trust proxy configuration for rate limiting and IP detection
+  // Can be configured via TRUST_PROXY environment variable
+  // Values: 'true', 'false', or a number (e.g., '1' to trust first proxy)
+  trustProxy: process.env.TRUST_PROXY
+    ? process.env.TRUST_PROXY === 'true'
+      ? true
+      : process.env.TRUST_PROXY === 'false'
+        ? false
+        : parseInt(process.env.TRUST_PROXY, 10)
+    : environment === 'production'
+      ? 1
+      : true,
 };

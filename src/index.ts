@@ -8,13 +8,25 @@ import morganConfig from './config/middlewares/morgan.config';
 import successHandler from './core/success';
 import router from './routes/api.routes';
 import helmet from './config/middlewares/helmet.config';
+import cookieParser from 'cookie-parser';
 import cors from './config/middlewares/cors.config';
 import rateLimit from './config/middlewares/rate-limit.config';
-import { getDbInstance } from './libs/drizzleClient.lib';
+import { db } from './libs/drizzleClient.lib';
+import NotificationScheduler from './services/notification/notification.scheduler';
+// import { redisInstance } from './libs/redis/redis.connect';
+// import { createServer } from 'http';
+// import { webSocketService } from './libs/websocket/socket.io';
 
 setupGlobalErrorHandlers();
 
 const app: Application = express();
+
+// Configure trust proxy for rate limiting and IP detection
+// This allows Express to trust reverse proxy headers like X-Forwarded-For
+// Essential for apps running behind reverse proxies.
+app.set('trust proxy', config.trustProxy);
+
+// const httpServer = createServer(app);
 
 const { host, port } = config.server;
 
@@ -25,6 +37,8 @@ app.use(parserMiddleware.urlencoded());
 app.use(helmet());
 app.use(cors());
 
+app.use(cookieParser());
+
 // Middleware to log requests
 app.use(morganConfig);
 
@@ -32,6 +46,8 @@ app.use(morganConfig);
 if (config.isProduction) {
   app.use(rateLimit());
 }
+
+// webSocketService.initialize(httpServer);
 
 // Apply success handler middleware request
 app.use(successHandler);
@@ -55,13 +71,21 @@ app.all('*', (req: Request, _res: Response, next: NextFunction) => {
 app.use(handleError);
 
 const server = app.listen(port, () => {
-  console.log(`Server is running at http://${host}:${port}`);
-  getDbInstance();
+  db();
+  
+  // Initialize notification scheduler
+  NotificationScheduler.init();
+  
+  logger.info(`Server is running at http://${host}:${port}`);
 });
 
 // Handle graceful shutdown
 process.on('SIGTERM', () => {
   logger.info('SIGTERM received. Shutting down gracefully');
+  
+  // Stop notification scheduler
+  NotificationScheduler.stopAll();
+  
   server.close(() => {
     logger.info('Process terminated');
   });

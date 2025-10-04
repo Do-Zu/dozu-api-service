@@ -2,7 +2,7 @@ import { pgTable, serial, integer, varchar, jsonb, timestamp } from 'drizzle-orm
 import { usersTable } from '@/models/user.model';
 import { topicsTable } from '@/models/topic.model';
 
-export const inputSets = pgTable('input_set', {
+export const inputSetTable = pgTable('input_set', {
   setId: serial('set_id').primaryKey(),
 
   userId: integer('user_id')
@@ -18,3 +18,6 @@ export const inputSets = pgTable('input_set', {
 
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
+
+export type TypeSelectInputSet = typeof inputSetTable.$inferSelect;
+export type TypeInsertInputSet = typeof inputSetTable.$inferInsert;
