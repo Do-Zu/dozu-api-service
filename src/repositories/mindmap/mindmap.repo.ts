@@ -113,9 +113,10 @@ export const getFlashcardClassProgress = async (userIds: number[], flashcardIds:
     return result;
 };
 
-
-
 export const deleteMindmapByTopicId = async (topicId: number, tx?: Transaction) => {
     const executor = tx ?? db;
     await executor.delete(mindmapsTable).where(eq(mindmapsTable.topicId, topicId));
 };
+
+
+
