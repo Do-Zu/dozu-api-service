@@ -144,8 +144,10 @@ export const googleOAuthRedirectController = async (req: Request, res: Response)
         };
         SuccessResponse.ok(res, returnData);
     } else {
-        res.redirect(`${frontEndBaseUrl}/auth/login?reason=${data.reason}`);
-        //todo: include message of some kind for FE
+        res.status(409).json({
+            error: 'AUTH_METHOD_CONFLICT',
+            message: 'This email is already registered with password login.',
+        });
     }
 };
 
