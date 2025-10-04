@@ -1,10 +1,10 @@
-import db from '@/libs/drizzleClient.lib';
+import { db } from '@/libs/drizzleClient.lib';
 import { flashcardBacklogItemsTable } from '@/models/flashcardBacklog.model';
 import { sql } from 'drizzle-orm';
 
 class BacklogRepo {
   async countActiveByTopic(userId: number, topicId: number) {
-    const rows = await db.execute(sql`
+    const rows = await db().execute(sql`
       SELECT COUNT(*)::int AS count
       FROM flashcard_backlog_items
       WHERE user_id = ${userId}
@@ -30,7 +30,7 @@ class BacklogRepo {
       status: 'active' as const,
     }));
 
-    await db.insert(flashcardBacklogItemsTable)
+    await db().insert(flashcardBacklogItemsTable)
       .values(values)
       .onConflictDoNothing({
         target: [
@@ -44,7 +44,7 @@ class BacklogRepo {
   }
 
   async getReservedByClient(userId: number, topicId: number, clientRequestId: string) {
-    const rows = await db.execute(sql`
+    const rows = await db().execute(sql`
       SELECT
         bl.id,
         bl.flashcard_id AS "flashcardId",
@@ -70,7 +70,7 @@ class BacklogRepo {
   }
 
   async reserve(userId: number, topicId: number, limit: number, clientRequestId: string) {
-    const rows = await db.execute(sql`
+    const rows = await db().execute(sql`
       WITH picked AS (
         SELECT id
         FROM flashcard_backlog_items
@@ -115,7 +115,7 @@ class BacklogRepo {
 
   async commit(userId: number, topicId: number, itemIds: number[]) {
     if (!itemIds.length) return 0;
-    await db.execute(sql`
+    await db().execute(sql`
       UPDATE flashcard_backlog_items
       SET status = 'consumed', consumed_at = NOW()
       WHERE id = ANY(${itemIds})
@@ -128,7 +128,7 @@ class BacklogRepo {
 
   async release(userId: number, topicId: number, itemIds: number[]) {
     if (!itemIds.length) return 0;
-    await db.execute(sql`
+    await db().execute(sql`
       UPDATE flashcard_backlog_items
       SET status = 'active', reserved_at = NULL, client_request_id = NULL
       WHERE id = ANY(${itemIds})
@@ -141,12 +141,12 @@ class BacklogRepo {
 
   async clear(userId: number, topicId: number, force = false) {
     if (force) {
-      await db.execute(sql`
+      await db().execute(sql`
         DELETE FROM flashcard_backlog_items
         WHERE user_id = ${userId} AND topic_id = ${topicId}
       `);
     } else {
-      await db.execute(sql`
+      await db().execute(sql`
         DELETE FROM flashcard_backlog_items
         WHERE user_id = ${userId} AND topic_id = ${topicId} AND status = 'active'
       `);

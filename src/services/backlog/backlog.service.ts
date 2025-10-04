@@ -1,11 +1,12 @@
 import { backlogRepo } from '@/repositories/backlog/backlog.repo';
+import type { BacklogAddDto } from '@/dtos/backlog/backlog.dto';
 
 class BacklogService {
   async count(userId: number, topicId: number) {
     return backlogRepo.countActiveByTopic(userId, topicId);
   }
 
-  async add(userId: number, topicId: number, items: Array<{ flashcardId: number; source: any; sessionEpoch?: number; orderIndex?: number; }>) {
+  async add(userId: number, topicId: number, items: BacklogAddDto['items']) {
     return backlogRepo.addItems(userId, topicId, items);
   }
 

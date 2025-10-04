@@ -1,5 +1,5 @@
 import {
-  pgTable, serial, integer, timestamp, pgEnum, varchar
+  pgTable, serial, integer, timestamp, pgEnum, varchar, uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { usersTable } from '@/models/user.model';
 import { topicsTable } from '@/models/topic.model';
@@ -38,4 +38,13 @@ export const flashcardBacklogItemsTable = pgTable('flashcard_backlog_items', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   reservedAt: timestamp('reserved_at', { withTimezone: true }),
   consumedAt: timestamp('consumed_at', { withTimezone: true }),
-});
+}, (table) => ({
+  uqUserTopicFlashcard: uniqueIndex('uq_backlog_user_topic_flashcard').on(
+    table.userId,
+    table.topicId,
+    table.flashcardId,
+  ),
+})
+);
+
+
