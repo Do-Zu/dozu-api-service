@@ -30,7 +30,7 @@ class BacklogRepo {
       status: 'active' as const,
     }));
 
-    await db().insert(flashcardBacklogItemsTable)
+    const result = await db().insert(flashcardBacklogItemsTable)
       .values(values)
       .onConflictDoNothing({
         target: [
@@ -38,9 +38,11 @@ class BacklogRepo {
           flashcardBacklogItemsTable.topicId,
           flashcardBacklogItemsTable.flashcardId,
         ]
-      });
+      }).returning({ id: flashcardBacklogItemsTable.id });
 
-    return { added: values.length, skipped: 0 };
+     const added = result.length;
+     const skipped = values.length - added;
+     return { added, skipped };
   }
 
   async getReservedByClient(userId: number, topicId: number, clientRequestId: string) {
@@ -115,7 +117,7 @@ class BacklogRepo {
 
   async commit(userId: number, topicId: number, itemIds: number[]) {
     if (!itemIds.length) return 0;
-    await db().execute(sql`
+    const result = await db().execute(sql`
       UPDATE flashcard_backlog_items
       SET status = 'consumed', consumed_at = NOW()
       WHERE id = ANY(${itemIds})
@@ -123,12 +125,12 @@ class BacklogRepo {
         AND topic_id = ${topicId}
         AND status = 'reserved'
     `);
-    return itemIds.length;
+    return result.rowCount ?? 0;
   }
 
   async release(userId: number, topicId: number, itemIds: number[]) {
     if (!itemIds.length) return 0;
-    await db().execute(sql`
+    const result = await db().execute(sql`
       UPDATE flashcard_backlog_items
       SET status = 'active', reserved_at = NULL, client_request_id = NULL
       WHERE id = ANY(${itemIds})
@@ -136,7 +138,7 @@ class BacklogRepo {
         AND topic_id = ${topicId}
         AND status = 'reserved'
     `);
-    return itemIds.length;
+    return result.rowCount ?? 0;
   }
 
   async clear(userId: number, topicId: number, force = false) {
