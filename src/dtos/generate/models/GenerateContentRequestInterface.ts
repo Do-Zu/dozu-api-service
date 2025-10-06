@@ -15,5 +15,8 @@ export type GenerateContentRequestInterface = {
      * Optional method parameter for specifying generation behavior.
      */
     method?: string;
+    /**
+     *
+     */
+    inputSetId?: number | string;
 };
-
