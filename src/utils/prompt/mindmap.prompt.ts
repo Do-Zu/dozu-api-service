@@ -135,7 +135,6 @@ function buildMindmapPromptTemplate(
                 : '...(content truncated)'
             : '';
 
-
     return `
 You are an expert at creating ${documentType} mind map from ${isLargeDocument ? 'large ' : ''}documents. Analyze the following content  and create a ${isLargeDocument ? 'detailed' : 'comprehensive'} mindmap structure${isLargeDocument ? ' that captures the main themes and relationships' : ''}.
 
@@ -150,6 +149,7 @@ IMPORTANT: Return your response as valid JSON that matches this exact structure:
         "description":"Summary of the content related to this node",
         "pageStartIndex": "Page start index belonging to this node",
         "pageEndIndex": "Page end index belonging to this node",
+        "isRoot": true
       }
     }
   ],
@@ -163,7 +163,7 @@ IMPORTANT: Return your response as valid JSON that matches this exact structure:
 }
 
 Guidelines${isLargeDocument ? ' for large document mindmaps' : ''}:
-1. Create ${isLargeDocument ? '1 central' : 'a central'} main topic node
+1. Create ${isLargeDocument ? '1 central' : 'a central'} main topic node, only this main topic node will have the isRoot property inside data as true, all other nodes will have isRoot:False
 2. Add maximum ${categoryCount} main category nodes connected to the central topic
 3. Add maximum ${subtopicCount} subtopic nodes for each main category
 4. ${isLargeDocument ? 'Use hierarchical positioning (central -> categories -> subtopics)' : 'Position nodes in a hierarchical layout'}
