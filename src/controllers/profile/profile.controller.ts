@@ -1,7 +1,7 @@
 import { Request,Response } from 'express';
 import { SuccessResponse } from '@/core/success';
 import ProfileService from '@/services/profile/profile.service';
-import type { AuthenticatedRequest } from '@/types/profile/profile.types';
+
 
 class ProfileController {
   // Get user profile

@@ -67,3 +67,4 @@ const METHODS: string[] = ['get', 'post', 'put', 'delete', 'patch', 'use'];
 const API_VERSION = 'v1';
 
 export { HTTP_STATUS, USER_ROLES, AUTH, MESSAGES, UPLOAD, METHODS, API_VERSION };
+export * from './message';

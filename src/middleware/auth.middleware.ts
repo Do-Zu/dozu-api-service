@@ -88,9 +88,7 @@ export const authMiddlewareIfHeadersPresent = async (req: Request, res: Response
 
             next();
         } catch (error) {
-            //!remove console.log with proper logger
-            console.log(error);
-            logger.warn('Invalid token');
+            logger.warn('Invalid token', error);
             throw new BadRequest('Unauthorized: Invalid token');
         }
     }
