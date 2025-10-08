@@ -58,16 +58,16 @@ export const registerUserController = async (req: Request, res: Response) => {
     }
 
     //sets refreshToken cookie
-    res.cookie('refreshToken', data.refreshToken, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'none',
-    });
+    // res.cookie('refreshToken', data.refreshToken, {
+    //     httpOnly: true,
+    //     secure: true,
+    //     sameSite: 'none',
+    // });
 
     const returnData = {
-        ...data.user,
-        isNewUser: true, //technically business logic, can move to service
-        accessToken: data.accessToken,
+        // ...data.user,
+        // isNewUser: true, //technically business logic, can move to service
+        // accessToken: data.accessToken,
     };
     SuccessResponse.created(res, returnData);
 };
@@ -97,17 +97,28 @@ export const refreshTokenController = async (req: Request, res: Response) => {
 };
 
 export const verifyEmailController = async (req: Request, res: Response) => {
-    if (!req.query.email || !req.query.verificationCode) {
+    if (!req.body.email || !req.body.verificationCode) {
         throw new BadRequest('Bad link');
         //todo: alternatively navigate to UI with error code
     }
-    const email = req.query.email;
-    const verificationCode = req.query.verificationCode;
+    const email = req.body.email as string;
+    const verificationCode = req.body.verificationCode as string;
 
     const data = await verifyEmailService(email, verificationCode);
-    //todo: login here
+
     if (data.success) {
-        res.redirect(`${frontEndBaseUrl}/auth/verifyEmail`);
+        res.cookie('refreshToken', data.refreshToken, {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'none',
+        });
+
+        const returnData = {
+            ...data.user,
+            isNewUser: true, //technically business logic, can move to service
+            accessToken: data.accessToken,
+        };
+        SuccessResponse.ok(res, returnData);
     } else {
         throw new BadRequest('Invalid verification code or email');
     }

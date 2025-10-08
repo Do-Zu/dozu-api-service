@@ -52,7 +52,7 @@ export const sendVerificationLinkEmail = async (email: string, verificationCode:
         to: email, // list of receivers
         subject: 'Hello ✔', // Subject line
         //verify in backend then redirect to frontend
-        text: `This is your verification link: ${backendBaseUrl}/api/auth/verify-email?email=${email}&verificationCode=${verificationCode}`,
+        text: `This is your verification link: ${frontendBaseUrl}/auth/verifyEmail?email=${email}&verificationCode=${verificationCode}`,
         // html: '<b>Hello world?</b>', // html body
     });
     return info;
