@@ -48,11 +48,13 @@ export const registerUserController = async (req: Request, res: Response) => {
         throw new BadRequest('Username, password and email are required');
     }
     const data = await registerUserService(req.body.username, req.body.password, req.body.email);
-    // const sanitizedUser = sanitizeUserObject(data.user);
-    // const accessToken = signAccessJwtToken(sanitizedUser);
 
     if (!data.success) {
-        throw new BadRequest(data.reason);
+        res.status(409).json({
+            error: 'USER_ALREADY_EXISTS',
+            message: data.reason,
+        });
+        return;
     }
 
     //sets refreshToken cookie
