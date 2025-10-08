@@ -10,7 +10,7 @@ import {
     verifyEmailService,
 } from '@/services/auth.service';
 
-import { AuthenticationError, BadRequest, InternalServerError } from '@/core/error';
+import { AuthenticationError, BadRequest } from '@/core/error';
 const frontEndBaseUrl = process.env.FRONTEND_BASE_URL;
 
 export const testingAuthPath = async (req: Request, res: Response) => {
@@ -52,7 +52,7 @@ export const registerUserController = async (req: Request, res: Response) => {
     // const accessToken = signAccessJwtToken(sanitizedUser);
 
     if (!data.success) {
-        throw new InternalServerError(data.reason);
+        throw new BadRequest(data.reason);
     }
 
     //sets refreshToken cookie
