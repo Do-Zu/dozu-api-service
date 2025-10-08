@@ -52,7 +52,7 @@ export const registerUserController = async (req: Request, res: Response) => {
     // const accessToken = signAccessJwtToken(sanitizedUser);
 
     if (!data.success) {
-        throw new AuthenticationError(data.reason);
+        throw new InternalServerError(data.reason);
     }
 
     //sets refreshToken cookie
