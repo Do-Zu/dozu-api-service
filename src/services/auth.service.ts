@@ -18,6 +18,7 @@ import {
     insertVerificationCode,
     queryVerificationCode,
     selectOneUserByEmail,
+    selectOneUserByEmailOrUsername,
     selectOneUserByUsername,
     updateLastLoginAt,
     updateUserIsVerified,
@@ -152,6 +153,11 @@ export const addRoleTeacherForAccount = async (userId: number) => {
 
 export const registerUserService = async (username: string, password: string, email: string): Promise<LoginResult> => {
     const passwordHash = await hashPassword(password);
+
+    const checkExistingUser = await selectOneUserByEmailOrUsername({ username: username, email: email });
+    if (checkExistingUser) {
+        return { success: false, reason: 'Username or email already in use' };
+    }
 
     const newUserData = await insertUser(username, passwordHash, email);
     const verificationCodeData = await insertVerificationCode(newUserData);

@@ -11,6 +11,7 @@ import {
 } from '@/repositories/mindmap/mindmap.repo';
 import {
     changeNodeIdOfFlashcardsService,
+    deleteMindmapService,
     getFlashcardsOfNodeService,
     getFlashcardsOfNodeWithClassProgressSummaryService,
     getFlashcardsOfNodeWithSummaryService,
@@ -162,4 +163,14 @@ export const uploadImageTESTDELETELATER = async (req: Request, res: Response) =>
         imageObject?.url;
     }
     SuccessResponse.ok(res, { object: imageObject });
+};
+
+export const deleteMindmapController=async (req: Request, res: Response) => {
+     const topicId = parseInt(req.params.topicId);
+    if (!topicId) {
+        throw new BadRequest('Missing topic id');
+    } else {
+        await deleteMindmapService({topicId:topicId});
+        SuccessResponse.ok(res,{message:'Deleted'});
+    }
 };

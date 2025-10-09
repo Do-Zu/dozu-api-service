@@ -34,6 +34,7 @@ import './class-based-learning/classEnrollment.routes';
 import './gamification/streak.routes';
 import './gamification/points.routes';
 import './feynman/feynman.routes';
+import './backlog/backlog.routes';
 
 // Apply global async handler to router
 globalAsyncHandler(router);

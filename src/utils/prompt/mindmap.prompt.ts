@@ -112,10 +112,10 @@ function buildMindmapPromptTemplate(
     } = {}
 ): string {
     const {
-        maxCategories = '3-7',
-        maxSubtopics = '2-4',
-        maxLabelWords = '3-4',
-        contentTruncateLength = 8000,
+        maxCategories = '30',
+        maxSubtopics = '20',
+        maxLabelWords = '10',
+        //contentTruncateLength = 8000,
         isLargeDocument = false,
         customInstructions,
     } = options;
@@ -127,14 +127,13 @@ function buildMindmapPromptTemplate(
     const subtopicCount = isLargeDocument ? '3-5' : maxSubtopics;
     const labelWords = isLargeDocument ? '3-6' : maxLabelWords;
 
-    const truncatedContent = content.substring(0, contentTruncateLength);
-    const contentSuffix =
-        content.length > contentTruncateLength
-            ? isLargeDocument
-                ? '...(content continues - this is a section of a larger document)'
-                : '...(content truncated)'
-            : '';
-
+    // const truncatedContent = content.substring(0, contentTruncateLength);
+    // const contentSuffix =
+    //     content.length > contentTruncateLength
+    //         ? isLargeDocument
+    //             ? '...(content continues - this is a section of a larger document)'
+    //             : '...(content truncated)'
+    //         : '';
 
     return `
 You are an expert at creating ${documentType} mind map from ${isLargeDocument ? 'large ' : ''}documents. Analyze the following content  and create a ${isLargeDocument ? 'detailed' : 'comprehensive'} mindmap structure${isLargeDocument ? ' that captures the main themes and relationships' : ''}.
@@ -150,6 +149,7 @@ IMPORTANT: Return your response as valid JSON that matches this exact structure:
         "description":"Summary of the content related to this node",
         "pageStartIndex": "Page start index belonging to this node",
         "pageEndIndex": "Page end index belonging to this node",
+        "isRoot": true
       }
     }
   ],
@@ -162,8 +162,10 @@ IMPORTANT: Return your response as valid JSON that matches this exact structure:
   ]
 }
 
+IMPORTANT: pageStartIndex and pageEndIndex never exceed total page provider by content.
+
 Guidelines${isLargeDocument ? ' for large document mindmaps' : ''}:
-1. Create ${isLargeDocument ? '1 central' : 'a central'} main topic node
+1. Create ${isLargeDocument ? '1 central' : 'a central'} main topic node, only this main topic node will have the isRoot property inside data as true, all other nodes will have isRoot:false
 2. Add maximum ${categoryCount} main category nodes connected to the central topic
 3. Add maximum ${subtopicCount} subtopic nodes for each main category
 4. ${isLargeDocument ? 'Use hierarchical positioning (central -> categories -> subtopics)' : 'Position nodes in a hierarchical layout'}
@@ -174,8 +176,8 @@ ${isLargeDocument ? '8. Position nodes to avoid overlapping' : ''}
 9. Response must be follow language of the content
 10. Each node must have a comprehensive summary of the related content including the overall themes and the major ideas covered.
 
-Content to analyze${isLargeDocument ? ' (truncated for processing)' : ''}:
-${truncatedContent} ${contentSuffix}
+Content to analyze:
+${content}
 
 ${customInstructions ? `Additional Instructions: ${customInstructions}\n\n` : ''}Return only the JSON structure, no additional text or formatting.`;
 }

@@ -10,7 +10,7 @@ import {
     verifyEmailService,
 } from '@/services/auth.service';
 
-import { AuthenticationError, BadRequest, InternalServerError } from '@/core/error';
+import { AuthenticationError, BadRequest } from '@/core/error';
 const frontEndBaseUrl = process.env.FRONTEND_BASE_URL;
 
 export const testingAuthPath = async (req: Request, res: Response) => {
@@ -48,11 +48,13 @@ export const registerUserController = async (req: Request, res: Response) => {
         throw new BadRequest('Username, password and email are required');
     }
     const data = await registerUserService(req.body.username, req.body.password, req.body.email);
-    // const sanitizedUser = sanitizeUserObject(data.user);
-    // const accessToken = signAccessJwtToken(sanitizedUser);
 
     if (!data.success) {
-        throw new AuthenticationError(data.reason);
+        res.status(409).json({
+            error: 'USER_ALREADY_EXISTS',
+            message: data.reason,
+        });
+        return;
     }
 
     //sets refreshToken cookie
