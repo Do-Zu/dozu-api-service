@@ -2,7 +2,7 @@ import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 import { Router } from 'express';
 import { registerRoute } from '@/routes/register.routes';
 import { StreakController } from '@/controllers/gamification/streak.controller';
-import { authMiddleware } from '@/middleware/auth.middleware';
+import { authMiddleware, validateAdmin } from '@/middleware/auth.middleware';
 
 const router = Router();
 const streakController = new StreakController();
@@ -23,7 +23,7 @@ router.post('/update', streakController.updateStreak);
 router.post('/buy-freeze', streakController.buyStreakFreeze);
 
 // POST /api/gamification/streak/gift-freeze - Gift streak freeze (Admin only)
-router.post('/gift-freeze', streakController.giftStreakFreeze);
+router.post('/gift-freeze', validateAdmin, streakController.giftStreakFreeze);
 
 registerRoute('/gamification/streak', router, {
     description: 'Gamification Streak API for learning streaks',

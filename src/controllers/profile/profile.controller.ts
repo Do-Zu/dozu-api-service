@@ -2,7 +2,7 @@ import { Request,Response } from 'express';
 import { SuccessResponse } from '@/core/success';
 import ProfileService from '@/services/profile/profile.service';
 import { isTeacher } from '@/utils/auth/authHelpers.utils';
-import { Forbidden } from '@/core/error';
+import { Forbidden, BadRequest } from '@/core/error';
 
 class ProfileController {
   // Get user profile
@@ -20,9 +20,9 @@ class ProfileController {
       throw new Forbidden('Only teachers can view other users\' profiles');
     }
 
-    const userId = parseInt(req.params.userId);
-    if (isNaN(userId)) {
-      throw new Error('Invalid user ID');
+    const userId = Number.parseInt(req.params.userId, 10);
+    if (Number.isNaN(userId)) {
+      throw new BadRequest('Invalid user ID');
     }
 
     const profile = await ProfileService.getProfile(userId);

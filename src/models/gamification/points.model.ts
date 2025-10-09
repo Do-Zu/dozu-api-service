@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, varchar, timestamp, text } from 'drizzle-orm/pg-core';
+import { pgTable, serial, integer, varchar, timestamp, text, uniqueIndex } from 'drizzle-orm/pg-core';
 import { usersTable } from '@/models/user.model';
 
 // Points table
@@ -10,7 +10,9 @@ export const pointsTable = pgTable('points', {
   lifetimePoints: integer('lifetime_points').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
-});
+}, (t) => ({
+  ux_user: uniqueIndex('ux_points_user_id').on(t.userId),
+}));
 
 // Point transaction history
 export const pointTransactionTable = pgTable('point_transactions', {

@@ -39,18 +39,19 @@ class ProfileService {
     const profileData = this.mapUserToProfileData(user);
     
     try {
-      const points = await pointsService.getUserPoints(userId);
+      // Get points summary (includes available & lifetime)
+      const summary = await pointsService.getPointSummary(userId);
       const streak = await streakService.getUserStreak(userId);
       
       // Calculate real learning statistics
       const learningStats = await this.calculateLearningStatistics(userId);
       
       profileData.gamificationStats = {
-        totalPoints: points?.totalPoints || 0,
+        totalPoints: summary.availablePoints || 0,
         currentStreak: streak?.currentStreak || 0,
         longestStreak: streak?.longestStreak || 0,
-        level: Math.floor((points?.totalPoints || 0) / 200) + 1,
-        experiencePoints: (points?.totalPoints || 0) % 200,
+        level: Math.floor((summary.lifetimePoints || 0) / 200) + 1,
+        experiencePoints: (summary.lifetimePoints || 0) % 200,
         nextLevelExperience: 200,
         achievements: [], // TODO: Add achievements when implemented
         weeklyActivity: [0, 0, 0, 0, 0, 0, 0], // TODO: Get real weekly activity

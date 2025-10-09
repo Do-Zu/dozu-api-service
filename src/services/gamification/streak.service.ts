@@ -1,12 +1,30 @@
 import { StreakRepository, StreakData } from '@/repositories/gamification/streak.repo';
 import pointsService from '@/services/gamification/points.service';
 import { POINT_RULES, STREAK_BONUS } from '@/models/gamification/points.model';
+import { 
+  getStartOfDayInTimezone, 
+  getYesterdayInTimezone, 
+  isTodayInTimezone, 
+  isYesterdayInTimezone,
+  getUserTimezone 
+} from '@/utils/date/streak-timezone';
+import { SelectUser } from '@/models/user.model';
+import ProfileRepository from '@/repositories/profile/profile.repo';
 
 class StreakService {
   private streakRepo: StreakRepository;
+  private profileRepo: ProfileRepository;
 
   constructor() {
     this.streakRepo = new StreakRepository();
+    this.profileRepo = new ProfileRepository();
+  }
+
+  /**
+   * Get user data including study preferences for timezone calculation
+   */
+  private async getUserData(userId: number): Promise<SelectUser | null> {
+    return await this.profileRepo.getUserById(userId);
   }
 
   async updateUserStreak(userId: number): Promise<{
@@ -16,11 +34,15 @@ class StreakService {
     streakBroken: boolean;
     message: string;
   }> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Get user data to determine timezone
+    const user = await this.getUserData(userId);
+   
+    // Get user's timezone from study preferences or default to UTC
+    const userTimezone = getUserTimezone(user?.studyPreferences as any);
     
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
+    // Calculate timezone-aware dates
+    const today = getStartOfDayInTimezone(userTimezone);
+    const yesterday = getYesterdayInTimezone(userTimezone);
 
     // Get current streak data
     let streak = await this.streakRepo.getUserStreak(userId);
@@ -29,38 +51,48 @@ class StreakService {
       // Initialize streak for new user
       streak = await this.streakRepo.initializeStreak(userId);
       
-      // Award points for first study session
-      const pointsEarned = POINT_RULES.STREAK_MAINTAINED;
-      await pointsService.awardPoints(
-        userId, 
-        pointsEarned, 
-        'first_study_session', 
-        'Started your learning journey!'
+      // Use atomic update for first study session
+      const result = await this.streakRepo.atomicStreakUpdate(
+        userId,
+        today,
+        'streak_restarted',
+        POINT_RULES.STREAK_MAINTAINED,
+        1,
+        false
       );
 
-      // Update streak to 1
-      const updatedStreak = await this.streakRepo.updateStreak(userId, {
-        currentStreak: 1,
-        longestStreak: 1,
-        lastStudyDate: today,
-      });
+      if (result.success) {
+        // Award points for first study session
+        await pointsService.awardPoints(
+          userId, 
+          POINT_RULES.STREAK_MAINTAINED, 
+          'first_study_session', 
+          'Started your learning journey!'
+        );
 
-      return {
-        currentStreak: updatedStreak.currentStreak,
-        isNewStreak: true,
-        pointsEarned,
-        streakBroken: false,
-        message: 'Started your learning streak! Keep it up!',
-      };
+        return {
+          currentStreak: result.currentStreak,
+          isNewStreak: true,
+          pointsEarned: POINT_RULES.STREAK_MAINTAINED,
+          streakBroken: false,
+          message: 'Started your learning streak! Keep it up!',
+        };
+      } else {
+        // Already processed today
+        return {
+          currentStreak: result.currentStreak,
+          isNewStreak: false,
+          pointsEarned: 0,
+          streakBroken: false,
+          message: result.message,
+        };
+      }
     }
 
     const lastStudyDate = streak.lastStudyDate ? new Date(streak.lastStudyDate) : null;
-    if (lastStudyDate) {
-      lastStudyDate.setHours(0, 0, 0, 0);
-    }
 
-    // Check if user already studied today
-    if (lastStudyDate && lastStudyDate.getTime() === today.getTime()) {
+    // Check if user already studied today (timezone-aware)
+    if (lastStudyDate && isTodayInTimezone(lastStudyDate, userTimezone)) {
       return {
         currentStreak: streak.currentStreak,
         isNewStreak: false,
@@ -70,19 +102,11 @@ class StreakService {
       };
     }
 
-    // Check if streak continues (studied yesterday)
-    if (lastStudyDate && lastStudyDate.getTime() === yesterday.getTime()) {
+    // Check if streak continues (studied yesterday - timezone-aware)
+    if (lastStudyDate && isYesterdayInTimezone(lastStudyDate, userTimezone)) {
       // Continue streak
       const newCurrentStreak = streak.currentStreak + 1;
-      const newLongestStreak = Math.max(newCurrentStreak, streak.longestStreak);
-
-      await this.streakRepo.updateStreak(userId, {
-        currentStreak: newCurrentStreak,
-        longestStreak: newLongestStreak,
-        lastStudyDate: today,
-        streakFreezeUsed: false, // Reset freeze for new day
-      });
-
+      
       // Calculate points with bonuses
       let pointsEarned = POINT_RULES.STREAK_MAINTAINED;
       
@@ -95,72 +119,149 @@ class StreakService {
       if (newCurrentStreak % 30 === 0) {
         pointsEarned += STREAK_BONUS.MONTHLY_BONUS;
       }
-      
-      await pointsService.awardPoints(
-        userId, 
-        pointsEarned, 
-        'streak_maintained', 
-        `Maintained ${newCurrentStreak}-day streak!`
+
+      // Use atomic update
+      const result = await this.streakRepo.atomicStreakUpdate(
+        userId,
+        today,
+        'streak_continued',
+        pointsEarned,
+        newCurrentStreak,
+        false
       );
 
-      let message = `Streak continued! ${newCurrentStreak} days strong!`;
-      if (newCurrentStreak % 7 === 0) {
-        message += ` 🎉 Weekly milestone reached!`;
-      }
-      if (newCurrentStreak % 30 === 0) {
-        message += ` 🏆 Monthly milestone achieved!`;
-      }
+      if (result.success) {
+        // Award points
+        await pointsService.awardPoints(
+          userId, 
+          pointsEarned, 
+          'streak_maintained', 
+          `Maintained ${newCurrentStreak}-day streak!`
+        );
 
-      return {
-        currentStreak: newCurrentStreak,
-        isNewStreak: false,
-        pointsEarned,
-        streakBroken: false,
-        message,
-      };
+        let message = `Streak continued! ${newCurrentStreak} days strong!`;
+        if (newCurrentStreak % 7 === 0) {
+          message += ` 🎉 Weekly milestone reached!`;
+        }
+        if (newCurrentStreak % 30 === 0) {
+          message += ` 🏆 Monthly milestone achieved!`;
+        }
+
+        return {
+          currentStreak: result.currentStreak,
+          isNewStreak: false,
+          pointsEarned,
+          streakBroken: false,
+          message,
+        };
+      } else {
+        // Already processed today
+        return {
+          currentStreak: result.currentStreak,
+          isNewStreak: false,
+          pointsEarned: 0,
+          streakBroken: false,
+          message: result.message,
+        };
+      }
     }
 
     // Check for streak freeze
     if (streak.streakFreezeCount > 0 && !streak.streakFreezeUsed) {
-      // Use streak freeze
-      await this.streakRepo.updateStreak(userId, {
-        lastStudyDate: today,
-        streakFreezeUsed: true,
-        streakFreezeCount: streak.streakFreezeCount - 1,
-      });
+      // Use freeze to bridge the missed day and continue the streak
+      const newCurrentStreak = streak.currentStreak + 1;
+      
+      // Calculate points with bonuses (same as normal streak continuation)
+      let pointsEarned = POINT_RULES.STREAK_MAINTAINED;
+      if (newCurrentStreak % 7 === 0) {
+        pointsEarned += STREAK_BONUS.WEEKLY_BONUS;
+      }
+      if (newCurrentStreak % 30 === 0) {
+        pointsEarned += STREAK_BONUS.MONTHLY_BONUS;
+      }
+
+      // Use atomic update with freeze
+      const result = await this.streakRepo.atomicStreakUpdate(
+        userId,
+        today,
+        'freeze_used',
+        pointsEarned,
+        newCurrentStreak,
+        true
+      );
+
+      if (result.success) {
+        // Award points for maintaining streak with freeze
+        await pointsService.awardPoints(
+          userId, 
+          pointsEarned, 
+          'streak_maintained', 
+          `Maintained ${newCurrentStreak}-day streak (freeze used)`
+        );
+
+        let message = `Streak freeze used! Your streak continues at ${newCurrentStreak} days!`;
+        if (newCurrentStreak % 7 === 0) {
+          message += ` 🎉 Weekly milestone reached!`;
+        }
+        if (newCurrentStreak % 30 === 0) {
+          message += ` 🏆 Monthly milestone achieved!`;
+        }
+
+        return {
+          currentStreak: result.currentStreak,
+          isNewStreak: false,
+          pointsEarned,
+          streakBroken: false,
+          message,
+        };
+      } else {
+        // Already processed today
+        return {
+          currentStreak: result.currentStreak,
+          isNewStreak: false,
+          pointsEarned: 0,
+          streakBroken: false,
+          message: result.message,
+        };
+      }
+    }
+
+    // Streak broken - reset with atomic update
+    const result = await this.streakRepo.atomicStreakUpdate(
+      userId,
+      today,
+      'streak_broken',
+      POINT_RULES.STREAK_MAINTAINED,
+      1,
+      false
+    );
+
+    if (result.success) {
+      // Award points for restarting
+      await pointsService.awardPoints(
+        userId, 
+        POINT_RULES.STREAK_MAINTAINED, 
+        'streak_restarted', 
+        'Restarted learning streak'
+      );
 
       return {
-        currentStreak: streak.currentStreak,
+        currentStreak: result.currentStreak,
+        isNewStreak: true,
+        pointsEarned: POINT_RULES.STREAK_MAINTAINED,
+        streakBroken: true,
+        message: `Streak broken but you're back! Starting fresh with day 1!`,
+      };
+    } else {
+      // Already processed today
+      return {
+        currentStreak: result.currentStreak,
         isNewStreak: false,
         pointsEarned: 0,
         streakBroken: false,
-        message: `Streak freeze used! Your ${streak.currentStreak}-day streak is safe!`,
+        message: result.message,
       };
     }
-
-    // Streak broken - reset
-    await this.streakRepo.updateStreak(userId, {
-      currentStreak: 1,
-      lastStudyDate: today,
-      streakFreezeUsed: false,
-    });
-
-    // Award points for restarting
-    const pointsEarned = POINT_RULES.STREAK_MAINTAINED;
-    await pointsService.awardPoints(
-      userId, 
-      pointsEarned, 
-      'streak_restarted', 
-      'Restarted learning streak'
-    );
-
-    return {
-      currentStreak: 1,
-      isNewStreak: true,
-      pointsEarned,
-      streakBroken: true,
-      message: `Streak broken but you're back! Starting fresh with day 1!`,
-    };
   }
 
   async getUserStreak(userId: number): Promise<StreakData | null> {
@@ -168,9 +269,8 @@ class StreakService {
   }
 
   async buyStreakFreeze(userId: number, cost: number = 100): Promise<void> {
-    // Spend points to buy streak freeze
     await pointsService.spendPoints(userId, cost, 'streak_freeze_purchase', 'Purchased streak freeze');
-    await this.streakRepo.incrementStreakFreeze(userId, 1);
+    await this.streakRepo.atomicBuyStreakFreeze(userId, cost, 1);
   }
 
   async giftStreakFreeze(userId: number, amount: number = 1): Promise<void> {

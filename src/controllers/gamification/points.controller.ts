@@ -39,19 +39,19 @@ export class PointsController {
         throw new BadRequest('Invalid user ID');
       }
 
-      // Get points data
-      const points = await pointsService.getUserPoints(userId);
+      // Get points summary (includes available & lifetime)
+      const summary = await pointsService.getPointSummary(userId);
       
       // Get streak data  
       const streak = await streakService.getUserStreak(userId);
       
       // Combine into gamification stats format
       const gamificationStats = {
-        totalPoints: points?.totalPoints || 0,
+        totalPoints: summary.availablePoints || 0,
         currentStreak: streak?.currentStreak || 0,
         longestStreak: streak?.longestStreak || 0,
-        level: Math.floor((points?.totalPoints || 0) / 200) + 1, // Simple level calculation
-        experiencePoints: (points?.totalPoints || 0) % 200,
+        level: Math.floor((summary.lifetimePoints || 0) / 200) + 1, // Simple level calculation
+        experiencePoints: (summary.lifetimePoints || 0) % 200,
         nextLevelExperience: 200,
         achievements: [], // TODO: Add achievements when implemented
         weeklyActivity: [0, 0, 0, 0, 0, 0, 0], // TODO: Get real weekly activity
@@ -112,12 +112,18 @@ export class PointsController {
       const userId = getUserIdFromRequest(req);
 
       const { points, type, description } = req.body;
-
-      if (!points || !type || !description) {
-        throw new BadRequest('Missing required fields: points, type, description');
+      const spend = Number(points);
+      if (!Number.isFinite(spend) || !Number.isInteger(spend) || spend <= 0) {
+        throw new BadRequest('Field "points" must be a positive integer');
+      }
+      if (typeof type !== 'string' || !type.trim()) {
+        throw new BadRequest('Field "type" must be a non-empty string');
+      }
+      if (typeof description !== 'string' || !description.trim()) {
+        throw new BadRequest('Field "description" must be a non-empty string');
       }
 
-      const result = await pointsService.spendPoints(userId, points, type, description);
+      const result = await pointsService.spendPoints(userId, spend, type.trim(), description.trim());
       
       SuccessResponse.ok(res, result, 'Points spent successfully');
     } catch (error) {
@@ -239,8 +245,6 @@ export class PointsController {
       const userId = getUserIdFromRequest(req);
 
       await pointsService.awardDailyGoal(userId);
-      
-      SuccessResponse.ok(res, null, 'Daily goal points awarded');
       
       SuccessResponse.ok(res, null, 'Daily goal points awarded');
     } catch (error) {
