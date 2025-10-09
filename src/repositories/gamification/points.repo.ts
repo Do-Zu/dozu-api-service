@@ -52,6 +52,9 @@ export class PointsRepository {
   }
 
   async spendPoints(userId: number, points: number, type: string, description: string): Promise<Points> {
+    if (!Number.isFinite(points) || !Number.isInteger(points) || points <= 0) {
+      throw new Error('Invalid points: must be a positive integer');
+    }
     // Atomic guarded decrement - prevents race conditions and ensures sufficient points
     const updatedRows = await db()
       .update(pointsTable)

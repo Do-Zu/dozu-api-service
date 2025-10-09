@@ -197,12 +197,9 @@ class ProfileService {
             break;
             
           case 'quiz_high_score':
-            // High score quizzes
-            if (transaction.points === POINT_RULES.QUIZ_HIGH_SCORE) {
-              totalQuizzesCompleted++;
-              totalQuizScore += 90; // High score
-              quizCount++;
-            }
+            // Skip - quiz_high_score transactions don't exist in current system
+            // All quiz completions are recorded as 'quiz_completed' with varying points
+            // based on score (see awardQuizCompletion in points.service.ts)
             break;
             
           case 'flashcard_reviewed':
