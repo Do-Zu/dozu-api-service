@@ -284,7 +284,7 @@ class ScheduleService {
         for (const date in scheduleGroupItemPerDate) {
             const listItemGroupedPerDate = scheduleGroupItemPerDate[date];
             const dateOfWeek = getDayOfWeek(date);
-            const listFreeTimeSlotsOfDay = [...freeTimeSlotPerDay[dateOfWeek]];
+            const listFreeTimeSlotsOfDay = [...(freeTimeSlotPerDay[dateOfWeek] ?? [])];
 
             if (listFreeTimeSlotsOfDay.length === 0) {
                 // Add all items to waiting queue if no free time
