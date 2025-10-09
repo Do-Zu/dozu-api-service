@@ -2,10 +2,11 @@ import { scheduleRepo } from '@/repositories/schedule/schedule.repo';
 import { FreeTimeSlotDays } from '@/repositories/user/type';
 import { userRepository } from '@/repositories/user/user.repo';
 import { IGroupTopic, IItemScheduleGenerated, ItemTrackingWithTopic } from './types/schedule.index';
-import { getDateFormattedWithTimeZone, getDayOfWeek } from '@/utils/date';
+import { formatDate, getDateFormattedWithTimeZone, getDayOfWeek } from '@/utils/date';
 import { SchedulePriorityQueue } from '@/utils/queue/schedule.queue';
 import { BadRequest } from '@/core/error';
 import { redisInstance as redis } from '@/libs/redis/default/redisDefault';
+import { addMilliseconds, differenceInMinutes, isValid, parse } from 'date-fns';
 
 const DEFINE_DEFAULT_FREE_TIME: FreeTimeSlotDays = {
     Monday: [
@@ -53,7 +54,6 @@ const USER_PREFERRED_SESSION_LEARNING = 'morning';
  * Service class for Schedule functionality
  */
 class ScheduleService {
-    private readonly DEFAULT_FREE_TIME: FreeTimeSlotDays = DEFINE_DEFAULT_FREE_TIME;
     private readonly TTL_SCHEDULE = 60 * 60; // 1 hour
     private readonly DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM = 1;
     private readonly DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION = 5;
@@ -281,11 +281,10 @@ class ScheduleService {
         let totalItems = 0;
         let scheduledItems = 0;
 
-        // Enhanced scheduling algorithm
         for (const date in scheduleGroupItemPerDate) {
             const listItemGroupedPerDate = scheduleGroupItemPerDate[date];
             const dateOfWeek = getDayOfWeek(date);
-            const listFreeTimeSlotsOfDay = [...freeTimeSlotPerDay[dateOfWeek]]; // Copy to avoid mutation
+            const listFreeTimeSlotsOfDay = [...freeTimeSlotPerDay[dateOfWeek]];
 
             if (listFreeTimeSlotsOfDay.length === 0) {
                 // Add all items to waiting queue if no free time
@@ -321,14 +320,19 @@ class ScheduleService {
 
                 // Calculate available time for the day
                 const totalAvailableMinutes = listFreeTimeSlotsOfDay.reduce((sum, slot) => {
-                    const start = new Date(`${date}T${slot.startTime}`);
-                    const end = new Date(`${date}T${slot.endTime}`);
-                    return sum + (end.getTime() - start.getTime()) / (60 * 1000);
+                    const slotDate = new Date(date);
+                    const start = parse(slot.startTime, 'HH:mm', slotDate);
+                    const end = parse(slot.endTime, 'HH:mm', slotDate);
+                    if (!isValid(start) || !isValid(end)) {
+                        return sum;
+                    }
+                    return sum + differenceInMinutes(end, start);
                 }, 0);
 
                 // Only process if we have viable time slots
                 if (!this.isSlotViable(totalAvailableMinutes)) {
                     const chunks = this.splitItemsIntoStudyChunks(items, this.MAX_ITEMS_PER_SLOT);
+
                     for (const chunk of chunks) {
                         const priority = this.calculatePriority(chunk);
                         const scheduleItem: IItemScheduleGenerated = {
@@ -351,6 +355,7 @@ class ScheduleService {
                     items,
                     totalAvailableMinutes / listFreeTimeSlotsOfDay.length
                 );
+
                 const chunks = this.splitItemsIntoStudyChunks(items, itemsPerSlot);
 
                 for (const chunk of chunks) {
@@ -359,14 +364,20 @@ class ScheduleService {
                         chunk.length * this.DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM +
                         this.DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION;
 
+                    if (!chunk || !chunk.length) continue;
+
+                    const { topicId, reviewDate, topicDescription, type, topicTitle } = chunk.find(t => !!t.topicId)!;
+
+                    const endTime = new Date(chunk[0].reviewDate.getTime() + timeToLearn * 60 * 1000);
+
                     const scheduleItem: IItemScheduleGenerated = {
-                        topicId: chunk[0].topicId,
+                        topicId,
                         priority,
-                        startTime: chunk[0].reviewDate,
-                        endTime: new Date(chunk[0].reviewDate.getTime() + timeToLearn * 60 * 1000),
-                        title: chunk[0].topicTitle,
-                        description: chunk[0].topicDescription,
-                        type: chunk[0].type,
+                        startTime: reviewDate,
+                        endTime,
+                        title: topicTitle,
+                        description: topicDescription,
+                        type,
                         amountItem: chunk.length,
                     };
 
@@ -386,8 +397,9 @@ class ScheduleService {
             const scheduledToday: IItemScheduleGenerated[] = [];
 
             for (const slot of listFreeTimeSlotsOfDay) {
-                let slotStart = new Date(`${date}T${slot.startTime}`);
-                const slotEnd = new Date(`${date}T${slot.endTime}`);
+                const baseDate = formatDate(date);
+                let slotStart = parse(slot.startTime, 'HH:mm', baseDate);
+                const slotEnd = parse(slot.endTime, 'HH:mm', baseDate);
                 const slotDurationMinutes = (slotEnd.getTime() - slotStart.getTime()) / (60 * 1000);
 
                 if (!this.isSlotViable(slotDurationMinutes)) {
@@ -407,11 +419,17 @@ class ScheduleService {
                     const availableTime = (slotEnd.getTime() - slotStart.getTime()) / (60 * 1000);
 
                     if (availableTime < itemDuration) {
+                        // requeue later and stop filling this slot
+                        dailyPriorityQueue.dequeue();
+                        scheduleWaitingPriorityQueue.enqueue(nextItem);
                         break; // Can't fit this item in remaining slot time
                     }
 
                     // Schedule the item
-                    const scheduledItem = dailyPriorityQueue.dequeue()!;
+                    const scheduledItem = dailyPriorityQueue.dequeue();
+
+                    if (!scheduledItem) continue;
+
                     scheduledItem.startTime = new Date(slotStart);
                     scheduledItem.endTime = new Date(slotStart.getTime() + itemDuration * 60 * 1000);
 
@@ -419,8 +437,9 @@ class ScheduleService {
                     scheduledItems += scheduledItem.amountItem;
 
                     // Update slot start time
-                    slotStart = new Date(
-                        scheduledItem.endTime.getTime() + this.DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION * 60 * 1000
+                    slotStart = addMilliseconds(
+                        scheduledItem.endTime.getTime(),
+                        this.DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION * 60 * 1000
                     );
                 }
             }
@@ -451,7 +470,13 @@ class ScheduleService {
         }
 
         const waitingItems = waitingTopics.reduce((sum, topic) => sum + topic.amountItem, 0);
+
         const efficiency = totalItems > 0 ? (scheduledItems / totalItems) * 100 : 0;
+
+        const slotsGenerated = Object.values(scheduleGenerateFollowFreeTimeSlotPerDay).reduce(
+            (sum, slots) => sum + slots.length,
+            0
+        );
 
         return {
             schedules: scheduleGenerateFollowFreeTimeSlotPerDay,
@@ -461,11 +486,8 @@ class ScheduleService {
                 totalItems,
                 scheduledItems,
                 waitingItems,
-                efficiency: Math.round(efficiency * 100) / 100,
-                slotsGenerated: Object.values(scheduleGenerateFollowFreeTimeSlotPerDay).reduce(
-                    (sum, slots) => sum + slots.length,
-                    0
-                ),
+                efficiency,
+                slotsGenerated,
             },
         };
     }
