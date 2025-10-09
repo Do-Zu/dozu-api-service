@@ -22,6 +22,7 @@ import unsplashLib from '@/libs/unsplash.lib';
 import ankiService, {
     IAnkiCard,
     IAnkiRating,
+    IAnkiResult,
     INextReviewIntervalForRating,
     learnAheadLimit,
 } from '../spaced-repetition-system/super-memo-2/anki.service';
@@ -38,6 +39,11 @@ export type ICardNextReviewSchedule = {
     flashcardId: number;
     nextReviewIntervalsForRating: INextReviewIntervalForRating[];
 };
+
+export interface INextReviewDataByRating {
+    rating: IAnkiRating;
+    data: IAnkiResult;
+}
 
 class FlashcardService {
     constructor() {}
@@ -306,7 +312,10 @@ class FlashcardService {
         return result;
     }
 
-    public getCardNextReview(flashcardId: number, learningState: IFlashcardLearningState): ICardNextReviewSchedule {
+    public getCardNextReviewSchedule(
+        flashcardId: number,
+        learningState: IFlashcardLearningState
+    ): ICardNextReviewSchedule {
         if (!learningState) {
             throw new Error('Flashcard does not have learningState');
         }
@@ -329,6 +338,28 @@ class FlashcardService {
                 interval: ankiResult.nextReviewInterval,
             });
         }
+        return result;
+    }
+
+    public getNextReviewByRatings(flashcardId: number, learningState: IFlashcardLearningState): INextReviewDataByRating[] {
+        if (!learningState) {
+            throw new Error('Flashcard does not have learningState');
+        }
+        let result: INextReviewDataByRating[] = [];
+
+        let rating = IAnkiRating.AGAIN;
+        for (; rating <= IAnkiRating.EASY; ++rating) {
+            const ankiCard: IAnkiCard = {
+                ...learningState,
+                step: learningState.step,
+                flashcardId,
+                lastReviewed: learningState.lastReviewed ? new Date(learningState.lastReviewed) : null,
+                nextReview: new Date(learningState.nextReview),
+            };
+            const ankiResult = ankiService.schedule(ankiCard, rating);
+            result.push({ rating, data: ankiResult });
+        }
+
         return result;
     }
 

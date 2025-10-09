@@ -20,6 +20,7 @@ import unsplashLib, { IUnspashImage } from '@/libs/unsplash.lib';
 import ankiService, {
     IAnkiCard,
     IAnkiRating,
+    IAnkiResult,
     learnAheadLimit,
 } from '@/services/spaced-repetition-system/super-memo-2/anki.service';
 class FlashcardController {
@@ -168,6 +169,14 @@ class FlashcardController {
         const userId = getUserIdFromRequest(req);
         const flashcardId = requestHelper.getIdParam(req, 'flashcardId');
         const { rating } = req.body as { rating: IAnkiRating };
+        let { ankiResult: ankiResultFromClient } = req.body as { ankiResult: IAnkiResult | null | undefined };
+        if (ankiResultFromClient) {
+            ankiResultFromClient = {
+                ...ankiResultFromClient,
+                lastReviewed: ankiResultFromClient.lastReviewed ? new Date(ankiResultFromClient.lastReviewed) : null,
+                nextReview: new Date(ankiResultFromClient.nextReview),
+            };
+        }
 
         const flashcard: IFlashcardLearningState =
             await flashcardService.getSpacedRepetitionDataForFlashcard(flashcardId);
@@ -184,7 +193,7 @@ class FlashcardController {
             nextReview: new Date(flashcard.nextReview),
         };
 
-        const ankiResult = ankiService.schedule(ankiCard, rating);
+        const ankiResult = ankiResultFromClient ?? ankiService.schedule(ankiCard, rating);
 
         const sm2Info: IFlashcardLearningState = {
             repetitionNumber: 0,
@@ -207,7 +216,7 @@ class FlashcardController {
                 flashcardId,
                 nextReview: sm2Info.nextReview,
                 status: sm2Info.status,
-                nextReviewSchedule: flashcardService.getCardNextReview(flashcardId, sm2Info),
+                nextReviewDataByRatings: flashcardService.getNextReviewByRatings(flashcardId, sm2Info),
                 rating,
             };
         } else {
@@ -231,7 +240,7 @@ class FlashcardController {
                 back: card.back,
                 iamgeUrl: card.imageUrl,
                 topicName: card.topicName,
-                nextReviewSchedule: flashcardService.getCardNextReview(card.flashcardId, card.learningState!),
+                nextReviewDataByRatings: flashcardService.getNextReviewByRatings(card.flashcardId, card.learningState!),
                 nextReview: card.learningState!.nextReview,
                 status: card.learningState!.status,
             };
