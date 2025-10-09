@@ -397,7 +397,7 @@ class ScheduleService {
             const scheduledToday: IItemScheduleGenerated[] = [];
 
             for (const slot of listFreeTimeSlotsOfDay) {
-                const baseDate = formatDate(date);
+                const baseDate = new Date(date);
                 let slotStart = parse(slot.startTime, 'HH:mm', baseDate);
                 const slotEnd = parse(slot.endTime, 'HH:mm', baseDate);
                 const slotDurationMinutes = (slotEnd.getTime() - slotStart.getTime()) / (60 * 1000);
