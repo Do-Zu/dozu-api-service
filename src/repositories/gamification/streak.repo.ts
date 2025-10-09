@@ -1,7 +1,8 @@
 import { db } from '@/libs/drizzleClient.lib';
 import { usersTable } from '@/models/user.model';
 import { streakEventsTable } from '@/models/gamification/streak-events.model';
-import { eq, and, sql } from 'drizzle-orm';
+import { pointsTable, pointTransactionTable } from '@/models/gamification/points.model';
+import { eq, and, sql, gte } from 'drizzle-orm';
 
 export interface StreakData {
   userId: number;
@@ -31,11 +32,11 @@ export class StreakRepository {
     return result[0] || null;
   }
 
-  async updateStreak(userId: number, data: Partial<StreakData>): Promise<StreakData> {
+  async updateStreak(userId: number, data: Partial<Omit<StreakData, 'userId'>>): Promise<StreakData> {
     const result = await db()
       .update(usersTable)
       .set({
-        ...data,
+        ...(data as object),
         updatedAt: new Date(),
       })
       .where(eq(usersTable.userId, userId))
@@ -76,16 +77,13 @@ export class StreakRepository {
   }
 
   async incrementStreakFreeze(userId: number, amount: number = 1): Promise<void> {
-    const user = await this.getUserStreak(userId);
-    if (user) {
-      await db()
-        .update(usersTable)
-        .set({
-          streakFreezeCount: user.streakFreezeCount + amount,
-          updatedAt: new Date(),
-        })
-        .where(eq(usersTable.userId, userId));
-    }
+    await db()
+      .update(usersTable)
+      .set({
+        streakFreezeCount: sql`${usersTable.streakFreezeCount} + ${amount}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(usersTable.userId, userId));
   }
 
   /**
@@ -146,6 +144,30 @@ export class StreakRepository {
     message: string;
   }> {
     return await db().transaction(async (tx) => {
+      // First, spend points atomically with balance check
+      const updatedPoints = await tx
+        .update(pointsTable)
+        .set({
+          availablePoints: sql`${pointsTable.availablePoints} - ${cost}`,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(pointsTable.userId, userId), gte(pointsTable.availablePoints, cost)))
+        .returning();
+
+      if (updatedPoints.length === 0) {
+        throw new Error('Insufficient points');
+      }
+
+      // Record points transaction
+      await tx
+        .insert(pointTransactionTable)
+        .values({
+          userId,
+          points: -cost, // Negative for spending
+          type: 'streak_freeze_purchase',
+          description: 'Purchased streak freeze',
+        });
+
       // Ensure streak record exists
       let streak = await tx
         .select({
@@ -172,13 +194,13 @@ export class StreakRepository {
         streak = [{ streakFreezeCount: 0 }];
       }
 
-      // Increment streak freeze count
+      // Increment streak freeze count atomically
       const newFreezeCount = streak[0].streakFreezeCount + freezeAmount;
       
       await tx
         .update(usersTable)
         .set({
-          streakFreezeCount: newFreezeCount,
+          streakFreezeCount: sql`${usersTable.streakFreezeCount} + ${freezeAmount}`,
           updatedAt: new Date(),
         })
         .where(eq(usersTable.userId, userId));

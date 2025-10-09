@@ -7,7 +7,7 @@ import {
   isTodayInTimezone, 
   isYesterdayInTimezone,
   getUserTimezone 
-} from '@/utils/date/streak-timezone';
+} from '@/utils/gamification/streak-timezone';
 import { SelectUser } from '@/models/user.model';
 import ProfileRepository from '@/repositories/profile/profile.repo';
 
@@ -269,7 +269,6 @@ class StreakService {
   }
 
   async buyStreakFreeze(userId: number, cost: number = 100): Promise<void> {
-    await pointsService.spendPoints(userId, cost, 'streak_freeze_purchase', 'Purchased streak freeze');
     await this.streakRepo.atomicBuyStreakFreeze(userId, cost, 1);
   }
 

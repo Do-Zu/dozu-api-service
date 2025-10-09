@@ -1,4 +1,4 @@
-import { convertTimezone } from './timezone';
+import { convertTimezone } from '../date/timezone';
 
 /**
  * Get the start of day in a specific timezone

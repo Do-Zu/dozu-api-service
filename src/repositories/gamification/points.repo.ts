@@ -1,6 +1,6 @@
 import { db } from '@/libs/drizzleClient.lib';
 import { pointsTable, pointTransactionTable, Points, PointsInsert, PointTransaction, PointTransactionInsert } from '@/models/gamification/points.model';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and, gte, sql } from 'drizzle-orm';
 
 export class PointsRepository {
   
@@ -52,16 +52,20 @@ export class PointsRepository {
   }
 
   async spendPoints(userId: number, points: number, type: string, description: string): Promise<Points> {
-    // First check if user has enough points
-    const userPoints = await this.findByUserId(userId);
-    if (!userPoints || userPoints.availablePoints < points) {
+    // Atomic guarded decrement - prevents race conditions and ensures sufficient points
+    const updatedRows = await db()
+      .update(pointsTable)
+      .set({
+        availablePoints: sql`${pointsTable.availablePoints} - ${points}`,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(pointsTable.userId, userId), gte(pointsTable.availablePoints, points)))
+      .returning();
+
+    const updatedPoints = updatedRows[0];
+    if (!updatedPoints) {
       throw new Error('Insufficient points');
     }
-
-    // Update points
-    const updatedPoints = await this.update(userId, {
-      availablePoints: userPoints.availablePoints - points,
-    });
 
     // Record transaction
     await this.createTransaction({
@@ -75,36 +79,57 @@ export class PointsRepository {
   }
 
   async awardPoints(userId: number, points: number, type: string, description: string, relatedId?: number, relatedType?: string): Promise<Points> {
-    // Get or create user points record
-    let userPoints = await this.findByUserId(userId);
+    // Use transaction to ensure atomicity of points update and transaction logging
+    return await db().transaction(async (tx) => {
+      // Get or create user points record
+      let userPoints = await tx
+        .select()
+        .from(pointsTable)
+        .where(eq(pointsTable.userId, userId))
+        .limit(1);
 
-    if (!userPoints) {
-      // Create new points record
-      userPoints = await this.create({
-        userId,
-        totalPoints: points,
-        availablePoints: points,
-        lifetimePoints: points,
-      });
-    } else {
-      // Update existing points
-      userPoints = await this.update(userId, {
-        totalPoints: userPoints.totalPoints + points,
-        availablePoints: userPoints.availablePoints + points,
-        lifetimePoints: userPoints.lifetimePoints + points,
-      });
-    }
+      if (!userPoints[0]) {
+        // Create new points record
+        const newPoints = await tx
+          .insert(pointsTable)
+          .values({
+            userId,
+            totalPoints: points,
+            availablePoints: points,
+            lifetimePoints: points,
+          })
+          .returning();
+        
+        userPoints = newPoints;
+      } else {
+        // Update existing points atomically
+        const updatedPoints = await tx
+          .update(pointsTable)
+          .set({
+            totalPoints: sql`${pointsTable.totalPoints} + ${points}`,
+            availablePoints: sql`${pointsTable.availablePoints} + ${points}`,
+            lifetimePoints: sql`${pointsTable.lifetimePoints} + ${points}`,
+            updatedAt: new Date(),
+          })
+          .where(eq(pointsTable.userId, userId))
+          .returning();
+        
+        userPoints = updatedPoints;
+      }
 
-    // Record transaction
-    await this.createTransaction({
-      userId,
-      points,
-      type,
-      description,
-      relatedId,
-      relatedType,
+      // Record transaction within the same transaction
+      await tx
+        .insert(pointTransactionTable)
+        .values({
+          userId,
+          points,
+          type,
+          description,
+          relatedId,
+          relatedType,
+        });
+
+      return userPoints[0];
     });
-
-    return userPoints;
   }
 }

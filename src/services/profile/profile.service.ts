@@ -1,6 +1,7 @@
 import ProfileRepository from '@/repositories/profile/profile.repo';
 import pointsService from '@/services/gamification/points.service';
 import streakService from '@/services/gamification/streak.service';
+import { POINT_RULES } from '@/models/gamification/points.model';
 import { NotFoundError, BadRequest } from '@/core/error';
 import { hashPassword, verifyPassword } from '@/utils/auth/hash.utils';
 import path from 'path';
@@ -144,6 +145,7 @@ class ProfileService {
 
   /**
    * Calculate real learning statistics from points transactions
+   * Uses proper point constants to avoid fragile hardcoded assumptions
    */
   private async calculateLearningStatistics(userId: number): Promise<{
     totalLessonsCompleted: number;
@@ -153,7 +155,7 @@ class ProfileService {
   }> {
     try {
       // Get all points transactions for this user
-      const transactions = await pointsService.getPointHistory(userId, 1000); // Get more transactions for accurate calculation
+      const transactions = await pointsService.getPointHistory(userId, 1000);
       
       let totalLessonsCompleted = 0;
       let totalQuizzesCompleted = 0;
@@ -161,36 +163,58 @@ class ProfileService {
       let totalQuizScore = 0;
       let quizCount = 0;
 
-      // Count activities based on transaction types and points
+      // Count activities based on transaction types and validated point values
       for (const transaction of transactions) {
         switch (transaction.type) {
           case 'lesson_completed':
-            if (transaction.points === 10) { // +10 points for completing a lesson
+            // Validate against actual point rules to ensure accuracy
+            if (transaction.points === POINT_RULES.LESSON_COMPLETED) {
               totalLessonsCompleted++;
             }
             break;
             
           case 'quiz_completed':
-          case 'quiz_high_score':
-            if (transaction.points === 20) { // +20 points for high score in quiz
+            // Count all quiz completions regardless of score
+            if (transaction.points >= POINT_RULES.QUIZ_COMPLETED) {
               totalQuizzesCompleted++;
-              // High score quiz (assuming 90+ is high score)
-              totalQuizScore += 95; // Estimate high score
-              quizCount++;
-            } else if (transaction.points > 0) {
-              totalQuizzesCompleted++;
-              // Regular quiz score estimation based on points
-              const estimatedScore = Math.min(100, Math.max(60, (transaction.points / 20) * 100));
+              
+              // Estimate score based on points earned
+              let estimatedScore = 60; // Base score
+              if (transaction.points >= POINT_RULES.QUIZ_PERFECT_SCORE) {
+                estimatedScore = 100; // Perfect score
+              } else if (transaction.points >= POINT_RULES.QUIZ_HIGH_SCORE) {
+                estimatedScore = 90; // High score
+              } else if (transaction.points > POINT_RULES.QUIZ_COMPLETED) {
+                // Linear interpolation between base and high score
+                const progress = (transaction.points - POINT_RULES.QUIZ_COMPLETED) / 
+                                (POINT_RULES.QUIZ_HIGH_SCORE - POINT_RULES.QUIZ_COMPLETED);
+                estimatedScore = Math.min(90, 60 + (progress * 30));
+              }
+              
               totalQuizScore += estimatedScore;
               quizCount++;
             }
             break;
             
+          case 'quiz_high_score':
+            // High score quizzes
+            if (transaction.points === POINT_RULES.QUIZ_HIGH_SCORE) {
+              totalQuizzesCompleted++;
+              totalQuizScore += 90; // High score
+              quizCount++;
+            }
+            break;
+            
           case 'flashcard_reviewed':
-          case 'streak_maintained':
-            if (transaction.points === 5) { // +5 points for maintaining streak (flashcard review)
+            // Only count actual flashcard reviews, not streak maintenance
+            if (transaction.points === POINT_RULES.FLASHCARD_REVIEW) {
               totalFlashcardsReviewed++;
             }
+            break;
+            
+          case 'streak_maintained':
+            // Streak maintenance is separate from flashcard reviews
+            // Don't count as flashcard review to avoid double-counting
             break;
             
           default:
