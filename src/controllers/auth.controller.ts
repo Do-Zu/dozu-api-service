@@ -69,7 +69,9 @@ export const registerUserController = async (req: Request, res: Response) => {
         // isNewUser: true, //technically business logic, can move to service
         // accessToken: data.accessToken,
     };
-    SuccessResponse.created(res, returnData);
+    SuccessResponse.created(res, {
+        message: 'Registration successful. Please check your email to verify your account.',
+    });
 };
 
 export const logoutController = async (req: Request, res: Response) => {
