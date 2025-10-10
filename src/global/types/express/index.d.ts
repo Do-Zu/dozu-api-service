@@ -13,6 +13,7 @@ declare global {
                     flashcardId?: number;
                     requestId?: number;
                     feedId?: number;
+                    settingId?: number;
                 };
                 body?: any;
                 query?: any;

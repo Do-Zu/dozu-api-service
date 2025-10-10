@@ -17,11 +17,13 @@ import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import { getCurrentDateFromRequest, getCurrentTimestampFromRequest, TimeUnit } from '@/utils/date';
 import requestHelper from '@/core/request/request.helper';
 import unsplashLib, { IUnspashImage } from '@/libs/unsplash.lib';
-import ankiService, {
+import AnkiService, {
     IAnkiCard,
     IAnkiRating,
+    IAnkiResult,
     learnAheadLimit,
 } from '@/services/spaced-repetition-system/super-memo-2/anki.service';
+import ankiSettingService from '@/services/anki-setting/ankiSetting.service';
 class FlashcardController {
     constructor() {}
 
@@ -166,8 +168,17 @@ class FlashcardController {
     // Anki SM2 algorithm
     public async reviewFlashcardByAnki(req: Request, res: Response): Promise<void> {
         const userId = getUserIdFromRequest(req);
+        const topicId = requestHelper.getIdParam(req, 'topicId');
         const flashcardId = requestHelper.getIdParam(req, 'flashcardId');
         const { rating } = req.body as { rating: IAnkiRating };
+        let { ankiResult: ankiResultFromClient } = req.body as { ankiResult: IAnkiResult | null | undefined };
+        if (ankiResultFromClient) {
+            ankiResultFromClient = {
+                ...ankiResultFromClient,
+                lastReviewed: ankiResultFromClient.lastReviewed ? new Date(ankiResultFromClient.lastReviewed) : null,
+                nextReview: new Date(ankiResultFromClient.nextReview),
+            };
+        }
 
         const flashcard: IFlashcardLearningState =
             await flashcardService.getSpacedRepetitionDataForFlashcard(flashcardId);
@@ -184,7 +195,9 @@ class FlashcardController {
             nextReview: new Date(flashcard.nextReview),
         };
 
-        const ankiResult = ankiService.schedule(ankiCard, rating);
+        const ankiSetting = await ankiSettingService.getSettingForTopicAndUser(topicId, userId);
+        const ankiService = new AnkiService(ankiSetting);
+        const ankiResult = ankiResultFromClient ?? ankiService.schedule(ankiCard, rating);
 
         const sm2Info: IFlashcardLearningState = {
             repetitionNumber: 0,
@@ -203,11 +216,12 @@ class FlashcardController {
             ankiResult.nextReviewInterval.timeUnit === TimeUnit.MINUTE &&
             ankiResult.nextReviewInterval.interval <= learnAheadLimit
         ) {
+            const ankiSetting = await ankiSettingService.getSettingForTopicAndUser(topicId, userId);
             result = {
                 flashcardId,
                 nextReview: sm2Info.nextReview,
                 status: sm2Info.status,
-                nextReviewSchedule: flashcardService.getCardNextReview(flashcardId, sm2Info),
+                nextReviewDataByRatings: flashcardService.getNextReviewByRatings(flashcardId, sm2Info, ankiSetting),
                 rating,
             };
         } else {
@@ -223,6 +237,7 @@ class FlashcardController {
         const topicId = requestHelper.getIdParam(req, 'topicId');
 
         const flashcards = await flashcardService.getDueFlashcardsForTopicAndUser(topicId, userId, currentTimestamp);
+        const ankiSetting = await ankiSettingService.getSettingForTopicAndUser(topicId, userId);
 
         const result: IDueAnkiCard[] = flashcards.map(card => {
             return {
@@ -231,7 +246,11 @@ class FlashcardController {
                 back: card.back,
                 iamgeUrl: card.imageUrl,
                 topicName: card.topicName,
-                nextReviewSchedule: flashcardService.getCardNextReview(card.flashcardId, card.learningState!),
+                nextReviewDataByRatings: flashcardService.getNextReviewByRatings(
+                    card.flashcardId,
+                    card.learningState!,
+                    ankiSetting
+                ),
                 nextReview: card.learningState!.nextReview,
                 status: card.learningState!.status,
             };

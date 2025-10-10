@@ -1,4 +1,5 @@
 import { IFlashcardStatus } from '@/models';
+import { IAnkiSetting } from '@/types/anki-setting/ankiSetting.type';
 import { getSystemDate, TimeUnit } from '@/utils/date';
 import { addDays, addMinutes, differenceInHours } from 'date-fns';
 
@@ -18,48 +19,48 @@ export enum IAnkiStatus {
 
 // these constants below could be customized by users (but it is not supported in this current version)
 
-// 1. New Cards
-// steps to get through in learning state before moving to review state
-// time-unit: MINUTE
-export const learningSteps = [1, 10];
+// // 1. New Cards
+// // steps to get through in learning state before moving to review state
+// // time-unit: MINUTE
+// const learningSteps = [1, 10];
 
-// if user press 'GOOD' in the final step (in learning state) => moving to review state & set initial interval = graduatingInterval
-// time-unit: DAY
-export const graduatingInterval = 1;
+// // if user press 'GOOD' in the final step (in learning state) => moving to review state & set initial interval = graduatingInterval
+// // time-unit: DAY
+// const graduatingInterval = 1;
 
-// if user presses 'EASY' in learning state => moving to review state & set initial interval = easyInterval
-// time-unit: DAY
-export const easyInterval = 4;
+// // if user presses 'EASY' in learning state => moving to review state & set initial interval = easyInterval
+// // time-unit: DAY
+// const easyInterval = 4;
 
-// 2. Lapses (Forget Cards)
-// steps to get through in relearning state before moving to review state
-// time-unit: MINUTE
-export const relearningSteps = [10];
+// // 2. Lapses (Forget Cards)
+// // steps to get through in relearning state before moving to review state
+// // time-unit: MINUTE
+// const relearningSteps = [10];
 
-// 3. Advanced
-// initial ease for a review-state Card
-export const startingEase = 2.5;
+// // 3. Advanced
+// // initial ease for a review-state Card
+// const startingEase = 2.5;
 
-// if user presses 'EASY', Interval Factor = Interval Factor * easyBonus
-export const easyBonus = 1.3;
+// // if user presses 'EASY', Interval Factor = Interval Factor * easyBonus
+// const easyBonus = 1.3;
 
-// this is customized by user, final Interval Factor = Interval Factor * intervalModifier
-export const intervalModifier = 1;
+// // this is customized by user, final Interval Factor = Interval Factor * intervalModifier
+// const intervalModifier = 1;
 
-// if user presses 'HARD', Interval Factor = Interval Factor * hardInterval
-export const hardInterval = 1.2;
+// // if user presses 'HARD', Interval Factor = Interval Factor * hardInterval
+// const hardInterval = 1.2;
 
-// if user presses 'AGAIN', Interval Factor = Interval Factor * newInterval
-export const newInterval = 0.0;
+// // if user presses 'AGAIN', Interval Factor = Interval Factor * newInterval
+// const newInterval = 0.0;
+
+// // time-unit: DAY
+// const minimumInterval = 1;
+
+// // time-unit: DAY
+// const maximumInterval = 36500;
 
 // cards should be shown early if they have a delay of less than learnAheadLimit minutes and there’s nothing else to do
 export const learnAheadLimit = 20;
-
-// time-unit: DAY
-export const minimumInterval = 1;
-
-// time-unit: DAY
-export const maximumInterval = 36500;
 
 const FUZZ_RANGES = [
     {
@@ -116,6 +117,11 @@ const invalidCardStatusMessage = 'Invalid card status';
 const nullCardStepMessage = 'Card step is NULL';
 
 class AnkiService {
+    public ankiSetting: IAnkiSetting;
+    public constructor(ankiSetting: IAnkiSetting) {
+        this.ankiSetting = ankiSetting;
+    }
+
     public schedule(card: IAnkiCard, rating: IAnkiRating): IAnkiResult {
         // copy card object, update lastReviewed
         card = { ...card, lastReviewed: getSystemDate() };
@@ -142,6 +148,7 @@ class AnkiService {
     public handleLearning(card: IPrivateAnkiCard, rating: IAnkiRating): IAnkiResult {
         let nextReview: Date;
         let nextReviewInterval: INextReviewInterval;
+        const { learningSteps, startingEase, graduatingInterval, easyInterval } = this.ankiSetting;
         if (learningSteps.length === 0 || (card.step && card.step >= learningSteps.length)) {
             // todo: xem check card.step >= or > learningSteps.length
             card.status = IAnkiStatus.REVIEW;
@@ -228,6 +235,15 @@ class AnkiService {
     public handleReview(card: IPrivateAnkiCard, rating: IAnkiRating): IAnkiResult {
         let nextReview: Date;
         let nextReviewInterval: INextReviewInterval;
+        const {
+            newInterval,
+            intervalModifier,
+            minimumInterval,
+            maximumInterval,
+            relearningSteps,
+            hardInterval,
+            easyBonus,
+        } = this.ankiSetting;
         if (rating === IAnkiRating.AGAIN) {
             // calculate ease and interval
 
@@ -326,6 +342,7 @@ class AnkiService {
     public handleRelearning(card: IPrivateAnkiCard, rating: IAnkiRating): IAnkiResult {
         let nextReview: Date;
         let nextReviewInterval: INextReviewInterval;
+        const { intervalModifier, minimumInterval, maximumInterval, relearningSteps, easyBonus } = this.ankiSetting;
 
         if (relearningSteps.length === 0 || (card.step && card.step >= relearningSteps.length)) {
             // todo: xem check card.step >= or > relearningSteps.length
@@ -424,6 +441,7 @@ class AnkiService {
 
     // todo: test fuzzed functions
     public getFuzzedInterval(interval: number) {
+        const { maximumInterval } = this.ankiSetting;
         if (interval < 2.5) {
             return interval;
         }
@@ -435,6 +453,7 @@ class AnkiService {
 
     // get fuzz range (eg. interval = 15 may generate fuzz range [13, 17])
     public getFuzzRange(interval: number) {
+        const { maximumInterval } = this.ankiSetting;
         let delta: number = 1;
         for (const fuzzRange of FUZZ_RANGES) {
             delta += fuzzRange['factor'] * Math.max(Math.min(interval, fuzzRange['end']) - fuzzRange['start'], 0);
@@ -450,4 +469,4 @@ class AnkiService {
     }
 }
 
-export default new AnkiService();
+export default AnkiService;
