@@ -10,7 +10,7 @@ import {
     unique,
     pgEnum,
 } from 'drizzle-orm/pg-core';
-import { topicsTable } from '../topic.model';
+import { topicsTable } from '../topic/topic.model';
 
 export const nodeTypeEnum = pgEnum('node_type', ['mindmap', 'flashcard', 'quiz']);
 

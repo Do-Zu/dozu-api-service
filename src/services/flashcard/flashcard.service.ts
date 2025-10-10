@@ -19,7 +19,7 @@ import { getUserRoles } from '@/repositories/auth.repo';
 import classEnrollmentService from '../class-based-learning/classEnrollment.service';
 import topicService from '../topic/topic.service';
 import unsplashLib from '@/libs/unsplash.lib';
-import ankiService, {
+import AnkiService, {
     IAnkiCard,
     IAnkiRating,
     IAnkiResult,
@@ -27,6 +27,7 @@ import ankiService, {
     learnAheadLimit,
 } from '../spaced-repetition-system/super-memo-2/anki.service';
 import { addMinutes } from 'date-fns';
+import { IAnkiSetting } from '@/types/anki-setting/ankiSetting.type';
 
 export type IFlashcardWithReviewPrediction = Pick<
     IFlashcard,
@@ -312,36 +313,11 @@ class FlashcardService {
         return result;
     }
 
-    public getCardNextReviewSchedule(
+    public getNextReviewByRatings(
         flashcardId: number,
-        learningState: IFlashcardLearningState
-    ): ICardNextReviewSchedule {
-        if (!learningState) {
-            throw new Error('Flashcard does not have learningState');
-        }
-        let result: ICardNextReviewSchedule = {
-            flashcardId,
-            nextReviewIntervalsForRating: [],
-        };
-        let rating = IAnkiRating.AGAIN;
-        for (; rating <= IAnkiRating.EASY; ++rating) {
-            const ankiCard: IAnkiCard = {
-                ...learningState,
-                step: learningState.step,
-                flashcardId,
-                lastReviewed: learningState.lastReviewed ? new Date(learningState.lastReviewed) : null,
-                nextReview: new Date(learningState.nextReview),
-            };
-            const ankiResult = ankiService.schedule(ankiCard, rating);
-            result.nextReviewIntervalsForRating.push({
-                rating,
-                interval: ankiResult.nextReviewInterval,
-            });
-        }
-        return result;
-    }
-
-    public getNextReviewByRatings(flashcardId: number, learningState: IFlashcardLearningState): INextReviewDataByRating[] {
+        learningState: IFlashcardLearningState,
+        ankiSetting: IAnkiSetting
+    ): INextReviewDataByRating[] {
         if (!learningState) {
             throw new Error('Flashcard does not have learningState');
         }
@@ -356,6 +332,7 @@ class FlashcardService {
                 lastReviewed: learningState.lastReviewed ? new Date(learningState.lastReviewed) : null,
                 nextReview: new Date(learningState.nextReview),
             };
+            const ankiService = new AnkiService(ankiSetting);
             const ankiResult = ankiService.schedule(ankiCard, rating);
             result.push({ rating, data: ankiResult });
         }

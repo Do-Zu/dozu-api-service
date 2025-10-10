@@ -1,6 +1,6 @@
 import { pgTable, integer, text, decimal, date, varchar, timestamp, primaryKey, pgEnum } from 'drizzle-orm/pg-core';
 import { usersTable } from '@/models/user.model';
-import { topicsTable } from '../topic.model';
+import { topicsTable } from '../topic/topic.model';
 
 export const itemStatusEnumType = pgEnum('item_status_type', ['new', 'learning', 'review', 'relearning']);
 export type IItemStatus = 'new' | 'learning' | 'review' | 'relearning';

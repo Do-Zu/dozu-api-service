@@ -2,7 +2,7 @@ import {
   pgTable, serial, integer, timestamp, pgEnum, varchar, uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { usersTable } from '@/models/user.model';
-import { topicsTable } from '@/models/topic.model';
+import { topicsTable } from '@/models/topic/topic.model';
 import { flashcardsTable } from '@/models/flashcard.model';
 
 export const backlogSourceEnum = pgEnum('backlog_source', [
