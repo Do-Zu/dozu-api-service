@@ -202,7 +202,7 @@ class ProfileService {
             // based on score (see awardQuizCompletion in points.service.ts)
             break;
             
-          case 'flashcard_reviewed':
+          case 'flashcard_review':
             // Only count actual flashcard reviews, not streak maintenance
             if (transaction.points === POINT_RULES.FLASHCARD_REVIEW) {
               totalFlashcardsReviewed++;
