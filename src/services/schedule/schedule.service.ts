@@ -2,11 +2,11 @@ import { scheduleRepo } from '@/repositories/schedule/schedule.repo';
 import { FreeTimeSlotDays } from '@/repositories/user/type';
 import { userRepository } from '@/repositories/user/user.repo';
 import { IGroupTopic, IItemScheduleGenerated, ItemTrackingWithTopic } from './types/schedule.index';
-import { formatDate, getDateFormattedWithTimeZone, getDayOfWeek } from '@/utils/date';
+import { getDateFormattedWithTimeZone, getDayOfWeek, getSystemDate } from '@/utils/date';
 import { SchedulePriorityQueue } from '@/utils/queue/schedule.queue';
 import { BadRequest } from '@/core/error';
 import { redisInstance as redis } from '@/libs/redis/default/redisDefault';
-import { addMilliseconds, differenceInMinutes, isValid, parse } from 'date-fns';
+import { addMilliseconds, addMinutes, differenceInMinutes, isValid, parse } from 'date-fns';
 
 const DEFINE_DEFAULT_FREE_TIME: FreeTimeSlotDays = {
     Monday: [
@@ -55,14 +55,31 @@ const USER_PREFERRED_SESSION_LEARNING = 'morning';
  */
 class ScheduleService {
     private readonly TTL_SCHEDULE = 60 * 60; // 1 hour
-    private readonly DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM = 1;
+
+    private readonly DEFAULT_MINUTE_LEARN_FOR_EASY_ITEM = 0.25;
+    private readonly DEFAULT_MINUTE_LEARN_FOR_MEDIUM_ITEM = 1;
+    private readonly DEFAULT_MINUTE_LEARN_FOR_HARD_ITEM = 2;
+
+    // Minutes per item based on difficulty (easy, medium, hard)
+    private readonly LIST_MINUTE_LEARN_FOR_ITEM_BASED_ON_DIFFICULTY = [
+        this.DEFAULT_MINUTE_LEARN_FOR_EASY_ITEM,
+        this.DEFAULT_MINUTE_LEARN_FOR_MEDIUM_ITEM,
+        this.DEFAULT_MINUTE_LEARN_FOR_HARD_ITEM,
+    ];
+
+    private readonly DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM = 1; // Average time to learn each item
+
     private readonly DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION = 5;
-    private readonly MIN_ITEMS_PER_SLOT = 20;
+    private readonly MIN_ITEMS_PER_SLOT = 10;
     private readonly MAX_ITEMS_PER_SLOT = 50;
     private readonly MIN_SLOT_DURATION_MINUTES = 30; // Minimum time for a productive study session
     private readonly REVIEW_PRIORITY_MULTIPLIER = 1.5; // Boost priority for review items
     private readonly NEW_ITEM_PRIORITY_MULTIPLIER = 1.2; // Boost priority for new items
     private readonly PRIORITY_STATUS_ITEM_LEARNING_TRACKING = { new: 3, learning: 2, review: 1 }; // Max items in priority queue
+
+    // Q&A: easinessFactor:  Easy >= 2.8 , Medium 1.6 - 2.7 , Hard <= 1.5
+    private readonly DIFFICULTY_BASED_ON_EASINESS_FACTOR = { hard: 1.5, easy: 2.8 }; // Easy >= 2.8 , Medium 1.6 - 2.7 , Hard <= 1.5
+
     /**
      * Retrieves the schedule for the current week.
      * @returns An array of time slots for the current week or an empty array if not implemented.
@@ -286,12 +303,14 @@ class ScheduleService {
             const dateOfWeek = getDayOfWeek(date);
             const listFreeTimeSlotsOfDay = [...(freeTimeSlotPerDay[dateOfWeek] ?? [])];
 
+            // Add all items to waiting queue if no free time
             if (listFreeTimeSlotsOfDay.length === 0) {
-                // Add all items to waiting queue if no free time
                 for (const items of listItemGroupedPerDate) {
                     totalItems += items.length;
 
+                    //
                     const chunks = this.splitItemsIntoStudyChunks(items, this.MAX_ITEMS_PER_SLOT);
+
                     for (const chunk of chunks) {
                         const priority = this.calculatePriority(chunk);
                         const scheduleItem: IItemScheduleGenerated = {
@@ -339,7 +358,7 @@ class ScheduleService {
                             topicId: chunk[0].topicId,
                             priority,
                             startTime: chunk[0].reviewDate,
-                            endTime: new Date(chunk[0].reviewDate.getTime() + chunk.length * 60 * 1000),
+                            endTime: addMinutes(new Date(chunk[0].reviewDate), chunk.length * 60),
                             title: chunk[0].topicTitle,
                             description: chunk[0].topicDescription,
                             type: chunk[0].type,
@@ -347,28 +366,29 @@ class ScheduleService {
                         };
                         scheduleWaitingPriorityQueue.enqueue(scheduleItem);
                     }
-                    continue;
+                    break;
                 }
 
                 // Smart chunking based on available time
-                const { itemsPerSlot } = this.calculateOptimalItemsPerSlot(
-                    items,
-                    totalAvailableMinutes / listFreeTimeSlotsOfDay.length
-                );
+                const { itemsPerSlot } = this.calculateOptimalItemsPerSlot(items, totalAvailableMinutes);
 
                 const chunks = this.splitItemsIntoStudyChunks(items, itemsPerSlot);
 
                 for (const chunk of chunks) {
                     const priority = this.calculatePriority(chunk);
-                    const timeToLearn =
-                        chunk.length * this.DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM +
-                        this.DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION;
+
+                    const totalMinuteToLearn = this.calculateTimeToLearn({
+                        items: chunk,
+                        minute: this.DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM,
+                        breakTime: this.DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION,
+                        minuteBasedOnDifficult: this.LIST_MINUTE_LEARN_FOR_ITEM_BASED_ON_DIFFICULTY,
+                    });
 
                     if (!chunk || !chunk.length) continue;
 
                     const { topicId, reviewDate, topicDescription, type, topicTitle } = chunk.find(t => !!t.topicId)!;
 
-                    const endTime = new Date(chunk[0].reviewDate.getTime() + timeToLearn * 60 * 1000);
+                    const endTime = addMinutes(new Date(chunk[0]?.reviewDate), totalMinuteToLearn);
 
                     const scheduleItem: IItemScheduleGenerated = {
                         topicId,
@@ -409,14 +429,22 @@ class ScheduleService {
                 // Fill this slot with highest priority items
                 while (!dailyPriorityQueue.isEmpty()) {
                     const nextItem = dailyPriorityQueue.peek();
+
                     if (!nextItem) break;
 
                     // Time required for items in this slot
                     const itemDuration =
-                        nextItem.amountItem * this.DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM +
-                        this.DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION;
+                        nextItem.endTime && nextItem.startTime
+                            ? differenceInMinutes(nextItem.endTime, nextItem.startTime)
+                            : 0;
 
-                    const availableTime = (slotEnd.getTime() - slotStart.getTime()) / (60 * 1000);
+                    if (itemDuration <= 0) {
+                        // Invalid item duration, skip this item
+                        dailyPriorityQueue.dequeue();
+                        continue;
+                    }
+
+                    const availableTime = differenceInMinutes(slotEnd, slotStart);
 
                     if (availableTime < itemDuration) {
                         // requeue later and stop filling this slot
@@ -430,8 +458,8 @@ class ScheduleService {
 
                     if (!scheduledItem) continue;
 
-                    scheduledItem.startTime = new Date(slotStart);
-                    scheduledItem.endTime = new Date(slotStart.getTime() + itemDuration * 60 * 1000);
+                    scheduledItem.startTime = slotStart;
+                    scheduledItem.endTime = addMinutes(slotStart, itemDuration);
 
                     scheduledToday.push(scheduledItem);
                     scheduledItems += scheduledItem.amountItem;
@@ -493,7 +521,47 @@ class ScheduleService {
     }
 
     /**
+     * Calculate total time to learn items
+     * @param items - List of items to learn
+     * @param minute - Base minutes per item
+     * @param breakTime - Break time in minutes after session
+     * @param minuteBasedOnDifficult - Array of minutes based on difficulty [easy, medium, hard]
+     * @returns Total minutes needed to learn the items including breaks
+     */
+    private calculateTimeToLearn({
+        items,
+        minute,
+        breakTime,
+        minuteBasedOnDifficult,
+    }: {
+        items: IGroupTopic[];
+        minute: number;
+        breakTime: number;
+        minuteBasedOnDifficult: number[];
+    }): number {
+        if (!items || items.length === 0) return 0;
+
+        items.reduce((sum, item) => {
+            const easiness = parseFloat(item.easinessFactor);
+
+            if (easiness < this.DIFFICULTY_BASED_ON_EASINESS_FACTOR.hard) {
+                return sum + minuteBasedOnDifficult[2]; // Hard
+            } else if (
+                easiness < this.DIFFICULTY_BASED_ON_EASINESS_FACTOR.easy &&
+                easiness > this.DIFFICULTY_BASED_ON_EASINESS_FACTOR.hard
+            ) {
+                return sum + minuteBasedOnDifficult[1]; // Medium
+            } else {
+                return sum + minuteBasedOnDifficult[0]; // Easy
+            }
+        }, 0);
+
+        return items.length * minute + breakTime;
+    }
+
+    /**
      * Calculate optimal items per slot based on difficulty and time available
+     * Aim to balance number of items and difficulty
      */
     private calculateOptimalItemsPerSlot(
         items: IGroupTopic[],
@@ -505,11 +573,14 @@ class ScheduleService {
         // Adjust items per slot based on difficulty (lower easiness = harder = fewer items per slot)
         let baseItemsPerSlot = Math.floor(availableMinutes / this.DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM);
 
+        const rateItemForSlotForHardDifficulty = 0.7; // 30% fewer items for hard
+        const rateItemForSlotForEasyDifficulty = 1.2; // 20% more items for easy
+
         // Apply difficulty adjustment
-        if (averageDifficulty < 2.0) {
-            baseItemsPerSlot = Math.min(baseItemsPerSlot * 0.7, this.MAX_ITEMS_PER_SLOT);
-        } else if (averageDifficulty > 3.0) {
-            baseItemsPerSlot = Math.min(baseItemsPerSlot * 1.2, this.MAX_ITEMS_PER_SLOT);
+        if (averageDifficulty < this.DIFFICULTY_BASED_ON_EASINESS_FACTOR.hard) {
+            baseItemsPerSlot = baseItemsPerSlot * rateItemForSlotForHardDifficulty;
+        } else if (averageDifficulty > this.DIFFICULTY_BASED_ON_EASINESS_FACTOR.easy) {
+            baseItemsPerSlot = baseItemsPerSlot * rateItemForSlotForEasyDifficulty;
         }
 
         // Ensure within bounds
@@ -521,6 +592,10 @@ class ScheduleService {
 
     /**
      * Split items into optimal chunks for studying
+     * Aim for mixed difficulty in each chunk
+     * Ensure each chunk has at least MIN_ITEMS_PER_SLOT
+     * Try to keep chunks balanced in size
+     * Avoid too many small chunks if possible
      */
     private splitItemsIntoStudyChunks(items: IGroupTopic[], targetItemsPerChunk: number): IGroupTopic[][] {
         const chunks: IGroupTopic[][] = [];
@@ -540,18 +615,27 @@ class ScheduleService {
             return parseFloat(a.easinessFactor) - parseFloat(b.easinessFactor);
         });
 
+        // Minimum items to consider merging with last chunk
+        const MINIMUM_REMAIN_ITEMS = 5;
+
         // Split into chunks with mixed difficulty
-        for (let i = 0; i < sortedItems.length; i += targetItemsPerChunk) {
-            const chunk = sortedItems.slice(i, i + targetItemsPerChunk);
-            if (chunk.length >= this.MIN_ITEMS_PER_SLOT || i + targetItemsPerChunk >= sortedItems.length) {
+        for (let index = 0; index < sortedItems.length; index += targetItemsPerChunk) {
+            const chunk = sortedItems.slice(index, index + targetItemsPerChunk);
+
+            // Ensure mixed difficulty within chunk
+            if (chunk.length >= this.MIN_ITEMS_PER_SLOT || index + targetItemsPerChunk >= sortedItems.length) {
                 chunks.push(chunk);
+                continue;
+            }
+
+            const remainItem = chunk.length;
+            const lastChunk = chunks.length > 0 ? chunks[chunks.length - 1] : [];
+
+            // Add remaining items to last chunk if it's too small
+            if (remainItem <= MINIMUM_REMAIN_ITEMS) {
+                lastChunk.push(...chunk);
             } else {
-                // Add remaining items to last chunk if it's too small
-                if (chunks.length > 0) {
-                    chunks[chunks.length - 1].push(...chunk);
-                } else {
-                    chunks.push(chunk);
-                }
+                chunks.push(chunk);
             }
         }
 
@@ -569,7 +653,12 @@ class ScheduleService {
               ----------------- Edge Case Handling ------------------
             1 prevents division by zero when no items have repetitions
             Ensures new items (with 0 repetitions) get appropriate priority
+            ----------------- Overdue Items Boost ------------------
+            Overdue items get a priority boost since they are more urgent
+            The boost is proportional to the fraction of overdue items in the group
+            Ensures that if many items are overdue, they get prioritized more
               ----------------- Status Consideration ------------------
+
             New topics naturally get higher priority since they have lower repetition counts
             The grouping by status earlier in the code ensures proper categorization
             ES for new topic is usually 2.5 and repetition is 0 , so it will be handled correctly
@@ -593,12 +682,13 @@ class ScheduleService {
         if (statusCounts['new'] > 0) {
             priority *= this.NEW_ITEM_PRIORITY_MULTIPLIER;
         }
+
         if (statusCounts['review'] > 0) {
             priority *= this.REVIEW_PRIORITY_MULTIPLIER;
         }
 
         // Boost priority for overdue items
-        const now = new Date();
+        const now = getSystemDate();
         const overdueCount = items.filter(item => item.reviewDate && new Date(item.reviewDate) < now).length;
 
         if (overdueCount > 0) {
