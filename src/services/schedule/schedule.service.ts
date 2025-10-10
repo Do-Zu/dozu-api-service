@@ -446,10 +446,7 @@ class ScheduleService {
                     scheduledItems += scheduledItem.amountItem;
 
                     // Update slot start time
-                    slotStart = addMilliseconds(
-                        scheduledItem.endTime.getTime(),
-                        this.DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION * 60 * 1000
-                    );
+                    slotStart = scheduledItem.endTime;
                 }
             }
 
