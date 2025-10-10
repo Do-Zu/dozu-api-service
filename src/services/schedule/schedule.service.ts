@@ -54,8 +54,6 @@ const USER_PREFERRED_SESSION_LEARNING = 'morning';
  * Service class for Schedule functionality
  */
 class ScheduleService {
-    private readonly TTL_SCHEDULE = 60 * 60; // 1 hour
-
     private readonly DEFAULT_MINUTE_LEARN_FOR_EASY_ITEM = 0.25;
     private readonly DEFAULT_MINUTE_LEARN_FOR_MEDIUM_ITEM = 1;
     private readonly DEFAULT_MINUTE_LEARN_FOR_HARD_ITEM = 2;
@@ -76,6 +74,8 @@ class ScheduleService {
     private readonly REVIEW_PRIORITY_MULTIPLIER = 1.5; // Boost priority for review items
     private readonly NEW_ITEM_PRIORITY_MULTIPLIER = 1.2; // Boost priority for new items
     private readonly PRIORITY_STATUS_ITEM_LEARNING_TRACKING = { new: 3, learning: 2, review: 1 }; // Max items in priority queue
+
+    private readonly TTL_SCHEDULE = 60 * this.MIN_SLOT_DURATION_MINUTES;
 
     // Q&A: easinessFactor:  Easy >= 2.8 , Medium 1.6 - 2.7 , Hard <= 1.5
     private readonly DIFFICULTY_BASED_ON_EASINESS_FACTOR = { hard: 1.5, easy: 2.8 }; // Easy >= 2.8 , Medium 1.6 - 2.7 , Hard <= 1.5
@@ -349,27 +349,9 @@ class ScheduleService {
                 }, 0);
 
                 // Only process if we have viable time slots
-                if (!this.isSlotViable(totalAvailableMinutes)) {
-                    const chunks = this.splitItemsIntoStudyChunks(items, this.MAX_ITEMS_PER_SLOT);
+                if (!this.isSlotViable(totalAvailableMinutes)) break;
 
-                    for (const chunk of chunks) {
-                        const priority = this.calculatePriority(chunk);
-                        const scheduleItem: IItemScheduleGenerated = {
-                            topicId: chunk[0].topicId,
-                            priority,
-                            startTime: chunk[0].reviewDate,
-                            endTime: addMinutes(new Date(chunk[0].reviewDate), chunk.length * 60),
-                            title: chunk[0].topicTitle,
-                            description: chunk[0].topicDescription,
-                            type: chunk[0].type,
-                            amountItem: chunk.length,
-                        };
-                        scheduleWaitingPriorityQueue.enqueue(scheduleItem);
-                    }
-                    break;
-                }
-
-                // Smart chunking based on available time
+                //Chunking based on available time
                 const { itemsPerSlot } = this.calculateOptimalItemsPerSlot(items, totalAvailableMinutes);
 
                 const chunks = this.splitItemsIntoStudyChunks(items, itemsPerSlot);
@@ -381,7 +363,6 @@ class ScheduleService {
                         items: chunk,
                         minute: this.DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM,
                         breakTime: this.DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION,
-                        minuteBasedOnDifficult: this.LIST_MINUTE_LEARN_FOR_ITEM_BASED_ON_DIFFICULTY,
                     });
 
                     if (!chunk || !chunk.length) continue;
@@ -530,33 +511,30 @@ class ScheduleService {
      */
     private calculateTimeToLearn({
         items,
-        minute,
         breakTime,
-        minuteBasedOnDifficult,
     }: {
         items: IGroupTopic[];
         minute: number;
         breakTime: number;
-        minuteBasedOnDifficult: number[];
     }): number {
         if (!items || items.length === 0) return 0;
 
-        items.reduce((sum, item) => {
+        const estimatedMinutesPerItem = this.calculateMinuteForItemBasedDifficult(items);
+
+        return estimatedMinutesPerItem + breakTime;
+    }
+
+    private calculateMinuteForItemBasedDifficult(items: IGroupTopic[]): number {
+        return items.reduce((sum, item) => {
             const easiness = parseFloat(item.easinessFactor);
-
-            if (easiness < this.DIFFICULTY_BASED_ON_EASINESS_FACTOR.hard) {
-                return sum + minuteBasedOnDifficult[2]; // Hard
-            } else if (
-                easiness < this.DIFFICULTY_BASED_ON_EASINESS_FACTOR.easy &&
-                easiness > this.DIFFICULTY_BASED_ON_EASINESS_FACTOR.hard
-            ) {
-                return sum + minuteBasedOnDifficult[1]; // Medium
-            } else {
-                return sum + minuteBasedOnDifficult[0]; // Easy
+            if (easiness <= this.DIFFICULTY_BASED_ON_EASINESS_FACTOR.hard) {
+                return sum + this.LIST_MINUTE_LEARN_FOR_ITEM_BASED_ON_DIFFICULTY[2]; // Hard
             }
+            if (easiness >= this.DIFFICULTY_BASED_ON_EASINESS_FACTOR.easy) {
+                return sum + this.LIST_MINUTE_LEARN_FOR_ITEM_BASED_ON_DIFFICULTY[0]; // Easy
+            }
+            return sum + this.LIST_MINUTE_LEARN_FOR_ITEM_BASED_ON_DIFFICULTY[1]; // Medium
         }, 0);
-
-        return items.length * minute + breakTime;
     }
 
     /**
@@ -568,24 +546,47 @@ class ScheduleService {
         availableMinutes: number
     ): { itemsPerSlot: number; numberOfSlots: number } {
         const totalItems = items.length;
+
+        const estimatedTotalMinutesPerItem = this.calculateMinuteForItemBasedDifficult(items);
+
+        const averageMinutesPerItem = Math.round(estimatedTotalMinutesPerItem / totalItems);
+
+        const sessionBudgetMinutes = this.MIN_SLOT_DURATION_MINUTES + this.DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION;
+
+        const maxViableSlots = Math.max(1, Math.floor(availableMinutes / sessionBudgetMinutes));
+
+        const totalLearningMinutes =
+            estimatedTotalMinutesPerItem + maxViableSlots * this.DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION;
+
+        const requiredSlots = Math.max(1, Math.ceil(totalLearningMinutes / sessionBudgetMinutes));
+        const numberOfSlots = Math.max(1, Math.min(maxViableSlots, requiredSlots));
+
+        let itemsPerSlot: number = Math.ceil(totalItems / numberOfSlots);
+
         const averageDifficulty = items.reduce((sum, item) => sum + parseFloat(item.easinessFactor), 0) / totalItems;
 
-        // Adjust items per slot based on difficulty (lower easiness = harder = fewer items per slot)
-        let baseItemsPerSlot = Math.floor(availableMinutes / this.DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM);
+        const rateItemForSlotForHardDifficulty = 0.8;
+        const rateItemForSlotForEasyDifficulty = 1.2;
 
-        const rateItemForSlotForHardDifficulty = 0.7; // 30% fewer items for hard
-        const rateItemForSlotForEasyDifficulty = 1.2; // 20% more items for easy
-
-        // Apply difficulty adjustment
-        if (averageDifficulty < this.DIFFICULTY_BASED_ON_EASINESS_FACTOR.hard) {
-            baseItemsPerSlot = baseItemsPerSlot * rateItemForSlotForHardDifficulty;
-        } else if (averageDifficulty > this.DIFFICULTY_BASED_ON_EASINESS_FACTOR.easy) {
-            baseItemsPerSlot = baseItemsPerSlot * rateItemForSlotForEasyDifficulty;
+        if (averageDifficulty <= this.DIFFICULTY_BASED_ON_EASINESS_FACTOR.hard) {
+            itemsPerSlot = Math.ceil(itemsPerSlot * rateItemForSlotForHardDifficulty);
+        } else if (averageDifficulty >= this.DIFFICULTY_BASED_ON_EASINESS_FACTOR.easy) {
+            itemsPerSlot = Math.ceil(itemsPerSlot * rateItemForSlotForEasyDifficulty);
         }
 
-        // Ensure within bounds
-        const itemsPerSlot = Math.max(this.MIN_ITEMS_PER_SLOT, Math.min(this.MAX_ITEMS_PER_SLOT, baseItemsPerSlot));
-        const numberOfSlots = Math.ceil(totalItems / itemsPerSlot);
+        const expectMinuteForSlot = availableMinutes / numberOfSlots;
+
+        const minutesPerSlotBudget = Math.max(this.MIN_SLOT_DURATION_MINUTES, expectMinuteForSlot);
+
+        const studyBudgetPerSlot = Math.max(0, minutesPerSlotBudget - this.DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION);
+
+        const maxItemSupportedByTime = Math.max(
+            this.MIN_ITEMS_PER_SLOT,
+            Math.floor(studyBudgetPerSlot / averageMinutesPerItem)
+        );
+
+        itemsPerSlot = Math.max(this.MIN_ITEMS_PER_SLOT, Math.min(this.MAX_ITEMS_PER_SLOT, itemsPerSlot));
+        itemsPerSlot = Math.min(itemsPerSlot, maxItemSupportedByTime);
 
         return { itemsPerSlot, numberOfSlots };
     }
