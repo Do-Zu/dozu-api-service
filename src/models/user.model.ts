@@ -1,6 +1,7 @@
 import {
   pgTable,
   serial,
+  integer,
   varchar,
   text,
   timestamp,
@@ -68,6 +69,13 @@ export const usersTable = pgTable('users', {
   isNewUser: boolean('is_new_user').default(true),
   hasCompletedOnboarding: boolean('has_completed_onboarding').default(false),
   
+  // Streak and gamification
+  currentStreak: integer('current_streak').notNull().default(0),
+  longestStreak: integer('longest_streak').notNull().default(0),
+  lastStudyDate: timestamp('last_study_date', { withTimezone: true }).defaultNow(),
+  streakFreezeUsed: boolean('streak_freeze_used').default(false),
+  streakFreezeCount: integer('streak_freeze_count').notNull().default(0),
+  
   // Timestamps
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }),
@@ -107,6 +115,7 @@ export interface StudyPreferences {
   breakDuration: number;
   reminderFrequency: string;
   studyMethods: string[];
+  timezone?: string; // User's timezone for streak calculations
 }
 
 // User update data type
