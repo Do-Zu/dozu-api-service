@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, serial, integer, uniqueIndex, foreignKey } from 'drizzle-orm/pg-core';
 import { usersTable } from '../user.model';
 import { topicsTable } from './topic.model';
 import { ankiSettingsTable } from '../anki-setting/ankiSetting.model';
@@ -19,5 +19,9 @@ export const userTopicSettingsTable = pgTable(
     },
     table => ({
         uniqueUserTopic: uniqueIndex('unique_user_topic').on(table.userId, table.topicId),
+        fkUserSetting: foreignKey({
+            columns: [table.settingId, table.userId],
+            foreignColumns: [ankiSettingsTable.ankiSettingId, ankiSettingsTable.userId],
+        }).onDelete('cascade'),
     })
 );
