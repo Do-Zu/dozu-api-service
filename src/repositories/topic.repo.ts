@@ -171,6 +171,19 @@ class TopicRepo {
 
         return topics;
     }
+
+    public async getUserIdOfTopic(topicId: number): Promise<{userId:number}> {
+        const [result] = await db
+            .select({
+                userId: topicsTable.userId,
+            })
+            .from(topicsTable)
+            .where(eq(topicsTable.topicId, topicId));
+        if (!result) {
+            throw new Error(`Topic with id ${topicId} not found`);
+        }
+        return result;
+    }
 }
 
 export default new TopicRepo();

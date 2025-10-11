@@ -1,13 +1,31 @@
 import { Request,Response } from 'express';
 import { SuccessResponse } from '@/core/success';
 import ProfileService from '@/services/profile/profile.service';
-import type { AuthenticatedRequest } from '@/types/profile/profile.types';
+import { isTeacher } from '@/utils/auth/authHelpers.utils';
+import { Forbidden, BadRequest } from '@/core/error';
 
 class ProfileController {
   // Get user profile
    public async getProfile(req: Request, res: Response): Promise<void> {
     const userId = req.currentUser!.userId;
     const profile = await ProfileService.getProfile(parseInt(userId));
+    SuccessResponse.ok(res, profile);
+  }
+
+  // Get user profile by ID (for teachers to view student profiles)
+  public async getProfileById(req: Request, res: Response): Promise<void> {
+    // Check if the current user is a teacher
+    const teacherCheck = await isTeacher(req);
+    if (!teacherCheck) {
+      throw new Forbidden('Only teachers can view other users\' profiles');
+    }
+
+    const userId = Number.parseInt(req.params.userId, 10);
+    if (Number.isNaN(userId)) {
+      throw new BadRequest('Invalid user ID');
+    }
+
+    const profile = await ProfileService.getProfile(userId);
     SuccessResponse.ok(res, profile);
   }
 

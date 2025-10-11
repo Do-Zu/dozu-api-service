@@ -1,6 +1,6 @@
 export * from '@/models/user.model';
 
-export * from '@/models/topic.model';
+export * from '@/models/topic/topic.model';
 
 export * from '@/models/flashcard.model';
 
@@ -47,6 +47,8 @@ export * from '@/models/auth/permission.model';
 
 export * from '@/models/auth/rolePermission.model';
 
+export * from '@/models/auth/changePasswordRequest.model';
+
 //payment
 export * from '@/models/subscription';
 
@@ -61,12 +63,21 @@ export * from '@/models/class-based-learning/classTopicComment.model';
 
 export * from '@/models/teacher-request/teacherRequest.model';
 
-
 export * from '@/models/class-based-learning/classFeed.model';
-
 
 // progress
 export * from '@/models/progress/progress.model';
 
 export * from '@/models/progress/dailyStudy.model';
 
+
+// gamification
+export * from '@/models/gamification/points.model';
+
+export * from '@/models/gamification/achievement.model';
+
+export * from '@/models/feynman';
+
+export * from '@/models/anki-setting/ankiSetting.model';
+
+export * from '@/models/topic/userTopicSetting.model';

@@ -1,6 +1,6 @@
 import { pgTable, serial, integer, varchar, jsonb, timestamp } from 'drizzle-orm/pg-core';
 import { usersTable } from '@/models/user.model';
-import { topicsTable } from '@/models/topic.model';
+import { topicsTable } from '@/models/topic/topic.model';
 
 export const inputSetTable = pgTable('input_set', {
   setId: serial('set_id').primaryKey(),

@@ -1,5 +1,5 @@
 import { pgTable, serial, integer, text } from 'drizzle-orm/pg-core';
-import { topicsTable } from '@/models/topic.model';
+import { topicsTable } from '@/models/topic/topic.model';
 
 export const quizzesTable = pgTable('quizzes', {
   quizId: serial('quiz_id').primaryKey(),

@@ -1,4 +1,7 @@
 import ProfileRepository from '@/repositories/profile/profile.repo';
+import pointsService from '@/services/gamification/points.service';
+import streakService from '@/services/gamification/streak.service';
+import { POINT_RULES } from '@/models/gamification/points.model';
 import { NotFoundError, BadRequest } from '@/core/error';
 import { hashPassword, verifyPassword } from '@/utils/auth/hash.utils';
 import path from 'path';
@@ -32,7 +35,38 @@ class ProfileService {
   public async getProfile(userId: number): Promise<ProfileData> {
     const user = await this.profileRepo.getUserById(userId);
     if (!user) throw new NotFoundError('User not found');
-    return this.mapUserToProfileData(user);
+    
+    // Get gamification data
+    const profileData = this.mapUserToProfileData(user);
+    
+    try {
+      // Get points summary (includes available & lifetime)
+      const summary = await pointsService.getPointSummary(userId);
+      const streak = await streakService.getUserStreak(userId);
+      
+      // Calculate real learning statistics
+      const learningStats = await this.calculateLearningStatistics(userId);
+      
+      profileData.gamificationStats = {
+        totalPoints: summary.availablePoints || 0,
+        currentStreak: streak?.currentStreak || 0,
+        longestStreak: streak?.longestStreak || 0,
+        level: Math.floor((summary.lifetimePoints || 0) / 200) + 1,
+        experiencePoints: (summary.lifetimePoints || 0) % 200,
+        nextLevelExperience: 200,
+        achievements: [], // TODO: Add achievements when implemented
+        weeklyActivity: [0, 0, 0, 0, 0, 0, 0], // TODO: Get real weekly activity
+        totalLessonsCompleted: learningStats.totalLessonsCompleted,
+        totalQuizzesCompleted: learningStats.totalQuizzesCompleted,
+        totalFlashcardsReviewed: learningStats.totalFlashcardsReviewed,
+        averageScore: learningStats.averageScore
+      };
+    } catch (error) {
+      logger.warn('Failed to get gamification stats for user', { userId, error });
+      // Continue without gamification stats
+    }
+    
+    return profileData;
   }
 
   /**
@@ -107,6 +141,102 @@ class ProfileService {
     }
 
     await this.profileRepo.deleteAccount(userId);
+  }
+
+  /**
+   * Calculate real learning statistics from points transactions
+   * Uses proper point constants to avoid fragile hardcoded assumptions
+   */
+  private async calculateLearningStatistics(userId: number): Promise<{
+    totalLessonsCompleted: number;
+    totalQuizzesCompleted: number;
+    totalFlashcardsReviewed: number;
+    averageScore: number;
+  }> {
+    try {
+      // Get all points transactions for this user
+      const transactions = await pointsService.getPointHistory(userId, 1000);
+      
+      let totalLessonsCompleted = 0;
+      let totalQuizzesCompleted = 0;
+      let totalFlashcardsReviewed = 0;
+      let totalQuizScore = 0;
+      let quizCount = 0;
+
+      // Count activities based on transaction types and validated point values
+      for (const transaction of transactions) {
+        switch (transaction.type) {
+          case 'lesson_completed':
+            // Validate against actual point rules to ensure accuracy
+            if (transaction.points === POINT_RULES.LESSON_COMPLETED) {
+              totalLessonsCompleted++;
+            }
+            break;
+            
+          case 'quiz_completed':
+            // Count all quiz completions regardless of score
+            if (transaction.points >= POINT_RULES.QUIZ_COMPLETED) {
+              totalQuizzesCompleted++;
+              
+              // Estimate score based on points earned
+              let estimatedScore = 60; // Base score
+              if (transaction.points >= POINT_RULES.QUIZ_PERFECT_SCORE) {
+                estimatedScore = 100; // Perfect score
+              } else if (transaction.points >= POINT_RULES.QUIZ_HIGH_SCORE) {
+                estimatedScore = 90; // High score
+              } else if (transaction.points > POINT_RULES.QUIZ_COMPLETED) {
+                // Linear interpolation between base and high score
+                const progress = (transaction.points - POINT_RULES.QUIZ_COMPLETED) / 
+                                (POINT_RULES.QUIZ_HIGH_SCORE - POINT_RULES.QUIZ_COMPLETED);
+                estimatedScore = Math.min(90, 60 + (progress * 30));
+              }
+              
+              totalQuizScore += estimatedScore;
+              quizCount++;
+            }
+            break;
+            
+          case 'quiz_high_score':
+            // Skip - quiz_high_score transactions don't exist in current system
+            // All quiz completions are recorded as 'quiz_completed' with varying points
+            // based on score (see awardQuizCompletion in points.service.ts)
+            break;
+            
+          case 'flashcard_review':
+            // Only count actual flashcard reviews, not streak maintenance
+            if (transaction.points === POINT_RULES.FLASHCARD_REVIEW) {
+              totalFlashcardsReviewed++;
+            }
+            break;
+            
+          case 'streak_maintained':
+            // Streak maintenance is separate from flashcard reviews
+            // Don't count as flashcard review to avoid double-counting
+            break;
+            
+          default:
+            // Handle other transaction types if needed
+            break;
+        }
+      }
+
+      const averageScore = quizCount > 0 ? totalQuizScore / quizCount : 0;
+
+      return {
+        totalLessonsCompleted,
+        totalQuizzesCompleted,
+        totalFlashcardsReviewed,
+        averageScore: Math.round(averageScore * 10) / 10 // Round to 1 decimal place
+      };
+    } catch (error) {
+      logger.warn('Failed to calculate learning statistics', { userId, error });
+      return {
+        totalLessonsCompleted: 0,
+        totalQuizzesCompleted: 0,
+        totalFlashcardsReviewed: 0,
+        averageScore: 0
+      };
+    }
   }
 
   /**

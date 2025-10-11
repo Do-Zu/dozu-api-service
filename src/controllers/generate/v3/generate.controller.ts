@@ -9,8 +9,8 @@ import { GenerateContentRequestInterface, JobStatusResponseInterface } from '@/d
 class GenerateController {
     constructor() {}
 
-    async generateContent(req: Request<{}, {}, GenerateContentRequestInterface>, res: Response) {
-        const { content, type } = req.body;
+    async generateContent(req: Request, res: Response) {
+        const { content, type, inputSetId, method } = req.body as GenerateContentRequestInterface;
 
         if (!content) {
             throw new BadRequest('Content is required');
@@ -20,7 +20,7 @@ class GenerateController {
             throw new BadRequest('Type is required');
         }
 
-        const jobInfo = await generativeService.registerGenerateContentByLLM({ content, type });
+        const jobInfo = await generativeService.registerGenerateContentByLLM({ content, type, inputSetId, method });
 
         SuccessResponse.accepted(
             res,

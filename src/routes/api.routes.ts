@@ -31,6 +31,11 @@ import './notification/notification.route';
 import './onboarding/onboarding.routes';
 import './teacher-request/teacherRequest.routes';
 import './class-based-learning/classEnrollment.routes';
+import './gamification/streak.routes';
+import './gamification/points.routes';
+import './feynman/feynman.routes';
+import './backlog/backlog.routes';
+import './anki-setting/ankiSetting.routes';
 
 // Apply global async handler to router
 globalAsyncHandler(router);

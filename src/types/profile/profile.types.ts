@@ -2,14 +2,14 @@ import { Request } from 'express';
 import type { NotificationSettings, PrivacySettings } from '@/models/user.model';
 
 // Extend Express Request to include user
-export interface AuthenticatedRequest extends Request {
-  currentUser?: {
-    userId: string;
-    username: string;
-    email: string;
-    role: string;
-  };
-}
+// export interface AuthenticatedRequest extends Request {
+//   currentUser?: {
+//     userId: string;
+//     username: string;
+//     email: string;
+//     role: string;
+//   };
+// }
 
 // Profile data interface - extends the database model
 export interface ProfileData {
@@ -38,6 +38,29 @@ export interface ProfileData {
   isVerified: boolean;
   createdAt: Date;
   updatedAt?: Date;
+  
+  // Gamification stats (optional)
+  gamificationStats?: {
+    totalPoints: number;
+    currentStreak: number;
+    longestStreak: number;
+    level: number;
+    experiencePoints: number;
+    nextLevelExperience: number;
+    achievements: Array<{
+      id: number;
+      name: string;
+      description: string;
+      icon: string;
+      earnedAt: Date;
+      rarity: 'common' | 'rare' | 'epic' | 'legendary';
+    }>;
+    weeklyActivity: number[];
+    totalLessonsCompleted: number;
+    totalQuizzesCompleted: number;
+    totalFlashcardsReviewed: number;
+    averageScore: number;
+  };
   lastActiveAt?: Date;
 }
 
