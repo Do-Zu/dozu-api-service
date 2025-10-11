@@ -1,7 +1,7 @@
 import { IQualityResponse } from '@/services/spaced-repetition-system/super-memo-2/superMemo2.service';
 import { z } from 'zod';
 import { IItemSpacedRepetition } from '../tracking/itemSpacedRepetitionTracking.type';
-import { INextReviewDataByRating, ICardNextReviewSchedule } from '@/services/flashcard/flashcard.service';
+import { INextReviewDataByRating } from '@/services/flashcard/flashcard.service';
 import { IItemStatus } from '@/models';
 import { IAnkiRating } from '@/services/spaced-repetition-system/super-memo-2/anki.service';
 

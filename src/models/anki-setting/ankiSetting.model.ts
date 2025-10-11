@@ -45,8 +45,10 @@ export const ankiSettingsTable = pgTable(
             'maximum_reviews_per_day_bounds',
             sql`${table.maximumReviewsPerDay} BETWEEN 0 AND 9999`
         ),
+        intervalRangeValid: check('interval_range_valid', sql`${table.maximumInterval} >= ${table.minimumInterval}`),
         uniqueDefaultSettingPerUser: uniqueIndex('unique_default_setting_per_user')
             .on(table.userId)
             .where(sql`${table.isDefault} = true`),
+        uniqueSettingUser: uniqueIndex('unique_setting_user').on(table.ankiSettingId, table.userId),
     })
 );

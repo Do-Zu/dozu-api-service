@@ -2,7 +2,7 @@ import requestHelper from '@/core/request/request.helper';
 import { Request, Response } from 'express';
 import db from '@/libs/drizzleClient.lib';
 import { ankiSettingsTable } from '@/models';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import { SuccessResponse } from '@/core/success';
 import { BadRequest } from '@/core/error';
@@ -24,6 +24,7 @@ class AnkiSettingController {
 
     public async updateSettingById(req: Request, res: Response) {
         const settingId = requestHelper.getIdParam(req, 'settingId');
+        const userId = getUserIdFromRequest(req);
         const setting = req.body as IUpdateAnkiSettingBody | undefined | null;
         if (!setting) {
             throw new BadRequest('Updated setting is invalid');
@@ -31,8 +32,12 @@ class AnkiSettingController {
         const [result] = await db
             .update(ankiSettingsTable)
             .set(setting)
-            .where(eq(ankiSettingsTable.ankiSettingId, settingId))
+            .where(and(eq(ankiSettingsTable.ankiSettingId, settingId), eq(ankiSettingsTable.userId, userId)))
             .returning();
+
+        if (!result) {
+            throw new BadRequest('Setting not found');
+        }
 
         SuccessResponse.ok(res, result);
     }
