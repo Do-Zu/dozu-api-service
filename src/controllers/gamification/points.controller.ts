@@ -47,7 +47,7 @@ export class PointsController {
       
       // Combine into gamification stats format
       const gamificationStats = {
-        totalPoints: summary.availablePoints || 0,
+        totalPoints: summary.totalPoints || 0,
         currentStreak: streak?.currentStreak || 0,
         longestStreak: streak?.longestStreak || 0,
         level: Math.floor((summary.lifetimePoints || 0) / 200) + 1, // Simple level calculation
