@@ -87,9 +87,27 @@ class AnkiSettingService {
         userId: number;
         data: IUpdateAnkiSettingBody;
     }): Promise<IAnkiSetting> {
+        const allowedKeys = new Set<keyof IUpdateAnkiSettingBody>([
+            'name',
+            'learningSteps',
+            'graduatingInterval',
+            'easyInterval',
+            'relearningSteps',
+            'minimumInterval',
+            'maximumInterval',
+            'startingEase',
+            'easyBonus',
+            'intervalModifier',
+            'hardInterval',
+            'newInterval',
+            'newCardsPerDay',
+            'maximumReviewsPerDay',
+        ]);
+
+        const safePayload = Object.fromEntries(Object.entries(data).filter(([k]) => allowedKeys.has(k as any)));
         const [result] = await db
             .update(ankiSettingsTable)
-            .set(data)
+            .set(safePayload)
             .where(and(eq(ankiSettingsTable.ankiSettingId, settingId), eq(ankiSettingsTable.userId, userId)))
             .returning();
 

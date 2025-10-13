@@ -29,6 +29,9 @@ class UserTopicSettingService {
         if (!ankiSetting) {
             throw new NotFoundError('Setting not found');
         }
+        if (ankiSetting.userId !== userId) {
+            throw new Forbidden("Forbidden: Cannot modify another user's setting");
+        }
         if (ankiSetting.isDefault) {
             await db
                 .delete(userTopicSettingsTable)
