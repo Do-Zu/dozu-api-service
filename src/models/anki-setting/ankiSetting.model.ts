@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, real, check, boolean, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, serial, integer, real, check, boolean, uniqueIndex, varchar } from 'drizzle-orm/pg-core';
 import { usersTable } from '../user.model';
 import { sql } from 'drizzle-orm';
 
@@ -10,6 +10,8 @@ export const ankiSettingsTable = pgTable(
             .notNull()
             .references(() => usersTable.userId, { onDelete: 'cascade' }),
         isDefault: boolean('is_default').notNull().default(false),
+        name: varchar('name', { length: 255 }).notNull(), // name of the setting 
+        // these fields below are parameters of Anki algorithm
         learningSteps: integer('learning_steps').array().notNull().default([1, 10]), // time-unit: MINUTE
         graduatingInterval: integer('graduating_interval').notNull().default(1), // time-unit: DAY
         easyInterval: integer('easy_interval').notNull().default(4), // time-unit: DAY
