@@ -538,8 +538,8 @@ export class SubscriptionService {
      * Process subscription renewal
      */
     async processRenewal({ subscriptionId, timezone }: { subscriptionId: number; timezone: string }): Promise<{
-        newPeriodStart: Date | string;
-        newPeriodEnd: Date | string;
+        newPeriodStart: Date;
+        newPeriodEnd: Date;
     } | null> {
         return await db.transaction(async tx => {
             const [subscription] = await tx
