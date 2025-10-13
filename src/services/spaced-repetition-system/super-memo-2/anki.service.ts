@@ -150,7 +150,6 @@ class AnkiService {
         let nextReviewInterval: INextReviewInterval;
         const { learningSteps, startingEase, graduatingInterval, easyInterval } = this.ankiSetting;
         if (learningSteps.length === 0 || (card.step && card.step >= learningSteps.length)) {
-            // todo: xem check card.step >= or > learningSteps.length
             card.status = IAnkiStatus.REVIEW;
             card.step = null;
             card.easinessFactor = startingEase.toFixed(3);
@@ -345,7 +344,6 @@ class AnkiService {
         const { intervalModifier, minimumInterval, maximumInterval, relearningSteps, easyBonus } = this.ankiSetting;
 
         if (relearningSteps.length === 0 || (card.step && card.step >= relearningSteps.length)) {
-            // todo: xem check card.step >= or > relearningSteps.length
             card.status = IAnkiStatus.REVIEW;
             card.step = null;
             // do not update ease

@@ -2,6 +2,7 @@ export type IAnkiSetting = {
     ankiSettingId: number;
     userId: number;
     isDefault: boolean;
+    name: string;
     learningSteps: number[];
     graduatingInterval: number;
     easyInterval: number;
