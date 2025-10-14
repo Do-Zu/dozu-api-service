@@ -103,14 +103,14 @@ class PayOSManager extends PaymentBase implements PaymentGateway {
         };
 
         try {
-            const dateResponse = await this.payOS.createPaymentLink(payment);
+            const dataResponse = await this.payOS.createPaymentLink(payment);
             return {
-                ...dateResponse,
+                ...dataResponse,
                 baseUrlReturn: this.BASE_URL_RETURN,
                 jobId,
             };
         } catch (error) {
-            logger.error(error);
+            logger.error('Failed to create PayOS payment link', { error, orderCode });
             throw new InternalServerError('Plain External Register Payment Process Fail');
         }
     }
