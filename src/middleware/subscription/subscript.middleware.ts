@@ -1,13 +1,17 @@
 import { BadRequest, Forbidden, InternalServerError, PaymentRequire } from '@/core/error';
 import { IFeatureUsageInterval } from '@/models/subscription/planFeature.model';
+import planService from '@/services/subscription/plan.service';
 import subscriptionService from '@/services/subscription/subscription.service';
 import { featureUsageService } from '@/services/subscription/usage/featureUsage.service';
+import { compareIgnoreCapitalization } from '@/utils/common';
 import {
     getCurrentDateInTimeZone,
     getCurrentTimestampFromRequest,
     getDateFormatted,
+    getSystemDate,
     getTimezoneClient,
     isExpiredDate,
+    TIME_ZONE_SYSTEM,
 } from '@/utils/date';
 import { addDays, differenceInSeconds, endOfDay } from 'date-fns';
 import { NextFunction, Request, Response } from 'express';
@@ -37,6 +41,7 @@ class SubscriptionMiddleware {
     private readonly DEFAULT_DATE_FOR_MONTH = 30;
     private readonly DEFAULT_DATE_FOR_WEEK = 7;
     private readonly DEFAULT_DATE_FOR_YEAR = 365;
+    private readonly DEFAULT_MAX_DIFF_CLIENT_SERVER_BOUNDARY = 60 * 1000; // 1 minute
 
     constructor() {
         this.handleSubscription = this.handleSubscription.bind(this);
@@ -52,18 +57,16 @@ class SubscriptionMiddleware {
         const timezone = getTimezoneClient(req);
 
         //Convert to UTC standard for compare
-        const nowServerUTC = new Date();
+        const nowServerUTC = getSystemDate();
         const currentDateFromClient = getCurrentTimestampFromRequest(req);
-        const clientDateUTC = new Date(currentDateFromClient);
+        const clientDateUTC = getCurrentDateInTimeZone(TIME_ZONE_SYSTEM.UTC, currentDateFromClient);
 
         // Ensure that the client's timestamp and server's timestamp are not more than 1 minute
-        const maxAllowedDifference = 60 * 1000;
+        const maxAllowedDifference = this.DEFAULT_MAX_DIFF_CLIENT_SERVER_BOUNDARY;
         const timeDifference = Math.abs(nowServerUTC.getTime() - clientDateUTC.getTime());
 
         if (timeDifference > maxAllowedDifference) {
-            throw new Forbidden(
-                `Client time is too far from server time. Difference: ${Math.round(timeDifference / 1000)}s. Please check your device clock.`
-            );
+            throw new Forbidden(`Client time is too far from server time. Please check your device clock.`);
         }
 
         const nowInClientTimezone = getCurrentDateInTimeZone(timezone);
@@ -75,17 +78,55 @@ class SubscriptionMiddleware {
             throw new BadRequest('Feature ID is required for subscription check');
         }
 
-        const userPlan = await subscriptionService.getUserSubscriptionWithPlan({ userId, timezone });
+        let userPlan = await subscriptionService.getUserSubscriptionWithPlan({ userId, timezone });
 
         // Check if the user has a valid subscription without free plan
-        if (userPlan.plan.planType !== PLAN_WILL_BE_IGNORE) {
+        if (!compareIgnoreCapitalization(userPlan.plan.planType, PLAN_WILL_BE_IGNORE)) {
             const currentPeriodEnd = userPlan.subscription.currentPeriodEnd;
             const isExpired = isExpiredDate(currentPeriodEnd, today, timezone);
 
             const isSubscriptionExpired = isExpired || userPlan.subscription.status === 'expired';
 
             if (isSubscriptionExpired) {
-                throw new PaymentRequire('Your subscription has expired. Please renew to continue using the service.');
+                //Down subscription to free when expire
+
+                const freePlan = await planService.getFreePlan();
+
+                const downSubscription = await subscriptionService.changeSubscription({
+                    newPlanId: freePlan.planId,
+                    userId,
+                    timeZone: timezone,
+                    status: 'expired',
+                });
+
+                if (!downSubscription) {
+                    throw new InternalServerError('Down Subscription Fail!');
+                }
+
+                // Get new plan for user
+                userPlan = await subscriptionService.getUserSubscriptionWithPlan({ userId, timezone });
+            }
+        } else {
+            const currentPeriodEnd = userPlan.subscription.currentPeriodEnd;
+            const isExpired = isExpiredDate(currentPeriodEnd, today, timezone);
+
+            const isSubscriptionExpired = isExpired || userPlan.subscription.status === 'expired';
+
+            if (isSubscriptionExpired) {
+                const reNewSubscription = await subscriptionService.processRenewal({
+                    subscriptionId: userPlan.subscription.subscriptionId,
+                    timezone,
+                });
+
+                if (reNewSubscription) {
+                    const { newPeriodEnd, newPeriodStart } = reNewSubscription;
+
+                    userPlan.subscription = {
+                        ...userPlan.subscription,
+                        currentPeriodStart: getCurrentDateInTimeZone(timezone, newPeriodStart),
+                        currentPeriodEnd: getCurrentDateInTimeZone(timezone, newPeriodEnd),
+                    };
+                }
             }
         }
 
