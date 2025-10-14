@@ -57,7 +57,7 @@ class SubscriptionMiddleware {
         const timezone = getTimezoneClient(req);
 
         //Convert to UTC standard for compare
-        const nowServerUTC = getSystemDate();
+        const nowServerUTC = getCurrentDateInTimeZone(TIME_ZONE_SYSTEM.UTC, getSystemDate());
         const currentDateFromClient = getCurrentTimestampFromRequest(req);
         const clientDateUTC = getCurrentDateInTimeZone(TIME_ZONE_SYSTEM.UTC, currentDateFromClient);
 
