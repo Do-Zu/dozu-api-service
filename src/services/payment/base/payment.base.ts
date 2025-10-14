@@ -1,4 +1,4 @@
-import { Forbidden } from '@/core/error';
+import { BadRequest } from '@/core/error';
 import { isNilOrEmpty } from '@/utils/common';
 
 export abstract class PaymentBase {
@@ -29,7 +29,7 @@ export abstract class PaymentBase {
 
     protected cleanAmount(amount: unknown): number {
         if (isNilOrEmpty(amount)) {
-            throw new Forbidden('Invalid payment amount');
+            throw new BadRequest('Invalid payment amount');
         }
         const normalized =
             typeof amount === 'bigint'
@@ -38,10 +38,10 @@ export abstract class PaymentBase {
                   ? Number(amount.trim())
                   : Number(amount);
 
-        if (!Number.isFinite(normalized)) throw new Forbidden('Invalid payment amount: not a number');
+        if (!Number.isFinite(normalized)) throw new BadRequest('Invalid payment amount: not a number');
 
         if (normalized <= 0) {
-            throw new Forbidden('Invalid payment amount: must be greater than zero');
+            throw new BadRequest('Invalid payment amount: must be greater than zero');
         }
 
         return normalized;
