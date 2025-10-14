@@ -556,8 +556,14 @@ export class SubscriptionService {
                 return null;
             }
 
+            const plan = await planService.getPlanById(subscription.planId);
+
+            if (!plan) {
+                return null;
+            }
+
             const newPeriodStart = getCurrentDateInTimeZone(timezone, getSystemDate());
-            const newPeriodEnd = addMonths(newPeriodStart, 1);
+            const newPeriodEnd = this.calculateSubscriptionEndDate(plan.billingInterval, newPeriodStart);
 
             await tx
                 .update(userSubscriptionsTable)
