@@ -4,13 +4,14 @@ import { redisInstance as redis } from '@/libs/redis/default/redisDefault';
 import { transactionsModel } from '@/models/payment/transaction.model';
 import { compareIgnoreCapitalization } from '@/utils/common';
 import { convertUsdToVnd } from '@/utils/conversion/conversion';
-import { getCurrentDateInTimeZone, getDateFormattedWithTimeZone } from '@/utils/date';
+import { getCurrentDateInTimeZone, getDateFormattedWithTimeZone, getSystemDate } from '@/utils/date';
 import logger from '@/utils/logger';
 import planService from '../subscription/plan.service';
 import { GATEWAY } from './constants';
 import { payOS } from './gateway/payos';
 import { sepayPayment } from './gateway/sepay';
 import { PaymentStatus } from './payment.interface';
+import { addMilliseconds } from 'date-fns';
 import {
     PaymentLinkRequest,
     PaymentLinkResponse,
@@ -41,12 +42,9 @@ class PaymentService {
             throw new Error('Server Error: Plan not found');
         }
 
-        const ttlForExpirePayment = this.EXPIRE_IN_MINUTE * 60 * 1000;
+        const ttlForExpirePayment = this.EXPIRE_IN_MINUTE * 60 * 1000; // 1 minutes
 
-        const timeExpireMilliseconds = new Date().getTime() + ttlForExpirePayment;
-
-        const expireAt = new Date(timeExpireMilliseconds);
-
+        const expireAt = addMilliseconds(getSystemDate(), ttlForExpirePayment);
         const expireAtTimeZone = getCurrentDateInTimeZone(timeZone, expireAt);
 
         const price = parseFloat(plan.price as string);
