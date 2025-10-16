@@ -1,4 +1,6 @@
 import { Request } from 'express';
+import { InternalServerError } from '../error';
+import { isNilOrEmpty } from '@/utils/common';
 
 class RequestHelper {
     public getValidated(req: Request) {
@@ -28,7 +30,19 @@ class RequestHelper {
         const params = this.getValidatedParams(req);
         const result = params[field];
         if (!result) {
-            throw new Error(`Missing id param: ${field}`);
+            throw new InternalServerError(`Missing id param: ${field}`);
+        }
+        return result;
+    }
+
+    public getBodyParam<K extends keyof NonNullable<NonNullable<Request['validated']>['body']>>(
+        req: Request,
+        field: K
+    ): NonNullable<NonNullable<Request['validated']>['body']>[K] {
+        const body = this.getValidatedBody(req);
+        const result = body[field];
+        if (isNilOrEmpty(result)) {
+            throw new InternalServerError(`Missing body param: ${String(field)}`);
         }
         return result;
     }
@@ -40,7 +54,7 @@ class RequestHelper {
         const resources = req.resources || {};
         const result = resources[field];
         if (!result) {
-            throw new Error(`Missing resource: ${field}`);
+            throw new InternalServerError(`Missing resource: ${field}`);
         }
         return result;
     }
