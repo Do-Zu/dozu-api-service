@@ -7,7 +7,6 @@ import classService from '@/services/class-based-learning/class.service';
 import classEnrollmentService from '@/services/class-based-learning/classEnrollment.service';
 
 class TopicMiddleware {
-    // not used & tested yet
     public async verifyTopicByIdInParam(req: Request, _res: Response, next: NextFunction) {
         const topicId = requestHelper.getIdParam(req, 'topicId');
         const topic = await topicService.getTopicById(topicId);
