@@ -4,4 +4,4 @@ export const CONTENT_TYPE_INPUT_SET = {
     WEBSITE: 'website',
 };
 
-export type ContentTypeInputSet = 'file' | 'youtube' | 'website' | 'text' | null;
+export type ContentTypeInputSet = 'file' | 'youtube' | 'website' | 'text';
