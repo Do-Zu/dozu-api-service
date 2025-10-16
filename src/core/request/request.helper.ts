@@ -14,8 +14,8 @@ class RequestHelper {
     }
 
     public getValidatedBody(req: Request) {
-        if (!req.validated || !req.validated.body) throw new Error('Missing validated body');
-        return req.validated.body;
+        if (!req || !req.body) throw new Error('Missing body');
+        return req.body;
     }
 
     public async getValidatedQuery(req: Request) {

@@ -8,8 +8,8 @@ import classEnrollmentService from '@/services/class-based-learning/classEnrollm
 
 class TopicMiddleware {
     // not used & tested yet
-    async verifyTopicById(req: Request, _res: Response, next: NextFunction) {
-        const topicId = requestHelper.getIdParamOrBody(req, 'topicId');
+    public async verifyTopicByIdInParam(req: Request, _res: Response, next: NextFunction) {
+        const topicId = requestHelper.getIdParam(req, 'topicId');
         const topic = await topicService.getTopicById(topicId);
         if (topic) {
             requestHelper.setResource(req, 'topic', topic);
@@ -19,7 +19,18 @@ class TopicMiddleware {
         }
     }
 
-    async verifyUserCanAccessTopic(req: Request, res: Response, next: NextFunction) {
+    public async verifyTopicByIdInBody(req: Request, _res: Response, next: NextFunction) {
+        const topicId = requestHelper.getBodyParam(req, 'topicId');
+        const topic = await topicService.getTopicById(topicId);
+        if (topic) {
+            requestHelper.setResource(req, 'topic', topic);
+            next();
+        } else {
+            throw new NotFoundError('Topic not found');
+        }
+    }
+
+    public async verifyUserCanAccessTopic(req: Request, res: Response, next: NextFunction) {
         const userId = getUserIdFromRequest(req);
         const teacher = await isTeacher(req);
         const topic = requestHelper.getResource(req, 'topic');
