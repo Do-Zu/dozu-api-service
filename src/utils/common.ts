@@ -43,5 +43,5 @@ export const isNilOrEmpty = (val: unknown): boolean => val === undefined || val 
 export const checkAndConvertToString = (val: string | number | undefined | null): string => {
     if (isNilOrEmpty(val)) return '';
 
-    return val!?.toString();
+    return val!.toString();
 };
