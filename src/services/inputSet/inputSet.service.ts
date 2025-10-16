@@ -1,6 +1,7 @@
 import { InternalServerError } from '@/core/error';
 import { getInputSetByTopicId, insertInputSet } from '@/repositories/inputSet.repo';
 import { uploadFileServiceOnR2 } from '../uploads/files/upload.file.R2.service';
+import { checkAndConvertToString } from '@/utils/common';
 
 class InputSetService {
     public getDocumentService = async (topicId: number) => {
@@ -52,16 +53,18 @@ class InputSetService {
         topicId,
         contentType,
         metadata,
+        title,
     }: {
         userId: number;
         topicId: number;
         contentType: string;
         metadata: object;
+        title?: string;
     }) => {
         const result = await insertInputSet({
             userId,
             topicId,
-            title: '',
+            title: checkAndConvertToString(title),
             contentType,
             metadata,
         });
