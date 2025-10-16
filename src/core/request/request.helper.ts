@@ -47,6 +47,25 @@ class RequestHelper {
         return result;
     }
 
+    public getIdParamOrBody(req: Request, field: string): number {
+        const params = (this.getValidatedParams(req) ?? {}) as Record<string, unknown>;
+        const body = (this.getValidatedBody(req) ?? {}) as Record<string, unknown>;
+
+        const rawValue = params[field] ?? body[field];
+
+        if (isNilOrEmpty(rawValue)) {
+            throw new InternalServerError(`Missing id in params or body: ${field}`);
+        }
+
+        const id = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+
+        if (!Number.isFinite(id) || id <= 0) {
+            throw new InternalServerError(`Invalid id value for ${field}`);
+        }
+
+        return id;
+    }
+
     public getResource<K extends keyof NonNullable<Request['resources']>>(
         req: Request,
         field: K

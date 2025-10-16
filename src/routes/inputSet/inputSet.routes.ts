@@ -18,7 +18,12 @@ router.get(
     inputSetController.getInputSetDocumentController
 );
 
-router.post('/resources', topicMiddleware.verifyTopicById, inputSetController.insertResource);
+router.post(
+    '/resources',
+    topicMiddleware.verifyTopicById,
+    topicMiddleware.verifyUserCanAccessTopic,
+    inputSetController.insertResource
+);
 
 registerRoute('/input-set', router, {
     description: 'Authentication endpoints',

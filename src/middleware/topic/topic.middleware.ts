@@ -1,17 +1,17 @@
-import { BadRequest, NotFoundError } from "@/core/error";
-import topicService from "@/services/topic/topic.service";
-import { getUserIdFromRequest, isTeacher } from "@/utils/auth/authHelpers.utils";
-import { NextFunction, Request, Response } from "express";
-import requestHelper from "@/core/request/request.helper";
-import classService from "@/services/class-based-learning/class.service";
-import classEnrollmentService from "@/services/class-based-learning/classEnrollment.service";
+import { BadRequest, NotFoundError } from '@/core/error';
+import topicService from '@/services/topic/topic.service';
+import { getUserIdFromRequest, isTeacher } from '@/utils/auth/authHelpers.utils';
+import { NextFunction, Request, Response } from 'express';
+import requestHelper from '@/core/request/request.helper';
+import classService from '@/services/class-based-learning/class.service';
+import classEnrollmentService from '@/services/class-based-learning/classEnrollment.service';
 
 class TopicMiddleware {
-    // not used & tested yet 
-    async verifyTopicById(req: Request, res: Response, next: NextFunction) {
-        const topicId = requestHelper.getIdParam(req, 'topicId');
+    // not used & tested yet
+    async verifyTopicById(req: Request, _res: Response, next: NextFunction) {
+        const topicId = requestHelper.getIdParamOrBody(req, 'topicId');
         const topic = await topicService.getTopicById(topicId);
-        if(topic) {
+        if (topic) {
             requestHelper.setResource(req, 'topic', topic);
             next();
         } else {
@@ -23,22 +23,21 @@ class TopicMiddleware {
         const userId = getUserIdFromRequest(req);
         const teacher = await isTeacher(req);
         const topic = requestHelper.getResource(req, 'topic');
-        
-        if(topic.classId) {
+
+        if (topic.classId) {
             let isAuthorized: boolean;
-            if(teacher) {
+            if (teacher) {
                 isAuthorized = await classService.isTeacherOwnerOfClass(topic.classId, userId);
             } else {
                 isAuthorized = await classEnrollmentService.isStudentInClass(topic.classId, userId);
             }
-            
-            if(!isAuthorized) {
+
+            if (!isAuthorized) {
                 throw new BadRequest('Forbidden: You do not have access to this topic!');
             }
             next();
-
         } else {
-            if(topic.userId !== userId) {
+            if (topic.userId !== userId) {
                 throw new BadRequest('Forbidden: You are not the owner of this topic!');
             }
             next();
