@@ -35,6 +35,11 @@ export function removeHyphensFromUUID(uuid: string): string {
  */
 export const isNilOrEmpty = (val: unknown): boolean => val === undefined || val === null || val === '';
 
+/**
+ * Check and convert to string
+ * @param val
+ * @returns string
+ */
 export const checkAndConvertToString = (val: string | number | undefined | null): string => {
     if (isNilOrEmpty(val)) return '';
 
