@@ -20,7 +20,7 @@ router.get(
 
 router.post(
     '/resources',
-    topicMiddleware.verifyTopicById,
+    topicMiddleware.verifyTopicByIdInBody,
     topicMiddleware.verifyUserCanAccessTopic,
     inputSetController.insertResource
 );
