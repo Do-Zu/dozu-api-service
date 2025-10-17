@@ -13,9 +13,11 @@ class TopicController {
     constructor() {}
 
     public async getTopicById(req: Request, res: Response): Promise<void> {
+        const userId = getUserIdFromRequest(req);
         const topicId = requestHelper.getIdParam(req, 'topicId');
+        const currentDate = getCurrentTimestampFromRequest(req);
 
-        const topic: ITopic | undefined = await topicService.getTopicById(topicId);
+        const topic: ITopic | undefined = await topicService.getTopicWithCardCounts({ userId, topicId, currentDate });
         SuccessResponse.ok(res, topic);
     }
 
@@ -79,7 +81,7 @@ class TopicController {
     public async deleteTopicById(req: Request, res: Response): Promise<void> {
         const topicId = requestHelper.getIdParam(req, 'topicId');
         const topic = requestHelper.getResource(req, 'topic');
-        
+
         if (topic.imageUrl) {
             await deleteImage(extractPublicId(topic.imageUrl));
         }
