@@ -26,20 +26,20 @@ router.put(
     '/:topicId',
     fileUploadSingleMiddleware,
     paramsValidator.validateId('topicId'),
-    topicMiddleware.verifyTopicById,
+    topicMiddleware.verifyTopicByIdInParam,
     topicController.updateTopicById
 );
 router.delete(
     '/:topicId',
     paramsValidator.validateId('topicId'),
-    topicMiddleware.verifyTopicById,
+    topicMiddleware.verifyTopicByIdInParam,
     topicController.deleteTopicById
 );
 
 router.use(
     '/:topicId/flashcards',
     paramsValidator.validateId('topicId'),
-    topicMiddleware.verifyTopicById,
+    topicMiddleware.verifyTopicByIdInParam,
     topicMiddleware.verifyUserCanAccessTopic,
     flashcardRoutes
 );
