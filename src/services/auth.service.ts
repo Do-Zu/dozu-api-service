@@ -4,6 +4,7 @@ import { sendChangePasswordLinkEmail, sendVerificationLinkEmail } from '@/libs/n
 import { InsertAuthAccount } from '@/models';
 import { InsertChangePasswordRequest, SelectChangePasswordRequest } from '@/models/auth/changePasswordRequest.model';
 import { InsertUser, SelectUser } from '@/models/user.model';
+import ProfileRepository from '@/repositories/profile/profile.repo';
 import {
     addRole,
     deleteVerificationCodeByEmailVerificationId,
@@ -210,7 +211,7 @@ export const getOAuthJwtTokenService = async (code: string) => {
 
 export const googleOAuthLoginService = async (code: string): Promise<LoginResult> => {
     const googleTokens = await getOAuthJwtTokenService(code);
-    const decoded = decodeJwtToken(googleTokens); // contains sub, email, etc.
+    const decoded = decodeJwtToken(googleTokens); // contains sub, email, name, etc.
     //add type of decoded
 
     if (!decoded || typeof decoded.sub !== 'string') {
@@ -222,7 +223,14 @@ export const googleOAuthLoginService = async (code: string): Promise<LoginResult
     if (existingAuthAccount) {
         //checks if user exist
         user = await getLoginData(existingAuthAccount.userId);
-        //continues with login
+        
+        // Update fullName if it's available in the token and not already set
+        if (decoded.name && !user.fullName) {
+            const profileRepo = new ProfileRepository();
+            await profileRepo.updateProfile(user.userId, { fullName: decoded.name });
+            // Refresh user data to get updated fullName
+            user = await getLoginData(existingAuthAccount.userId);
+        }
 
         if (!user.isActive) {
             //checks if user is banned
@@ -247,6 +255,7 @@ export const googleOAuthLoginService = async (code: string): Promise<LoginResult
         const newUser: InsertUser = {
             username: username,
             email: decoded.email,
+            fullName: decoded.name || '', // Save fullName from Google OAuth
             avatarUrl: decoded.picture,
             isVerified: true,
         };
