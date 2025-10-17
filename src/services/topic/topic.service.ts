@@ -21,6 +21,20 @@ class TopicService {
         return topic;
     }
 
+    public async getTopicWithCardCounts({
+        userId,
+        topicId,
+        currentDate,
+    }: {
+        userId: number;
+        topicId: number;
+        currentDate: string;
+    }): Promise<ITopic | undefined> {
+        const dueDate = addMinutes(new Date(currentDate), learnAheadLimit);
+        const topic = await topicRepo.getTopicWithCardCounts({ userId, topicId, dueDate: dueDate.toISOString() });
+        return topic;
+    }
+
     public async getTopicsForUser(userId: number, currentDate: string): Promise<ITopic[]> {
         const dueDate = addMinutes(new Date(currentDate), learnAheadLimit);
         const topics = await topicRepo.getTopicsForUser(userId, dueDate.toISOString());
@@ -49,7 +63,7 @@ class TopicService {
         await db.transaction(async tx => {
             // mindmap deletion
             //... (delete resources related to ONLY mindmap if necessary)
-            await deleteMindmapByTopicId(topicId, tx);//needs testing
+            await deleteMindmapByTopicId(topicId, tx); //needs testing
 
             // flashcard deletion
             await flashcardRepo.deleteFlashcardsInTopic(topicId, tx);
@@ -57,13 +71,13 @@ class TopicService {
             // quiz deletion
             //... (delete resources related to ONLY quiz if necessary)
 
-            // sm-2 information deletion 
+            // sm-2 information deletion
             // todo-ka: should annouce teacher that deleting topic would clear sm-2 info of students
             await itemSpacedRepetitionTrackingRepo.deleteTrackingRecordsByTopicId(topicId, tx);
 
             // topic deletion
             await topicRepo.deleteTopicById(topicId, tx);
-        })
+        });
     }
 }
 

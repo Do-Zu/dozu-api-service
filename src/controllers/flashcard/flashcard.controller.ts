@@ -20,7 +20,6 @@ import unsplashLib, { IUnspashImage } from '@/libs/unsplash.lib';
 import AnkiService, {
     IAnkiCard,
     IAnkiRating,
-    IAnkiResult,
     learnAheadLimit,
 } from '@/services/spaced-repetition-system/super-memo-2/anki.service';
 import ankiSettingService from '@/services/anki-setting/ankiSetting.service';
@@ -171,14 +170,6 @@ class FlashcardController {
         const topicId = requestHelper.getIdParam(req, 'topicId');
         const flashcardId = requestHelper.getIdParam(req, 'flashcardId');
         const { rating } = req.body as { rating: IAnkiRating };
-        let { ankiResult: ankiResultFromClient } = req.body as { ankiResult: IAnkiResult | null | undefined };
-        if (ankiResultFromClient) {
-            ankiResultFromClient = {
-                ...ankiResultFromClient,
-                lastReviewed: ankiResultFromClient.lastReviewed ? new Date(ankiResultFromClient.lastReviewed) : null,
-                nextReview: new Date(ankiResultFromClient.nextReview),
-            };
-        }
 
         const flashcard: IFlashcardLearningState =
             await flashcardService.getSpacedRepetitionDataForFlashcard(flashcardId);
@@ -197,7 +188,7 @@ class FlashcardController {
 
         const ankiSetting = await ankiSettingService.getSettingForTopicAndUser(topicId, userId);
         const ankiService = new AnkiService(ankiSetting);
-        const ankiResult = ankiResultFromClient ?? ankiService.schedule(ankiCard, rating);
+        const ankiResult = ankiService.schedule(ankiCard, rating);
 
         const sm2Info: IFlashcardLearningState = {
             repetitionNumber: 0,

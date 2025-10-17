@@ -95,9 +95,15 @@ type IPrivateAnkiCard = Omit<IAnkiCard, 'lastReviewed'> & {
     lastReviewed: Date;
 };
 
+export type IBaseIntervalWithDeviation = {
+    baseInterval: number;
+    deviation: number;
+};
+
 export interface IAnkiResult extends IAnkiCard {
     nextReview: Date;
     nextReviewInterval: INextReviewInterval;
+    baseIntervalWithDeviation: IBaseIntervalWithDeviation | null;
 }
 
 export interface INextReviewInterval {
@@ -105,12 +111,7 @@ export interface INextReviewInterval {
     timeUnit: TimeUnit;
 }
 
-export interface INextReviewIntervalForRating {
-    rating: IAnkiRating;
-    interval: INextReviewInterval;
-}
-
-export type IFlashcardStatusCounts = Record<Exclude<IAnkiStatus, IAnkiStatus.RELEARNING>, number>;
+export type IAnkiCardStatusCounts = Record<Exclude<IAnkiStatus, IAnkiStatus.RELEARNING>, number>;
 
 const invalidRatingMessage = 'Invalid rating option';
 const invalidCardStatusMessage = 'Invalid card status';
@@ -148,6 +149,7 @@ class AnkiService {
     public handleLearning(card: IPrivateAnkiCard, rating: IAnkiRating): IAnkiResult {
         let nextReview: Date;
         let nextReviewInterval: INextReviewInterval;
+        let baseIntervalWithDeviation: IBaseIntervalWithDeviation | null = null;
         const { learningSteps, startingEase, graduatingInterval, easyInterval } = this.ankiSetting;
         if (learningSteps.length === 0 || (card.step && card.step >= learningSteps.length)) {
             card.status = IAnkiStatus.REVIEW;
@@ -218,7 +220,12 @@ class AnkiService {
                 card.easinessFactor = startingEase.toFixed(3);
                 card.reviewInterval = easyInterval;
                 // todo: check this line (not included in python source)
-                card.reviewInterval = this.getFuzzedInterval(card.reviewInterval);
+                const { fuzzedInterval, fuzzDeviation } = this.getFuzzedInterval(card.reviewInterval);
+                baseIntervalWithDeviation = {
+                    baseInterval: card.reviewInterval,
+                    deviation: fuzzDeviation,
+                };
+                card.reviewInterval = fuzzedInterval;
                 nextReview = addDays(card.lastReviewed, card.reviewInterval);
                 nextReviewInterval = {
                     interval: card.reviewInterval,
@@ -228,12 +235,13 @@ class AnkiService {
                 throw new Error(invalidRatingMessage);
             }
         }
-        return { ...card, nextReview, nextReviewInterval };
+        return { ...card, nextReview, nextReviewInterval, baseIntervalWithDeviation };
     }
 
     public handleReview(card: IPrivateAnkiCard, rating: IAnkiRating): IAnkiResult {
         let nextReview: Date;
         let nextReviewInterval: INextReviewInterval;
+        let baseIntervalWithDeviation: IBaseIntervalWithDeviation | null = null;
         const {
             newInterval,
             intervalModifier,
@@ -252,7 +260,12 @@ class AnkiService {
             card.reviewInterval = Math.max(card.reviewInterval, minimumInterval);
             card.reviewInterval = Math.min(card.reviewInterval, maximumInterval);
 
-            card.reviewInterval = this.getFuzzedInterval(card.reviewInterval);
+            const { fuzzedInterval, fuzzDeviation } = this.getFuzzedInterval(card.reviewInterval);
+            baseIntervalWithDeviation = {
+                baseInterval: card.reviewInterval,
+                deviation: fuzzDeviation,
+            };
+            card.reviewInterval = fuzzedInterval;
             if (relearningSteps.length > 0) {
                 card.status = IAnkiStatus.RELEARNING;
                 card.step = 0;
@@ -275,7 +288,12 @@ class AnkiService {
             card.reviewInterval = Math.max(card.reviewInterval, minimumInterval);
             card.reviewInterval = Math.min(card.reviewInterval, maximumInterval);
 
-            card.reviewInterval = this.getFuzzedInterval(card.reviewInterval);
+            const { fuzzedInterval, fuzzDeviation } = this.getFuzzedInterval(card.reviewInterval);
+            baseIntervalWithDeviation = {
+                baseInterval: card.reviewInterval,
+                deviation: fuzzDeviation,
+            };
+            card.reviewInterval = fuzzedInterval;
             nextReview = addDays(card.lastReviewed, card.reviewInterval);
             nextReviewInterval = {
                 interval: card.reviewInterval,
@@ -298,7 +316,12 @@ class AnkiService {
             card.reviewInterval = Math.max(card.reviewInterval, minimumInterval);
             card.reviewInterval = Math.min(card.reviewInterval, maximumInterval);
 
-            card.reviewInterval = this.getFuzzedInterval(card.reviewInterval);
+            const { fuzzedInterval, fuzzDeviation } = this.getFuzzedInterval(card.reviewInterval);
+            baseIntervalWithDeviation = {
+                baseInterval: card.reviewInterval,
+                deviation: fuzzDeviation,
+            };
+            card.reviewInterval = fuzzedInterval;
             nextReview = addDays(card.lastReviewed, card.reviewInterval);
             nextReviewInterval = {
                 interval: card.reviewInterval,
@@ -323,7 +346,12 @@ class AnkiService {
             // increase ease by 15%
             card.easinessFactor = (parseFloat(card.easinessFactor) * 1.15).toFixed(3);
 
-            card.reviewInterval = this.getFuzzedInterval(card.reviewInterval);
+            const { fuzzedInterval, fuzzDeviation } = this.getFuzzedInterval(card.reviewInterval);
+            baseIntervalWithDeviation = {
+                baseInterval: card.reviewInterval,
+                deviation: fuzzDeviation,
+            };
+            card.reviewInterval = fuzzedInterval;
             nextReview = addDays(card.lastReviewed, card.reviewInterval);
             nextReviewInterval = {
                 interval: card.reviewInterval,
@@ -332,7 +360,7 @@ class AnkiService {
         } else {
             throw new Error(invalidRatingMessage);
         }
-        return { ...card, nextReview, nextReviewInterval };
+        return { ...card, nextReview, nextReviewInterval, baseIntervalWithDeviation };
     }
 
     // the only difference between this status and LEARNING status
@@ -341,6 +369,7 @@ class AnkiService {
     public handleRelearning(card: IPrivateAnkiCard, rating: IAnkiRating): IAnkiResult {
         let nextReview: Date;
         let nextReviewInterval: INextReviewInterval;
+        let baseIntervalWithDeviation: IBaseIntervalWithDeviation | null = null;
         const { intervalModifier, minimumInterval, maximumInterval, relearningSteps, easyBonus } = this.ankiSetting;
 
         if (relearningSteps.length === 0 || (card.step && card.step >= relearningSteps.length)) {
@@ -424,7 +453,12 @@ class AnkiService {
                 card.reviewInterval = Math.max(card.reviewInterval, minimumInterval);
                 card.reviewInterval = Math.min(card.reviewInterval, maximumInterval);
                 // todo: check this line (not included in python source)
-                card.reviewInterval = this.getFuzzedInterval(card.reviewInterval);
+                const { fuzzedInterval, fuzzDeviation } = this.getFuzzedInterval(card.reviewInterval);
+                baseIntervalWithDeviation = {
+                    baseInterval: card.reviewInterval,
+                    deviation: fuzzDeviation,
+                };
+                card.reviewInterval = fuzzedInterval;
                 nextReview = addDays(card.lastReviewed, card.reviewInterval);
                 nextReviewInterval = {
                     interval: card.reviewInterval,
@@ -434,19 +468,19 @@ class AnkiService {
                 throw new Error(invalidRatingMessage);
             }
         }
-        return { ...card, nextReview, nextReviewInterval };
+        return { ...card, nextReview, nextReviewInterval, baseIntervalWithDeviation };
     }
 
     // todo: test fuzzed functions
     public getFuzzedInterval(interval: number) {
         const { maximumInterval } = this.ankiSetting;
         if (interval < 2.5) {
-            return interval;
+            return { fuzzedInterval: interval, fuzzDeviation: 0 };
         }
         const { minInterval, maxInterval } = this.getFuzzRange(interval);
         let fuzzedInterval = Math.random() * (maxInterval - minInterval) + minInterval;
         fuzzedInterval = Math.min(Math.round(fuzzedInterval), maximumInterval);
-        return fuzzedInterval;
+        return { fuzzedInterval, fuzzDeviation: (maxInterval - minInterval) / 2 };
     }
 
     // get fuzz range (eg. interval = 15 may generate fuzz range [13, 17])

@@ -22,8 +22,8 @@ import unsplashLib from '@/libs/unsplash.lib';
 import AnkiService, {
     IAnkiCard,
     IAnkiRating,
-    IAnkiResult,
-    INextReviewIntervalForRating,
+    IBaseIntervalWithDeviation,
+    INextReviewInterval,
     learnAheadLimit,
 } from '../spaced-repetition-system/super-memo-2/anki.service';
 import { addMinutes } from 'date-fns';
@@ -36,14 +36,10 @@ export type IFlashcardWithReviewPrediction = Pick<
     qualityResponsesNextReviewInterval: IQualityResponseNextReviewInterval[];
 };
 
-export type ICardNextReviewSchedule = {
-    flashcardId: number;
-    nextReviewIntervalsForRating: INextReviewIntervalForRating[];
-};
-
 export interface INextReviewDataByRating {
     rating: IAnkiRating;
-    data: IAnkiResult;
+    interval: INextReviewInterval;
+    baseIntervalWithDeviation: IBaseIntervalWithDeviation | null;
 }
 
 class FlashcardService {
@@ -334,7 +330,11 @@ class FlashcardService {
             };
             const ankiService = new AnkiService(ankiSetting);
             const ankiResult = ankiService.schedule(ankiCard, rating);
-            result.push({ rating, data: ankiResult });
+            result.push({
+                rating,
+                interval: ankiResult.nextReviewInterval,
+                baseIntervalWithDeviation: ankiResult.baseIntervalWithDeviation,
+            });
         }
 
         return result;
