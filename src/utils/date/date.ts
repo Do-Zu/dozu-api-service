@@ -454,3 +454,7 @@ export enum TimeUnit {
     MONTH = 'months',
     YEAR = 'years',
 }
+
+export const TIME_ZONE_SYSTEM = {
+    UTC: 'UTC',
+};
