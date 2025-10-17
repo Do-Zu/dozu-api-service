@@ -47,7 +47,8 @@ export const registerUserController = async (req: Request, res: Response) => {
     if (!req.body.username || !req.body.password || !req.body.email) {
         throw new BadRequest('Username, password and email are required');
     }
-    const data = await registerUserService(req.body.username, req.body.password, req.body.email);
+    const data = await registerUserService(req.body.username, req.body.password, req.body.email,req.body.role);
+    
 
     if (!data.success) {
         res.status(409).json({

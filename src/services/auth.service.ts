@@ -153,7 +153,12 @@ export const addRoleTeacherForAccount = async (userId: number) => {
     await addRole(teacherRoleId, userId);
 };
 
-export const registerUserService = async (username: string, password: string, email: string): Promise<LoginResult> => {
+export const registerUserService = async (
+    username: string,
+    password: string,
+    email: string,
+    role: string = 'user'
+): Promise<LoginResult> => {
     const passwordHash = await hashPassword(password);
 
     const checkExistingUser = await selectOneUserByEmailOrUsername({ username: username, email: email });
@@ -164,6 +169,10 @@ export const registerUserService = async (username: string, password: string, em
     const newUserData = await insertUser(username, passwordHash, email);
     const verificationCodeData = await insertVerificationCode(newUserData);
     await sendVerificationLinkEmail(newUserData.email, verificationCodeData.verificationCode as string);
+
+    if (role === 'teacher') {
+        await addRoleTeacherForAccount(newUserData.userId);
+    }
 
     const returnUserData = await getLoginData(newUserData.userId);
     const sanitizedUser = sanitizeUserObject(returnUserData);
