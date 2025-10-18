@@ -27,7 +27,7 @@ router.post('/register', registerUserController);
 router.post('/login', loginController);
 router.post('/logout', logoutController);
 router.post('/refresh-token',refreshTokenController)
-router.get('/verify-email', verifyEmailController);
+router.post('/verify-email', verifyEmailController);
 router.get('/profile', authMiddleware, getProfileController);
 router.post('/google', googleOAuthRedirectController);
 router.post('/send-change-password-link',sendChangePasswordLinkController)

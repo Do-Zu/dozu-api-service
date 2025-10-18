@@ -1,5 +1,5 @@
 import { pgTable, serial, integer, text, timestamp } from 'drizzle-orm/pg-core';
-import { topicsTable } from '@/models/topic.model';
+import { topicsTable } from '@/models/topic/topic.model';
 import { create } from 'domain';
 
 export const questionsTable = pgTable('questions', {

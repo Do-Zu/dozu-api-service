@@ -393,8 +393,13 @@ export function getCurrentDateFromRequest(req: Request): string {
  */
 export function getTimezoneClient(req: Request): string {
     const timeZone = req.headers['x-timezone'] as string;
-    if (!timeZone || !isValidTimezone(timeZone)) {
-        throw new Error(`Invalid or missing timezone header: ${timeZone}`);
+
+    if (!timeZone) {
+        throw new Error(`missing timezone header: ${timeZone}`);
+    }
+
+    if (!isValidTimezone(timeZone)) {
+        throw new Error(`Invalid timezone: ${timeZone}`);
     }
     return timeZone;
 }
@@ -449,3 +454,7 @@ export enum TimeUnit {
     MONTH = 'months',
     YEAR = 'years',
 }
+
+export const TIME_ZONE_SYSTEM = {
+    UTC: 'UTC',
+};

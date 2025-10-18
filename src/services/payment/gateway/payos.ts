@@ -5,6 +5,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { PaymentBase } from '../base/payment.base';
 import { PaymentGateway } from '../payment.interface';
 import { PaymentData, PaymentDataType, PaymentLinkResponse, ValidationData } from '../type';
+import { InternalServerError } from '@/core/error';
+import logger from '@/utils/logger';
 
 class PayOSManager extends PaymentBase implements PaymentGateway {
     private readonly clientId: string;
@@ -89,8 +91,10 @@ class PayOSManager extends PaymentBase implements PaymentGateway {
         const returnUrl = `${this.BASE_URL_RETURN_SUCCESS}?planId=${planId}&jobId=${jobId}`;
         const cancelUrl = `${this.BASE_URL_CANCEL}?planId=${planId}&jobId=${jobId}`;
 
+        const amount = this.cleanAmount(paymentData?.amount);
+
         const payment: CheckoutRequestType = {
-            ...paymentData,
+            amount,
             description,
             orderCode,
             returnUrl,
@@ -98,13 +102,17 @@ class PayOSManager extends PaymentBase implements PaymentGateway {
             signature,
         };
 
-        const dateResponse = await this.payOS.createPaymentLink(payment);
-
-        return {
-            ...dateResponse,
-            baseUrlReturn: this.BASE_URL_RETURN,
-            jobId
-        };
+        try {
+            const dataResponse = await this.payOS.createPaymentLink(payment);
+            return {
+                ...dataResponse,
+                baseUrlReturn: this.BASE_URL_RETURN,
+                jobId,
+            };
+        } catch (error) {
+            logger.error('Failed to create PayOS payment link', { error, orderCode });
+            throw new InternalServerError('Plain External Register Payment Process Fail');
+        }
     }
 
     private generateSignature(data: ValidationData): string {

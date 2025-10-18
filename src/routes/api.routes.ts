@@ -35,6 +35,7 @@ import './gamification/streak.routes';
 import './gamification/points.routes';
 import './feynman/feynman.routes';
 import './backlog/backlog.routes';
+import './anki-setting/ankiSetting.routes';
 
 // Apply global async handler to router
 globalAsyncHandler(router);

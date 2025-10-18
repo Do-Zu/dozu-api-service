@@ -1,6 +1,6 @@
 export * from '@/models/user.model';
 
-export * from '@/models/topic.model';
+export * from '@/models/topic/topic.model';
 
 export * from '@/models/flashcard.model';
 
@@ -79,3 +79,7 @@ export * from '@/models/gamification/points.model';
 export * from '@/models/gamification/achievement.model';
 
 export * from '@/models/feynman';
+
+export * from '@/models/anki-setting/ankiSetting.model';
+
+export * from '@/models/topic/userTopicSetting.model';

@@ -1,4 +1,6 @@
 import { Request } from 'express';
+import { InternalServerError } from '../error';
+import { isNilOrEmpty } from '@/utils/common';
 
 class RequestHelper {
     public getValidated(req: Request) {
@@ -12,8 +14,8 @@ class RequestHelper {
     }
 
     public getValidatedBody(req: Request) {
-        if (!req.validated || !req.validated.body) throw new Error('Missing validated body');
-        return req.validated.body;
+        if (!req || !req.body) throw new Error('Missing body');
+        return req.body;
     }
 
     public async getValidatedQuery(req: Request) {
@@ -28,9 +30,40 @@ class RequestHelper {
         const params = this.getValidatedParams(req);
         const result = params[field];
         if (!result) {
-            throw new Error(`Missing id param: ${field}`);
+            throw new InternalServerError(`Missing id param: ${field}`);
         }
         return result;
+    }
+
+    public getBodyParam<K extends keyof NonNullable<NonNullable<Request['validated']>['body']>>(
+        req: Request,
+        field: K
+    ): NonNullable<NonNullable<Request['validated']>['body']>[K] {
+        const body = this.getValidatedBody(req);
+        const result = body[field];
+        if (isNilOrEmpty(result)) {
+            throw new InternalServerError(`Missing body param: ${String(field)}`);
+        }
+        return result;
+    }
+
+    public getIdParamOrBody(req: Request, field: string): number {
+        const params = (this.getValidatedParams(req) ?? {}) as Record<string, unknown>;
+        const body = (this.getValidatedBody(req) ?? {}) as Record<string, unknown>;
+
+        const rawValue = params[field] ?? body[field];
+
+        if (isNilOrEmpty(rawValue)) {
+            throw new InternalServerError(`Missing id in params or body: ${field}`);
+        }
+
+        const id = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+
+        if (!Number.isFinite(id) || id <= 0) {
+            throw new InternalServerError(`Invalid id value for ${field}`);
+        }
+
+        return id;
     }
 
     public getResource<K extends keyof NonNullable<Request['resources']>>(
@@ -40,7 +73,7 @@ class RequestHelper {
         const resources = req.resources || {};
         const result = resources[field];
         if (!result) {
-            throw new Error(`Missing resource: ${field}`);
+            throw new InternalServerError(`Missing resource: ${field}`);
         }
         return result;
     }

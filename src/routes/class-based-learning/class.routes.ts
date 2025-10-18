@@ -17,7 +17,7 @@ const verifyClassAccess = [paramsValidator.validateId('classId'), classMiddlewar
 
 const verifyTopicInClass = [
     paramsValidator.validateId('topicId'),
-    topicMiddleware.verifyTopicById,
+    topicMiddleware.verifyTopicByIdInParam,
     classTopicMiddleware.verifyTopicBelongsToClass,
 ];
 

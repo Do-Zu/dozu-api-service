@@ -27,3 +27,21 @@ export function lowercase(str: string): string {
 export function removeHyphensFromUUID(uuid: string): string {
     return uuid.replace(/-/g, '');
 }
+
+/**
+ * Returns true if the value is undefined, null, or an empty string.
+ *
+ * @param val - Value to test.
+ */
+export const isNilOrEmpty = (val: unknown): boolean => val === undefined || val === null || val === '';
+
+/**
+ * Check and convert to string
+ * @param val
+ * @returns string
+ */
+export const checkAndConvertToString = (val: string | number | undefined | null): string => {
+    if (isNilOrEmpty(val)) return '';
+
+    return val!.toString();
+};
