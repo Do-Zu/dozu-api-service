@@ -4,6 +4,7 @@ import { applySM2ForQuestion } from '@/utils/quiz/quizSm2Helper';
 import { fisherYatesShuffle } from '@/utils/quiz/shuffle'; 
 import { IQuizResultPayload } from '@/types/quiz/quiz.type';
 import { BadRequest } from '@/core/error';
+import { ContentType } from '@/types/progress/progress.type';
 
 class QuizService {
     constructor() {}
@@ -42,16 +43,42 @@ class QuizService {
 
     async handleSubmitQuiz(userId: number, quizId: number, results: IQuizResultPayload[]) {
         const correctAnswersCount = results.filter(r => r.correct).length;
+        const totalQuestions = results.length;
+        const score = Math.round((correctAnswersCount / totalQuestions) * 100);
 
         // Record quiz results and each question
         const quizResultId = await quizRepo.saveQuizAndQuestionResults(userId, quizId, results, correctAnswersCount);
 
+        // Get topicId for this quiz
+        const topicId = await quizRepo.getTopicIdByQuizId(quizId);
+        
+        // Create progress record for quiz completion
+        if (topicId !== -1) {
+            try {
+                const { progressService } = await import('@/services/progress/progress.service');
+                await progressService.updateLearningProgress({
+                    userId,
+                    topicId: topicId.toString(),
+                    contentType: ContentType.QUIZ,
+                    timeSpent: 0, // Will be updated by client
+                    isCompleted: true,
+                    score: score, // Store score in main field
+                    metadata: {
+                        attempts: 1,
+                        answers: { score, correctAnswersCount, totalQuestions }
+                    }
+                });
+            } catch (error) {
+                console.error('Failed to create quiz progress record:', error);
+            }
+        }
+
         // SM-2 for each question
         for (const result of results) {
-            const topicId = await quizRepo.getTopicIdByQuestionId(result.questionId);
-            if (topicId === -1) continue;
+            const questionTopicId = await quizRepo.getTopicIdByQuestionId(result.questionId);
+            if (questionTopicId === -1) continue;
 
-            await applySM2ForQuestion(userId, result.questionId, topicId, result.correct);
+            await applySM2ForQuestion(userId, result.questionId, questionTopicId, result.correct);
         }
         return quizResultId;
     }

@@ -91,6 +91,7 @@ class ProgressService {
     contentType: ContentType;
     timeSpent: number;
     isCompleted: boolean;
+    score?: number;
     metadata?: ProgressMetadata;
   }): Promise<IProgress> {
     const topicIdNum = parseInt(data.topicId);
@@ -125,6 +126,7 @@ class ProgressService {
       const updateData: IProgressUpdate = {
         status: updatedStatus,
         completionPercentage: updatedCompletionPercentage,
+        score: data.score,
         metadata: {
           ...existingProgress.metadata,
           ...data.metadata,
@@ -141,6 +143,7 @@ class ProgressService {
         contentType: data.contentType,
         status: data.isCompleted ? ProgressStatus.COMPLETED : ProgressStatus.IN_PROGRESS,
         completionPercentage: data.isCompleted ? 100 : 0,
+        score: data.score,
         metadata: {
           ...data.metadata,
           timeSpent: data.timeSpent
