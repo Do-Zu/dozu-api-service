@@ -47,16 +47,19 @@ class TopicRepo {
             .from(topicsTable)
             .where(eq(topicsTable.topicId, topicId));
 
+        if (!topic) {
+            return undefined;
+        }
+
         const [result] = await db
             .select({
                 flashcardCounts: {
                     total: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL THEN 1 END) AS INT)`.as(
                         'total'
                     ),
-                    review:
-                        sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${dueDate} AND item_spaced_repetition_tracking.status = 'review' THEN 1 END) AS INT)`.as(
-                            'review'
-                        ),
+                    review: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${dueDate} AND item_spaced_repetition_tracking.status = 'review' THEN 1 END) AS INT)`.as(
+                        'review'
+                    ),
                     new: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.status = 'new' THEN 1 END) AS INT)`.as(
                         'new'
                     ),
@@ -98,10 +101,9 @@ class TopicRepo {
                     total: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL THEN 1 END) AS INT)`.as(
                         'total'
                     ),
-                    review:
-                        sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${dueDate} AND item_spaced_repetition_tracking.status = 'review' THEN 1 END) AS INT)`.as(
-                            'review'
-                        ),
+                    review: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${dueDate} AND item_spaced_repetition_tracking.status = 'review' THEN 1 END) AS INT)`.as(
+                        'review'
+                    ),
                     new: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.status = 'new' THEN 1 END) AS INT)`.as(
                         'new'
                     ),
@@ -175,10 +177,9 @@ class TopicRepo {
                         total: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL THEN 1 END) AS INT)`.as(
                             'total'
                         ),
-                        review:
-                            sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${dueDate} AND item_spaced_repetition_tracking.status = 'review' THEN 1 END) AS INT)`.as(
-                                'review'
-                            ),
+                        review: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${dueDate} AND item_spaced_repetition_tracking.status = 'review' THEN 1 END) AS INT)`.as(
+                            'review'
+                        ),
                         new: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.status = 'new' THEN 1 END) AS INT)`.as(
                             'new'
                         ),
