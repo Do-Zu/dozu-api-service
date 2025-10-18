@@ -47,8 +47,13 @@ export const registerUserController = async (req: Request, res: Response) => {
     if (!req.body.username || !req.body.password || !req.body.email) {
         throw new BadRequest('Username, password and email are required');
     }
-    const data = await registerUserService(req.body.username, req.body.password, req.body.email,req.body.role);
     
+    // Validate role if provided
+    if (req.body.role && req.body.role !== 'user' && req.body.role !== 'teacher') {
+        throw new BadRequest('Invalid role. Must be either "user" or "teacher"');
+    }
+
+    const data = await registerUserService(req.body.username, req.body.password, req.body.email, req.body.role);
 
     if (!data.success) {
         res.status(409).json({

@@ -170,13 +170,13 @@ export const registerUserService = async (
     const verificationCodeData = await insertVerificationCode(newUserData);
     await sendVerificationLinkEmail(newUserData.email, verificationCodeData.verificationCode as string);
 
+    await addRoleUserForAccount(newUserData.userId);
     if (role === 'teacher') {
         await addRoleTeacherForAccount(newUserData.userId);
     }
 
     const returnUserData = await getLoginData(newUserData.userId);
     const sanitizedUser = sanitizeUserObject(returnUserData);
-    await addRoleUserForAccount(newUserData.userId);
 
     const accessToken = signAccessJwtToken(sanitizedUser);
     const refreshToken = signRefreshJwtToken(sanitizedUser);
