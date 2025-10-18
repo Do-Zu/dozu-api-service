@@ -11,7 +11,7 @@ globalAsyncHandler(router);
 
 const verifyTopicInClass = [
     paramsValidator.validateId('topicId'),
-    topicMiddleware.verifyTopicById,
+    topicMiddleware.verifyTopicByIdInParam,
     classTopicMiddleware.verifyTopicBelongsToClass,
 ];
 
