@@ -202,6 +202,14 @@ class FlashcardController {
 
         await flashcardService.applySM2ToFlashcard(userId, flashcardId, sm2Info);
 
+        // Award points for flashcard review
+        try {
+            const pointsService = (await import('@/services/gamification/points.service')).default;
+            await pointsService.awardFlashcardReview(userId, flashcardId);
+        } catch (error) {
+            console.error('Failed to award flashcard review points:', error);
+        }
+
         let result: IAnkiCardReviewed | null;
         if (
             ankiResult.nextReviewInterval.timeUnit === TimeUnit.MINUTE &&

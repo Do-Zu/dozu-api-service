@@ -73,6 +73,14 @@ class QuizService {
             }
         }
 
+        // Award points for quiz completion
+        try {
+            const pointsService = (await import('@/services/gamification/points.service')).default;
+            await pointsService.awardQuizCompletion(userId, quizId, score);
+        } catch (error) {
+            console.error('Failed to award quiz completion points:', error);
+        }
+
         // SM-2 for each question
         for (const result of results) {
             const questionTopicId = await quizRepo.getTopicIdByQuestionId(result.questionId);
