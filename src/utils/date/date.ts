@@ -445,6 +445,31 @@ export function getSystemDate(): Date {
     return new Date();
 }
 
+/**
+ * Compares two dates by normalizing them to UTC timezone.
+ * This ensures accurate comparison regardless of the dates' original timezones.
+ *
+ * @param firstDate - The first date to compare
+ * @param secondDate - The second date to compare
+ * @returns True if firstDate is before secondDate, false otherwise
+ *
+ * @example
+ * const date1 = new Date('2025-10-19T10:00:00+07:00');
+ * const date2 = new Date('2025-10-19T10:00:00Z');
+ * compareDates(date1, date2); // returns false (they're equal in UTC)
+ *
+ * @example
+ * const date1 = new Date('2025-10-18T23:00:00+07:00');
+ * const date2 = new Date('2025-10-19T10:00:00Z');
+ * compareDates(date1, date2); // returns true
+ */
+export function compareDates(firstDate: Date, secondDate: Date): boolean {
+    const firstDateUTC = toZonedTime(firstDate, 'UTC');
+    const secondDateUTC = toZonedTime(secondDate, 'UTC');
+
+    return isBefore(firstDateUTC, secondDateUTC);
+}
+
 export enum TimeUnit {
     SECOND = 'seconds',
     MINUTE = 'minutes',
