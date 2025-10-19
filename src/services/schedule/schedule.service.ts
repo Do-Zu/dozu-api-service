@@ -3,7 +3,6 @@ import { FreeTimeSlotDays } from '@/repositories/user/type';
 import { userRepository } from '@/repositories/user/user.repo';
 import { IGroupTopic, IItemScheduleGenerated, ItemTrackingWithTopic } from './types/schedule.index';
 import {
-    compareDates,
     formatTimeToHHMM,
     getDateFormatted,
     getDateFormattedWithTimeZone,
@@ -13,7 +12,7 @@ import {
 import { SchedulePriorityQueue } from '@/utils/queue/schedule.queue';
 import { BadRequest } from '@/core/error';
 import { redisInstance as redis } from '@/libs/redis/default/redisDefault';
-import { addMinutes, differenceInMinutes, isValid, parse, parseISO } from 'date-fns';
+import { addMinutes, differenceInDays, differenceInMinutes, isValid, parse, parseISO } from 'date-fns';
 
 const DEFINE_DEFAULT_FREE_TIME: FreeTimeSlotDays = {
     Monday: [
@@ -61,31 +60,41 @@ const USER_PREFERRED_SESSION_LEARNING = 'morning';
  * Service class for Schedule functionality
  */
 class ScheduleService {
-    private readonly DEFAULT_MINUTE_LEARN_FOR_EASY_ITEM = 0.25;
-    private readonly DEFAULT_MINUTE_LEARN_FOR_MEDIUM_ITEM = 1;
-    private readonly DEFAULT_MINUTE_LEARN_FOR_HARD_ITEM = 2;
+    private DEFAULT_MINUTE_LEARN_FOR_EASY_ITEM = 0.25;
+    private DEFAULT_MINUTE_LEARN_FOR_MEDIUM_ITEM = 1;
+    private DEFAULT_MINUTE_LEARN_FOR_HARD_ITEM = 2;
 
     // Minutes per item based on difficulty (easy, medium, hard)
-    private readonly LIST_MINUTE_LEARN_FOR_ITEM_BASED_ON_DIFFICULTY = [
+    private LIST_MINUTE_LEARN_FOR_ITEM_BASED_ON_DIFFICULTY = [
         this.DEFAULT_MINUTE_LEARN_FOR_EASY_ITEM,
         this.DEFAULT_MINUTE_LEARN_FOR_MEDIUM_ITEM,
         this.DEFAULT_MINUTE_LEARN_FOR_HARD_ITEM,
     ];
 
-    private readonly DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM = 1; // Average time to learn each item
+    private DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM = 1; // Average time to learn each item
 
-    private readonly DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION = 5;
-    private readonly MIN_ITEMS_PER_SLOT = 20;
-    private readonly MAX_ITEMS_PER_SLOT = 50;
-    private readonly MIN_SLOT_DURATION_MINUTES = 30; // Minimum time for a productive study session
-    private readonly REVIEW_PRIORITY_MULTIPLIER = 1.5; // Boost priority for review items
-    private readonly NEW_ITEM_PRIORITY_MULTIPLIER = 1.2; // Boost priority for new items
-    private readonly PRIORITY_STATUS_ITEM_LEARNING_TRACKING = { new: 3, learning: 2, review: 1 }; // Max items in priority queue
+    private DEFAULT_EXTRA_MINUTE_FOR_EACH_SESSION = 5;
+    private DEFAULT_MINUTE_BREAK_TIME_BETWEEN_SLOT = 5;
+    private MIN_ITEMS_PER_SLOT = 20;
+    private MAX_ITEMS_PER_SLOT = 50;
+    private MIN_SLOT_DURATION_MINUTES = 30; // Minimum time for a productive study session
+    private REVIEW_PRIORITY_MULTIPLIER = 1.2; // Boost priority for review items
+    private NEW_ITEM_PRIORITY_MULTIPLIER = 1.4; // Boost priority for new items
+
+    private PRIORITY_STATUS_ITEM_LEARNING_TRACKING = { new: 1.0, learning: 0.8, relearning: 0.6, review: 0.4 }; // Max items in priority queue
 
     private readonly TTL_SCHEDULE = 60 * this.MIN_SLOT_DURATION_MINUTES;
 
     // Q&A: easinessFactor:  Easy >= 2.8 , Medium 1.6 - 2.7 , Hard <= 1.5
     private readonly DIFFICULTY_BASED_ON_EASINESS_FACTOR = { hard: 1.5, easy: 2.8 }; // Easy >= 2.8 , Medium 1.6 - 2.7 , Hard <= 1.5
+
+    /** */
+    private WEIGHT_STRATEGY = {
+        OVERDUE: 0.45,
+        DIFFICULTY: 0.3,
+        STABILITY: 0.15,
+        STATUS: 0.1,
+    };
 
     /**
      * Retrieves the schedule for the current week.
@@ -302,8 +311,13 @@ class ScheduleService {
         }
 
         const scheduleGenerateFollowFreeTimeSlotPerDay: Record<string, IItemScheduleGenerated[]> = {};
-        const scheduleWaitingPriorityQueue = new SchedulePriorityQueue<IItemScheduleGenerated>(
-            (topic1, topic2) => topic2.priority - topic1.priority // Higher priority first
+
+        const scheduleWaitingPriorityQueue = new SchedulePriorityQueue<IGroupTopic[]>(
+            (topic1, topic2) => this.calculatePriority(topic2) - this.calculatePriority(topic1) // Higher priority first
+        );
+
+        const dailyPriorityQueue = new SchedulePriorityQueue<IItemScheduleGenerated>(
+            (topic1, topic2) => topic2.priority - topic1.priority
         );
 
         let totalItems = 0;
@@ -311,6 +325,7 @@ class ScheduleService {
 
         for (const date in scheduleGroupItemPerDate) {
             const listItemGroupedPerDate = scheduleGroupItemPerDate[date];
+
             const dateOfWeek = getDayOfWeek(date);
             const listFreeTimeSlotsOfDay = [...(freeTimeSlotPerDay[dateOfWeek] ?? [])];
 
@@ -318,49 +333,41 @@ class ScheduleService {
             if (listFreeTimeSlotsOfDay.length === 0) {
                 for (const items of listItemGroupedPerDate) {
                     totalItems += items.length;
-
-                    //
-                    const chunks = this.splitItemsIntoStudyChunks(items, this.MAX_ITEMS_PER_SLOT);
-
-                    for (const chunk of chunks) {
-                        const priority = this.calculatePriority(chunk);
-                        const scheduleItem: IItemScheduleGenerated = {
-                            topicId: chunk[0].topicId,
-                            priority,
-                            startTime: chunk[0].reviewDate,
-                            endTime: addMinutes(chunk[0].reviewDate, chunk.length),
-                            title: chunk[0]?.topicTitle,
-                            description: chunk[0]?.topicDescription,
-                            type: chunk[0]?.type,
-                            amountItem: chunk.length,
-                        };
-                        scheduleWaitingPriorityQueue.enqueue(scheduleItem);
-                    }
+                    scheduleWaitingPriorityQueue.enqueue(items);
                 }
                 continue;
             }
 
-            const dailyPriorityQueue = new SchedulePriorityQueue<IItemScheduleGenerated>(
-                (topic1, topic2) => topic2.priority - topic1.priority
+            // Calculate the total available time for all slots during the day
+            let totalAvailableMinutes = listFreeTimeSlotsOfDay.reduce((sum, slot) => {
+                const slotDate = parseISO(date);
+
+                const start = parse(slot.startTime, 'HH:mm', slotDate);
+                const end = parse(slot.endTime, 'HH:mm', slotDate);
+
+                if (!isValid(start) || !isValid(end)) {
+                    return sum;
+                }
+
+                return sum + differenceInMinutes(end, start);
+            }, 0);
+
+            // Add waiting items from previous days and process today's schedule
+            while (!scheduleWaitingPriorityQueue.isEmpty()) {
+                const waitingItem = scheduleWaitingPriorityQueue.dequeue();
+
+                if (!waitingItem) continue;
+
+                listItemGroupedPerDate.push(waitingItem);
+            }
+
+            listItemGroupedPerDate.sort(
+                (topic1, topic2) => this.calculatePriority(topic2) - this.calculatePriority(topic1)
             );
 
             // Process items for this date
             for (const items of listItemGroupedPerDate) {
                 totalItems += items.length;
-
-                // Calculate available time for the day
-                const totalAvailableMinutes = listFreeTimeSlotsOfDay.reduce((sum, slot) => {
-                    const slotDate = parseISO(date);
-
-                    const start = parse(slot.startTime, 'HH:mm', slotDate);
-                    const end = parse(slot.endTime, 'HH:mm', slotDate);
-
-                    if (!isValid(start) || !isValid(end)) {
-                        return sum;
-                    }
-
-                    return sum + differenceInMinutes(end, start);
-                }, 0);
 
                 // Only process if we have viable time slots
                 if (!this.isSlotViable(totalAvailableMinutes)) break;
@@ -372,15 +379,15 @@ class ScheduleService {
                 const chunks = this.splitItemsIntoStudyChunks(items, itemsPerSlot);
 
                 for (const chunk of chunks) {
+                    if (!chunk || !chunk.length) continue;
+
                     const priority = this.calculatePriority(chunk);
 
                     const totalMinuteToLearn = this.calculateTimeToLearn({
                         items: chunk,
                         minute: this.DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM,
-                        breakTime: this.DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION,
+                        breakTime: this.DEFAULT_EXTRA_MINUTE_FOR_EACH_SESSION,
                     });
-
-                    if (!chunk || !chunk.length) continue;
 
                     const { topicId, reviewDate, topicDescription, type, topicTitle } = chunk.find(t => !!t.topicId)!;
 
@@ -398,19 +405,15 @@ class ScheduleService {
                     };
 
                     dailyPriorityQueue.enqueue(scheduleItem);
-                }
-            }
 
-            // Add waiting items from previous days and process today's schedule
-            while (!scheduleWaitingPriorityQueue.isEmpty()) {
-                const waitingItem = scheduleWaitingPriorityQueue.dequeue();
-                if (waitingItem) {
-                    dailyPriorityQueue.enqueue(waitingItem);
+                    //Calculate the remaining minutes for the remaining study slots
+                    totalAvailableMinutes -= totalMinuteToLearn;
                 }
             }
 
             // Schedule items into available time slots
             const scheduledToday: IItemScheduleGenerated[] = [];
+            const waitEvents: IItemScheduleGenerated[] = [];
 
             for (const slot of listFreeTimeSlotsOfDay) {
                 const baseDate = parseISO(date);
@@ -442,11 +445,10 @@ class ScheduleService {
 
                     const availableTime = differenceInMinutes(slotEnd, slotStart);
 
+                    // Can't fit this item in remaining slot time
                     if (availableTime < itemDuration) {
-                        // requeue later and stop filling this slot
-                        dailyPriorityQueue.dequeue();
-                        scheduleWaitingPriorityQueue.enqueue(nextItem);
-                        break; // Can't fit this item in remaining slot time
+                        const events = dailyPriorityQueue.dequeue();
+                        if (events) waitEvents.push(events);
                     }
 
                     // Schedule the item
@@ -461,7 +463,7 @@ class ScheduleService {
                     scheduledItems += scheduledItem.amountItem;
 
                     // Update slot start time
-                    slotStart = scheduledItem.endTime;
+                    slotStart = addMinutes(scheduledItem.endTime, this.DEFAULT_MINUTE_BREAK_TIME_BETWEEN_SLOT);
                 }
             }
 
@@ -469,13 +471,9 @@ class ScheduleService {
                 scheduleGenerateFollowFreeTimeSlotPerDay[date] = scheduledToday;
             }
 
-            // Add unscheduled items back to waiting queue
-            while (!dailyPriorityQueue.isEmpty()) {
-                const unscheduledItem = dailyPriorityQueue.dequeue();
-                if (unscheduledItem) {
-                    scheduleWaitingPriorityQueue.enqueue(unscheduledItem);
-                }
-            }
+            waitEvents.map(event => {
+                dailyPriorityQueue.enqueue(event);
+            });
         }
 
         /**
@@ -483,8 +481,10 @@ class ScheduleService {
          * Add to queue for waiting for fill the schedule for the next day
          */
         const waitingTopics: IItemScheduleGenerated[] = [];
-        while (!scheduleWaitingPriorityQueue.isEmpty()) {
-            const waitingTopic = scheduleWaitingPriorityQueue.dequeue();
+
+        while (!dailyPriorityQueue.isEmpty()) {
+            const waitingTopic = dailyPriorityQueue.dequeue();
+
             if (waitingTopic) {
                 waitingTopics.push(waitingTopic);
             }
@@ -538,7 +538,7 @@ class ScheduleService {
 
     private calculateMinuteForItemBasedDifficult(items: IGroupTopic[]): number {
         return items.reduce((sum, item) => {
-            const easiness = parseFloat(item.easinessFactor);
+            const easiness = Number(item.easinessFactor);
             if (easiness <= this.DIFFICULTY_BASED_ON_EASINESS_FACTOR.hard) {
                 return sum + this.LIST_MINUTE_LEARN_FOR_ITEM_BASED_ON_DIFFICULTY[2]; // Hard
             }
@@ -563,19 +563,19 @@ class ScheduleService {
 
         const averageMinutesPerItem = Math.round(estimatedTotalMinutesPerItem / totalItems);
 
-        const sessionBudgetMinutes = this.MIN_SLOT_DURATION_MINUTES + this.DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION;
+        const sessionBudgetMinutes = this.MIN_SLOT_DURATION_MINUTES + this.DEFAULT_EXTRA_MINUTE_FOR_EACH_SESSION;
 
         const maxViableSlots = Math.max(1, Math.floor(availableMinutes / sessionBudgetMinutes));
 
         const totalLearningMinutes =
-            estimatedTotalMinutesPerItem + maxViableSlots * this.DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION;
+            estimatedTotalMinutesPerItem + maxViableSlots * this.DEFAULT_EXTRA_MINUTE_FOR_EACH_SESSION;
 
         const requiredSlots = Math.max(1, Math.ceil(totalLearningMinutes / sessionBudgetMinutes));
         const numberOfSlots = Math.max(1, Math.min(maxViableSlots, requiredSlots));
 
         let itemsPerSlot: number = Math.ceil(totalItems / numberOfSlots);
 
-        const averageDifficulty = items.reduce((sum, item) => sum + parseFloat(item.easinessFactor), 0) / totalItems;
+        const averageDifficulty = items.reduce((sum, item) => sum + Number(item.easinessFactor), 0) / totalItems;
 
         const rateItemForSlotForHardDifficulty = 0.8;
         const rateItemForSlotForEasyDifficulty = 1.2;
@@ -590,7 +590,7 @@ class ScheduleService {
 
         const minutesPerSlotBudget = Math.max(this.MIN_SLOT_DURATION_MINUTES, expectMinuteForSlot);
 
-        const studyBudgetPerSlot = Math.max(0, minutesPerSlotBudget - this.DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION);
+        const studyBudgetPerSlot = Math.max(0, minutesPerSlotBudget - this.DEFAULT_EXTRA_MINUTE_FOR_EACH_SESSION);
 
         const maxItemSupportedByTime = Math.max(
             this.MIN_ITEMS_PER_SLOT,
@@ -629,7 +629,7 @@ class ScheduleService {
             }
 
             // Then by difficulty (harder items first within same status)
-            return parseFloat(a.easinessFactor) - parseFloat(b.easinessFactor);
+            return Number(a.easinessFactor) - Number(b.easinessFactor);
         });
 
         // Minimum items to consider merging with last chunk
@@ -660,7 +660,7 @@ class ScheduleService {
     }
 
     /**
-     * Calculate enhanced priority with smart weighting
+     * Calculate enhanced priority with weighting
      *      -------------- Low Easiness Factor → High Priority -----------------
             Lower easinessFactorSum = smaller numerator = higher priority
             Items that are harder to remember get more attention
@@ -681,42 +681,76 @@ class ScheduleService {
             ES for new topic is usually 2.5 and repetition is 0 , so it will be handled correctly
      */
     private calculatePriority(items: IGroupTopic[]): number {
-        const easinessFactorSum = items.reduce((sum, item) => sum + parseFloat(item.easinessFactor), 0);
-        const repetitionNumberSum = items.reduce((sum, item) => sum + (item.repetition || 0), 0);
+        const DAY_OF_WEEK = 7;
+        const NORMALIZE_MIN = 1;
+        const NORMALIZE_MAX = 0;
 
-        // Base priority calculation
-        let priority = easinessFactorSum / (repetitionNumberSum + 1);
+        const HIGH_EASY_FACTOR = 3.0;
 
-        // Apply status-based multipliers
-        const statusCounts = items.reduce(
-            (acc, item) => {
-                acc[item.status] = (acc[item.status] || 0) + 1;
-                return acc;
-            },
-            {} as Record<string, number>
-        );
+        const scores = items?.map(item => {
+            const next = new Date(item.reviewDate);
+            const today = getSystemDate();
+            const overdueDays = Math.max(NORMALIZE_MAX, differenceInDays(today, next));
+            const overdueScore = Math.min(overdueDays / DAY_OF_WEEK, NORMALIZE_MIN); // normalize : max 7 due day = 1 point
 
-        if (statusCounts['new'] > 0) {
-            priority *= this.NEW_ITEM_PRIORITY_MULTIPLIER;
-        }
-        if (statusCounts['review'] > 0) {
-            priority *= this.REVIEW_PRIORITY_MULTIPLIER;
-        }
+            const difficultyScore = (HIGH_EASY_FACTOR - Number(item.easinessFactor)) / 2; // EF: 1.3-3/0 -> normalize to 0-1
 
-        //Q&A: Check for all status contain in one item
-        // if (statusCounts['learning'] > 0) {
-        //     priority *= (this.NEW_ITEM_PRIORITY_MULTIPLIER + this.REVIEW_PRIORITY_MULTIPLIER) / 2;
-        // }
+            const stabilityScore = 1 / Math.log(item.reviewInterval + item.repetition + 2);
 
-        // Boost priority for overdue items
-        const now = getSystemDate();
-        const overdueCount = items.filter(item => item.reviewDate && compareDates(item.reviewDate, now)).length;
+            const statusScore =
+                this.PRIORITY_STATUS_ITEM_LEARNING_TRACKING[
+                    item.status as keyof typeof this.PRIORITY_STATUS_ITEM_LEARNING_TRACKING
+                ];
 
-        if (overdueCount > 0) {
-            priority *= 1 + (overdueCount / items.length) * 0.5; // Up to 50% boost for overdue items
-        }
+            const score =
+                overdueScore * this.WEIGHT_STRATEGY.OVERDUE +
+                difficultyScore * this.WEIGHT_STRATEGY.DIFFICULTY +
+                stabilityScore * this.WEIGHT_STRATEGY.STABILITY +
+                statusScore * this.WEIGHT_STRATEGY.STATUS;
 
-        return priority;
+            return {
+                score,
+                item,
+            };
+        });
+
+        const meanPriority = scores.reduce((sum, item) => sum + item.score, 0) / (scores.length ?? 1);
+
+        /**
+         * TODO for medianPriority
+         
+            Assessing skewness/dispersion
+            If mean is high but median is low → there are a few heavily overdue cards that pull up the average score,
+            but most cards are not urgent.
+            → “Unstable” list: there are some cards that are very important to learn, but not all of them.
+                
+            Example:
+                
+            List A: [0.1, 0.1, 0.1, 0.9, 0.9]
+            mean = 0.42, median = 0.1 → most cards are not important
+                
+            Optimize interface or dynamic learning suggestions
+            You can use medianPriority to:
+                
+            Suggest “only learn cards that exceed the median threshold”
+                
+            Estimate the level of uniformity in list difficulty
+            →  split up a study session.
+                
+            Ensure fairness between uneven sets
+            When the list is small, the mean is easily distorted if there are 1–2 cards with extremely high scores.
+                
+            Median gives more stable values, avoiding “outlier bias”.
+
+         */
+
+        // const sorted = scores.map(item => item.score).sort((a, b) => a - b);
+
+        // const mid = Math.floor(sorted.length / 2);
+
+        // const medianPriority = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+
+        return Number(meanPriority.toFixed(4));
     }
 
     /**
