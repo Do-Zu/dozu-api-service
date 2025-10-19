@@ -698,7 +698,7 @@ class ScheduleService {
             const statusScore =
                 this.PRIORITY_STATUS_ITEM_LEARNING_TRACKING[
                     item.status as keyof typeof this.PRIORITY_STATUS_ITEM_LEARNING_TRACKING
-                ];
+                ] ?? 0;
 
             const score =
                 overdueScore * this.WEIGHT_STRATEGY.OVERDUE +
@@ -712,7 +712,9 @@ class ScheduleService {
             };
         });
 
-        const meanPriority = scores.reduce((sum, item) => sum + item.score, 0) / (scores.length ?? 1);
+        const len = scores.length || 1;
+
+        const meanPriority = scores.reduce((sum, s) => sum + (Number.isFinite(s.score) ? s.score : 0), 0) / len;
 
         /**
          * TODO for medianPriority
