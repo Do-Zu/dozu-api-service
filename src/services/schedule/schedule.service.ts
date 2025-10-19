@@ -12,11 +12,10 @@ import {
 import { SchedulePriorityQueue } from '@/utils/queue/schedule.queue';
 import { BadRequest } from '@/core/error';
 import { redisInstance as redis } from '@/libs/redis/default/redisDefault';
-import { addMinutes, differenceInDays, differenceInMinutes, isValid, parse, parseISO } from 'date-fns';
+import { addDays, addMinutes, differenceInDays, differenceInMinutes, isValid, parse, parseISO } from 'date-fns';
 
 const DEFINE_DEFAULT_FREE_TIME: FreeTimeSlotDays = {
     Monday: [
-        { startTime: '05:00', endTime: '06:00' },
         { startTime: '07:00', endTime: '11:30' },
         { startTime: '14:00', endTime: '17:00' },
         { startTime: '20:00', endTime: '22:00' },
@@ -33,7 +32,6 @@ const DEFINE_DEFAULT_FREE_TIME: FreeTimeSlotDays = {
         { startTime: '20:30', endTime: '22:30' },
     ],
     Thursday: [
-        { startTime: '05:15', endTime: '06:00' },
         { startTime: '08:15', endTime: '10:00' },
         { startTime: '14:00', endTime: '17:35' },
         { startTime: '18:45', endTime: '22:30' },
@@ -49,8 +47,8 @@ const DEFINE_DEFAULT_FREE_TIME: FreeTimeSlotDays = {
         { startTime: '20:15', endTime: '21:45' },
     ],
     Sunday: [
-        { startTime: '05:00', endTime: '9:00' },
-        { startTime: '14:00', endTime: '16:00' },
+        { startTime: '08:00', endTime: '10:00' },
+        { startTime: '20:00', endTime: '22:00' },
     ],
 };
 
@@ -119,14 +117,14 @@ class ScheduleService {
      */
     public async generateRecommendSchedule(body: {
         userId: number;
-        fromDate: Date | string;
-        toDate: Date | string;
+        fromDate: string;
+        toDate: string;
         timezone: string;
     }) {
         const { userId, fromDate, toDate, timezone } = body;
 
         const fromDateString = getDateFormattedWithTimeZone(fromDate, timezone);
-        const toDateString = getDateFormattedWithTimeZone(toDate, timezone);
+        const toDateString = getDateFormattedWithTimeZone(addDays(parseISO(toDate), 1), timezone);
 
         const KEY_MEMCACHE_SCHEDULE_PERSONAL = `schedule-personal:${userId}:${fromDateString}:${toDateString}`;
 
