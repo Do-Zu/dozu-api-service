@@ -10,7 +10,8 @@ type DateFormatType = 'ISO' | 'US' | 'EU' | 'CUSTOM';
  * Uses ISO string and truncates time portion.
  *
  * @param date - The date to format
- * @returns A string in YYYY-MM-DD format
+ * @param formatStr - The format string (default is 'yyyy-MM-dd')
+ * @returns The formatted date string
  */
 export function getDateFormatted(date: Date | string, formatStr: string = 'yyyy-MM-dd'): string {
     return format(date, formatStr);
