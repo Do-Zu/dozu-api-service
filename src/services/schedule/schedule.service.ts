@@ -2,11 +2,18 @@ import { scheduleRepo } from '@/repositories/schedule/schedule.repo';
 import { FreeTimeSlotDays } from '@/repositories/user/type';
 import { userRepository } from '@/repositories/user/user.repo';
 import { IGroupTopic, IItemScheduleGenerated, ItemTrackingWithTopic } from './types/schedule.index';
-import { getDateFormattedWithTimeZone, getDayOfWeek, getSystemDate } from '@/utils/date';
+import {
+    compareDates,
+    formatTimeToHHMM,
+    getDateFormatted,
+    getDateFormattedWithTimeZone,
+    getDayOfWeek,
+    getSystemDate,
+} from '@/utils/date';
 import { SchedulePriorityQueue } from '@/utils/queue/schedule.queue';
 import { BadRequest } from '@/core/error';
 import { redisInstance as redis } from '@/libs/redis/default/redisDefault';
-import { addMilliseconds, addMinutes, differenceInMinutes, isValid, parse } from 'date-fns';
+import { addMinutes, differenceInMinutes, isValid, parse, parseISO } from 'date-fns';
 
 const DEFINE_DEFAULT_FREE_TIME: FreeTimeSlotDays = {
     Monday: [
@@ -211,21 +218,24 @@ class ScheduleService {
                 continue;
             }
 
-            if (!scheduleMap[item.nextReview]) {
-                scheduleMap[item.nextReview] = [];
+            const date = getDateFormatted(item.nextReview);
+
+            if (!scheduleMap[date]) {
+                scheduleMap[date] = [];
             }
 
-            scheduleMap[item.nextReview].push({
-                topicId: item.topicId,
-                topicTitle: item.topicTitle,
-                topicDescription: item.topicDescription,
-                lastReviewed: item.lastReviewed,
-                easinessFactor: item.easinessFactor,
-                reviewInterval: item.reviewInterval,
-                repetition: item.repetitionNumber,
-                reviewDate: new Date(item.nextReview),
-                status: item.status,
-                type: item.type,
+            scheduleMap[date].push({
+                topicId: item?.topicId,
+                topicTitle: item?.topicTitle,
+                topicDescription: item?.topicDescription,
+                lastReviewed: item?.lastReviewed,
+                easinessFactor: item?.easinessFactor,
+                reviewInterval: item?.reviewInterval,
+                repetition: item?.repetitionNumber,
+                reviewDate: parseISO(date),
+                timeReview: formatTimeToHHMM(parseISO(date)),
+                status: item?.status,
+                type: item?.type,
             });
         }
 
@@ -238,11 +248,12 @@ class ScheduleService {
             // Group by topic first
             const topicGroups: Record<number, IGroupTopic[]> = {};
             for (const item of itemsForDate) {
-                if (item.topicId === undefined) continue;
+                if (!item.topicId) continue;
 
                 if (!topicGroups[item.topicId]) {
                     topicGroups[item.topicId] = [];
                 }
+
                 topicGroups[item.topicId].push(item);
             }
 
@@ -317,7 +328,7 @@ class ScheduleService {
                             topicId: chunk[0].topicId,
                             priority,
                             startTime: chunk[0].reviewDate,
-                            endTime: new Date(chunk[0].reviewDate.getTime() + chunk.length * 60 * 1000),
+                            endTime: addMinutes(chunk[0].reviewDate, chunk.length),
                             title: chunk[0]?.topicTitle,
                             description: chunk[0]?.topicDescription,
                             type: chunk[0]?.type,
@@ -339,21 +350,25 @@ class ScheduleService {
 
                 // Calculate available time for the day
                 const totalAvailableMinutes = listFreeTimeSlotsOfDay.reduce((sum, slot) => {
-                    const slotDate = new Date(date);
+                    const slotDate = parseISO(date);
+
                     const start = parse(slot.startTime, 'HH:mm', slotDate);
                     const end = parse(slot.endTime, 'HH:mm', slotDate);
+
                     if (!isValid(start) || !isValid(end)) {
                         return sum;
                     }
+
                     return sum + differenceInMinutes(end, start);
                 }, 0);
 
                 // Only process if we have viable time slots
                 if (!this.isSlotViable(totalAvailableMinutes)) break;
 
-                //Chunking based on available time
+                //  Chunking based on available time
                 const { itemsPerSlot } = this.calculateOptimalItemsPerSlot(items, totalAvailableMinutes);
 
+                //TODO: Check amount items per slot of this function
                 const chunks = this.splitItemsIntoStudyChunks(items, itemsPerSlot);
 
                 for (const chunk of chunks) {
@@ -398,10 +413,10 @@ class ScheduleService {
             const scheduledToday: IItemScheduleGenerated[] = [];
 
             for (const slot of listFreeTimeSlotsOfDay) {
-                const baseDate = new Date(date);
+                const baseDate = parseISO(date);
                 let slotStart = parse(slot.startTime, 'HH:mm', baseDate);
                 const slotEnd = parse(slot.endTime, 'HH:mm', baseDate);
-                const slotDurationMinutes = (slotEnd.getTime() - slotStart.getTime()) / (60 * 1000);
+                const slotDurationMinutes = differenceInMinutes(slotEnd, slotStart);
 
                 if (!this.isSlotViable(slotDurationMinutes)) {
                     continue; // Skip slots that are too short
@@ -591,12 +606,16 @@ class ScheduleService {
     /**
      * Split items into optimal chunks for studying
      * Aim for mixed difficulty in each chunk
-     * Ensure each chunk has at least MIN_ITEMS_PER_SLOT
+     * Ensure each chunk has at least targetItemsPerChunk
      * Try to keep chunks balanced in size
-     * Avoid too many small chunks if possible
+     * Avoid small chunks
      */
     private splitItemsIntoStudyChunks(items: IGroupTopic[], targetItemsPerChunk: number): IGroupTopic[][] {
         const chunks: IGroupTopic[][] = [];
+
+        if (items.length <= targetItemsPerChunk) {
+            return [items];
+        }
 
         // Sort items by priority (new items first, then by difficulty)
         const sortedItems = [...items].sort((a, b) => {
@@ -614,14 +633,14 @@ class ScheduleService {
         });
 
         // Minimum items to consider merging with last chunk
-        const MINIMUM_REMAIN_ITEMS = 5;
 
+        const totalItems = sortedItems.length;
         // Split into chunks with mixed difficulty
-        for (let index = 0; index < sortedItems.length; index += targetItemsPerChunk) {
+        for (let index = 0; index < totalItems; index += targetItemsPerChunk) {
             const chunk = sortedItems.slice(index, index + targetItemsPerChunk);
 
-            // Ensure mixed difficulty within chunk
-            if (chunk.length >= this.MIN_ITEMS_PER_SLOT || index + targetItemsPerChunk >= sortedItems.length) {
+            // Amount item matching target
+            if (chunk.length === targetItemsPerChunk) {
                 chunks.push(chunk);
                 continue;
             }
@@ -630,7 +649,7 @@ class ScheduleService {
             const lastChunk = chunks.length > 0 ? chunks[chunks.length - 1] : [];
 
             // Add remaining items to last chunk if it's too small
-            if (remainItem <= MINIMUM_REMAIN_ITEMS) {
+            if (remainItem < this.MIN_ITEMS_PER_SLOT) {
                 lastChunk.push(...chunk);
             } else {
                 chunks.push(chunk);
@@ -680,14 +699,18 @@ class ScheduleService {
         if (statusCounts['new'] > 0) {
             priority *= this.NEW_ITEM_PRIORITY_MULTIPLIER;
         }
-
         if (statusCounts['review'] > 0) {
             priority *= this.REVIEW_PRIORITY_MULTIPLIER;
         }
 
+        //Q&A: Check for all status contain in one item
+        // if (statusCounts['learning'] > 0) {
+        //     priority *= (this.NEW_ITEM_PRIORITY_MULTIPLIER + this.REVIEW_PRIORITY_MULTIPLIER) / 2;
+        // }
+
         // Boost priority for overdue items
         const now = getSystemDate();
-        const overdueCount = items.filter(item => item.reviewDate && new Date(item.reviewDate) < now).length;
+        const overdueCount = items.filter(item => item.reviewDate && compareDates(item.reviewDate, now)).length;
 
         if (overdueCount > 0) {
             priority *= 1 + (overdueCount / items.length) * 0.5; // Up to 50% boost for overdue items
