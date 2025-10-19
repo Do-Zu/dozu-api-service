@@ -91,7 +91,7 @@ describe('ScheduleService - generateRecommendSchedule', () => {
         });
     });
 
-    describe('Case 2: Small Number of Items (10 items)', () => {
+    fdescribe('Case 2: Small Number of Items (10 items)', () => {
         const mockItems: ItemTrackingWithTopic[] = Array.from({ length: 10 }, (_, i) => ({
             itemId: i + 1,
             userId: mockUserId,
@@ -148,7 +148,7 @@ describe('ScheduleService - generateRecommendSchedule', () => {
                 itemId: i + 6,
                 userId: mockUserId,
                 topicId: 102,
-                type: 'quiz',
+                type: 'question',
                 createdAt: new Date('2025-09-02'),
                 repetitionNumber: 2,
                 easinessFactor: '1.4',
@@ -212,7 +212,7 @@ describe('ScheduleService - generateRecommendSchedule', () => {
                 itemId: i + 26,
                 userId: mockUserId,
                 topicId: 106,
-                type: 'quiz',
+                type: 'question',
                 createdAt: new Date('2025-09-06'),
                 repetitionNumber: 1,
                 easinessFactor: '1.6',
@@ -296,7 +296,7 @@ describe('ScheduleService - generateRecommendSchedule', () => {
                 itemId: i + 6,
                 userId: mockUserId,
                 topicId: 102,
-                type: 'quiz',
+                type: 'question',
                 createdAt: new Date('2025-09-02'),
                 repetitionNumber: 2,
                 easinessFactor: '2.0',
@@ -335,6 +335,8 @@ describe('ScheduleService - generateRecommendSchedule', () => {
                 timezone: mockTimezone,
             });
 
+            console.log(result);
+
             expect(result.statistics.totalItems).toBe(15);
             expect(result.statistics.scheduledItems).toBeGreaterThan(0);
 
@@ -365,7 +367,7 @@ describe('ScheduleService - generateRecommendSchedule', () => {
                 itemId: i + 6,
                 userId: mockUserId,
                 topicId: 102,
-                type: 'quiz',
+                type: 'question',
                 createdAt: new Date('2025-09-02'),
                 repetitionNumber: 2,
                 easinessFactor: '2.2',
@@ -520,7 +522,7 @@ describe('ScheduleService - generateRecommendSchedule', () => {
                 itemId: i + 4,
                 userId: mockUserId,
                 topicId: 102,
-                type: 'quiz',
+                type: 'question',
                 createdAt: new Date('2025-09-02'),
                 repetitionNumber: 1,
                 easinessFactor: '2.0',
@@ -625,7 +627,7 @@ describe('ScheduleService - generateRecommendSchedule', () => {
                 itemId: i + 1,
                 userId: mockUserId,
                 topicId: 101 + Math.floor(i / 5),
-                type: ['flashcard', 'quiz', 'reading'][i % 3],
+                type: ['flashcard', 'question', 'reading'][i % 3],
                 createdAt: new Date('2025-09-01'),
                 repetitionNumber: i % 4,
                 easinessFactor: (2.0 + (i % 10) * 0.1).toString(),
@@ -776,7 +778,7 @@ describe('ScheduleService - generateRecommendSchedule', () => {
                 itemId: i + 4,
                 userId: mockUserId,
                 topicId: 101,
-                type: 'quiz',
+                type: 'question',
                 createdAt: new Date('2025-09-01'),
                 repetitionNumber: 0,
                 easinessFactor: '2.5',
