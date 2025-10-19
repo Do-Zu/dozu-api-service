@@ -311,11 +311,11 @@ class ScheduleService {
         const scheduleGenerateFollowFreeTimeSlotPerDay: Record<string, IItemScheduleGenerated[]> = {};
 
         const scheduleWaitingPriorityQueue = new SchedulePriorityQueue<IGroupTopic[]>(
-            (topic1, topic2) => this.calculatePriority(topic2) - this.calculatePriority(topic1) // Higher priority first
+            (topic1, topic2) => this.calculatePriority(topic1) - this.calculatePriority(topic2) // Higher priority first
         );
 
         const dailyPriorityQueue = new SchedulePriorityQueue<IItemScheduleGenerated>(
-            (topic1, topic2) => topic2.priority - topic1.priority
+            (topic1, topic2) => topic1.priority - topic2.priority
         );
 
         let totalItems = 0;
