@@ -75,7 +75,7 @@ class ScheduleService {
     private readonly DEFAULT_MINUTE_LEARN_FOR_EACH_ITEM = 1; // Average time to learn each item
 
     private readonly DEFAULT_MINUTE_BREAK_TIME_FOR_EACH_SESSION = 5;
-    private readonly MIN_ITEMS_PER_SLOT = 10;
+    private readonly MIN_ITEMS_PER_SLOT = 20;
     private readonly MAX_ITEMS_PER_SLOT = 50;
     private readonly MIN_SLOT_DURATION_MINUTES = 30; // Minimum time for a productive study session
     private readonly REVIEW_PRIORITY_MULTIPLIER = 1.5; // Boost priority for review items
