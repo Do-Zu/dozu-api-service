@@ -13,7 +13,7 @@ type DateFormatType = 'ISO' | 'US' | 'EU' | 'CUSTOM';
  * @param formatStr - The format string (default is 'yyyy-MM-dd')
  * @returns The formatted date string
  */
-export function getDateFormatted(date: Date | string, formatStr: string = 'yyyy-MM-dd'): string {
+export function getDateFormatted(date: Date | string | number, formatStr: string = 'yyyy-MM-dd'): string {
     return format(date, formatStr);
 }
 
