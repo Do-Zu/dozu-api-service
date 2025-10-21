@@ -7,8 +7,8 @@ export interface ItemTrackingWithTopic {
     repetitionNumber: number;
     easinessFactor: string;
     reviewInterval: number;
-    lastReviewed: string | null;
-    nextReview: string | null;
+    lastReviewed: Date | string | null;
+    nextReview: Date | string | null;
     status: string;
     topicTitle: string | null;
     topicDescription: string | null;
@@ -32,8 +32,9 @@ export interface IGroupTopic {
     easinessFactor: string;
     reviewInterval: number;
     repetition: number;
-    lastReviewed: string | null;
+    lastReviewed: Date | string | null;
     reviewDate: Date;
+    timeReview: string;
     status: string;
     type: string;
 }

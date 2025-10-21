@@ -58,7 +58,7 @@ export interface ProfileData {
     weeklyActivity: number[];
     totalLessonsCompleted: number;
     totalQuizzesCompleted: number;
-    totalFlashcardsReviewed: number;
+    totalFlashcardsCompleted: number;
     averageScore: number;
   };
   lastActiveAt?: Date;

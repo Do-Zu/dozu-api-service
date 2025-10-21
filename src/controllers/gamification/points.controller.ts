@@ -57,7 +57,7 @@ export class PointsController {
         weeklyActivity: [0, 0, 0, 0, 0, 0, 0], // TODO: Get real weekly activity
         totalLessonsCompleted: 0, // TODO: Calculate from point transactions
         totalQuizzesCompleted: 0, // TODO: Calculate from point transactions
-        totalFlashcardsReviewed: 0, // TODO: Calculate from point transactions
+        totalFlashcardsCompleted: 0, // TODO: Calculate from point transactions
         averageScore: 85.0 // TODO: Calculate real average score
       };
       

@@ -91,6 +91,7 @@ class ProgressService {
     contentType: ContentType;
     timeSpent: number;
     isCompleted: boolean;
+    score?: number;
     metadata?: ProgressMetadata;
   }): Promise<IProgress> {
     const topicIdNum = parseInt(data.topicId);
@@ -125,6 +126,7 @@ class ProgressService {
       const updateData: IProgressUpdate = {
         status: updatedStatus,
         completionPercentage: updatedCompletionPercentage,
+        score: data.score,
         metadata: {
           ...existingProgress.metadata,
           ...data.metadata,
@@ -132,7 +134,19 @@ class ProgressService {
         }
       };
 
-      return await this.updateProgress(existingProgress.progressId, updateData);
+      const result = await this.updateProgress(existingProgress.progressId, updateData);
+      
+      // Award points for lesson completion if just completed
+      if (data.isCompleted && data.contentType === ContentType.TOPIC && existingProgress.status !== ProgressStatus.COMPLETED) {
+        try {
+          const pointsService = (await import('@/services/gamification/points.service')).default;
+          await pointsService.awardLessonCompletion(data.userId, topicIdNum);
+        } catch (error) {
+          console.error('Failed to award lesson completion points:', error);
+        }
+      }
+      
+      return result;
     } else {
       // Create new progress record
       const createData: IProgressCreate = {
@@ -141,13 +155,26 @@ class ProgressService {
         contentType: data.contentType,
         status: data.isCompleted ? ProgressStatus.COMPLETED : ProgressStatus.IN_PROGRESS,
         completionPercentage: data.isCompleted ? 100 : 0,
+        score: data.score,
         metadata: {
           ...data.metadata,
           timeSpent: data.timeSpent
         }
       };
 
-      return await this.createProgress(createData);
+      const result = await this.createProgress(createData);
+      
+      // Award points for lesson completion if completed
+      if (data.isCompleted && data.contentType === ContentType.TOPIC) {
+        try {
+          const pointsService = (await import('@/services/gamification/points.service')).default;
+          await pointsService.awardLessonCompletion(data.userId, topicIdNum);
+        } catch (error) {
+          console.error('Failed to award lesson completion points:', error);
+        }
+      }
+      
+      return result;
     }
   }
 

@@ -34,6 +34,8 @@ export * from '@/models/tracking/taskProgress.model';
 
 export * from '@/models/mindmap/mindmap.model';
 
+export * from '@/models/attachment.model';
+
 //auth
 export * from '@/models/auth/emailVerificationCode.model';
 
@@ -69,7 +71,6 @@ export * from '@/models/class-based-learning/classFeed.model';
 export * from '@/models/progress/progress.model';
 
 export * from '@/models/progress/dailyStudy.model';
-
 
 // gamification
 export * from '@/models/gamification/points.model';

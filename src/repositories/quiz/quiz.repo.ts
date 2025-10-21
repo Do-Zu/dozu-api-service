@@ -153,6 +153,14 @@ WHERE latest_wrong.correct = false
         return record?.topicId ?? -1;
     }
 
+    async getTopicIdByQuizId(quizId: number): Promise<number> {
+        const record = await db.query.quizzesTable.findFirst({
+            columns: { topicId: true },
+            where: eq(quizzesTable.quizId, quizId),
+        });
+        return record?.topicId ?? -1;
+    }
+
     async getQuizHistoryByTopic(topicId: number, userId: number) {
         return await db
             .select({

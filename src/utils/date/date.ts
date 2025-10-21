@@ -10,9 +10,10 @@ type DateFormatType = 'ISO' | 'US' | 'EU' | 'CUSTOM';
  * Uses ISO string and truncates time portion.
  *
  * @param date - The date to format
- * @returns A string in YYYY-MM-DD format
+ * @param formatStr - The format string (default is 'yyyy-MM-dd')
+ * @returns The formatted date string
  */
-export function getDateFormatted(date: Date | string, formatStr: string = 'yyyy-MM-dd'): string {
+export function getDateFormatted(date: Date | string | number, formatStr: string = 'yyyy-MM-dd'): string {
     return format(date, formatStr);
 }
 
@@ -443,6 +444,31 @@ export function getUTCDate(): Date {
  */
 export function getSystemDate(): Date {
     return new Date();
+}
+
+/**
+ * Compares two dates by normalizing them to UTC timezone.
+ * This ensures accurate comparison regardless of the dates' original timezones.
+ *
+ * @param firstDate - The first date to compare
+ * @param secondDate - The second date to compare
+ * @returns True if firstDate is before secondDate, false otherwise
+ *
+ * @example
+ * const date1 = new Date('2025-10-19T10:00:00+07:00');
+ * const date2 = new Date('2025-10-19T10:00:00Z');
+ * compareDates(date1, date2); // returns false (they're equal in UTC)
+ *
+ * @example
+ * const date1 = new Date('2025-10-18T23:00:00+07:00');
+ * const date2 = new Date('2025-10-19T10:00:00Z');
+ * compareDates(date1, date2); // returns true
+ */
+export function compareDates(firstDate: Date, secondDate: Date): boolean {
+    const firstDateUTC = toZonedTime(firstDate, 'UTC');
+    const secondDateUTC = toZonedTime(secondDate, 'UTC');
+
+    return isBefore(firstDateUTC, secondDateUTC);
 }
 
 export enum TimeUnit {
