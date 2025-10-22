@@ -18,6 +18,8 @@ export * from '@/models/quiz/questionInQuiz.model';
 
 export * from '@/models/quiz/quizResult.model';
 
+export * from '@/models/quiz/questionResult.model';
+
 export * from '@/models/tracking/itemSpacedRepetitionTracking.model';
 
 export * from '@/models/schedule/schedule.model';
@@ -35,6 +37,8 @@ export * from '@/models/tracking/taskProgress.model';
 export * from '@/models/mindmap/mindmap.model';
 
 export * from '@/models/attachment.model';
+
+export * from '@/models/flashcardBacklog.model';
 
 //auth
 export * from '@/models/auth/emailVerificationCode.model';
