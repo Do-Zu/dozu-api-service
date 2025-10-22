@@ -6,7 +6,7 @@ import { packagesTable } from '../package/package.model';
 export const topicsTable = pgTable('topics', {
     topicId: serial('topic_id').primaryKey(),
     // package id can be NULL
-    package_id: integer('package_id').references(() => packagesTable.id, {
+    packageId: integer('package_id').references(() => packagesTable.id, {
         onDelete: 'set null',
     }),
     // topic belong to which class, classId can be NULL if that topic belong to a user (student) with no class-based learning
