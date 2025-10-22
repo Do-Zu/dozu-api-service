@@ -7,7 +7,7 @@ export enum AssignmentStatusEnum {
     CLOSED = 'closed',
 }
 
-export type IASsignmentStatus = 'draft' | 'scheduled' | 'published' | 'closed';
+export type IAssignmentStatus = 'draft' | 'scheduled' | 'published' | 'closed';
 
 export type IAssignment = typeof assignmentsTable.$inferSelect;
 export type InsertAssignment = typeof assignmentsTable.$inferInsert;
