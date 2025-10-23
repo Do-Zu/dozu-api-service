@@ -18,7 +18,9 @@
         "typecheck": "tsc --noEmit",
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
-        "test": "echo \"Error: no test specified\" && exit 1",
+        "test": "jest",
+        "test:watch": "jest --watch",
+        "test:coverage": "jest --coverage",
         "generate:api": "node scripts/generate/generate-api.js",
         "db:generate:dev": "set NODE_ENV=development && npx drizzle-kit generate",
         "db:migrate:dev": "set NODE_ENV=development && npx drizzle-kit migrate",
@@ -39,8 +41,7 @@
         "docker:build:db:postgres": "docker-compose -f containers/database/postgres/docker-compose.yml build",
         "docker:logs:db:postgres": "docker-compose -f containers/database/postgres/docker-compose.yml logs -f postgres",
         "docker:restart:db:postgres": "docker-compose -f containers/database/postgres/docker-compose.yml restart",
-        "docker:clean:db:postgres": "docker-compose -f containers/database/postgres/docker-compose.yml down -v --remove-orphans",
-        "jest": "jest"
+        "docker:clean:db:postgres": "docker-compose -f containers/database/postgres/docker-compose.yml down -v --remove-orphans"
     },
     "engines": {
         "node": ">=20"

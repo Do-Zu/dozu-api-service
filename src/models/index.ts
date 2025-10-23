@@ -18,6 +18,8 @@ export * from '@/models/quiz/questionInQuiz.model';
 
 export * from '@/models/quiz/quizResult.model';
 
+export * from '@/models/quiz/questionResult.model';
+
 export * from '@/models/tracking/itemSpacedRepetitionTracking.model';
 
 export * from '@/models/schedule/schedule.model';
@@ -33,6 +35,10 @@ export * from '@/models/schedule/reminder.model';
 export * from '@/models/tracking/taskProgress.model';
 
 export * from '@/models/mindmap/mindmap.model';
+
+export * from '@/models/attachment.model';
+
+export * from '@/models/flashcardBacklog.model';
 
 //auth
 export * from '@/models/auth/emailVerificationCode.model';
@@ -72,7 +78,6 @@ export * from '@/models/progress/progress.model';
 
 export * from '@/models/progress/dailyStudy.model';
 
-
 // gamification
 export * from '@/models/gamification/points.model';
 
@@ -83,3 +88,5 @@ export * from '@/models/feynman';
 export * from '@/models/anki-setting/ankiSetting.model';
 
 export * from '@/models/topic/userTopicSetting.model';
+
+export * from '@/models/class-based-learning/assignment';
