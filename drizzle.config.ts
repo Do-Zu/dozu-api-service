@@ -12,7 +12,7 @@ if (fs.existsSync(envPath)) {
   dotenv.config();
 }
 
-const databaseUrl = process.env.DATABASE_URL_DRIZZLE_MIGRATE!;
+const databaseUrl ='postgres://postgres:123456@localhost:5432/dozu';
 
 export default defineConfig({
   out: './drizzle',
