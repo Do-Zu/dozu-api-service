@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, varchar, timestamp, foreignKey, primaryKey } from 'drizzle-orm/pg-core';
+import { pgTable, serial, integer, varchar, timestamp, foreignKey } from 'drizzle-orm/pg-core';
 import { usersTable } from '@/models/user.model';
 
 export const packagesTable = pgTable(
