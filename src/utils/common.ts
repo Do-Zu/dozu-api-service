@@ -73,7 +73,7 @@ const isObjectEmpty = (obj: object): boolean => {
 export const isEmpty = (value: unknown): boolean => {
     if (value === null || value === undefined) return true;
 
-    if (typeof value === 'string') return value.length === 0 || value == '';
+    if (typeof value === 'string') return value.length === 0;
 
     if (Array.isArray(value)) return isListEmpty(value);
 
@@ -88,7 +88,7 @@ export const isEmpty = (value: unknown): boolean => {
  * Checks if a value is null/undefined or empty.
  *
  * @param value - The value to be checked.
- * @returns True if the value is an string, false otherwise.
+ * @returns True if the value is null, undefined, or empty; false otherwise.
  */
 export const isNullOrEmpty = (value: unknown): boolean => {
     if (isNilOrEmpty(value)) return true;

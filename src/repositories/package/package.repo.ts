@@ -1,5 +1,5 @@
 import { db } from '@/libs/drizzleClient.lib';
-import { and, eq, isNull, ne, or } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { packagesTable, topicsTable } from '@/models';
 import { TopicInPackageRecord, PackageRecord } from '@/types/package/package.type';
 import { isNilOrEmpty } from '@/utils/common';
@@ -123,12 +123,19 @@ class PackageRepository {
     public async removeTopicInPackage(params: {
         topicId: number;
         packageId: number;
+        userId: number;
     }): Promise<Array<{ topicId: number; packageId: number | null }>> {
-        const { topicId, packageId } = params;
+        const { topicId, packageId, userId } = params;
         const result = await db()
             .update(topicsTable)
             .set({ packageId: null })
-            .where(and(eq(topicsTable.topicId, topicId), eq(topicsTable.packageId, packageId)))
+            .where(
+                and(
+                    eq(topicsTable.topicId, topicId),
+                    eq(topicsTable.packageId, packageId),
+                    eq(topicsTable.userId, userId)
+                )
+            )
             .returning({
                 topicId: topicsTable.topicId,
                 packageId: topicsTable.packageId,

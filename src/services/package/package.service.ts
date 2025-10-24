@@ -13,7 +13,7 @@ class PackageService {
     public async getTopicsBelongPackage(params: { packageId: number }) {
         const topics = await packageRepo.getTopicsByPackageId(params.packageId);
         if (isNilOrEmpty(topics)) {
-            throw new NotFoundError();
+            throw new NotFoundError('Package not found or access denied');
         }
         return topics;
     }
@@ -39,7 +39,7 @@ class PackageService {
         return packageRepo.updateTopicInPackage(params);
     }
 
-    public async removeTopicInPackage(params: { topicId: number; packageId: number }) {
+    public async removeTopicInPackage(params: { topicId: number; packageId: number; userId: number }) {
         return packageRepo.removeTopicInPackage(params);
     }
 
