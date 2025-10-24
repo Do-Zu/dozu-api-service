@@ -10,7 +10,7 @@ class PackageService {
         return await packageRepo.createPackage(params);
     }
 
-    public async getTopicsBelongPackage(params: { packageId: number }) {
+    public async getTopicsBelongPackage(params: { packageId: number; userId: number }) {
         const topics = await packageRepo.getTopicsByPackageId(params.packageId);
         if (isNilOrEmpty(topics)) {
             throw new NotFoundError('Package not found or access denied');

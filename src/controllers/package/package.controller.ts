@@ -20,9 +20,11 @@ class PackageController {
     };
 
     public getTopicBelongPackage = async (req: Request, res: Response): Promise<void> => {
+        const userId = getUserIdFromRequest(req);
+
         const { packageId } = req.body;
 
-        const topics = await packageService.getTopicsBelongPackage({ packageId });
+        const topics = await packageService.getTopicsBelongPackage({ packageId, userId });
 
         SuccessResponse.ok(res, topics);
     };
@@ -58,9 +60,11 @@ class PackageController {
     };
 
     public removeTopicInPackage = async (req: Request, res: Response): Promise<void> => {
+        const userId = getUserIdFromRequest(req);
+
         const { topicId, packageId } = req.body;
 
-        const result = await packageService.removeTopicInPackage({ topicId, packageId });
+        const result = await packageService.removeTopicInPackage({ topicId, packageId, userId });
 
         SuccessResponse.ok(res, result);
     };
