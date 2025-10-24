@@ -19,7 +19,15 @@ export type InsertAssignmentBody = Pick<
 
 export type IUpdateAssignment = Pick<
     InsertAssignment,
-    'topicId' | 'title' | 'content' | 'deadline' | 'totalGrades' | 'status' | 'acceptingSubmissions' | 'updatedAt'
+    | 'topicId'
+    | 'title'
+    | 'content'
+    | 'deadline'
+    | 'totalGrades'
+    | 'status'
+    | 'acceptingSubmissions'
+    | 'publishedAt'
+    | 'updatedAt'
 >;
 
-export type IUpdateAssignmentBody = Omit<IUpdateAssignment, 'updatedAt'>;
+export type IUpdateAssignmentBody = Omit<IUpdateAssignment, 'publishedAt' | 'updatedAt'>;
