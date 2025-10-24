@@ -14,6 +14,7 @@ declare global {
                     requestId?: number;
                     feedId?: number;
                     settingId?: number;
+                    assignmentId?: number;
                 };
                 body?: any;
                 query?: any;
