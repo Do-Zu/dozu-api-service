@@ -6,8 +6,8 @@ import { InternalServerError, NotFoundError } from '@/core/error';
  * Service class for Package functionality
  */
 class PackageService {
-    public async createPackage(params: { userId: number; title: string; parentId?: number | null }): Promise<void> {
-        await packageRepo.createPackage(params);
+    public async createPackage(params: { userId: number; title: string; parentId?: number | null }) {
+        return await packageRepo.createPackage(params);
     }
 
     public async getTopicsBelongPackage(params: { packageId: number }) {

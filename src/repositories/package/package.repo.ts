@@ -2,14 +2,28 @@ import { db } from '@/libs/drizzleClient.lib';
 import { and, eq } from 'drizzle-orm';
 import { packagesTable, topicsTable } from '@/models';
 import { TopicInPackageRecord, PackageRecord } from '@/types/package/package.type';
+import { isNilOrEmpty } from '@/utils/common';
+import { DatabaseError } from '@/core/error';
 
 /**
  * Repository for Package data access operations
  */
 class PackageRepository {
-    public async createPackage(params: { userId: number; title: string; parentId?: number | null }): Promise<void> {
+    public async createPackage(params: { userId: number; title: string; parentId?: number | null }) {
         const { userId, title, parentId = null } = params;
-        await db().insert(packagesTable).values({ title, userId, parentId });
+
+        const [newPackage] = await db().insert(packagesTable).values({ title, userId, parentId }).returning({
+            packageId: packagesTable.id,
+            title: packagesTable.title,
+            parentId: packagesTable.parentId,
+            createdAt: packagesTable.createdAt,
+        });
+
+        if (isNilOrEmpty(newPackage)) {
+            throw new DatabaseError();
+        }
+
+        return newPackage;
     }
 
     public async getTopicsByPackageId(packageId: number): Promise<

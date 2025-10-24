@@ -14,9 +14,9 @@ class PackageController {
 
         const { title, parentId } = payload;
 
-        await packageService.createPackage({ userId, title, parentId: parentId ?? null });
+        const newPackage = await packageService.createPackage({ userId, title, parentId });
 
-        SuccessResponse.created(res, {}, 'Package Created!');
+        SuccessResponse.created(res, newPackage, 'Package Created!');
     };
 
     public getTopicBelongPackage = async (req: Request, res: Response): Promise<void> => {
