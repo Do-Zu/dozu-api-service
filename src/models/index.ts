@@ -65,6 +65,8 @@ export * from '@/models/class-based-learning/class.model';
 
 export * from '@/models/class-based-learning/classEnrollment.model';
 
+export * from '@/models/class-based-learning/classInvite.model';
+
 export * from '@/models/class-based-learning/classTopicComment.model';
 
 export * from '@/models/teacher-request/teacherRequest.model';
