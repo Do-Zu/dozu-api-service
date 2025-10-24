@@ -6,6 +6,7 @@ import {
     validateCreatePackageBody,
     validateUpdatePackageBody,
     validatePackageIdBody,
+    validateGetTopicUnAssignedPackages,
     validateGetPackagesQuery,
     validateGetPackageTopicsBody,
     validateUpdateTopicInPackageBody,
@@ -25,6 +26,7 @@ router.post('/new', validateCreatePackageBody, packageController.createNewPackag
 router.put('/', validateUpdatePackageBody, packageController.updatePackage);
 router.delete('/', validatePackageIdBody, packageController.deletePackage);
 
+router.post('/topics/unassigned', validateGetTopicUnAssignedPackages, packageController.getTopicUnAssignedTopic);
 router.post('/topic-package', validateGetPackageTopicsBody, packageController.getTopicBelongPackage);
 router.put('/topic/modify', validateUpdateTopicInPackageBody, packageController.updateTopicInPackage);
 router.put('/topic/remove', validateRemoveTopicInPackageBody, packageController.removeTopicInPackage);

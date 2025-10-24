@@ -1,5 +1,5 @@
 import { db } from '@/libs/drizzleClient.lib';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull, ne, or } from 'drizzle-orm';
 import { packagesTable, topicsTable } from '@/models';
 import { TopicInPackageRecord, PackageRecord } from '@/types/package/package.type';
 import { isNilOrEmpty } from '@/utils/common';
@@ -41,6 +41,36 @@ class PackageRepository {
             })
             .from(topicsTable)
             .where(eq(topicsTable.packageId, packageId));
+
+        return rows;
+    }
+
+    public async getTopicUnAssignedTopic({
+        limit,
+        offset,
+        userId,
+    }: {
+        userId: number;
+        packageId: number;
+        limit: number;
+        offset: number;
+    }): Promise<
+        Array<{
+            topicId: number;
+            packageId: number | null;
+            name: string;
+        }>
+    > {
+        const rows = await db()
+            .select({
+                topicId: topicsTable.topicId,
+                packageId: topicsTable.packageId,
+                name: topicsTable.name,
+            })
+            .from(topicsTable)
+            .where(and(isNull(topicsTable.packageId), eq(topicsTable.userId, userId)))
+            .offset(offset)
+            .limit(limit);
 
         return rows;
     }

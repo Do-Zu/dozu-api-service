@@ -27,6 +27,16 @@ class PackageController {
         SuccessResponse.ok(res, topics);
     };
 
+    public getTopicUnAssignedTopic = async (req: Request, res: Response): Promise<void> => {
+        const userId = getUserIdFromRequest(req);
+
+        const { packageId, limit, offset } = req.body;
+
+        const topics = await packageService.getTopicUnAssignedTopic({ packageId, userId, limit, offset });
+
+        SuccessResponse.ok(res, topics);
+    };
+
     public updatePackage = async (req: Request, res: Response): Promise<void> => {
         const userId = getUserIdFromRequest(req);
 

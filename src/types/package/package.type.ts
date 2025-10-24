@@ -7,7 +7,7 @@ export type PackageRecord = {
 export type TopicInPackageRecord = {
     topicId: number;
     packageId: number | null;
-    name?: string;
+    name: string;
     description?: string;
     classId?: number | null;
 };

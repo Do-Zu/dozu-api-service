@@ -7,6 +7,7 @@ import {
     getPackageTopicsSchema,
     updateTopicInPackageSchema,
     removeTopicInPackageSchema,
+    getUnAssignedTopicQueryScheme,
 } from '@/dtos/package/package.dto';
 
 // Body validators
@@ -25,6 +26,10 @@ export const validateRemoveTopicInPackageBody = Validator.validate({
 
 // Query validators
 export const validateGetPackagesQuery = Validator.validate({ selector: 'query', schema: getPackagesQuerySchema });
+export const validateGetTopicUnAssignedPackages = Validator.validate({
+    selector: 'body',
+    schema: getUnAssignedTopicQueryScheme,
+});
 
 export default {
     validateCreatePackageBody,

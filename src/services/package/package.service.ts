@@ -18,6 +18,15 @@ class PackageService {
         return topics;
     }
 
+    public async getTopicUnAssignedTopic(params: { packageId: number; userId: number; limit: number; offset: number }) {
+        const topics = await packageRepo.getTopicUnAssignedTopic(params);
+
+        if (isNilOrEmpty(topics)) {
+            throw new NotFoundError();
+        }
+        return topics;
+    }
+
     public async updatePackage(params: { packageId: number; userId: number; title: string }) {
         const result = await packageRepo.updatePackage(params);
         if (isNilOrEmpty(result)) {

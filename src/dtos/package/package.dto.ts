@@ -39,7 +39,18 @@ export const getPackagesQuerySchema = z.object({
     offset: z.coerce.number().int().nonnegative().optional(),
 });
 
+export const getUnAssignedTopicQueryScheme = z.object({
+    limit: z.coerce.number().int().positive().optional(),
+    offset: z.coerce.number().int().nonnegative().optional(),
+    packageId: idSchema,
+    parentId: z
+        .union([z.null(), z.coerce.number().int().positive()])
+        .optional()
+        .transform(v => (v === undefined ? undefined : v)),
+});
+
 export type CreatePackageDTO = z.infer<typeof createPackageSchema>;
 export type UpdatePackageDTO = z.infer<typeof updatePackageSchema>;
 export type PackageIdBodyDTO = z.infer<typeof packageIdBodySchema>;
 export type GetPackagesQueryDTO = z.infer<typeof getPackagesQuerySchema>;
+export type GetTopicUnAssignedPackageDTO = z.infer<typeof getUnAssignedTopicQueryScheme>;
