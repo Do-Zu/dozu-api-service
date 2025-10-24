@@ -1,5 +1,7 @@
 export * from '@/models/user.model';
 
+export * from '@/models/package';
+
 export * from '@/models/topic/topic.model';
 
 export * from '@/models/flashcard.model';
@@ -64,6 +66,8 @@ export * from '@/models/payment';
 export * from '@/models/class-based-learning/class.model';
 
 export * from '@/models/class-based-learning/classEnrollment.model';
+
+export * from '@/models/class-based-learning/classInvite.model';
 
 export * from '@/models/class-based-learning/classTopicComment.model';
 
