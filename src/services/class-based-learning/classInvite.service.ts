@@ -2,6 +2,7 @@ import { BadRequest, NotFoundError } from '@/core/error';
 import classInviteRepo from '@/repositories/class-based-learning/classInvite.repo';
 import userSearchService from '@/services/user/userSearch.service';
 import classEnrollmentService from '@/services/class-based-learning/classEnrollment.service';
+import classService from '@/services/class-based-learning/class.service';
 import { nodemailerTransporter } from '@/libs/nodeMailerTransporter.lib';
 import { classInvitationTemplate, classInvitationTextTemplate, ClassInvitationEmailData } from '@/templates/emails/classInvitation.template';
 import { 
@@ -115,6 +116,12 @@ class ClassInviteService {
             throw new BadRequest('Cannot invite more than 50 users at once');
         }
 
+        // Get class details for invitation code
+        const classDetails = await classService.getClassById(classId);
+        if (!classDetails) {
+            throw new NotFoundError('Class not found');
+        }
+
         const results: IInviteEmailResponse[] = [];
         let totalSent = 0;
         let totalFailed = 0;
@@ -145,60 +152,14 @@ class ClassInviteService {
                     continue;
                 }
 
-                // Check if invite already exists for this email and class
-                const existingInvite = await classInviteRepo.getInviteByEmailAndClass(email, classId);
-                if (existingInvite) {
-                    results.push({
-                        success: false,
-                        email,
-                        message: 'Invite already sent to this email',
-                    });
-                    totalFailed++;
-                    continue;
-                }
-
-                // Generate unique token
-                let token: string;
-                let isUnique = false;
-                let attempts = 0;
-                const maxAttempts = 10;
-
-                do {
-                    token = this.generateToken();
-                    const existingToken = await classInviteRepo.getInviteByToken(token);
-                    isUnique = !existingToken;
-                    attempts++;
-                } while (!isUnique && attempts < maxAttempts);
-
-                if (!isUnique) {
-                    results.push({
-                        success: false,
-                        email,
-                        message: 'Unable to generate unique token',
-                    });
-                    totalFailed++;
-                    continue;
-                }
-
-                // Create invite record
-                const invite = await classInviteRepo.createInvite({
-                    classId,
-                    invitedBy,
-                    invitedUserId: existingUser?.userId,
-                    invitedEmail: email,
-                    token,
-                    expiresAt,
-                    useLimit,
-                });
-
-                // Send email
-                const inviteLink = `${process.env.FRONTEND_BASE_URL}/join/${token}`;
+                // Simply send email with join link - no pending invite needed!
+                const inviteLink = `${process.env.FRONTEND_BASE_URL}/en/class-based?code=${classDetails.invitationCode}`;
                 const emailSent = await this.sendClassInvitationEmail({
                     to: email,
-                    className: 'Class Name', // Will be fetched from class service
-                    teacherName: 'Teacher Name', // Will be fetched from user service
+                    className: classDetails.name,
+                    teacherName: 'Teacher', // Will be fetched from user service if needed
                     inviteLink,
-                    studentName: existingUser?.fullName || undefined,
+                    studentName: existingUser?.fullName || email,
                     expiresAt,
                 });
 
@@ -206,7 +167,7 @@ class ClassInviteService {
                     results.push({
                         success: true,
                         email,
-                        message: 'Invite sent successfully',
+                        message: 'Invitation email sent successfully',
                     });
                     totalSent++;
                 } else {
@@ -223,7 +184,7 @@ class ClassInviteService {
                 results.push({
                     success: false,
                     email,
-                    message: 'Internal server error',
+                    message: error instanceof Error ? error.message : 'Internal server error',
                 });
                 totalFailed++;
             }

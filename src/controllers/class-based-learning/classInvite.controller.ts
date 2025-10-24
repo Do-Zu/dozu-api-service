@@ -10,7 +10,7 @@ import requestHelper from '@/core/request/request.helper';
 class ClassInviteController {
     /**
      * Generate invite link for a class
-     * POST /api/teacher/classes/:classId/invites/generate-link
+     * POST /api/classes/teacher/:classId/invites/generate-link
      */
     public async generateInviteLink(req: Request, res: Response) {
         const classId = requestHelper.getIdParam(req, 'classId');
@@ -23,7 +23,7 @@ class ClassInviteController {
 
     /**
      * Invite users by email
-     * POST /api/teacher/classes/:classId/invites/email
+     * POST /api/classes/teacher/:classId/invites/email
      */
     public async inviteByEmail(req: Request, res: Response) {
         const classId = requestHelper.getIdParam(req, 'classId');
@@ -36,7 +36,7 @@ class ClassInviteController {
 
     /**
      * Get invites for a class
-     * GET /api/teacher/classes/:classId/invites
+     * GET /api/classes/teacher/:classId/invites
      */
     public async getInvitesForClass(req: Request, res: Response) {
         const classId = requestHelper.getIdParam(req, 'classId');
@@ -47,7 +47,7 @@ class ClassInviteController {
 
     /**
      * Regenerate invite link
-     * POST /api/teacher/classes/:classId/invites/regenerate
+     * POST /api/classes/teacher/:classId/invites/regenerate
      */
     public async regenerateInviteLink(req: Request, res: Response) {
         const classId = requestHelper.getIdParam(req, 'classId');
@@ -100,7 +100,7 @@ class ClassInviteController {
 
     /**
      * Get invite statistics for a class
-     * GET /api/teacher/classes/:classId/invites/stats
+     * GET /api/classes/teacher/:classId/invites/stats
      */
     public async getInviteStats(req: Request, res: Response) {
         const classId = requestHelper.getIdParam(req, 'classId');

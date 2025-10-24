@@ -1,7 +1,7 @@
 import db from '@/libs/drizzleClient.lib';
 import { usersTable, classEnrollmentsTable } from '@/models';
 import { IUserSearchResult } from '@/types/class-based-learning/classInvite.type';
-import { and, eq, or, like, sql } from 'drizzle-orm';
+import { and, eq, or, like, sql, inArray } from 'drizzle-orm';
 
 class UserSearchService {
     /**
@@ -67,7 +67,7 @@ class UserSearchService {
             .where(
                 and(
                     eq(usersTable.isActive, true),
-                    sql`${usersTable.email} = ANY(${emails})`
+                    inArray(usersTable.email, emails)
                 )
             );
 
@@ -89,7 +89,7 @@ class UserSearchService {
             .where(
                 and(
                     eq(classEnrollmentsTable.classId, classId),
-                    sql`${classEnrollmentsTable.studentId} = ANY(${userIds})`
+                    inArray(classEnrollmentsTable.studentId, userIds)
                 )
             );
 

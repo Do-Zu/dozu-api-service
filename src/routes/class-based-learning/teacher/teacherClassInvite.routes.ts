@@ -10,36 +10,36 @@ globalAsyncHandler(router);
 // Generate invite link
 router.post(
     '/generate-link',
-    validateGenerateInviteLink,
+    ...validateGenerateInviteLink,
     classInviteMiddleware.rateLimitInviteOperations,
-    classInviteController.generateInviteLink
+    classInviteController.generateInviteLink.bind(classInviteController)
 );
 
 // Invite by email
 router.post(
     '/email',
-    validateInviteByEmail,
+    ...validateInviteByEmail,
     classInviteMiddleware.rateLimitInviteOperations,
-    classInviteController.inviteByEmail
+    classInviteController.inviteByEmail.bind(classInviteController)
 );
 
 // Get invites for class
 router.get(
     '/',
-    classInviteController.getInvitesForClass
+    classInviteController.getInvitesForClass.bind(classInviteController)
 );
 
 // Regenerate invite link
 router.post(
     '/regenerate',
-    validateGenerateInviteLink,
-    classInviteController.regenerateInviteLink
+    ...validateGenerateInviteLink,
+    classInviteController.regenerateInviteLink.bind(classInviteController)
 );
 
 // Get invite statistics
 router.get(
     '/stats',
-    classInviteController.getInviteStats
+    classInviteController.getInviteStats.bind(classInviteController)
 );
 
 export const teacherClassInviteRoutes = router;
