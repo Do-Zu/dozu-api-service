@@ -10,5 +10,6 @@ router.get('/', assignmentController.getAssignmentsForClass);
 router.post('/', assignmentController.createAssignment);
 router.get('/:assignmentId', paramsValidator.validateId('assignmentId'), assignmentController.getAssignmentById);
 router.put('/:assignmentId', paramsValidator.validateId('assignmentId'), assignmentController.updateAssignmentById);
+router.delete('/:assignmentId', paramsValidator.validateId('assignmentId'), assignmentController.deleteAssignmentById);
 
 export const teacherAssignmentRoutes = router;

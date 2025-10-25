@@ -84,6 +84,22 @@ class AssignmentController {
 
         SuccessResponse.ok(res, result);
     }
+
+    public async deleteAssignmentById(req: Request, res: Response) {
+        const classId = requestHelper.getIdParam(req, 'classId');
+        const assignmentId = requestHelper.getIdParam(req, 'assignmentId');
+
+        const [result]: IAssignment[] = await db
+            .delete(assignmentsTable)
+            .where(and(eq(assignmentsTable.assignmentId, assignmentId), eq(assignmentsTable.classId, classId)))
+            .returning();
+
+        if (!result) {
+            throw new NotFoundError('Assignment not found');
+        }
+
+        SuccessResponse.ok(res, result.assignmentId);
+    }
 }
 
 export default new AssignmentController();

@@ -4,7 +4,7 @@ export const insertAssignmentSchema = z.object({
     classId: z.number(),
     teacherId: z.number(),
     topicId: z.union([z.number(), z.undefined()]).optional().nullable(),
-    title: z.string(),
+    title: z.string().min(1, { message: 'Title must be at least 1 character' }),
     content: z.union([z.string(), z.undefined()]).optional(),
     deadline: z
         .union([z.null(), z.coerce.date()])
@@ -20,7 +20,7 @@ export const insertAssignmentSchema = z.object({
 
 export const updateAssignmentSchema = z.object({
     topicId: z.union([z.number(), z.undefined()]).optional().nullable(),
-    title: z.string(),
+    title: z.string().min(1, { message: 'Title must be at least 1 character' }),
     content: z.union([z.string(), z.undefined()]).optional(),
     deadline: z
         .union([z.null(), z.coerce.date()])
