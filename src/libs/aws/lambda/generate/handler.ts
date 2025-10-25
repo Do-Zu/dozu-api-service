@@ -204,7 +204,7 @@ async function generateContent(
             messages: messages,
             stream: false,
             temperature: 0.7,
-            max_tokens: 80000,
+            max_tokens: 500000,
             response_format: {
                 type: 'json_object',
             },
