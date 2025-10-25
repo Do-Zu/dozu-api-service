@@ -31,7 +31,7 @@ class AssignmentController {
     public async getAssignmentById(req: Request, res: Response) {
         const classId = requestHelper.getIdParam(req, 'classId');
         const assignmentId = requestHelper.getIdParam(req, 'assignmentId');
-        const [result]: IAssignment[] | undefined = await db
+        const [result]: IAssignment[] = await db
             .select()
             .from(assignmentsTable)
             .where(and(eq(assignmentsTable.assignmentId, assignmentId), eq(assignmentsTable.classId, classId)))
