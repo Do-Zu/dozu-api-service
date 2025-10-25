@@ -61,6 +61,7 @@ class AssignmentController {
     }
 
     public async updateAssignmentById(req: Request, res: Response) {
+        const teacherId = getUserIdFromRequest(req);
         const classId = requestHelper.getIdParam(req, 'classId');
         const assignmentId = requestHelper.getIdParam(req, 'assignmentId');
         const data = req.body as IUpdateAssignmentBody;
@@ -75,7 +76,13 @@ class AssignmentController {
         const [result]: IAssignment[] = await db
             .update(assignmentsTable)
             .set(parseResult.data)
-            .where(and(eq(assignmentsTable.assignmentId, assignmentId), eq(assignmentsTable.classId, classId)))
+            .where(
+                and(
+                    eq(assignmentsTable.assignmentId, assignmentId),
+                    eq(assignmentsTable.classId, classId),
+                    eq(assignmentsTable.teacherId, teacherId)
+                )
+            )
             .returning();
 
         if (!result) {
@@ -86,12 +93,19 @@ class AssignmentController {
     }
 
     public async deleteAssignmentById(req: Request, res: Response) {
+        const teacherId = getUserIdFromRequest(req);
         const classId = requestHelper.getIdParam(req, 'classId');
         const assignmentId = requestHelper.getIdParam(req, 'assignmentId');
 
         const [result]: IAssignment[] = await db
             .delete(assignmentsTable)
-            .where(and(eq(assignmentsTable.assignmentId, assignmentId), eq(assignmentsTable.classId, classId)))
+            .where(
+                and(
+                    eq(assignmentsTable.assignmentId, assignmentId),
+                    eq(assignmentsTable.classId, classId),
+                    eq(assignmentsTable.teacherId, teacherId)
+                )
+            )
             .returning();
 
         if (!result) {
