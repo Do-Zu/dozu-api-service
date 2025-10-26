@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, jsonb, timestamp, integer } from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, timestamp, integer } from 'drizzle-orm/pg-core';
 import { classesTable } from '../class-based-learning/class.model';
 import { topicsTable } from '../topic/topic.model';
 

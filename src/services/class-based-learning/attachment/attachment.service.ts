@@ -64,7 +64,6 @@ class AttachmentService {
         metadata,
         title,
     }: {
-        userId: number;
         contentType: string;
         metadata: object;
         title?: string;

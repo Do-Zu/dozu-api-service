@@ -5,7 +5,6 @@ import requestHelper from '@/core/request/request.helper';
 import { createLearningMaterialService } from '@/services/class-based-learning/learning-material/learningMaterial.service';
 
 export const createLearningMaterialController = async (req: Request, res: Response) => {
-    // const topicId = parseInt(req.params.topicId);
     if (!req.body || !req.body.title) {
         throw new BadRequest('Invalid request');
     }
