@@ -12,13 +12,12 @@ import learningMaterialRoutes from '@/routes/class-based-learning/learning-mater
 import classworkRoutes from '@/routes/class-based-learning/classwork.routes';
 
 import classMiddleware from '@/middleware/class-based-learning/class.middleware';
+import { assignmentRoutes } from './assignment/assignment.routes';
 
 const router = Router();
 globalAsyncHandler(router);
 
 const verifyClassAccess = [paramsValidator.validateId('classId'), classMiddleware.verifyUserCanAccessClass];
-
-
 
 const verifyTopicInClass = [
     paramsValidator.validateId('topicId'),
@@ -34,6 +33,9 @@ router.use('/teacher', validateTeacher, teacherClassRoutes);
 router.use('/:classId/topics/:topicId/comments', ...verifyClassAccess, ...verifyTopicInClass, classTopicCommentRoutes);
 router.use('/:classId/learning-material',...verifyClassAccess, learningMaterialRoutes);
 router.use('/:classId/classwork',...verifyClassAccess, classworkRoutes);
+
+// for assignment feature
+router.use('/:classId/assignments', ...verifyClassAccess, assignmentRoutes);
 
 registerRoute('/classes', router, {
     description: 'Classes API for managing classes (of teacher)',
