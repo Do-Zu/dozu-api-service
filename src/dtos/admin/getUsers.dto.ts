@@ -7,6 +7,7 @@ export const getUsersQuerySchema = z.object({
   isActive: booleanString.optional(),
   isVerified: booleanString.optional(),
   hasCompletedOnboarding: booleanString.optional(),
+  planType: z.enum(['free', 'pro']).optional(),
 });
 
 export type GetUsersQueryDto = z.infer<typeof getUsersQuerySchema>;
