@@ -101,12 +101,12 @@ export class UploadFileService {
                 'text/html',
                 'text/xml',
                 // Images
-                // 'image/jpeg',
-                // 'image/png',
-                // 'image/gif',
-                // 'image/bmp',
-                // 'image/webp',
-                // 'image/svg+xml',
+                'image/jpeg',
+                'image/png',
+                'image/gif',
+                'image/bmp',
+                'image/webp',
+                'image/svg+xml',
                 // Archives
                 'application/zip',
                 'application/x-rar-compressed',
@@ -115,7 +115,7 @@ export class UploadFileService {
                 'application/gzip',
             ],
             uploadDir: config?.uploadDir || generateConfig.uploadDir,
-            allowedExtensions: config?.allowedExtensions || ['.pdf', '.doc', '.docx', '.txt', '.md'],
+            allowedExtensions: config?.allowedExtensions || ['.pdf', '.doc', '.docx', '.txt', '.md', '.jpeg', '.png'],
         };
     }
 
