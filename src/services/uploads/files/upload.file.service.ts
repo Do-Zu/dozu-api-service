@@ -99,7 +99,16 @@ export class UploadFileService {
                 'application/gzip',
             ],
             uploadDir: config?.uploadDir || generateConfig.uploadDir,
-            allowedExtensions: config?.allowedExtensions || ['.pdf', '.doc', '.docx', '.txt', '.md', ',jpeg', '.png'],
+            allowedExtensions: config?.allowedExtensions || [
+                '.pdf',
+                '.doc',
+                '.docx',
+                '.txt',
+                '.md',
+                '.jpeg',
+                '.png',
+                '.jpg',
+            ],
         };
 
         // Ensure upload directory exists
