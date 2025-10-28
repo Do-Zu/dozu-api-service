@@ -2,7 +2,7 @@ import express from 'express';
 import { registerRoute } from '../../register.routes';
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 
-import { createLearningMaterialController } from '@/controllers/class-based-learning/learning-material/learningMaterial.controller';
+import { createLearningMaterialController, getLearningMaterialController } from '@/controllers/class-based-learning/learning-material/learningMaterial.controller';
 
 const router = express.Router();
 
@@ -21,6 +21,13 @@ router.post(
     // topicMiddleware.verifyTopicByIdInBody,
     // topicMiddleware.verifyUserCanAccessTopic,
     createLearningMaterialController
+);
+
+router.get(
+    '/:learningMaterialId',
+    // topicMiddleware.verifyTopicByIdInBody,
+    // topicMiddleware.verifyUserCanAccessTopic,
+    getLearningMaterialController
 );
 
 registerRoute('/learning-material', router, {

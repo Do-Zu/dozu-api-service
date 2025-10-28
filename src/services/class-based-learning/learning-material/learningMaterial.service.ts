@@ -1,10 +1,14 @@
 import { TypeInsertLearningMaterial, TypeSelectAttachment, TypeSelectLearningMaterial } from '@/models';
-import { insertLearningMaterial } from '@/repositories/class-based-learning/learning-material/learningMaterial.repo';
+import {
+    getLearningMaterial,
+    insertLearningMaterial,
+} from '@/repositories/class-based-learning/learning-material/learningMaterial.repo';
 import { attachmentService } from '../attachment/attachment.service';
+import { ReturnAttachment } from '@/types/class-based-learning/attachment/attachment.type';
 
 type LearningMaterialWithAttachments = {
     learningMaterial: TypeSelectLearningMaterial;
-    attachments?: TypeSelectAttachment[];
+    attachments?: ReturnAttachment[];
 };
 
 interface IInputResource {
@@ -12,6 +16,18 @@ interface IInputResource {
     contentType: string;
     metadata: object;
 }
+
+const getAttachmentsOfLearningMaterial = async ({
+    learningMaterialId,
+}: {
+    learningMaterialId: number;
+}): Promise<ReturnAttachment[]> => {
+    //call attachment service
+    const returnAttachments = await attachmentService.getAttachmentsOfLearningMaterial({
+        learningMaterialId: learningMaterialId,
+    });
+    return returnAttachments;
+};
 
 type LearningMaterialResult =
     | {
@@ -31,7 +47,7 @@ export const createLearningMaterialService = async ({
     description: string;
     topicId?: number;
     classId: number;
-    inputResources?: IInputResource[]; 
+    inputResources?: IInputResource[];
 }): Promise<LearningMaterialResult> => {
     let addedAttachments;
     if (inputResources) {
@@ -64,6 +80,35 @@ export const createLearningMaterialService = async ({
             learningMaterialWithAttachments: {
                 learningMaterial: resultLearningMaterial,
                 attachments: addedAttachments,
+            },
+        };
+    }
+};
+
+export const getLearningMaterialService = async ({
+    learningMaterialId,
+}: {
+    learningMaterialId: number;
+}): Promise<LearningMaterialResult> => {
+    const resultLearningMaterial = await getLearningMaterial({ learningMaterialId: learningMaterialId });
+    //get attachments
+    const resultAttachments = await getAttachmentsOfLearningMaterial({ learningMaterialId: learningMaterialId });
+
+    if (!resultLearningMaterial) {
+        return { success: false, reason: 'Internal server error' };
+    } else if (resultLearningMaterial && !resultAttachments) {
+        return {
+            success: true,
+            learningMaterialWithAttachments: {
+                learningMaterial: resultLearningMaterial,
+            },
+        };
+    } else {
+        return {
+            success: true,
+            learningMaterialWithAttachments: {
+                learningMaterial: resultLearningMaterial,
+                attachments: resultAttachments,
             },
         };
     }

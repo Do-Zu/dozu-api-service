@@ -5,6 +5,7 @@ import {
     TypeSelectAttachment,
 } from '@/models';
 import db from '@/libs/drizzleClient.lib';
+import { eq } from 'drizzle-orm';
 
 export const insertAttachment = async (newAttachment: TypeInsertAttachment): Promise<TypeSelectAttachment> => {
     const [insertedAttachment] = await db.insert(attachmentTable).values(newAttachment).returning();
@@ -26,4 +27,27 @@ export const addAttachmentsToLearningMaterial = async (
         learningMaterialId: attachmentInLearningMaterialTable.learningMaterialId,
     });
     return addedAttachmentInfos;
+};
+
+export const getAttachmentsOfLearningMaterial = async ({
+    learningMaterialId,
+}: {
+    learningMaterialId: number;
+}): Promise<TypeSelectAttachment[]> => {
+    const returnAttachments = await db
+        .select({
+            attachmentId: attachmentTable.attachmentId,
+            title: attachmentTable.title,
+            description: attachmentTable.description,
+            contentType: attachmentTable.contentType,
+            metadata: attachmentTable.metadata,
+            createdAt: attachmentTable.createdAt,
+        })
+        .from(attachmentTable)
+        .innerJoin(
+            attachmentInLearningMaterialTable,
+            eq(attachmentInLearningMaterialTable.attachmentId, attachmentTable.attachmentId)
+        )
+        .where(eq(attachmentInLearningMaterialTable.learningMaterialId, learningMaterialId));
+    return returnAttachments;
 };
