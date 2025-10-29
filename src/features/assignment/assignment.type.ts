@@ -1,4 +1,5 @@
 import { assignmentsTable } from '@/models/class-based-learning/assignment/assignment.model';
+import { IInputResource } from '@/types/class-based-learning/classwork/attachment.type';
 
 export enum AssignmentStatusEnum {
     DRAFT = 'draft',
@@ -15,7 +16,7 @@ export type InsertAssignment = typeof assignmentsTable.$inferInsert;
 export type InsertAssignmentBody = Pick<
     InsertAssignment,
     'topicId' | 'title' | 'content' | 'deadline' | 'totalGrades' | 'status' | 'acceptingSubmissions'
->;
+> & { inputResources?: IInputResource[] };
 
 export type IUpdateAssignment = Pick<
     InsertAssignment,

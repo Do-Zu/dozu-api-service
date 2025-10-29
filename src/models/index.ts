@@ -91,7 +91,13 @@ export * from '@/models/anki-setting/ankiSetting.model';
 
 export * from '@/models/topic/userTopicSetting.model';
 
+// assignments
 export * from '@/models/class-based-learning/assignment';
+
+export * from '@/models/class-based-learning/assignment/assignmentAttachments.model';
+
+export * from '@/models/class-based-learning/assignment/assignmentSubmission.model';
+
 //learning material
 
 export * from '@/models/learning-material/learningMaterial.model';

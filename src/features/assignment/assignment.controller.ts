@@ -16,6 +16,9 @@ import requestHelper from '@/core/request/request.helper';
 import { insertAssignmentSchema, updateAssignmentSchema } from './assignment.schema';
 import { BadRequest, NotFoundError } from '@/core/error';
 import { getCurrentDateInTimeZone } from '@/utils/date';
+import { IAddedAttachment, inputResourcesSchema } from '@/types/class-based-learning/classwork/attachment.type';
+import { attachmentService } from '@/services/class-based-learning/attachment/attachment.service';
+import assignmentAttachmentService from './assignmentAttachment.service';
 
 class AssignmentController {
     public async getAssignmentsForClass(req: Request, res: Response) {
@@ -49,13 +52,37 @@ class AssignmentController {
         const classId = requestHelper.getIdParam(req, 'classId');
         const data = req.body as InsertAssignmentBody;
         const value: InsertAssignment = { ...data, teacherId, classId };
+        let addedAttachments: IAddedAttachment[] | undefined = undefined;
 
-        const parseResult = insertAssignmentSchema.safeParse(value);
-        if (!parseResult.success) {
+        // handle insert attachments from inputResources
+        if (data.inputResources && data.inputResources.length > 0) {
+            const inputResourcesParseResult = inputResourcesSchema.safeParse(data.inputResources);
+            if (inputResourcesParseResult.error) {
+                throw new BadRequest('Invalid attachment request');
+            }
+            const validAttachments = inputResourcesParseResult.data;
+            addedAttachments = await attachmentService.handleInsertMultipleResources({
+                inputResources: validAttachments,
+            });
+        }
+        const assignmentParseResult = insertAssignmentSchema.safeParse(value);
+        if (assignmentParseResult.error) {
             throw new BadRequest('Invalid request');
         }
 
-        const [result]: IAssignment[] = await db.insert(assignmentsTable).values(parseResult.data).returning();
+        // handle insert assignments
+        const [result]: IAssignment[] = await db
+            .insert(assignmentsTable)
+            .values(assignmentParseResult.data)
+            .returning();
+
+        // handle link addedAttachments to assignments table
+        if (addedAttachments) {
+            await assignmentAttachmentService.linkAttachmentsToAssignment({
+                assignmentId: result.assignmentId,
+                attachments: addedAttachments,
+            });
+        }
 
         SuccessResponse.created(res, result);
     }
