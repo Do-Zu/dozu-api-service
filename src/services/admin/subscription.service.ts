@@ -171,8 +171,10 @@ class AdminSubscriptionService {
         const feature = await this.getFeatureById(featureId);
         if (!feature) throw new NotFoundError('Feature not found');
 
+        await db.delete(planFeaturesTable).where(eq(planFeaturesTable.featureId, featureId));
         await db.delete(featuresTable).where(eq(featuresTable.featureId, featureId));
-        return true;
+        
+        return { success: true, message: 'Feature deleted successfully' };
     }
 
     // ============ PLAN-FEATURE MAPPING ============
