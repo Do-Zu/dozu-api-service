@@ -9,13 +9,12 @@ globalAsyncHandler(router);
 router.use(authMiddleware);
 router.use(validateAdmin);
 
-// Payment tracking routes
+router.get('/export/csv', adminPaymentController.exportPaymentsCsv.bind(adminPaymentController));
+router.get('/stats', adminPaymentController.getPaymentStats.bind(adminPaymentController));
 router.get('/transactions', adminPaymentController.getAllPayments.bind(adminPaymentController));
+router.post('/transactions/refund', adminPaymentController.refundTransaction.bind(adminPaymentController));
 router.get('/transactions/:id', adminPaymentController.getPaymentById.bind(adminPaymentController));
 router.patch('/transactions/:id/status', adminPaymentController.updateTransactionStatus.bind(adminPaymentController));
-router.post('/transactions/refund', adminPaymentController.refundTransaction.bind(adminPaymentController));
-router.get('/stats', adminPaymentController.getPaymentStats.bind(adminPaymentController));
-router.get('/export/csv', adminPaymentController.exportPaymentsCsv.bind(adminPaymentController));
 
 registerRoute('/admin/payments', router, {
     description: 'Admin Payment Tracking API',

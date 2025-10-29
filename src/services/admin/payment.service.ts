@@ -16,7 +16,7 @@ class AdminPaymentService {
         const conditions = [];
         
         if (status) conditions.push(eq(transactionsModel.status, status));
-        if (gateway) conditions.push(eq(transactionsModel.gateway, gateway));
+        if (gateway) conditions.push(ilike(transactionsModel.gateway, gateway)); // Case-insensitive
         if (startDate) conditions.push(gte(transactionsModel.transactionDate, new Date(startDate)));
         if (endDate) conditions.push(lte(transactionsModel.transactionDate, new Date(endDate)));
         
@@ -244,7 +244,7 @@ class AdminPaymentService {
         
         const conditions = [];
         if (status) conditions.push(eq(transactionsModel.status, status));
-        if (gateway) conditions.push(eq(transactionsModel.gateway, gateway));
+        if (gateway) conditions.push(ilike(transactionsModel.gateway, gateway)); // Case-insensitive
         if (startDate) conditions.push(gte(transactionsModel.transactionDate, new Date(startDate)));
         if (endDate) conditions.push(lte(transactionsModel.transactionDate, new Date(endDate)));
         if (search) {

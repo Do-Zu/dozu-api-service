@@ -1,6 +1,6 @@
 import db from '@/libs/drizzleClient.lib';
 import { eq, and, desc } from 'drizzle-orm';
-import { plansTable, featuresTable, planFeaturesTable } from '@/models/subscription';
+import { plansTable, featuresTable, planFeaturesTable, userSubscriptionsTable } from '@/models/subscription';
 import { NotFoundError, BadRequest } from '@/core/error';
 import {
     CreatePlanDto,
@@ -29,6 +29,24 @@ class AdminSubscriptionService {
     }
 
     async createPlan(data: CreatePlanDto) {
+        // Check if plan with same type and interval already exists
+        const existing = await db
+            .select()
+            .from(plansTable)
+            .where(
+                and(
+                    eq(plansTable.planType, data.planType),
+                    eq(plansTable.billingInterval, data.billingInterval)
+                )
+            )
+            .limit(1);
+
+        if (existing.length > 0) {
+            throw new BadRequest(
+                `A ${data.planType} plan with ${data.billingInterval} billing already exists`
+            );
+        }
+
         const result = await db.insert(plansTable).values({
             name: data.name,
             description: data.description,
@@ -75,12 +93,29 @@ class AdminSubscriptionService {
         const plan = await this.getPlanById(planId);
         if (!plan) throw new NotFoundError('Plan not found');
 
-        // Check if any active subscriptions exist for this plan
-        // This would require joining with userSubscriptionsTable
-        // For now, we'll just delete
+        // Check if any users are currently subscribed to this plan
+        const activeSubscriptions = await db
+            .select()
+            .from(userSubscriptionsTable)
+            .where(
+                and(
+                    eq(userSubscriptionsTable.planId, planId),
+                    eq(userSubscriptionsTable.status, 'active')
+                )
+            )
+            .limit(1);
 
+        if (activeSubscriptions.length > 0) {
+            throw new BadRequest('Cannot delete plan with active subscriptions. Please deactivate it instead.');
+        }
+
+        // Delete plan features first (foreign key constraint)
+        await db.delete(planFeaturesTable).where(eq(planFeaturesTable.planId, planId));
+
+        // Delete the plan
         await db.delete(plansTable).where(eq(plansTable.planId, planId));
-        return true;
+
+        return { success: true, message: 'Plan deleted successfully' };
     }
 
     // ============ FEATURE MANAGEMENT ============

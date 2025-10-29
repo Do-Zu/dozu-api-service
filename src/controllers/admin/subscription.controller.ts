@@ -73,8 +73,8 @@ class AdminSubscriptionController {
 
     async deletePlan(req: Request, res: Response) {
         const planId = parseInt(req.params.id);
-        await adminSubscriptionService.deletePlan(planId);
-        SuccessResponse.ok(res, null, 'Plan deleted successfully');
+        const result = await adminSubscriptionService.deletePlan(planId);
+        SuccessResponse.ok(res, result, 'Plan deleted successfully');
     }
 
     // ============ FEATURE MANAGEMENT ============
