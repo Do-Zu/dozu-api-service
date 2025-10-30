@@ -22,3 +22,6 @@ export const classQuizAttemptsTable = pgTable('class_quiz_attempts', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }),
 });
+
+export type IClassQuizAttempt = typeof classQuizAttemptsTable.$inferSelect;
+export type IClassQuizAttemptInsert = typeof classQuizAttemptsTable.$inferInsert;

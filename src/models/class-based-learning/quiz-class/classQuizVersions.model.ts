@@ -11,3 +11,5 @@ export const classQuizVersionsTable = pgTable('class_quiz_versions', {
 
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+export type IClassQuizVersion = typeof classQuizVersionsTable.$inferSelect;
+export type IClassQuizVersionInsert = typeof classQuizVersionsTable.$inferInsert;

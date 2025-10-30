@@ -14,10 +14,10 @@ export const classQuizzesTable = pgTable('class_quizzes', {
   content: text('content').notNull().default(''),
   quizId: integer('quiz_id').notNull().references(() => quizzesTable.quizId, { onDelete: 'cascade' }),
 
-  // lịch Hybrid
-  startAt: timestamp('start_at', { withTimezone: true }),   // optional: thi theo đợt
-  endAt: timestamp('end_at', { withTimezone: true }),       // optional: thi theo đợt
-  durationSeconds: integer('duration_seconds'),             // optional: per-attempt
+  //Hybrid
+  startAt: timestamp('start_at', { withTimezone: true }),   
+  endAt: timestamp('end_at', { withTimezone: true }),       
+  durationSeconds: integer('duration_seconds'),             
 
   // rule & display
   maxAttempts: integer('max_attempts').notNull().default(1),
@@ -32,3 +32,6 @@ export const classQuizzesTable = pgTable('class_quizzes', {
   updatedAt: timestamp('updated_at', { withTimezone: true }),
   publishedAt: timestamp('published_at', { withTimezone: true }),
 });
+
+export type IClassQuiz = typeof classQuizzesTable.$inferSelect;
+export type IClassQuizInsert = typeof classQuizzesTable.$inferInsert;
