@@ -11,7 +11,10 @@ class AssignmentSubmissionService {
         studentId: number;
     }) {
         const data: InsertAssignmentSubmission = { studentId, assignmentId };
-        const [result]: IAssignmentSubmission[] = await db.insert(assignmentSubmissionsTable).values(data).returning();
+        const [result] = (await db.insert(assignmentSubmissionsTable).values(data).returning()) as (
+            | IAssignmentSubmission
+            | undefined
+        )[];
 
         return result;
     }

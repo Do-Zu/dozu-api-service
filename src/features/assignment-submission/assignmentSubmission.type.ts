@@ -1,5 +1,6 @@
-import { assignmentSubmissionsTable } from '@/models';
+import { assignmentSubmissionsTable, TypeSelectAttachment } from '@/models';
 import { SanitizedUser } from '@/types/auth/sanitizedUser.type';
+import { IInputResource } from '@/types/class-based-learning/classwork/attachment.type';
 
 export enum AssignmentSubmissionStatusEnum {
     DRAFT = 'draft',
@@ -18,9 +19,16 @@ export type IUpdateAssignmentSubmission = Pick<
     'updatedAt' | 'status' | 'grade' | 'submittedAt' | 'returnedAt'
 >;
 
-export type IUpdateAssignmentSubmissionBody = Pick<IUpdateAssignmentSubmission, 'status'>;
+export type IUpdateAssignmentSubmissionBody = Pick<IUpdateAssignmentSubmission, 'status'> & {
+    inputResources?: IInputResource[];
+};
 
 export interface IAssignmentSubmissionWithStudent {
     submission: IAssignmentSubmission;
     student: Pick<SanitizedUser, 'userId' | 'fullName' | 'avatarUrl'>;
 }
+
+export type IAssignmentSubmissionWithAttachments = {
+    assignmentSubmission: IAssignmentSubmission;
+    attachments: TypeSelectAttachment[];
+};

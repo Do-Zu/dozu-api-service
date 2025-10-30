@@ -1,15 +1,16 @@
 import db from '@/libs/drizzleClient.lib';
 import requestHelper from '@/core/request/request.helper';
 import { Request, Response } from 'express';
-import { assignmentSubmissionsTable, usersTable } from '@/models';
+import { assignmentSubmissionsTable, TypeSelectAttachment, usersTable } from '@/models';
 import { and, eq, getTableColumns } from 'drizzle-orm';
 import { SuccessResponse } from '@/core/success';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
-import { BadRequest, NotFoundError } from '@/core/error';
+import { BadRequest, InternalServerError, NotFoundError } from '@/core/error';
 import {
     AssignmentSubmissionStatusEnum,
     IAssignmentSubmission,
     IAssignmentSubmissionStatus,
+    IAssignmentSubmissionWithAttachments,
     IAssignmentSubmissionWithStudent,
     InsertAssignmentSubmission,
     InsertAssignmentSubmissionBody,
@@ -21,13 +22,16 @@ import {
     updateAssignmentSubmissionSchema,
 } from './assignmentSubmission.schema';
 import assignmentSubmissionService from './assignmentSubmission.service';
+import { IAddedAttachment, inputResourcesSchema } from '@/types/class-based-learning/classwork/attachment.type';
+import { attachmentService } from '@/services/class-based-learning/attachment/attachment.service';
+import assignmentSubmissionAttachmentService from './assignmentSubmissionAttachment.service';
 
 class AssignmentSubmissionController {
     // update, get from id
     public async getAssignmentSubmission(req: Request, res: Response) {
         const userId = getUserIdFromRequest(req);
         const assignmentId = requestHelper.getIdParam(req, 'assignmentId');
-        let [result]: IAssignmentSubmission[] = await db
+        let [submission] = (await db
             .select()
             .from(assignmentSubmissionsTable)
             .where(
@@ -35,19 +39,29 @@ class AssignmentSubmissionController {
                     eq(assignmentSubmissionsTable.assignmentId, assignmentId),
                     eq(assignmentSubmissionsTable.studentId, userId)
                 )
-            );
+            )) as (IAssignmentSubmission | undefined)[];
 
         // needed to be verified
-        if (!result) {
-            result = await assignmentSubmissionService.createDefaultAssignmentSubmission({
+        if (!submission) {
+            submission = await assignmentSubmissionService.createDefaultAssignmentSubmission({
                 assignmentId,
                 studentId: userId,
             });
         }
 
-        if (!result) {
+        if (!submission) {
             throw new NotFoundError('Submission not found');
         }
+
+        const attachments: TypeSelectAttachment[] =
+            await assignmentSubmissionAttachmentService.getSubmissionAttachmentsDetails({
+                submissionId: submission.submissionId,
+            });
+
+        const result: IAssignmentSubmissionWithAttachments = {
+            assignmentSubmission: submission,
+            attachments,
+        };
 
         SuccessResponse.ok(res, result);
     }
@@ -62,10 +76,14 @@ class AssignmentSubmissionController {
             throw new BadRequest('Invalid request');
         }
 
-        const [result]: IAssignmentSubmission[] = await db
-            .insert(assignmentSubmissionsTable)
-            .values(parseResult.data)
-            .returning();
+        const [result] = (await db.insert(assignmentSubmissionsTable).values(parseResult.data).returning()) as (
+            | IAssignmentSubmission
+            | undefined
+        )[];
+
+        if (!result) {
+            throw new InternalServerError('Cannot create submission');
+        }
 
         // handle files
 
@@ -73,30 +91,58 @@ class AssignmentSubmissionController {
     }
 
     public async updateAssignmentSubmissionById(req: Request, res: Response) {
+        const userId = getUserIdFromRequest(req);
         const assignmentId = requestHelper.getIdParam(req, 'assignmentId');
         const submissionId = requestHelper.getIdParam(req, 'submissionId');
         const submission = req.body as IUpdateAssignmentSubmissionBody;
         const { status } = submission;
+
+        let addedAttachments: IAddedAttachment[] | undefined = undefined;
+
+        // handle insert attachments from inputResources
+        if (submission.inputResources && submission.inputResources.length > 0) {
+            const inputResourcesParseResult = inputResourcesSchema.safeParse(submission.inputResources);
+            if (inputResourcesParseResult.error) {
+                throw new BadRequest('Invalid attachment request');
+            }
+            const validAttachments = inputResourcesParseResult.data;
+            addedAttachments = await attachmentService.handleInsertMultipleResources({
+                inputResources: validAttachments,
+            });
+        }
 
         const parseResult = updateAssignmentSubmissionSchema.safeParse({ status });
         if (parseResult.error) {
             throw new BadRequest('Invalid request');
         }
 
-        const [result]: IAssignmentSubmission[] = await db
+        const [updatedSubmission] = (await db
             .update(assignmentSubmissionsTable)
             .set(parseResult.data)
             .where(
                 and(
                     eq(assignmentSubmissionsTable.assignmentId, assignmentId),
-                    eq(assignmentSubmissionsTable.submissionId, submissionId)
+                    eq(assignmentSubmissionsTable.submissionId, submissionId),
+                    eq(assignmentSubmissionsTable.studentId, userId)
                 )
             )
-            .returning();
+            .returning()) as (IAssignmentSubmission | undefined)[];
 
-        if (!result) {
+        if (!updatedSubmission) {
             throw new NotFoundError('Submission not found');
         }
+
+        if (addedAttachments) {
+            await assignmentSubmissionAttachmentService.linkAttachmentsToSubmission({
+                submissionId: updatedSubmission.submissionId,
+                attachments: addedAttachments,
+            });
+        }
+
+        const result: {
+            updatedAssignmentSubmission: IAssignmentSubmission;
+            addedAttachments: IAddedAttachment[];
+        } = { updatedAssignmentSubmission: updatedSubmission, addedAttachments: addedAttachments ?? [] };
 
         SuccessResponse.ok(res, result);
     }
@@ -131,7 +177,7 @@ class AssignmentSubmissionController {
 
         const status = AssignmentSubmissionStatusEnum.RETURNED;
         const data: { grade: number; status: IAssignmentSubmissionStatus } = { grade, status };
-        const [result] = await db
+        const [result] = (await db
             .update(assignmentSubmissionsTable)
             .set(data)
             .where(
@@ -140,7 +186,7 @@ class AssignmentSubmissionController {
                     eq(assignmentSubmissionsTable.submissionId, submissionId)
                 )
             )
-            .returning();
+            .returning()) as (IAssignmentSubmission | undefined)[];
 
         if (!result) {
             throw new NotFoundError('Submission not found');

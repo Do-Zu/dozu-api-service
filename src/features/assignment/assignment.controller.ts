@@ -3,6 +3,7 @@ import db from '@/libs/drizzleClient.lib';
 import { Request, Response } from 'express';
 import {
     IAssignment,
+    IAssignmentWithAttachments,
     InsertAssignment,
     InsertAssignmentBody,
     IUpdateAssignment,
@@ -14,11 +15,12 @@ import { SuccessResponse } from '@/core/success';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import requestHelper from '@/core/request/request.helper';
 import { insertAssignmentSchema, updateAssignmentSchema } from './assignment.schema';
-import { BadRequest, NotFoundError } from '@/core/error';
+import { BadRequest, InternalServerError, NotFoundError } from '@/core/error';
 import { getCurrentDateInTimeZone } from '@/utils/date';
 import { IAddedAttachment, inputResourcesSchema } from '@/types/class-based-learning/classwork/attachment.type';
 import { attachmentService } from '@/services/class-based-learning/attachment/attachment.service';
 import assignmentAttachmentService from './assignmentAttachment.service';
+import { TypeSelectAttachment } from '@/models';
 
 class AssignmentController {
     public async getAssignmentsForClass(req: Request, res: Response) {
@@ -34,15 +36,21 @@ class AssignmentController {
     public async getAssignmentById(req: Request, res: Response) {
         const classId = requestHelper.getIdParam(req, 'classId');
         const assignmentId = requestHelper.getIdParam(req, 'assignmentId');
-        const [result]: IAssignment[] = await db
+        const [assignment] = (await db
             .select()
             .from(assignmentsTable)
             .where(and(eq(assignmentsTable.assignmentId, assignmentId), eq(assignmentsTable.classId, classId)))
-            .limit(1);
+            .limit(1)) as (IAssignment | undefined)[];
 
-        if (!result) {
+        if (!assignment) {
             throw new NotFoundError('Assignment not found');
         }
+
+        const attachments: TypeSelectAttachment[] = await assignmentAttachmentService.getAssignmentAttachmentsDetails({
+            assignmentId,
+        });
+
+        const result: IAssignmentWithAttachments = { assignment, attachments };
 
         SuccessResponse.ok(res, result);
     }
@@ -71,10 +79,14 @@ class AssignmentController {
         }
 
         // handle insert assignments
-        const [result]: IAssignment[] = await db
-            .insert(assignmentsTable)
-            .values(assignmentParseResult.data)
-            .returning();
+        const [result] = (await db.insert(assignmentsTable).values(assignmentParseResult.data).returning()) as (
+            | IAssignment
+            | undefined
+        )[];
+
+        if (!result) {
+            throw new InternalServerError('Cannot create assignment');
+        }
 
         // handle link addedAttachments to assignments table
         if (addedAttachments) {
@@ -94,13 +106,26 @@ class AssignmentController {
         const data = req.body as IUpdateAssignmentBody;
         const currentDate = getCurrentDateInTimeZone();
         const value: IUpdateAssignment = { ...data, updatedAt: currentDate };
+        let addedAttachments: IAddedAttachment[] | undefined = undefined;
+
+        // handle insert attachments from inputResources
+        if (data.inputResources && data.inputResources.length > 0) {
+            const inputResourcesParseResult = inputResourcesSchema.safeParse(data.inputResources);
+            if (inputResourcesParseResult.error) {
+                throw new BadRequest('Invalid attachment request');
+            }
+            const validAttachments = inputResourcesParseResult.data;
+            addedAttachments = await attachmentService.handleInsertMultipleResources({
+                inputResources: validAttachments,
+            });
+        }
 
         const parseResult = updateAssignmentSchema.safeParse(value);
         if (!parseResult.success) {
             throw new BadRequest('Invalid request');
         }
 
-        const [result]: IAssignment[] = await db
+        const [result] = (await db
             .update(assignmentsTable)
             .set(parseResult.data)
             .where(
@@ -110,10 +135,18 @@ class AssignmentController {
                     eq(assignmentsTable.teacherId, teacherId)
                 )
             )
-            .returning();
+            .returning()) as (IAssignment | undefined)[];
 
         if (!result) {
             throw new NotFoundError('Assignment not found');
+        }
+
+        // handle link addedAttachments to assignments table
+        if (addedAttachments) {
+            await assignmentAttachmentService.linkAttachmentsToAssignment({
+                assignmentId: result.assignmentId,
+                attachments: addedAttachments,
+            });
         }
 
         SuccessResponse.ok(res, result);
@@ -124,7 +157,7 @@ class AssignmentController {
         const classId = requestHelper.getIdParam(req, 'classId');
         const assignmentId = requestHelper.getIdParam(req, 'assignmentId');
 
-        const [result]: IAssignment[] = await db
+        const [result] = (await db
             .delete(assignmentsTable)
             .where(
                 and(
@@ -133,7 +166,7 @@ class AssignmentController {
                     eq(assignmentsTable.teacherId, teacherId)
                 )
             )
-            .returning();
+            .returning()) as (IAssignment | undefined)[];
 
         if (!result) {
             throw new NotFoundError('Assignment not found');

@@ -1,3 +1,4 @@
+import { TypeSelectAttachment } from '@/models';
 import { assignmentsTable } from '@/models/class-based-learning/assignment/assignment.model';
 import { IInputResource } from '@/types/class-based-learning/classwork/attachment.type';
 
@@ -31,4 +32,11 @@ export type IUpdateAssignment = Pick<
     | 'updatedAt'
 >;
 
-export type IUpdateAssignmentBody = Omit<IUpdateAssignment, 'publishedAt' | 'updatedAt'>;
+export type IUpdateAssignmentBody = Omit<IUpdateAssignment, 'publishedAt' | 'updatedAt'> & {
+    inputResources?: IInputResource[];
+};
+
+export type IAssignmentWithAttachments = {
+    assignment: IAssignment;
+    attachments: TypeSelectAttachment[];
+};

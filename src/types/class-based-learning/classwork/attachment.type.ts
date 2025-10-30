@@ -3,7 +3,7 @@ import { z } from 'zod';
 export interface IInputResource {
     title: string;
     contentType: string;
-    metadata: object;
+    metadata: Record<string, unknown>;
 }
 
 export const inputResourceSchema = z.object({
@@ -15,10 +15,10 @@ export const inputResourceSchema = z.object({
 export const inputResourcesSchema = z.array(inputResourceSchema);
 
 export interface IAddedAttachment {
+    attachmentId: number;
     createdAt: Date | null;
     description: string | null;
     title: string;
     contentType: string | null;
     metadata: unknown;
-    attachmentId: number;
 }
