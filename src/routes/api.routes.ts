@@ -41,6 +41,7 @@ import './backlog/backlog.routes';
 import './anki-setting/ankiSetting.routes';
 import './class-based-learning/learning-material/learningMaterial.routes';
 import './package/package.routes';
+import './class-based-learning/assignment/assignmentSubmission.routes';
 
 // Apply global async handler to router
 globalAsyncHandler(router);
