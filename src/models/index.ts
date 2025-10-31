@@ -75,6 +75,16 @@ export * from '@/models/teacher-request/teacherRequest.model';
 
 export * from '@/models/class-based-learning/classFeed.model';
 
+export * from '@/models/class-based-learning/quiz-class/classQuizzes.model';
+
+export * from '@/models/class-based-learning/quiz-class/classQuizVersions.model';
+
+export * from '@/models/class-based-learning/quiz-class/classQuizAttempts.model';
+
+export * from '@/models/class-based-learning/quiz-class/classQuizAttemptAnswers.model';
+
+export * from '@/models/class-based-learning/quiz-class/classQuizDraft.model';
+
 // progress
 export * from '@/models/progress/progress.model';
 
