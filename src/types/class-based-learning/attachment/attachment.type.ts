@@ -1,3 +1,3 @@
 import { TypeSelectAttachment } from '@/models';
 
-export type ReturnAttachment = TypeSelectAttachment & { presignedUrl?: string };
+export type ReturnAttachment = TypeSelectAttachment & { fileUrl?: string };

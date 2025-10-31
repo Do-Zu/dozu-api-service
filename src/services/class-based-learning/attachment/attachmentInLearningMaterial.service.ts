@@ -119,7 +119,7 @@ class AttachmentInLMService {
             return {
                 ...attachment,
                 fileUrl,
-            } as unknown as ReturnAttachment;
+            } as ReturnAttachment;
         };
 
         return attachments.map(mapAttachment);

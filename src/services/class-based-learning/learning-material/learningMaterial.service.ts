@@ -114,11 +114,14 @@ export const getLearningMaterialService = async ({
 
     if (!resultLearningMaterial) {
         return { success: false, reason: 'Internal server error' };
-    } else if (resultLearningMaterial && !resultAttachments) {
+    }
+
+    if (resultAttachments.length > 0) {
         return {
             success: true,
             learningMaterialWithAttachments: {
                 learningMaterial: resultLearningMaterial,
+                attachments: resultAttachments,
             },
         };
     } else {
@@ -126,7 +129,6 @@ export const getLearningMaterialService = async ({
             success: true,
             learningMaterialWithAttachments: {
                 learningMaterial: resultLearningMaterial,
-                attachments: resultAttachments,
             },
         };
     }
