@@ -18,6 +18,7 @@ declare global {
                     settingId?: number;
                     assignmentId?: number;
                     classQuizId?: number;
+                    submissionId?: number;
                 };
                 body?: any;
                 query?: any;

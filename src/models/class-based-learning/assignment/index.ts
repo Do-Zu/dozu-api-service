@@ -1,5 +1,7 @@
-export * from './assignment.model';
+export * from '../assignment/assignment.model';
 
-export * from './assignmentSubmission.model';
+export * from '../assignment/assignmentAttachments.model';
 
-export * from './assignmentComment.model';
+export * from '../assignment/assignmentSubmission.model';
+
+export * from '../assignment/assignmentSubmissionAttachments.model';
