@@ -21,6 +21,9 @@ class AssignmentAttachmentService {
             assignmentId,
             attachmentId: attachment.attachmentId,
         }));
+        if (!data.length) {
+            return [];
+        }
         const result: TypeSelectAssignmentAttachments[] = await db
             .insert(assignmentAttachmentsTable)
             .values(data)

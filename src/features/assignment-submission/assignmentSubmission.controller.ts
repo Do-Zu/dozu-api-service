@@ -1,8 +1,14 @@
 import db from '@/libs/drizzleClient.lib';
 import requestHelper from '@/core/request/request.helper';
 import { Request, Response } from 'express';
-import { assignmentSubmissionsTable, TypeSelectAttachment, usersTable } from '@/models';
-import { and, eq, getTableColumns, isNull, or } from 'drizzle-orm';
+import {
+    assignmentsTable,
+    assignmentSubmissionsTable,
+    classEnrollmentsTable,
+    TypeSelectAttachment,
+    usersTable,
+} from '@/models';
+import { and, eq, getTableColumns } from 'drizzle-orm';
 import { SuccessResponse } from '@/core/success';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import { BadRequest, InternalServerError, NotFoundError } from '@/core/error';
@@ -25,6 +31,8 @@ import {
 import { IAddedAttachment, inputResourcesSchema } from '@/types/class-based-learning/classwork/attachment.type';
 import { attachmentService } from '@/services/class-based-learning/attachment/attachment.service';
 import assignmentSubmissionAttachmentService from './assignmentSubmissionAttachment.service';
+import { IAssignment } from '../assignment/assignment.type';
+import classService from '@/services/class-based-learning/class.service';
 
 class AssignmentSubmissionController {
     public async getAssignmentSubmission(req: Request, res: Response) {
@@ -139,7 +147,22 @@ class AssignmentSubmissionController {
 
     // assume every students have a submission when teacher creates an assignment
     public async getAssignmentSubmissionsOfStudents(req: Request, res: Response) {
+        const teacherId = getUserIdFromRequest(req);
         const assignmentId = requestHelper.getIdParam(req, 'assignmentId');
+        const [assignment] = (await db
+            .select()
+            .from(assignmentsTable)
+            .where(eq(assignmentsTable.assignmentId, assignmentId))
+            .limit(1)) as (IAssignment | undefined)[];
+
+        if (!assignment) {
+            throw new NotFoundError('Assignment not found');
+        }
+        const isOwner = await classService.isTeacherOwnerOfClass(assignment.classId, teacherId);
+        if (!isOwner) {
+            throw new NotFoundError('Assignment not found');
+        }
+
         const result: IAssignmentSubmissionWithStudentDetails[] = [];
 
         const studentSubmissions: IAssignmentSubmissionWithStudent[] = await db
@@ -153,14 +176,16 @@ class AssignmentSubmissionController {
                 },
                 submission: { ...getTableColumns(assignmentSubmissionsTable) },
             })
-            .from(assignmentSubmissionsTable)
-            .rightJoin(usersTable, eq(assignmentSubmissionsTable.studentId, usersTable.userId))
-            .where(
-                or(
-                    eq(assignmentSubmissionsTable.assignmentId, assignmentId),
-                    isNull(assignmentSubmissionsTable.assignmentId)
+            .from(classEnrollmentsTable)
+            .innerJoin(usersTable, eq(classEnrollmentsTable.studentId, usersTable.userId))
+            .leftJoin(
+                assignmentSubmissionsTable,
+                and(
+                    eq(assignmentSubmissionsTable.studentId, usersTable.userId),
+                    eq(assignmentSubmissionsTable.assignmentId, assignmentId)
                 )
-            );
+            )
+            .where(eq(classEnrollmentsTable.classId, assignment.classId));
 
         for (const studentSubmission of studentSubmissions) {
             let attachments = null;
