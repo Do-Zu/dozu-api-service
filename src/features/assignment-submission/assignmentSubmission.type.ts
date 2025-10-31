@@ -12,7 +12,7 @@ export type IAssignmentSubmissionStatus = 'draft' | 'submitted' | 'returned';
 export type IAssignmentSubmission = typeof assignmentSubmissionsTable.$inferSelect;
 export type InsertAssignmentSubmission = typeof assignmentSubmissionsTable.$inferInsert;
 
-export type InsertAssignmentSubmissionBody = Pick<InsertAssignmentSubmission, 'studentId' | 'status'>;
+export type InsertAssignmentSubmissionBody = Pick<InsertAssignmentSubmission, 'status'>;
 
 export type IUpdateAssignmentSubmission = Pick<
     InsertAssignmentSubmission,
@@ -24,9 +24,13 @@ export type IUpdateAssignmentSubmissionBody = Pick<IUpdateAssignmentSubmission, 
 };
 
 export interface IAssignmentSubmissionWithStudent {
-    submission: IAssignmentSubmission;
-    student: Pick<SanitizedUser, 'userId' | 'fullName' | 'avatarUrl'>;
+    submission: IAssignmentSubmission | null;
+    student: Pick<SanitizedUser, 'userId' | 'fullName' | 'avatarUrl' | 'email' | 'username'>;
 }
+
+export type IAssignmentSubmissionWithStudentDetails = IAssignmentSubmissionWithStudent & {
+    attachments: TypeSelectAttachment[] | null;
+};
 
 export type IAssignmentSubmissionWithAttachments = {
     assignmentSubmission: IAssignmentSubmission;

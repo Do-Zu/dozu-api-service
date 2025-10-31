@@ -11,7 +11,7 @@ router.use(authMiddleware);
 
 // update to /:assignmentId
 router.get('/', paramsValidator.validateId('assignmentId'), assignmentSubmissionController.getAssignmentSubmission);
-router.post('/', assignmentSubmissionController.createAssignmentSubmission);
+router.post('/', paramsValidator.validateId('assignmentId'), assignmentSubmissionController.createAssignmentSubmission);
 router.put(
     '/:submissionId',
     paramsValidator.validateId('assignmentId'),

@@ -2,7 +2,7 @@ import db from '@/libs/drizzleClient.lib';
 import requestHelper from '@/core/request/request.helper';
 import { Request, Response } from 'express';
 import { assignmentSubmissionsTable, TypeSelectAttachment, usersTable } from '@/models';
-import { and, eq, getTableColumns } from 'drizzle-orm';
+import { and, eq, getTableColumns, isNull, or } from 'drizzle-orm';
 import { SuccessResponse } from '@/core/success';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import { BadRequest, InternalServerError, NotFoundError } from '@/core/error';
@@ -12,6 +12,7 @@ import {
     IAssignmentSubmissionStatus,
     IAssignmentSubmissionWithAttachments,
     IAssignmentSubmissionWithStudent,
+    IAssignmentSubmissionWithStudentDetails,
     InsertAssignmentSubmission,
     InsertAssignmentSubmissionBody,
     IUpdateAssignmentSubmissionBody,
@@ -21,13 +22,11 @@ import {
     insertAssignmentSubmissionSchema,
     updateAssignmentSubmissionSchema,
 } from './assignmentSubmission.schema';
-import assignmentSubmissionService from './assignmentSubmission.service';
 import { IAddedAttachment, inputResourcesSchema } from '@/types/class-based-learning/classwork/attachment.type';
 import { attachmentService } from '@/services/class-based-learning/attachment/attachment.service';
 import assignmentSubmissionAttachmentService from './assignmentSubmissionAttachment.service';
 
 class AssignmentSubmissionController {
-    // update, get from id
     public async getAssignmentSubmission(req: Request, res: Response) {
         const userId = getUserIdFromRequest(req);
         const assignmentId = requestHelper.getIdParam(req, 'assignmentId');
@@ -40,14 +39,6 @@ class AssignmentSubmissionController {
                     eq(assignmentSubmissionsTable.studentId, userId)
                 )
             )) as (IAssignmentSubmission | undefined)[];
-
-        // needed to be verified
-        if (!submission) {
-            submission = await assignmentSubmissionService.createDefaultAssignmentSubmission({
-                assignmentId,
-                studentId: userId,
-            });
-        }
 
         if (!submission) {
             throw new NotFoundError('Submission not found');
@@ -66,11 +57,12 @@ class AssignmentSubmissionController {
         SuccessResponse.ok(res, result);
     }
 
-    // update: need to be used after teacher creates an assignment
+    // need to create a middleware for verifying if student can create submission from that assignment
     public async createAssignmentSubmission(req: Request, res: Response) {
+        const studentId = getUserIdFromRequest(req);
         const assignmentId = requestHelper.getIdParam(req, 'assignmentId');
         const submission = req.body as InsertAssignmentSubmissionBody;
-        const data: InsertAssignmentSubmission = { ...submission, assignmentId };
+        const data: InsertAssignmentSubmission = { ...submission, studentId, assignmentId };
         const parseResult = insertAssignmentSubmissionSchema.safeParse(data);
         if (parseResult.error) {
             throw new BadRequest('Invalid request');
@@ -84,8 +76,6 @@ class AssignmentSubmissionController {
         if (!result) {
             throw new InternalServerError('Cannot create submission');
         }
-
-        // handle files
 
         SuccessResponse.created(res, result);
     }
@@ -150,17 +140,43 @@ class AssignmentSubmissionController {
     // assume every students have a submission when teacher creates an assignment
     public async getAssignmentSubmissionsOfStudents(req: Request, res: Response) {
         const assignmentId = requestHelper.getIdParam(req, 'assignmentId');
+        const result: IAssignmentSubmissionWithStudentDetails[] = [];
 
-        const submissions: IAssignmentSubmissionWithStudent[] = await db
+        const studentSubmissions: IAssignmentSubmissionWithStudent[] = await db
             .select({
-                student: { userId: usersTable.userId, fullName: usersTable.fullName, avatarUrl: usersTable.avatarUrl },
+                student: {
+                    userId: usersTable.userId,
+                    fullName: usersTable.fullName,
+                    avatarUrl: usersTable.avatarUrl,
+                    email: usersTable.email,
+                    username: usersTable.username,
+                },
                 submission: { ...getTableColumns(assignmentSubmissionsTable) },
             })
             .from(assignmentSubmissionsTable)
-            .innerJoin(usersTable, eq(assignmentSubmissionsTable.studentId, usersTable.userId))
-            .where(eq(assignmentSubmissionsTable.assignmentId, assignmentId));
+            .rightJoin(usersTable, eq(assignmentSubmissionsTable.studentId, usersTable.userId))
+            .where(
+                or(
+                    eq(assignmentSubmissionsTable.assignmentId, assignmentId),
+                    isNull(assignmentSubmissionsTable.assignmentId)
+                )
+            );
 
-        SuccessResponse.ok(res, submissions);
+        for (const studentSubmission of studentSubmissions) {
+            let attachments = null;
+            if (studentSubmission.submission) {
+                attachments = await assignmentSubmissionAttachmentService.getSubmissionAttachmentsDetails({
+                    submissionId: studentSubmission.submission.submissionId,
+                });
+            }
+
+            result.push({
+                ...studentSubmission,
+                attachments,
+            });
+        }
+
+        SuccessResponse.ok(res, result);
     }
 
     // middleware for validating teacher grading submission
