@@ -2,6 +2,7 @@ import { TypeInsertLearningMaterial, TypeSelectLearningMaterial } from '@/models
 import {
     deleteLearningMaterialById,
     getLearningMaterial,
+    getLearningMaterialOfClass,
     insertLearningMaterial,
 } from '@/repositories/class-based-learning/learning-material/learningMaterial.repo';
 import { attachmentService } from '../attachment/attachment.service';
@@ -18,6 +19,13 @@ type DeleteLearningMaterialResult =
           success: true;
           deletedLearningMaterialId: number;
           //add quiz and assignment here
+      }
+    | { success: false; reason: string };
+
+type GetLearningMaterialsOfClassResult =
+    | {
+          success: true;
+          learningMaterials: TypeSelectLearningMaterial[];
       }
     | { success: false; reason: string };
 
@@ -120,6 +128,24 @@ export const getLearningMaterialService = async ({
                 learningMaterial: resultLearningMaterial,
                 attachments: resultAttachments,
             },
+        };
+    }
+};
+
+export const getLearningMaterialsOfClassService = async ({
+    classId,
+}: {
+    classId: number;
+}): Promise<GetLearningMaterialsOfClassResult> => {
+    const resultLearningMaterials = await getLearningMaterialOfClass(classId);
+    //get attachments
+
+    if (!resultLearningMaterials) {
+        return { success: false, reason: 'Internal server error' };
+    } else {
+        return {
+            success: true,
+            learningMaterials: resultLearningMaterials,
         };
     }
 };

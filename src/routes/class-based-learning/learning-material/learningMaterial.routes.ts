@@ -2,7 +2,11 @@ import express from 'express';
 import { registerRoute } from '../../register.routes';
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 
-import { createLearningMaterialController, deleteLearningMaterialController, getLearningMaterialController } from '@/controllers/class-based-learning/learning-material/learningMaterial.controller';
+import {
+    createLearningMaterialController,
+    deleteLearningMaterialController,
+    getLearningMaterialsOfClassController,
+} from '@/controllers/class-based-learning/learning-material/learningMaterial.controller';
 
 const router = express.Router();
 
@@ -24,13 +28,20 @@ router.post(
 );
 
 router.get(
+    '/',
+    // topicMiddleware.verifyTopicByIdInBody,
+    // topicMiddleware.verifyUserCanAccessTopic,
+    getLearningMaterialsOfClassController
+);
+
+router.get(
     '/:learningMaterialId',
     // topicMiddleware.verifyTopicByIdInBody,
     // topicMiddleware.verifyUserCanAccessTopic,
-    getLearningMaterialController
+    getLearningMaterialsOfClassController
 );
 
-router.delete('/:learningMaterialId',deleteLearningMaterialController)
+router.delete('/:learningMaterialId', deleteLearningMaterialController);
 
 registerRoute('/learning-material', router, {
     description: 'Learning material endpoints',

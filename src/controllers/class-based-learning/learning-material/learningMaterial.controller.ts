@@ -6,6 +6,7 @@ import {
     createLearningMaterialService,
     deleteLearningMaterialService,
     getLearningMaterialService,
+    getLearningMaterialsOfClassService,
 } from '@/services/class-based-learning/learning-material/learningMaterial.service';
 
 export const createLearningMaterialController = async (req: Request, res: Response) => {
@@ -60,6 +61,21 @@ export const getLearningMaterialController = async (req: Request, res: Response)
     }
 };
 
+export const getLearningMaterialsOfClassController = async (req: Request, res: Response) => {
+    const classId = requestHelper.getIdParam(req, 'classId');
+
+    const data = await getLearningMaterialsOfClassService({
+        classId: classId,
+    });
+    if (data.success) {
+        const returnData = {
+            data,
+        };
+        SuccessResponse.ok(res, returnData);
+    } else {
+        throw new BadRequest('Invalid request');
+    }
+};
 
 export const deleteLearningMaterialController = async (req: Request, res: Response) => {
     const learningMaterialIdParam = req.params.learningMaterialId;
@@ -75,7 +91,7 @@ export const deleteLearningMaterialController = async (req: Request, res: Respon
     });
     if (data.success) {
         const returnData = {
-            deletedLearningMaterialId:data.deletedLearningMaterialId,
+            deletedLearningMaterialId: data.deletedLearningMaterialId,
         };
         SuccessResponse.ok(res, returnData);
     } else {

@@ -5,9 +5,8 @@ type ClassworkResult =
     | {
           success: true;
           learningMaterials: TypeSelectLearningMaterial[];
-          //add quiz and assignment here
       }
-    | { success: false; reason: string }; //todo:reformat as template type for every services
+    | { success: false; reason: string }; 
 
 export const getClassworkInClassService = async ({ classId }: { classId: number }): Promise<ClassworkResult> => {
     const resultLearningMaterial = await getLearningMaterialOfClass(classId);
