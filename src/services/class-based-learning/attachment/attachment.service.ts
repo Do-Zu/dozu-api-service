@@ -1,7 +1,5 @@
 // import { InternalServerError } from '@/core/error';
-import { TypeSelectAttachment } from '@/models';
 import {
-    addAttachmentsToLearningMaterial,
     insertAttachment,
     insertMultipleAttachments,
 } from '@/repositories/class-based-learning/attachment/attachment.repo';
@@ -87,20 +85,7 @@ class AttachmentService {
         return result;
     };
 
-    public linkMultipleAttachmentsToLearningMaterial = async ({
-        learningMaterialId,
-        attachments,
-    }: {
-        learningMaterialId: number;
-        attachments: TypeSelectAttachment[];
-    }) => {
-        const attachmentInLearningMaterialArray = attachments.map(attachment => ({
-            attachmentId: attachment.attachmentId,
-            learningMaterialId: learningMaterialId,
-        }));
-        const result = await addAttachmentsToLearningMaterial(attachmentInLearningMaterialArray);
-        return result;
-    };
+ 
 }
 
 export const attachmentService = new AttachmentService();

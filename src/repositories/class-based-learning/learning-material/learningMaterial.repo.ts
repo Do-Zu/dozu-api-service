@@ -24,3 +24,34 @@ export const getLearningMaterialOfClass = async (classId: number): Promise<TypeS
         .where(eq(learningMaterialTable.classId, classId));
     return learningMaterials;
 };
+
+export const getLearningMaterial = async ({
+    learningMaterialId,
+}: {
+    learningMaterialId: number;
+}): Promise<TypeSelectLearningMaterial> => {
+    const [learningMaterial] = await db
+        .select({
+            learningMaterialId: learningMaterialTable.learningMaterialId,
+            classId: learningMaterialTable.classId,
+            topicId: learningMaterialTable.topicId,
+            title: learningMaterialTable.title,
+            description: learningMaterialTable.description,
+            createdAt: learningMaterialTable.createdAt,
+        })
+        .from(learningMaterialTable)
+        .where(eq(learningMaterialTable.learningMaterialId, learningMaterialId));
+    return learningMaterial;
+};
+
+export const deleteLearningMaterialById = async ({
+    learningMaterialId,
+}: {
+    learningMaterialId: number;
+}): Promise<number> => {
+    const [deletedLearningMaterial] = await db
+        .delete(learningMaterialTable)
+        .where(eq(learningMaterialTable.learningMaterialId, learningMaterialId))
+        .returning({ learningMaterialId: learningMaterialTable.learningMaterialId });
+    return deletedLearningMaterial.learningMaterialId;
+};
