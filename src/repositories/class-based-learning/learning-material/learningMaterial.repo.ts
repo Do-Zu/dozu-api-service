@@ -43,3 +43,15 @@ export const getLearningMaterial = async ({
         .where(eq(learningMaterialTable.learningMaterialId, learningMaterialId));
     return learningMaterial;
 };
+
+export const deleteLearningMaterialById = async ({
+    learningMaterialId,
+}: {
+    learningMaterialId: number;
+}): Promise<number> => {
+    const [deletedLearningMaterial] = await db
+        .delete(learningMaterialTable)
+        .where(eq(learningMaterialTable.learningMaterialId, learningMaterialId))
+        .returning({ learningMaterialId: learningMaterialTable.learningMaterialId });
+    return deletedLearningMaterial.learningMaterialId;
+};

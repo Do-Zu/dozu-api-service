@@ -1,15 +1,25 @@
-import { TypeInsertLearningMaterial, TypeSelectAttachment, TypeSelectLearningMaterial } from '@/models';
+import { TypeInsertLearningMaterial, TypeSelectLearningMaterial } from '@/models';
 import {
+    deleteLearningMaterialById,
     getLearningMaterial,
     insertLearningMaterial,
 } from '@/repositories/class-based-learning/learning-material/learningMaterial.repo';
 import { attachmentService } from '../attachment/attachment.service';
 import { ReturnAttachment } from '@/types/class-based-learning/attachment/attachment.type';
+import { attachmentInLMService } from '../attachment/attachmentInLearningMaterial.service';
 
 type LearningMaterialWithAttachments = {
     learningMaterial: TypeSelectLearningMaterial;
     attachments?: ReturnAttachment[];
 };
+
+type DeleteLearningMaterialResult =
+    | {
+          success: true;
+          deletedLearningMaterialId: number;
+          //add quiz and assignment here
+      }
+    | { success: false; reason: string };
 
 interface IInputResource {
     title: string;
@@ -23,7 +33,7 @@ const getAttachmentsOfLearningMaterial = async ({
     learningMaterialId: number;
 }): Promise<ReturnAttachment[]> => {
     //call attachment service
-    const returnAttachments = await attachmentService.getAttachmentsOfLearningMaterial({
+    const returnAttachments = await attachmentInLMService.getAttachmentsOfLearningMaterial({
         learningMaterialId: learningMaterialId,
     });
     return returnAttachments;
@@ -66,7 +76,7 @@ export const createLearningMaterialService = async ({
 
     //add relations to attachment
     if (addedAttachments) {
-        const result = await attachmentService.linkMultipleAttachmentsToLearningMaterial({
+        const result = await attachmentInLMService.linkMultipleAttachmentsToLearningMaterial({
             learningMaterialId: resultLearningMaterial.learningMaterialId,
             attachments: addedAttachments,
         });
@@ -111,5 +121,29 @@ export const getLearningMaterialService = async ({
                 attachments: resultAttachments,
             },
         };
+    }
+};
+
+export const deleteLearningMaterialService = async ({
+    learningMaterialId,
+}: {
+    learningMaterialId: number;
+}): Promise<DeleteLearningMaterialResult> => {
+    //delete attachments
+    const deleteAttachmentResult = await attachmentInLMService.deleteAttachmentOfLearningMaterial({
+        learningMaterialId,
+    });
+
+    if (!deleteAttachmentResult.success) {
+        // Stop if deletion failed due to error
+        throw new Error(`Failed to delete attachments: ${deleteAttachmentResult.reason}`);
+    }
+    try {
+        //delete learningMaterial
+        const deletedLearningMaterialId = await deleteLearningMaterialById({ learningMaterialId });
+        return { success: true, deletedLearningMaterialId };
+    } catch (error: any) {
+        console.error('Failed to delete learning material:', error);
+        return { success: false, reason: error?.message || 'Internal server error' };
     }
 };

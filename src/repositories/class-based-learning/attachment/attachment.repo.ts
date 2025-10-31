@@ -5,7 +5,7 @@ import {
     TypeSelectAttachment,
 } from '@/models';
 import db from '@/libs/drizzleClient.lib';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 export const insertAttachment = async (newAttachment: TypeInsertAttachment): Promise<TypeSelectAttachment> => {
     const [insertedAttachment] = await db.insert(attachmentTable).values(newAttachment).returning();
@@ -50,4 +50,30 @@ export const getAttachmentsOfLearningMaterial = async ({
         )
         .where(eq(attachmentInLearningMaterialTable.learningMaterialId, learningMaterialId));
     return returnAttachments;
+};
+
+export const getAttachmentIdsOfLearningMaterial = async ({
+    learningMaterialId,
+}: {
+    learningMaterialId: number;
+}): Promise<number[]> => {
+    const returnAttachmentIds = await db
+        .select({
+            attachmentId: attachmentTable.attachmentId,
+        })
+        .from(attachmentTable)
+        .innerJoin(
+            attachmentInLearningMaterialTable,
+            eq(attachmentInLearningMaterialTable.attachmentId, attachmentTable.attachmentId)
+        )
+        .where(eq(attachmentInLearningMaterialTable.learningMaterialId, learningMaterialId));
+    return returnAttachmentIds.map(row => row.attachmentId);
+};
+
+export const deleteMultipleAttachments = async ({ attachmentIds }: { attachmentIds: number[] }): Promise<number> => {
+    const deletedAttachments = await db
+        .delete(attachmentTable)
+        .where(inArray(attachmentTable.attachmentId, attachmentIds))
+        .returning({ attachmentId: attachmentTable.attachmentId });
+    return deletedAttachments.length;
 };
