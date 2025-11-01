@@ -47,6 +47,9 @@ export type QuestionCategory = 'thuong_sai' | 'doi_luc_sai' | 'it_khi_sai' | 'ch
 
 export interface IQuestionAnalysis {
     questionIndex: number;
+    questionText?: string; 
+    choices?: string[];
+    correctIndex?: number; 
     correctRate: number; // 0-1 range, calculated as (correctAnswers / totalStudents)
     category: QuestionCategory;
     correctCount: number;

@@ -5,9 +5,12 @@ import {
     classQuizAttemptAnswersTable,
     classEnrollmentsTable,
     usersTable,
+    classQuizDraftsTable,
+    classQuizVersionsTable,
+    questionsTable,
 } from '@/models';
 import { IQuizClassStatistics, IStudentQuizResult } from '@/types/class-based-learning/quizClass.type';
-import { eq, sql, and, inArray } from 'drizzle-orm';
+import { eq, sql, and, inArray, desc } from 'drizzle-orm';
 
 class QuizClassRepo {
     /**
@@ -343,6 +346,119 @@ class QuizClassRepo {
             status: attempt.status,
             answers: answersByAttempt.get(attempt.attemptId) || [],
         }));
+    }
+
+    /**
+     * Get quiz draft questions with details
+     */
+    public async getQuizDraftQuestions(classQuizId: number) {
+        // Try to get from draft first
+        const [draft] = await db
+            .select({
+                draftJson: classQuizDraftsTable.draftJson,
+            })
+            .from(classQuizDraftsTable)
+            .where(eq(classQuizDraftsTable.classQuizId, classQuizId));
+        
+        if (draft && draft.draftJson) {
+            // Parse the draftJson to extract questions
+            // Expected format: { items: [{ id, text, choices[], correctIndex }], orderSeed, meta }
+            const draftData = typeof draft.draftJson === 'string' 
+                ? JSON.parse(draft.draftJson) 
+                : draft.draftJson;
+            
+            if (draftData.items && Array.isArray(draftData.items)) {
+                // Return questions array with details from draft
+                return draftData.items.map((item: any, index: number) => ({
+                    questionIndex: index,
+                    questionText: item.text || item.questionText || '',
+                    choices: item.choices || [],
+                    correctIndex: item.correctIndex ?? null,
+                }));
+            }
+        }
+
+        // If draft not found, try to get from version + questions table
+        // Get the latest version
+        const [version] = await db
+            .select({
+                questionsSnapshot: classQuizVersionsTable.questionsSnapshot,
+            })
+            .from(classQuizVersionsTable)
+            .where(eq(classQuizVersionsTable.classQuizId, classQuizId))
+            .orderBy(desc(classQuizVersionsTable.classQuizVersionId))
+            .limit(1);
+        
+        if (!version || !version.questionsSnapshot) {
+            return null;
+        }
+
+        // Parse snapshot to get originQuestionIds
+        const snapshotData = typeof version.questionsSnapshot === 'string'
+            ? JSON.parse(version.questionsSnapshot)
+            : version.questionsSnapshot;
+        
+        if (!snapshotData.items || !Array.isArray(snapshotData.items)) {
+            return null;
+        }
+
+        // Extract originQuestionIds from snapshot
+        const originQuestionIds = snapshotData.items
+            .map((item: any) => item.originQuestionId)
+            .filter((id: any) => id != null);
+        
+        // Only fetch from questions table if we have originQuestionIds
+        let questionsMap = new Map();
+        if (originQuestionIds.length > 0) {
+            // Get questions from questions table
+            const questions = await db
+                .select({
+                    questionId: questionsTable.questionId,
+                    questionText: questionsTable.questionText,
+                    choices: questionsTable.choices,
+                    correctIndex: questionsTable.correctIndex,
+                })
+                .from(questionsTable)
+                .where(inArray(questionsTable.questionId, originQuestionIds));
+            
+            // Create a map by questionId for easy lookup
+            questionsMap = new Map(
+                questions.map(q => [q.questionId, q])
+            );
+        }
+        
+        // Map back to snapshot order
+        const result = snapshotData.items.map((item: any, index: number) => {
+            // Handle two cases:
+            // 1. originQuestionId exists -> fetch from questions table
+            // 2. adHoc exists -> use data from snapshot directly
+            if (item.originQuestionId) {
+                const question = questionsMap.get(item.originQuestionId);
+                return {
+                    questionIndex: index,
+                    questionText: question?.questionText || '',
+                    choices: question?.choices || [],
+                    correctIndex: question?.correctIndex ?? null,
+                };
+            } else if (item.adHoc && item.text) {
+                // This is an adHoc question, use data from snapshot
+                return {
+                    questionIndex: index,
+                    questionText: item.text || '',
+                    choices: item.choices || [],
+                    correctIndex: item.correctIndex ?? null,
+                };
+            } else {
+                return {
+                    questionIndex: index,
+                    questionText: '',
+                    choices: [],
+                    correctIndex: null,
+                };
+            }
+        });
+        
+        return result;
     }
 }
 

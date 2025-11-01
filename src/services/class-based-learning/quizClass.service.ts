@@ -120,6 +120,9 @@ class QuizClassService {
 
         // Get all students' answers (only from submitted attempts)
         const allAnswers = await quizClassRepo.getAllStudentsAnswers(classQuizId);
+
+        // Get question details from draft
+        const questionDetails = await quizClassRepo.getQuizDraftQuestions(classQuizId);
         
         if (totalStudents === 0) {
             return {
@@ -175,51 +178,88 @@ class QuizClassService {
         };
 
         // Get all question indices (we need to check all questions, even if no one answered)
-        // For now, we'll only include questions that have been answered
-        // If you need to include all questions, you'd need to get the quiz questions from the quiz data
-        const sortedQuestions = Array.from(questionMap.values()).sort((a, b) => a.questionIndex - b.questionIndex);
-
-        sortedQuestions.forEach(questionData => {
-            const { questionIndex, correctAnswers, totalAnswered } = questionData;
-            
-            // Calculate correct rate: (students who answered correctly) / (total students)
-            // Formula: correctRate = (số học sinh trả lời đúng) / (tổng số học sinh)
-            const correctRate = totalStudents > 0 ? correctAnswers / totalStudents : null;
-            
-            // Categorize based on formula:
-            // - Thường sai: correctRate <= 0.25
-            // - Đôi lúc sai: correctRate > 0.25 && correctRate <= 0.75
-            // - Ít khi sai: correctRate > 0.75
-            // - Chưa bắt đầu: no one answered (totalAnswered === 0 or correctRate is null)
-            let category: QuestionCategory;
-            if (correctRate === null || totalAnswered === 0) {
-                // No one answered this question
-                category = 'chua_bat_dau';
-                summary.chuaBatDau += 1;
-            } else if (correctRate <= 0.25) {
-                // <= 25% students answered correctly
-                category = 'thuong_sai';
-                summary.thuongSai += 1;
-            } else if (correctRate <= 0.75) {
-                // > 25% and <= 75% students answered correctly
-                category = 'doi_luc_sai';
-                summary.doiLucSai += 1;
-            } else {
-                // > 75% students answered correctly
-                category = 'it_khi_sai';
-                summary.itKhiSai += 1;
-            }
-
-            questions.push({
-                questionIndex,
-                correctRate: correctRate ?? 0, // Use 0 instead of null for easier frontend handling
-                category,
-                correctCount: correctAnswers,
-                totalAnswered,
-                totalStudents,
+        // Use questionDetails to get all questions from the quiz, then add statistics
+        if (questionDetails && questionDetails.length > 0) {
+            // We have question details, so iterate through all questions
+            questionDetails.forEach((detail: any) => {
+                const questionIndex = detail.questionIndex;
+                const questionStats = questionMap.get(questionIndex) || {
+                    questionIndex,
+                    correctAnswers: 0,
+                    totalAnswered: 0,
+                };
+                
+                const { correctAnswers, totalAnswered } = questionStats;
+                
+                // Calculate correct rate: (students who answered correctly) / (total students)
+                const correctRate = totalStudents > 0 ? correctAnswers / totalStudents : null;
+                
+                // Categorize based on formula
+                let category: QuestionCategory;
+                if (correctRate === null || totalAnswered === 0) {
+                    category = 'chua_bat_dau';
+                    summary.chuaBatDau += 1;
+                } else if (correctRate <= 0.25) {
+                    category = 'thuong_sai';
+                    summary.thuongSai += 1;
+                } else if (correctRate <= 0.75) {
+                    category = 'doi_luc_sai';
+                    summary.doiLucSai += 1;
+                } else {
+                    category = 'it_khi_sai';
+                    summary.itKhiSai += 1;
+                }
+                
+                questions.push({
+                    questionIndex,
+                    questionText: detail.questionText,
+                    choices: detail.choices,
+                    correctIndex: detail.correctIndex,
+                    correctRate: correctRate ?? 0,
+                    category,
+                    correctCount: correctAnswers,
+                    totalAnswered,
+                    totalStudents,
+                });
             });
-        });
-
+        } else {
+            // If no question details, fall back to only answered questions
+            const sortedQuestions = Array.from(questionMap.values()).sort((a, b) => a.questionIndex - b.questionIndex);
+            
+            sortedQuestions.forEach(q => {
+                const { questionIndex, correctAnswers, totalAnswered } = q;
+                
+                const correctRate = totalStudents > 0 ? correctAnswers / totalStudents : null;
+                
+                let category: QuestionCategory;
+                if (correctRate === null || totalAnswered === 0) {
+                    category = 'chua_bat_dau';
+                    summary.chuaBatDau += 1;
+                } else if (correctRate <= 0.25) {
+                    category = 'thuong_sai';
+                    summary.thuongSai += 1;
+                } else if (correctRate <= 0.75) {
+                    category = 'doi_luc_sai';
+                    summary.doiLucSai += 1;
+                } else {
+                    category = 'it_khi_sai';
+                    summary.itKhiSai += 1;
+                }
+                
+                questions.push({
+                    questionIndex,
+                    questionText: undefined,
+                    choices: undefined,
+                    correctIndex: undefined,
+                    correctRate: correctRate ?? 0,
+                    category,
+                    correctCount: correctAnswers,
+                    totalAnswered,
+                    totalStudents,
+                });
+            });
+        }
+        
         return {
             questions,
             totalStudents,
