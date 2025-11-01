@@ -50,7 +50,7 @@ export interface IQuestionAnalysis {
     questionText?: string; 
     choices?: string[];
     correctIndex?: number; 
-    correctRate: number; // 0-1 range, calculated as (correctAnswers / totalStudents)
+    correctRate: number; // 0-1 range, calculated as (correctAnswers / totalAnswered)
     category: QuestionCategory;
     correctCount: number;
     totalAnswered: number;

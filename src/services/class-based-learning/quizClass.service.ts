@@ -191,8 +191,8 @@ class QuizClassService {
                 
                 const { correctAnswers, totalAnswered } = questionStats;
                 
-                // Calculate correct rate: (students who answered correctly) / (total students)
-                const correctRate = totalStudents > 0 ? correctAnswers / totalStudents : null;
+                // Calculate correct rate: (students who answered correctly) / (students who completed quiz)
+                const correctRate = totalAnswered > 0 ? correctAnswers / totalAnswered : null;
                 
                 // Categorize based on formula
                 let category: QuestionCategory;
@@ -229,7 +229,7 @@ class QuizClassService {
             sortedQuestions.forEach(q => {
                 const { questionIndex, correctAnswers, totalAnswered } = q;
                 
-                const correctRate = totalStudents > 0 ? correctAnswers / totalStudents : null;
+                const correctRate = totalAnswered > 0 ? correctAnswers / totalAnswered : null;
                 
                 let category: QuestionCategory;
                 if (correctRate === null || totalAnswered === 0) {
