@@ -1,5 +1,4 @@
 import db from '@/libs/drizzleClient.lib';
-import { NodeType } from '@/models';
 import { BadRequest, DatabaseError, NotFoundError } from '@/core/error';
 import classTopicCommentRepo, { ICreateCommentRepo } from '@/repositories/class-based-learning/classTopicComment.repo';
 import {
@@ -23,7 +22,7 @@ class ClassTopicCommentService {
         return result;
     }
 
-    public async getCommentsWithReplies(nodeId: string, typeNode: NodeType): Promise<IClassTopicComment[]> {
+    public async getCommentsWithReplies(nodeId: string, typeNode: string): Promise<IClassTopicComment[]> {
         // Get root comments
         const rootComments = await classTopicCommentRepo.getRootCommentsByNode(nodeId, typeNode);
 
