@@ -3,15 +3,13 @@ import { z } from 'zod';
 // Create comment validation schema
 export const createCommentSchema = z.object({
     topicId: z
-        .string()
-        .transform(val => parseInt(val))
-        .pipe(z.number().int().positive('Topic ID must be a positive integer'))
-        .or(z.number().int().positive('Topic ID must be a positive integer')),
-
+        .preprocess(
+            val => (val === '' || val === undefined ? null : val),
+            z.coerce.number().int().positive('Topic ID must be a positive integer').nullable()
+        )
+        .optional(),
     nodeId: z.coerce.string().trim().min(1, 'nodeId is required'),
-    typeNode: z.enum(['mindmap', 'flashcard', 'quiz'], {
-        errorMap: () => ({ message: 'Type node must be one of: mindmap, flashcard, quiz' }),
-    }),
+    typeNode: z.string(),
     content: z.string().trim().min(1, 'Content cannot be empty').max(2000, 'Content cannot exceed 2000 characters'),
     author: z.object({
         user_id: z
@@ -21,7 +19,7 @@ export const createCommentSchema = z.object({
             .or(z.number().int().positive('User ID must be a positive integer')),
         name: z
             .string()
-            .min(2, 'Name must be at least 2 characters long')
+            .min(1, 'Name must be at least 2 characters long')
             .max(100, 'Name cannot exceed 100 characters'),
         avatar: z.string().url('Avatar must be a valid URL').optional(),
     }),
@@ -36,7 +34,7 @@ export const updateCommentSchema = z.object({
 // Query parameters for getting comments
 export const getCommentsQuerySchema = z.object({
     nodeId: z.coerce.string().trim().min(1).optional(),
-    typeNode: z.enum(['mindmap', 'flashcard', 'quiz']).optional(),
+    typeNode: z.string().optional(),
     parentCmtId: z.string().optional().or(z.number().int().positive().optional()),
     level: z
         .string()

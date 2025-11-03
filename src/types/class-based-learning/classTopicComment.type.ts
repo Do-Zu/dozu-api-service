@@ -1,14 +1,14 @@
 // Types for class topic comments
 export interface IClassTopicComment {
     commentId: number;
-    topicId: number;
+    topicId: number | null;
     nodeId: string;
     author: {
         user_id: number;
         name: string;
         avatar?: string;
     };
-    typeNode: 'mindmap' | 'flashcard' | 'quiz';
+    typeNode: string;
     isDeleted: boolean;
     parentCmtId?: number | null;
     level: number;
@@ -31,7 +31,7 @@ export type IUpdateCommentBody = Pick<IClassTopicComment, 'content'>;
 
 export interface IGetCommentsQuery {
     nodeId?: string;
-    typeNode?: 'mindmap' | 'flashcard' | 'quiz';
+    typeNode?: string;
     parentCmtId?: number | null;
     level?: number;
     page?: number;
