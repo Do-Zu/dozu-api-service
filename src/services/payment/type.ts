@@ -70,9 +70,18 @@ export interface PaymentStatusUpdate {
     userId: number;
     planId: number;
     orderCode: number;
+    paymentId: string;
     status: 'PENDING' | 'PROCESSING' | 'PAID' | 'CANCELLED';
     amount: number;
     timestamp: Date | string;
+    timezone?: string;
+}
+export interface TransactionStatusUpdate {
+    planId?: number;
+    userId: number;
+    orderCode: number;
+    paymentId: string;
+    timezone?: string;
 }
 
 export interface SSEPaymentData {

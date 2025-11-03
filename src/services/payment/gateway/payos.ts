@@ -7,6 +7,8 @@ import { PaymentGateway } from '../payment.interface';
 import { PaymentData, PaymentDataType, PaymentLinkResponse, ValidationData } from '../type';
 import { InternalServerError } from '@/core/error';
 import logger from '@/utils/logger';
+import { toNumber } from '@/utils/common';
+import { getSystemDate } from '@/utils/date';
 
 class PayOSManager extends PaymentBase implements PaymentGateway {
     private readonly clientId: string;
@@ -67,7 +69,7 @@ class PayOSManager extends PaymentBase implements PaymentGateway {
             const response = await this.payOS.confirmWebhook(webhookUrl);
             return !!response;
         } catch (error) {
-            console.error('Failed to setup webhook:', error);
+            logger.error('Failed to setup webhook:', error);
             return false;
         }
     }
@@ -77,7 +79,7 @@ class PayOSManager extends PaymentBase implements PaymentGateway {
      */
     public async createPaymentLink(paymentData: PaymentDataType): Promise<PaymentLinkResponse> {
         const { planId } = paymentData;
-        const orderCode = Math.floor(Math.random() * 10000000);
+        const orderCode = this.generateOrderCode();
         const description = `PAYMENT SUBSCRIPTION PLAN`;
 
         const signature = this.generateSignature({
@@ -87,6 +89,7 @@ class PayOSManager extends PaymentBase implements PaymentGateway {
             returnUrl: this.BASE_URL_RETURN_SUCCESS,
             cancelUrl: this.BASE_URL_CANCEL,
         });
+
         const jobId = uuidv4();
         const returnUrl = `${this.BASE_URL_RETURN_SUCCESS}?planId=${planId}&jobId=${jobId}`;
         const cancelUrl = `${this.BASE_URL_CANCEL}?planId=${planId}&jobId=${jobId}`;
@@ -148,6 +151,20 @@ class PayOSManager extends PaymentBase implements PaymentGateway {
                 return obj;
             }, {});
         return orderedObject;
+    }
+
+    /**
+     * Generates a numeric order code with very low collision chance.
+     * Uses timestamp + random part (max 15 digits total).
+     *
+     * Example: 1730612345123
+     */
+    private generateOrderCode(): number {
+        const timestampPart = getSystemDate().toString().slice(-10);
+        const randomPart = Math.floor(Math.random() * 10000)
+            .toString()
+            .padStart(4, '0');
+        return toNumber(timestampPart + randomPart);
     }
 }
 

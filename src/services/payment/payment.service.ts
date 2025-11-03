@@ -1,4 +1,4 @@
-import { DatabaseError } from '@/core/error';
+import { DatabaseError, InternalServerError } from '@/core/error';
 import db from '@/libs/drizzleClient.lib';
 import { redisInstance as redis } from '@/libs/redis/default/redisDefault';
 import { transactionsModel } from '@/models/payment/transaction.model';
@@ -9,16 +9,16 @@ import logger from '@/utils/logger';
 import planService from '../subscription/plan.service';
 import { GATEWAY } from './constants';
 import { payOS } from './gateway/payos';
-import { sepayPayment } from './gateway/sepay';
 import { PaymentStatus } from './payment.interface';
 import { addMilliseconds } from 'date-fns';
 import {
     PaymentLinkRequest,
     PaymentLinkResponse,
-    PaymentSepayRegisterResponse,
     PaymentStatusUpdate,
+    TransactionStatusUpdate,
     WebhookRequest,
 } from './type';
+import { and, eq } from 'drizzle-orm';
 
 export const REDIS_PREFIX_PAYMENT_GATEWAY_INFO = 'PAYMENT_REGISTER_PROCESS_GATEWAY_INFO';
 /**
@@ -66,11 +66,13 @@ class PaymentService {
 
         const { orderCode, paymentLinkId, jobId } = paymentRegisterResponse;
 
+        const currency = 'VND';
+
         const transaction = await this.initTransactionPayment({
             gateway: GATEWAY.PAYOS,
             userId,
             amount: currencyVND,
-            currency: 'VND',
+            currency,
             code: orderCode.toString(),
             paymentId: paymentLinkId,
             description: `Payment for plan ${plan.name}`,
@@ -105,68 +107,68 @@ class PaymentService {
      * @param request - The payment link request data.
      * @returns A promise that resolves to the payment link response.
      */
-    public async createPaymentLinkWithSepay(request: PaymentLinkRequest): Promise<PaymentSepayRegisterResponse> {
-        const { planId, timeZone, userId } = request;
+    // public async createPaymentLinkWithSepay(request: PaymentLinkRequest): Promise<PaymentSepayRegisterResponse> {
+    //     const { planId, timeZone, userId } = request;
 
-        const plan = await planService.getPlanById(planId);
+    //     const plan = await planService.getPlanById(planId);
 
-        if (!plan) {
-            throw new Error('Server Error: Plan not found');
-        }
+    //     if (!plan) {
+    //         throw new Error('Server Error: Plan not found');
+    //     }
 
-        const ttlForExpirePayment = this.EXPIRE_IN_MINUTE * 60 * 1000;
+    //     const ttlForExpirePayment = this.EXPIRE_IN_MINUTE * 60 * 1000;
 
-        const timeExpireMilliseconds = new Date().getTime() + ttlForExpirePayment;
+    //     const timeExpireMilliseconds = new Date().getTime() + ttlForExpirePayment;
 
-        const expireAt = new Date(timeExpireMilliseconds);
+    //     const expireAt = new Date(timeExpireMilliseconds);
 
-        const expireAtTimeZone = getCurrentDateInTimeZone(timeZone, expireAt);
+    //     const expireAtTimeZone = getCurrentDateInTimeZone(timeZone, expireAt);
 
-        const price = parseFloat(plan.price as string);
+    //     const price = parseFloat(plan.price as string);
 
-        const currencyVND = convertUsdToVnd(price);
+    //     const currencyVND = convertUsdToVnd(price);
 
-        const paymentData = {
-            ...request,
-            planId,
-            amount: currencyVND,
-            expireAt: expireAtTimeZone,
-        };
+    //     const paymentData = {
+    //         ...request,
+    //         planId,
+    //         amount: currencyVND,
+    //         expireAt: expireAtTimeZone,
+    //     };
 
-        const paymentRegisterResponse = await sepayPayment.registerPaymentProcess(paymentData);
+    //     const paymentRegisterResponse = await sepayPayment.registerPaymentProcess(paymentData);
 
-        if (!paymentRegisterResponse) {
-            throw new Error('Server Error: Failed to create payment link');
-        }
+    //     if (!paymentRegisterResponse) {
+    //         throw new Error('Server Error: Failed to create payment link');
+    //     }
 
-        const { orderCode, jobId } = paymentRegisterResponse;
+    //     const { orderCode, jobId } = paymentRegisterResponse;
 
-        const transaction = await this.initTransactionPayment({
-            gateway: GATEWAY.SEPAY,
-            userId,
-            amount: currencyVND,
-            currency: 'VND',
-            code: orderCode.toString(),
-            paymentId: jobId,
-            description: `Payment for plan ${plan.name}`,
-            metadata: { planId, orderCode, jobId },
-        });
+    //     const transaction = await this.initTransactionPayment({
+    //         gateway: GATEWAY.SEPAY,
+    //         userId,
+    //         amount: currencyVND,
+    //         currency: 'VND',
+    //         code: orderCode.toString(),
+    //         paymentId: jobId,
+    //         description: `Payment for plan ${plan.name}`,
+    //         metadata: { planId, orderCode, jobId },
+    //     });
 
-        const redisKey = `${this.REDIS_PREFIX}:${userId}:${jobId}`;
+    //     const redisKey = `${this.REDIS_PREFIX}:${userId}:${jobId}`;
 
-        const dataStore = { planId, userId, expireAt: expireAtTimeZone, transactionId: transaction.transactionId };
+    //     const dataStore = { planId, userId, expireAt: expireAtTimeZone, transactionId: transaction.transactionId };
 
-        const plusTimeToTtlSecond = 10; // Adding 10 minute to the TTL to ensure the data is available for a short time after expiration
-        const ttlCache = (this.EXPIRE_IN_MINUTE + plusTimeToTtlSecond) * 60;
+    //     const plusTimeToTtlSecond = 10; // Adding 10 minute to the TTL to ensure the data is available for a short time after expiration
+    //     const ttlCache = (this.EXPIRE_IN_MINUTE + plusTimeToTtlSecond) * 60;
 
-        await redis.set(redisKey, dataStore, ttlCache);
+    //     await redis.set(redisKey, dataStore, ttlCache);
 
-        return {
-            ...paymentRegisterResponse,
-            expireAt: getDateFormattedWithTimeZone(expireAtTimeZone, timeZone),
-            transactionId: transaction.transactionId,
-        };
-    }
+    //     return {
+    //         ...paymentRegisterResponse,
+    //         expireAt: getDateFormattedWithTimeZone(expireAtTimeZone, timeZone),
+    //         transactionId: transaction.transactionId,
+    //     };
+    // }
 
     private async initTransactionPayment(transactionData: {
         gateway: string;
@@ -183,7 +185,7 @@ class PaymentService {
         const { gateway, userId, amount, currency, code, paymentId, description, metadata } = transactionData;
 
         try {
-            const transaction = await db
+            const [transaction] = await db
                 .insert(transactionsModel)
                 .values({
                     userId,
@@ -199,7 +201,7 @@ class PaymentService {
                     transactionId: transactionsModel.transactionId,
                 });
 
-            return transaction[0];
+            return transaction;
         } catch (error) {
             logger.error(`Error initializing transaction payment: ${error}`);
             throw new DatabaseError('Failed to initialize transaction payment');
@@ -244,6 +246,7 @@ class PaymentService {
                 userId,
                 planId,
                 orderCode,
+                paymentId: paymentLinkId,
                 status: 'PAID',
                 amount,
                 timestamp: getCurrentDateInTimeZone().toISOString(),
@@ -301,6 +304,56 @@ class PaymentService {
         } catch (error) {
             logger.error(`Error processing successful payment: ${error}`);
             throw error;
+        }
+    }
+
+    public async updateTransactionStatus(payment: TransactionStatusUpdate) {
+        try {
+            const { userId, orderCode, paymentId, timezone } = payment;
+            await db.transaction(async tx => {
+                // Find the matching transaction
+                const [existing] = await tx
+                    .select({
+                        transactionId: transactionsModel.transactionId,
+                        status: transactionsModel.status,
+                    })
+                    .from(transactionsModel)
+                    .where(
+                        and(
+                            eq(transactionsModel.userId, userId),
+                            eq(transactionsModel.code, orderCode.toString()),
+                            eq(transactionsModel.paymentId, paymentId)
+                        )
+                    )
+                    .limit(1);
+
+                if (!existing) {
+                    logger.warn(
+                        `updateTransactionStatus: transaction not found for orderCode=${orderCode}, paymentId=${paymentId}`
+                    );
+                    return;
+                }
+
+                // If it's already success, do nothing
+                if (existing.status === PaymentStatus.SUCCESS) {
+                    logger.info(
+                        `updateTransactionStatus: already success for transactionId=${existing.transactionId}, skipping`
+                    );
+                    return;
+                }
+
+                // Otherwise, update to success
+                await tx
+                    .update(transactionsModel)
+                    .set({
+                        status: PaymentStatus.SUCCESS,
+                        updatedAt: getCurrentDateInTimeZone(timezone),
+                    })
+                    .where(eq(transactionsModel.transactionId, existing.transactionId));
+            });
+        } catch (error) {
+            logger.error('updateTransactionStatus', error);
+            throw new InternalServerError('Update Payment Status Fail');
         }
     }
 }

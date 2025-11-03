@@ -5,6 +5,7 @@ import { sepayWebhookService } from '@/services/payment/sepay-webhook.service';
 import { WebhookRequest } from '@/services/payment/type';
 import { SepayWebhookData } from '@/services/payment/type/sepay.type';
 import { sseManager } from '@/services/sse/sse.service';
+import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import { getTimezoneClient } from '@/utils/date';
 import logger from '@/utils/logger';
 import { Request, Response } from 'express';
@@ -15,7 +16,7 @@ export const PREFIX_KEY_SSE_SEPAY = 'PAYMENT-SEPAY-SSE-WEBHOOK';
  */
 class PaymentController {
     async createLinkPaymentWithPayOS(req: Request, res: Response) {
-         if (!req.currentUser) {
+        if (!req.currentUser) {
             throw new AuthenticationError('Login information is invalid');
         }
         const userId = req.currentUser.userId;
@@ -38,29 +39,29 @@ class PaymentController {
         SuccessResponse.created(res, paymentLink);
     }
 
-    async createLinkPaymentWithSepay(req: Request, res: Response) {
-        if (!req.currentUser) {
-            throw new AuthenticationError('Login information is invalid');
-        }
-        const userId = req.currentUser.userId;
-        const timeZone = getTimezoneClient(req);
-        const paymentData = req.body;
+    // async createLinkPaymentWithSepay(req: Request, res: Response) {
+    //     if (!req.currentUser) {
+    //         throw new AuthenticationError('Login information is invalid');
+    //     }
+    //     const userId = req.currentUser.userId;
+    //     const timeZone = getTimezoneClient(req);
+    //     const paymentData = req.body;
 
-        if (!paymentData || !paymentData?.planId) {
-            throw new BadRequest('Invalid payment data!');
-        }
+    //     if (!paymentData || !paymentData?.planId) {
+    //         throw new BadRequest('Invalid payment data!');
+    //     }
 
-        const planId = parseInt(paymentData.planId.toString());
+    //     const planId = parseInt(paymentData.planId.toString());
 
-        const paymentLink = await paymentService.createPaymentLinkWithSepay({
-            ...paymentData,
-            userId,
-            planId,
-            timeZone,
-        });
+    //     const paymentLink = await paymentService.createPaymentLinkWithSepay({
+    //         ...paymentData,
+    //         userId,
+    //         planId,
+    //         timeZone,
+    //     });
 
-        SuccessResponse.created(res, paymentLink);
-    }
+    //     SuccessResponse.created(res, paymentLink);
+    // }
 
     /**
      * Handle webhook from PayOS gateway
@@ -135,6 +136,21 @@ class PaymentController {
 
         // Add client to payment SSE manager
         sseManager.addClient(keyIdentifier, res);
+    }
+
+    /**
+     * Update status of transaction for payment subscription
+     */
+    public async updateTransactionStatus(req: Request, res: Response) {
+        const userId = getUserIdFromRequest(req);
+
+        const timezone = getTimezoneClient(req);
+
+        const { orderCode, paymentId } = req.body;
+
+        const transaction = await paymentService.updateTransactionStatus({ userId, timezone, orderCode, paymentId });
+
+        SuccessResponse.ok(res, transaction);
     }
 }
 
