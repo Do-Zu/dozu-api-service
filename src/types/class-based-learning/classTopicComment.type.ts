@@ -1,8 +1,15 @@
 // Types for class topic comments
+
+export type TopicIdCommentClass = number | null;
+
+export type ParentCommentId = number | null;
+
+export type NodeId = string;
+
 export interface IClassTopicComment {
     commentId: number;
-    topicId: number | null;
-    nodeId: string;
+    topicId: TopicIdCommentClass;
+    nodeId: NodeId;
     author: {
         user_id: number;
         name: string;
@@ -10,7 +17,7 @@ export interface IClassTopicComment {
     };
     typeNode: string;
     isDeleted: boolean;
-    parentCmtId?: number | null;
+    parentCmtId?: ParentCommentId;
     level: number;
     content: string;
     reactionCount: number;
@@ -30,9 +37,9 @@ export type ICreateCommentBody = Pick<
 export type IUpdateCommentBody = Pick<IClassTopicComment, 'content'>;
 
 export interface IGetCommentsQuery {
-    nodeId?: string;
+    nodeId?: NodeId;
     typeNode?: string;
-    parentCmtId?: number | null;
+    parentCmtId?: ParentCommentId;
     level?: number;
     page?: number;
     limit?: number;

@@ -17,10 +17,7 @@ export const createCommentSchema = z.object({
             .transform(val => parseInt(val))
             .pipe(z.number().int().positive('User ID must be a positive integer'))
             .or(z.number().int().positive('User ID must be a positive integer')),
-        name: z
-            .string()
-            .min(1, 'Name must be at least 2 characters long')
-            .max(100, 'Name cannot exceed 100 characters'),
+        name: z.string().min(1, 'Name is required').max(100, 'Name cannot exceed 100 characters'),
         avatar: z.string().url('Avatar must be a valid URL').optional(),
     }),
     parentCmtId: z.string().nullable().optional().or(z.number().int().positive().nullable().optional()),
