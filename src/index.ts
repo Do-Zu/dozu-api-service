@@ -15,6 +15,7 @@ import { db } from './libs/drizzleClient.lib';
 import NotificationScheduler from './services/notification/notification.scheduler';
 import { createServer } from 'http';
 import { webSocketService } from './libs/websocket/socket.io';
+import { notificationWebSocketService } from './libs/websocket/notification.websocket';
 
 setupGlobalErrorHandlers();
 
@@ -72,8 +73,11 @@ app.use(handleError);
 // Create HTTP server from Express app
 const httpServer = createServer(app);
 
-// Initialize WebSocket server
+// Initialize WebSocket server (base service for job-based connections)
 webSocketService.initialize(httpServer);
+
+// Initialize Notification WebSocket service (extends base service for user notifications)
+notificationWebSocketService.initialize(httpServer);
 
 // Start server
 const server = httpServer.listen(port, () => {

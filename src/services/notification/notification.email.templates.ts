@@ -50,7 +50,7 @@ export function getDailyReminderTemplate(data: DailyReminderTemplateData): Email
         <h2 style="color: #2563eb;">Hi ${data.fullName}! 👋</h2>
         <p>Time for your daily learning session!</p>
         <p>Don't break your learning streak - even 10 minutes of study can make a difference.</p>
-        <a href="${data.frontendUrl}/topics" 
+        <a href="${data.frontendUrl}/home" 
            style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 20px 0;">
           Start Learning
         </a>
@@ -134,7 +134,7 @@ export function getReEngagementTemplate(data: ReEngagementTemplateData): EmailTe
           </ul>
         </div>
         <p>Don't let your learning streak break! Come back and continue your journey.</p>
-        <a href="${data.frontendUrl}/topics" 
+        <a href="${data.frontendUrl}/home" 
            style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 20px 0;">
           Continue Learning
         </a>

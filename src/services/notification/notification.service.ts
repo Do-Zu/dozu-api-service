@@ -2,7 +2,7 @@ import nodemailer from 'nodemailer';
 import { NotificationSettings } from '@/models/user.model';
 import ProfileRepository from '@/repositories/profile/profile.repo';
 import logger from '@/utils/logger';
-import { WebSocketService } from '@/libs/websocket/socket.io';
+import { NotificationWebSocketService } from '@/libs/websocket/notification.websocket';
 import {
   getDailyReminderTemplate,
   getWeeklyReportTemplate,
@@ -113,8 +113,8 @@ export class NotificationService {
 
       // Try to send via WebSocket if user is connected (optional)
       // If user is not connected, notification is still saved and will be retrieved when they check
-      const wsService = WebSocketService.getInstance();
-      const wsSuccess = wsService.sendToUser(notification.userId.toString(), 'notification', {
+      const wsService = NotificationWebSocketService.getInstance();
+      const wsSuccess = await wsService.sendToUser(notification.userId.toString(), 'notification', {
         id: Date.now().toString(),
         type: notification.type,
         title: notification.title,
