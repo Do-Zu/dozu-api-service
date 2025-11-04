@@ -7,7 +7,6 @@ import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 import { fileUploadSingleMiddleware } from '@/libs/multer.lib';
 import { teacherClassFeedRoutes } from './teacherClassFeed.routes';
 import { teacherClassInviteRoutes } from './teacherClassInvite.routes';
-import { teacherClassAssignmentRoutes } from './assignment/teacherClassAssignment.routes';
 
 const router = Router({ mergeParams: true });
 globalAsyncHandler(router);
@@ -23,7 +22,5 @@ router.put('/:classId', ...verifyClassAccess, fileUploadSingleMiddleware, classC
 router.use('/:classId/topics', ...verifyClassAccess, teacherClassTopicRoutes);
 router.use('/:classId/feeds', ...verifyClassAccess, teacherClassFeedRoutes);
 router.use('/:classId/invites', ...verifyClassAccess, teacherClassInviteRoutes);
-
-router.use('/:classId/assignments', ...verifyClassAccess, teacherClassAssignmentRoutes);
 
 export const teacherClassRoutes = router;

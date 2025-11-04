@@ -26,6 +26,12 @@ class ClassEnrollmentController {
 
         const myClass = (await classService.getClassByInvitationCode(invitationCode)) as IClass & { teacherId: number };
 
+        // Check if user is already enrolled in this class
+        const isAlreadyEnrolled = await classEnrollmentService.isStudentInClass(myClass.classId, userId);
+        if (isAlreadyEnrolled) {
+            throw new BadRequest('You are already enrolled in this class');
+        }
+
         const enrollment = await classEnrollmentService.addStudentToClass(myClass.classId, userId);
         const teacher = await profileService.getProfile(myClass.teacherId);
 
