@@ -20,11 +20,23 @@ export class WebSocketService {
   public initialize(httpServer: HttpServer): void {
     if (this.io) return;
 
+    const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(origin => origin.trim()) || ['*'];
+    
     this.io = new Server(httpServer, {
       cors: {
-        origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
+        origin: (origin, callback) => {
+          // Allow all origins if '*' is specified, or check against allowed list
+          if (allowedOrigins.includes('*') || !origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+          } else {
+            logger.warn(`WebSocket CORS blocked origin: ${origin}`);
+            callback(new Error('Not allowed by CORS'));
+          }
+        },
         methods: ['GET', 'POST'],
+        credentials: true,
       },
+      transports: ['websocket', 'polling'],
     });
 
     this.setupListeners();
@@ -35,7 +47,15 @@ export class WebSocketService {
     if (!this.io) return;
 
     this.io.on('connection', (socket: Socket) => {
-      logger.info(`Client connected: ${socket.id}`);
+      logger.info(`Client connected: ${socket.id} from origin: ${socket.handshake.headers.origin}`);
+      
+      // Log connection details for debugging
+      logger.debug(`Socket handshake:`, {
+        id: socket.id,
+        transport: socket.conn.transport.name,
+        remoteAddress: socket.handshake.address,
+        headers: socket.handshake.headers,
+      });
 
       // Register the client with a specific generation job ID
       socket.on('register', (jobId: string) => {
@@ -45,11 +65,21 @@ export class WebSocketService {
 
       // Register user for notifications
       socket.on('register-user', (userId: string) => {
+        if (!userId) {
+          logger.warn(`Received empty userId from socket ${socket.id}`);
+          return;
+        }
+        
         if (!this.userSockets.has(userId)) {
           this.userSockets.set(userId, new Set());
         }
         this.userSockets.get(userId)!.add(socket);
-        logger.info(`User ${userId} registered for notifications on socket ${socket.id}`);
+        
+        const socketCount = this.userSockets.get(userId)!.size;
+        logger.info(`User ${userId} registered for notifications on socket ${socket.id} (Total sockets for user: ${socketCount})`);
+        
+        // Confirm registration to client
+        socket.emit('user-registered', { userId, socketId: socket.id });
       });
 
       socket.on('disconnect', () => {

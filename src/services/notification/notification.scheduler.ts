@@ -17,8 +17,8 @@ export class NotificationScheduler {
         //CURRENT: We test for the scheduler by running daily reminders
         this.scheduleDailyReminders();
         //TODO:
-        // this.scheduleWeeklyReports();
-        // this.scheduleReEngagementNotifications();
+        this.scheduleWeeklyReports();
+        this.scheduleReEngagementNotifications();
 
         this.isInitialized = true;
         logger.info('NotificationScheduler initialized successfully');
