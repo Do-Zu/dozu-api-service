@@ -5,6 +5,7 @@ import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 import {
     createLearningMaterialController,
     deleteLearningMaterialController,
+    getLearningMaterialController,
     getLearningMaterialsOfClassController,
 } from '@/controllers/class-based-learning/learning-material/learningMaterial.controller';
 
@@ -38,7 +39,7 @@ router.get(
     '/:learningMaterialId',
     // topicMiddleware.verifyTopicByIdInBody,
     // topicMiddleware.verifyUserCanAccessTopic,
-    getLearningMaterialsOfClassController
+    getLearningMaterialController
 );
 
 router.delete('/:learningMaterialId', deleteLearningMaterialController);
