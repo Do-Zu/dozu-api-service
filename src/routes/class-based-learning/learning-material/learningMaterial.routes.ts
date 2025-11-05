@@ -7,6 +7,7 @@ import {
     deleteLearningMaterialController,
     getLearningMaterialController,
     getLearningMaterialsOfClassController,
+    updateLearningMaterialController,
 } from '@/controllers/class-based-learning/learning-material/learningMaterial.controller';
 
 const router = express.Router();
@@ -40,6 +41,13 @@ router.get(
     // topicMiddleware.verifyTopicByIdInBody,
     // topicMiddleware.verifyUserCanAccessTopic,
     getLearningMaterialController
+);
+
+router.put(
+    '/:learningMaterialId',
+    // requireTeacher,
+    // paramsValidator.validateId('assignmentId'),
+    updateLearningMaterialController
 );
 
 router.delete('/:learningMaterialId', deleteLearningMaterialController);

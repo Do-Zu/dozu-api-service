@@ -9,6 +9,17 @@ export const insertLearningMaterial = async (
     return insertedLearningMaterial;
 };
 
+export const updateLearningMaterial = async (
+    inputLearningMaterial: Omit<TypeSelectLearningMaterial, 'createdAt'>
+): Promise<TypeSelectLearningMaterial> => {
+    const [editedLearningMaterial] = await db
+        .update(learningMaterialTable)
+        .set(inputLearningMaterial)
+        .where(eq(learningMaterialTable.learningMaterialId, inputLearningMaterial.learningMaterialId))
+        .returning();
+    return editedLearningMaterial;
+};
+
 export const getLearningMaterialOfClass = async (classId: number): Promise<TypeSelectLearningMaterial[]> => {
     const learningMaterials = await db
         .select({
