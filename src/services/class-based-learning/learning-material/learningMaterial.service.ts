@@ -56,13 +56,13 @@ type LearningMaterialResult =
 
 export const createLearningMaterialService = async ({
     title,
-    description,
+    content: content,
     topicId,
     classId,
     inputResources,
 }: {
     title: string;
-    description: string;
+    content: string;
     topicId?: number;
     classId: number;
     inputResources?: IInputResource[];
@@ -76,7 +76,7 @@ export const createLearningMaterialService = async ({
 
     const newLearningMaterial: TypeInsertLearningMaterial = {
         title,
-        description,
+        content,
         classId,
         topicId,
     };

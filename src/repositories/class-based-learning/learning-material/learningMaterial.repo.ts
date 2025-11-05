@@ -16,7 +16,7 @@ export const getLearningMaterialOfClass = async (classId: number): Promise<TypeS
             classId: learningMaterialTable.classId,
             topicId: learningMaterialTable.topicId,
             title: learningMaterialTable.title,
-            description: learningMaterialTable.description,
+            content: learningMaterialTable.content,
 
             createdAt: learningMaterialTable.createdAt,
         })
@@ -36,7 +36,7 @@ export const getLearningMaterial = async ({
             classId: learningMaterialTable.classId,
             topicId: learningMaterialTable.topicId,
             title: learningMaterialTable.title,
-            description: learningMaterialTable.description,
+            content: learningMaterialTable.content,
             createdAt: learningMaterialTable.createdAt,
         })
         .from(learningMaterialTable)

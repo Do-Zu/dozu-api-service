@@ -14,7 +14,7 @@ export const createLearningMaterialController = async (req: Request, res: Respon
         throw new BadRequest('Invalid request');
     }
 
-    const { title, description, topicId, inputResources } = req.body;
+    const { title, content, topicId, inputResources } = req.body;
 
     const classId = requestHelper.getIdParam(req, 'classId');
 
@@ -24,7 +24,7 @@ export const createLearningMaterialController = async (req: Request, res: Respon
 
     const data = await createLearningMaterialService({
         title,
-        description: description ?? '',
+        content: content ?? '',
         classId,
         topicId,
         inputResources,

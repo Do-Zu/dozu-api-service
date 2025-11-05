@@ -5,7 +5,7 @@ import { topicsTable } from '../topic/topic.model';
 export const learningMaterialTable = pgTable('learning_materials', {
     learningMaterialId: serial('learning_material_id').primaryKey(),
     title: varchar('title', { length: 255 }).notNull(),
-    description: varchar('description', { length: 255 }),
+    content: varchar('content', { length: 255 }),
     topicId: integer('topic_id').references(() => topicsTable.topicId, { onDelete: 'cascade' }),
     classId: integer('class_id')
         .notNull()
