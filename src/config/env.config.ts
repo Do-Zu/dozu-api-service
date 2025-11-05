@@ -61,7 +61,7 @@ interface AppConfig {
 
 const allowedOrigins =
     getEnv('ALLOWED_ORIGINS')
-        ?.split('')
+        ?.split(',')
         ?.map(origin => origin.trim())
         .filter(Boolean) ?? [];
 
