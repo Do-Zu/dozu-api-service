@@ -336,7 +336,7 @@ class PaymentService {
                     `updateTransactionStatus: transaction not found for orderCode=${orderCode}, paymentId=${paymentId}`
                 );
 
-                throw new NotFoundError('Transaction not found');
+                throw new NotFoundError('Transaction Unavailable');
             }
 
             // If it's already success, do nothing
