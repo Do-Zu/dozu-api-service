@@ -1,10 +1,10 @@
-import { DatabaseError, InternalServerError } from '@/core/error';
 import db from '@/libs/drizzleClient.lib';
 import { redisInstance as redis } from '@/libs/redis/default/redisDefault';
 import { transactionsModel } from '@/models/payment/transaction.model';
 import { compareIgnoreCapitalization } from '@/utils/common';
 import { convertUsdToVnd } from '@/utils/conversion/conversion';
 import { getCurrentDateInTimeZone, getDateFormattedWithTimeZone, getSystemDate } from '@/utils/date';
+import { BadRequest, DatabaseError, NotFoundError } from '@/core/error';
 import logger from '@/utils/logger';
 import planService from '../subscription/plan.service';
 import { GATEWAY } from './constants';
@@ -307,54 +307,54 @@ class PaymentService {
         }
     }
 
+    /**
+     *
+     * @param payment
+     */
     public async updateTransactionStatus(payment: TransactionStatusUpdate) {
-        try {
-            const { userId, orderCode, paymentId, timezone } = payment;
-            await db.transaction(async tx => {
-                // Find the matching transaction
-                const [existing] = await tx
-                    .select({
-                        transactionId: transactionsModel.transactionId,
-                        status: transactionsModel.status,
-                    })
-                    .from(transactionsModel)
-                    .where(
-                        and(
-                            eq(transactionsModel.userId, userId),
-                            eq(transactionsModel.code, orderCode.toString()),
-                            eq(transactionsModel.paymentId, paymentId)
-                        )
+        const { userId, orderCode, paymentId, timezone } = payment;
+
+        await db.transaction(async tx => {
+            // Find the matching transaction
+            const [existing] = await tx
+                .select({
+                    transactionId: transactionsModel.transactionId,
+                    status: transactionsModel.status,
+                })
+                .from(transactionsModel)
+                .where(
+                    and(
+                        eq(transactionsModel.userId, userId),
+                        eq(transactionsModel.code, orderCode.toString()),
+                        eq(transactionsModel.paymentId, paymentId)
                     )
-                    .limit(1);
+                )
+                .limit(1);
 
-                if (!existing) {
-                    logger.warn(
-                        `updateTransactionStatus: transaction not found for orderCode=${orderCode}, paymentId=${paymentId}`
-                    );
-                    return;
-                }
+            if (!existing) {
+                logger.warn(
+                    `updateTransactionStatus: transaction not found for orderCode=${orderCode}, paymentId=${paymentId}`
+                );
 
-                // If it's already success, do nothing
-                if (existing.status === PaymentStatus.SUCCESS) {
-                    logger.info(
-                        `updateTransactionStatus: already success for transactionId=${existing.transactionId}, skipping`
-                    );
-                    return;
-                }
+                throw new NotFoundError('Transaction not found');
+            }
 
-                // Otherwise, update to success
-                await tx
-                    .update(transactionsModel)
-                    .set({
-                        status: PaymentStatus.SUCCESS,
-                        updatedAt: getCurrentDateInTimeZone(timezone),
-                    })
-                    .where(eq(transactionsModel.transactionId, existing.transactionId));
-            });
-        } catch (error) {
-            logger.error('updateTransactionStatus', error);
-            throw new InternalServerError('Update Payment Status Fail');
-        }
+            // If it's already success, do nothing
+            if (existing.status !== PaymentStatus.PENDING) {
+                logger.info(
+                    `updateTransactionStatus: transaction status  already ${existing.status} for transactionId=${existing.transactionId}, skipping`
+                );
+                throw new BadRequest('Transaction exceed lifecycle');
+            }
+
+            await tx
+                .update(transactionsModel)
+                .set({
+                    status: PaymentStatus.SUCCESS,
+                    updatedAt: getCurrentDateInTimeZone(timezone),
+                })
+                .where(eq(transactionsModel.transactionId, existing.transactionId));
+        });
     }
 }
 

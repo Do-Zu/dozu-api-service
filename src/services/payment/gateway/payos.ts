@@ -160,7 +160,7 @@ class PayOSManager extends PaymentBase implements PaymentGateway {
      * Example: 1730612345123
      */
     private generateOrderCode(): number {
-        const timestampPart = getSystemDate().toString().slice(-10);
+        const timestampPart = getSystemDate().getTime().toString().slice(-10);
         const randomPart = Math.floor(Math.random() * 10000)
             .toString()
             .padStart(4, '0');

@@ -1,5 +1,11 @@
+import { Request, Response } from 'express';
 import { BadRequest, InternalServerError, NotFoundError, PaymentRequire } from '@/core/error';
 import { SuccessResponse } from '@/core/success';
+
+import { paymentService } from '@/services/payment/payment.service';
+import subscriptionService from '@/services/subscription/subscription.service';
+import { getCurrentDateInTimeZone, getTimezoneClient } from '@/utils/date';
+import { toNumber } from '@/utils/common';
 import {
     checkFeatureUsageSchema,
     createSubscriptionSchema,
@@ -7,9 +13,6 @@ import {
     updateSubscriptionSchema,
     upgradeSubscriptionSchema,
 } from '@/dtos/subscription/subscription.dto';
-import subscriptionService from '@/services/subscription/subscription.service';
-import { getCurrentDateInTimeZone, getTimezoneClient } from '@/utils/date';
-import { Request, Response } from 'express';
 
 export class SubscriptionController {
     /**
@@ -146,7 +149,7 @@ export class SubscriptionController {
      * Upgrade subscription to a new plan
      * This method allows users to upgrade their subscription plan.
      */
-    async changeSubscription(req: Request, res: Response) {
+    async upgradeSubscription(req: Request, res: Response) {
         const userId = req.currentUser?.userId;
 
         let validatedData;
@@ -156,15 +159,32 @@ export class SubscriptionController {
         } catch {
             throw new BadRequest('Invalid request data');
         }
-        
+
         const planId = parseInt(validatedData.planId as string, 10);
         const timeZone = getTimezoneClient(req);
+        const orderCode = toNumber(validatedData.orderCode);
+        const paymentId = validatedData.paymentId;
 
         const paymentData = {
             amount: validatedData.paymentData?.amount,
             currency: validatedData.paymentData?.currency,
             externalSubscriptionId: validatedData.paymentData?.externalSubscriptionId,
         };
+
+        try {
+            await paymentService.updateTransactionStatus({
+                userId,
+                orderCode,
+                paymentId,
+                timezone: timeZone,
+            });
+        } catch (error) {
+            // Skip server error and must upgrade subscription
+            if (!(error instanceof InternalServerError)) {
+                // When transaction already not status pending -> transaction completed -> throw error for user
+                throw error;
+            }
+        }
 
         const upgradeResult = await subscriptionService.changeSubscription({
             userId,
