@@ -6,6 +6,7 @@ import { SepayPaymentMapping, SepayWebhookData } from '@/services/payment/type/s
 import { sseManager } from '@/services/sse/sse.service';
 import subscriptionService from '@/services/subscription/subscription.service';
 import { getCurrentDateInTimeZone } from '@/utils/date';
+import { PaymentStatus } from './payment.interface';
 import logger from '@/utils/logger';
 
 /**
@@ -130,7 +131,7 @@ class SepayWebhookService {
                 userId,
                 planId,
                 orderCode,
-                status: 'PAID',
+                status: PaymentStatus.SUCCESS,
                 amount: transferAmount,
                 paymentId: transactionId.toString(),
                 timestamp: getCurrentDateInTimeZone(),

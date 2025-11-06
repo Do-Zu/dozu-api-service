@@ -1,5 +1,6 @@
 import { AuthenticationError, BadRequest } from '@/core/error';
 import { SuccessResponse } from '@/core/success';
+import { payOS } from '@/services/payment/gateway/payos';
 import { paymentService } from '@/services/payment/payment.service';
 import { sepayWebhookService } from '@/services/payment/sepay-webhook.service';
 import { WebhookRequest } from '@/services/payment/type';
@@ -74,7 +75,7 @@ class PaymentController {
                 throw new BadRequest('Invalid webhook data');
             }
 
-            const success = await paymentService.handleWebhook(webhookData);
+            const success = await payOS.handleWebhook(webhookData);
 
             if (success) {
                 logger.info(`Webhook processed successfully for order: ${webhookData.data.orderCode}`);
