@@ -1,4 +1,5 @@
 import { CheckoutRequestType, CheckoutResponseDataType } from '@payos/node/lib/type';
+import { PaymentStatus } from './payment.interface';
 
 export interface PaymentDataType
     extends Omit<CheckoutRequestType, 'returnUrl' | 'cancelUrl' | 'orderCode' | 'description'> {
@@ -18,6 +19,7 @@ export interface PaymentLinkResponse extends CheckoutResponseDataType {
     expireAt?: string;
     transactionId?: number;
     jobId: string;
+    apiCheckStatus: string;
 }
 
 export interface PaymentLinkRequest extends PaymentDataType {
@@ -71,7 +73,7 @@ export interface PaymentStatusUpdate {
     planId: number;
     orderCode: number;
     paymentId: string;
-    status: 'PENDING' | 'PROCESSING' | 'PAID' | 'CANCELLED';
+    status: PaymentStatus;
     amount: number;
     timestamp: Date | string;
     timezone?: string;
@@ -82,6 +84,7 @@ export interface TransactionStatusUpdate {
     orderCode: number;
     paymentId: string;
     timezone?: string;
+    status?: string;
 }
 
 export interface SSEPaymentData {
