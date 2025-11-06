@@ -13,6 +13,7 @@ import {
     updateSubscriptionSchema,
     upgradeSubscriptionSchema,
 } from '@/dtos/subscription/subscription.dto';
+import logger from '@/utils/logger';
 
 export class SubscriptionController {
     /**
@@ -117,7 +118,7 @@ export class SubscriptionController {
         const userId = req.currentUser?.userId;
 
         const validatedData = updateSubscriptionSchema.parse(req.body);
-        const subscriptionId = parseInt(validatedData.subscriptionId as string);
+        const subscriptionId = toNumber(validatedData.subscriptionId as string);
 
         const timeZone = getTimezoneClient(req);
         const date = getCurrentDateInTimeZone(timeZone);
@@ -160,7 +161,7 @@ export class SubscriptionController {
             throw new BadRequest('Invalid request data');
         }
 
-        const planId = parseInt(validatedData.planId as string, 10);
+        const planId = toNumber(validatedData.planId);
         const timeZone = getTimezoneClient(req);
         const orderCode = toNumber(validatedData.orderCode);
         const paymentId = validatedData.paymentId;
@@ -181,6 +182,7 @@ export class SubscriptionController {
         } catch (error) {
             // Skip server error and must upgrade subscription
             if (!(error instanceof InternalServerError)) {
+                logger.error(error);
                 // When transaction already not status pending -> transaction completed -> throw error for user
                 throw error;
             }

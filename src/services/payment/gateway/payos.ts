@@ -14,13 +14,11 @@ import {
 } from '../type';
 import { InternalServerError } from '@/core/error';
 import logger from '@/utils/logger';
-import { compareIgnoreCapitalization, isNilOrEmpty, toNumber } from '@/utils/common';
+import { compareIgnoreCapitalization, toNumber } from '@/utils/common';
 import { getCurrentDateInTimeZone, getSystemDate, TIME_ZONE_SYSTEM } from '@/utils/date';
 import { redis } from '@/libs/redis/redis.connect';
-import { REDIS_PREFIX_PAYMENT_GATEWAY_INFO } from '../payment.service';
-import db from '@/libs/drizzleClient.lib';
-import { transactionsModel } from '@/models';
-import { eq, and } from 'drizzle-orm';
+import { paymentService, REDIS_PREFIX_PAYMENT_GATEWAY_INFO } from '../payment.service';
+
 import { IMetaDataTransaction } from '../type/payos.type';
 import subscriptionService from '@/services/subscription/subscription.service';
 
@@ -90,21 +88,10 @@ class PayOSManager extends PaymentBase implements PaymentGateway {
             // Get payment info from Redis
             const status = success ? PaymentStatus.SUCCESS : PaymentStatus.CANCELLED;
 
-            const [existing] = await db
-                .select({
-                    userId: transactionsModel.userId,
-                    transactionId: transactionsModel.transactionId,
-                    status: transactionsModel.status,
-                    metadata: transactionsModel.metadata,
-                })
-                .from(transactionsModel)
-                .where(
-                    and(
-                        eq(transactionsModel.code, orderCode.toString()),
-                        eq(transactionsModel.paymentId, paymentLinkId)
-                    )
-                )
-                .limit(1);
+            const existing = await paymentService.getTransactionOfGateway({
+                orderCode,
+                paymentId: paymentLinkId,
+            });
 
             if (!existing) {
                 logger.warn(
@@ -114,7 +101,7 @@ class PayOSManager extends PaymentBase implements PaymentGateway {
                 return true;
             }
 
-            if (existing.status != PaymentStatus.PENDING) {
+            if (compareIgnoreCapitalization(existing.status, PaymentStatus.PENDING)) {
                 logger.info(
                     `WEB HOOK PAYOS: Transaction exceed lifecycle for transactionId=${existing.transactionId}, skipping`
                 );
@@ -124,21 +111,6 @@ class PayOSManager extends PaymentBase implements PaymentGateway {
             const { userId, metadata } = existing;
 
             const planIdPayment = (metadata as IMetaDataTransaction).planId;
-
-            //Check current subscription of user
-            const subscription = await subscriptionService.getUserActiveSubscription(userId);
-
-            if (!isNilOrEmpty(subscription) && subscription?.planId === planIdPayment) {
-                return true;
-            }
-
-            // If not upgrade , upgrade subscription for user based on planId register when payment
-            await subscriptionService.changeSubscription({
-                userId,
-                newPlanId: planIdPayment,
-                status: 'active',
-                timeZone: TIME_ZONE_SYSTEM.UTC,
-            });
 
             // Create payment status update
             const paymentUpdate: PaymentStatusUpdate = {
@@ -162,19 +134,20 @@ class PayOSManager extends PaymentBase implements PaymentGateway {
             //     logger.info(`Payment status sent via SSE to user ${userId}: ${status}`);
             // }
 
-            // Handle successful payment
-            if (compareIgnoreCapitalization(status, PaymentStatus.PAID)) {
-                await this.handleSuccessfulPayment(paymentUpdate);
-            }
-
-            // Clean up Redis data for completed/cancelled payments
             if (
-                compareIgnoreCapitalization(status, PaymentStatus.PAID) ||
+                compareIgnoreCapitalization(status, PaymentStatus.SUCCESS) ||
                 compareIgnoreCapitalization(status, PaymentStatus.CANCELLED)
             ) {
                 await redis.del(redisKey);
                 logger.info(`Cleaned up payment data for orderCode: ${orderCode}`);
             }
+
+            // Handle successful payment
+            if (compareIgnoreCapitalization(status, PaymentStatus.SUCCESS)) {
+                return await this.handleSuccessfulPayment(paymentUpdate);
+            }
+
+            // Clean up Redis data for completed/cancelled payments
 
             return true;
         } catch (error) {
@@ -187,19 +160,46 @@ class PayOSManager extends PaymentBase implements PaymentGateway {
      * Handle successful payment processing
      * @param paymentUpdate - Payment status update data
      */
-    private async handleSuccessfulPayment(paymentUpdate: PaymentStatusUpdate): Promise<void> {
+    private async handleSuccessfulPayment(paymentUpdate: PaymentStatusUpdate): Promise<boolean> {
         try {
-            const { userId, planId } = paymentUpdate;
+            const { userId, planId: planIdPayment, paymentId, orderCode } = paymentUpdate;
 
-            // TODO: Implement subscription activation logic
-            // - Update user subscription status
-            // - Check and update status transaction
+            //Check current subscription of user
+            const subscription = await subscriptionService.getUserActiveSubscription(userId);
 
-            // - Update database records
-            logger.info(`Processing successful payment for user ${userId}, plan ${planId}`);
+            if (subscription && subscription?.planId === planIdPayment) {
+                return true;
+            }
+
+            // Update user subscription status
+            // Check and update status transaction
+            try {
+                await paymentService.updateTransactionStatus({
+                    userId,
+                    orderCode,
+                    paymentId,
+                    timezone: TIME_ZONE_SYSTEM.UTC,
+                });
+            } catch (error) {
+                // Skip server error and must upgrade subscription
+                if (!(error instanceof InternalServerError)) {
+                    logger.error(error);
+                    // When transaction already not status pending -> transaction completed -> throw error for user
+                    throw error;
+                }
+            }
+
+            // If not upgrade , upgrade subscription for user based on planId register when payment
+            await subscriptionService.changeSubscription({
+                userId,
+                newPlanId: planIdPayment,
+                timeZone: TIME_ZONE_SYSTEM.UTC,
+            });
 
             //TODO: Send confirmation email
-            // await emailService.sendPaymentConfirmation(userId);
+            //await emailService.sendPaymentConfirmation(userId);
+
+            return true;
         } catch (error) {
             logger.error(`Error processing successful payment: ${error}`);
             throw error;

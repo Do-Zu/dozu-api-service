@@ -83,7 +83,7 @@ export interface TransactionStatusUpdate {
     userId: number;
     orderCode: number;
     paymentId: string;
-    timezone?: string;
+    timezone: string;
     status?: string;
 }
 

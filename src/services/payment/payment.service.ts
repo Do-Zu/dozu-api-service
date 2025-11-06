@@ -133,6 +133,20 @@ class PaymentService {
         }
     }
 
+    public async getTransactionOfGateway({ orderCode, paymentId }: { orderCode: number; paymentId: string }) {
+        const [existing] = await db
+            .select({
+                userId: transactionsModel.userId,
+                transactionId: transactionsModel.transactionId,
+                status: transactionsModel.status,
+                metadata: transactionsModel.metadata,
+            })
+            .from(transactionsModel)
+            .where(and(eq(transactionsModel.code, orderCode.toString()), eq(transactionsModel.paymentId, paymentId)))
+            .limit(1);
+
+        return existing;
+    }
     /**
      *
      * @param payment

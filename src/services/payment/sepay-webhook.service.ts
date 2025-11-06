@@ -62,7 +62,7 @@ class SepayWebhookService {
 
     /**
      * Handle incoming SePay webhook
-     * BLOCK THIS
+     * @deprecated This webhook handler is being phased out in favor of PayOS
      */
     public async handleWebhook(webhookData: SepayWebhookData): Promise<boolean> {
         try {

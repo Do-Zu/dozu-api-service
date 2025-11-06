@@ -7,6 +7,7 @@ import { WebhookRequest } from '@/services/payment/type';
 import { SepayWebhookData } from '@/services/payment/type/sepay.type';
 import { sseManager } from '@/services/sse/sse.service';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
+import { toNumber } from '@/utils/common';
 import { getTimezoneClient } from '@/utils/date';
 import logger from '@/utils/logger';
 import { Request, Response } from 'express';
@@ -149,7 +150,22 @@ class PaymentController {
 
         const { orderCode, paymentId } = req.body;
 
-        const transaction = await paymentService.updateTransactionStatus({ userId, timezone, orderCode, paymentId });
+        if (!orderCode || !paymentId) {
+            throw new BadRequest('missing parameters');
+        }
+
+        const orderCodeNumber = toNumber(orderCode);
+
+        if (isNaN(orderCodeNumber)) {
+            throw new BadRequest('order code must be number');
+        }
+
+        const transaction = await paymentService.updateTransactionStatus({
+            userId,
+            timezone,
+            orderCode: orderCodeNumber,
+            paymentId,
+        });
 
         SuccessResponse.ok(res, transaction);
     }
