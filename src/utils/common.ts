@@ -95,3 +95,26 @@ export const isNullOrEmpty = (value: unknown): boolean => {
 
     return isEmpty(value);
 };
+
+/**
+ * Safely converts a value to a number.
+ * Returns defaultValue if conversion fails or result is not finite.
+ *
+ * @param value - Any input value.
+ * @param defaultValue - Value to return when parsing fails.
+ */
+export const toNumber = (value: unknown, defaultValue: number = NaN): number => {
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? value : defaultValue;
+    }
+
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) return defaultValue;
+
+        const parsed = Number(trimmed);
+        return Number.isFinite(parsed) ? parsed : defaultValue;
+    }
+
+    return defaultValue;
+};
