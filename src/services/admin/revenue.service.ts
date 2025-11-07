@@ -4,6 +4,7 @@ import { transactionsModel } from '@/models/payment/transaction.model';
 import { userSubscriptionsTable, plansTable } from '@/models/subscription';
 import { usersTable } from '@/models/user.model';
 import { GetRevenueStatsQueryDto, GetRevenueBreakdownQueryDto } from '@/dtos/admin/revenue.dto';
+import { convertUsdToVnd } from '@/utils/conversion/conversion';
 
 class AdminRevenueService {
     // ============ REVENUE STATISTICS ============
@@ -99,7 +100,8 @@ class AdminRevenueService {
                 )
             );
 
-        const mrr = parseFloat(mrrResult[0]?.mrr as string || '0');
+        const mrrUsd = parseFloat(mrrResult[0]?.mrr as string || '0');
+        const mrr = convertUsdToVnd(mrrUsd);
 
         // Get total active Pro users for ARPU calculation
         const activeUsersResult = await db
@@ -208,7 +210,7 @@ class AdminRevenueService {
             revenueByPlan: revenueByPlan.map((item) => ({
                 planType: item.planType,
                 planName: item.planName,
-                revenue: parseFloat(item.revenue as string || '0'),
+                revenue: convertUsdToVnd(parseFloat(item.revenue as string || '0')),
                 subscriberCount: Number(item.subscriberCount),
             })),
         };
@@ -270,7 +272,7 @@ class AdminRevenueService {
 
             return result.map((item) => ({
                 key: `${item.planType} - ${item.planName}`,
-                revenue: parseFloat(item.revenue as string || '0'),
+                revenue: convertUsdToVnd(parseFloat(item.revenue as string || '0')),
                 count: Number(item.count),
             }));
         }

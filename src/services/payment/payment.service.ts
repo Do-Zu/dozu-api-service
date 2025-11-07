@@ -1,24 +1,17 @@
-import { DatabaseError } from '@/core/error';
 import db from '@/libs/drizzleClient.lib';
 import { redisInstance as redis } from '@/libs/redis/default/redisDefault';
 import { transactionsModel } from '@/models/payment/transaction.model';
-import { compareIgnoreCapitalization } from '@/utils/common';
 import { convertUsdToVnd } from '@/utils/conversion/conversion';
 import { getCurrentDateInTimeZone, getDateFormattedWithTimeZone, getSystemDate } from '@/utils/date';
+import { BadRequest, DatabaseError, NotFoundError } from '@/core/error';
 import logger from '@/utils/logger';
 import planService from '../subscription/plan.service';
 import { GATEWAY } from './constants';
 import { payOS } from './gateway/payos';
-import { sepayPayment } from './gateway/sepay';
 import { PaymentStatus } from './payment.interface';
 import { addMilliseconds } from 'date-fns';
-import {
-    PaymentLinkRequest,
-    PaymentLinkResponse,
-    PaymentSepayRegisterResponse,
-    PaymentStatusUpdate,
-    WebhookRequest,
-} from './type';
+import { PaymentLinkRequest, PaymentLinkResponse, TransactionStatusUpdate } from './type';
+import { and, eq } from 'drizzle-orm';
 
 export const REDIS_PREFIX_PAYMENT_GATEWAY_INFO = 'PAYMENT_REGISTER_PROCESS_GATEWAY_INFO';
 /**
@@ -66,11 +59,13 @@ class PaymentService {
 
         const { orderCode, paymentLinkId, jobId } = paymentRegisterResponse;
 
+        const currency = 'VND';
+
         const transaction = await this.initTransactionPayment({
             gateway: GATEWAY.PAYOS,
             userId,
             amount: currencyVND,
-            currency: 'VND',
+            currency,
             code: orderCode.toString(),
             paymentId: paymentLinkId,
             description: `Payment for plan ${plan.name}`,
@@ -100,74 +95,6 @@ class PaymentService {
         };
     }
 
-    /**
-     * Creates a payment link using SePay gateway.
-     * @param request - The payment link request data.
-     * @returns A promise that resolves to the payment link response.
-     */
-    public async createPaymentLinkWithSepay(request: PaymentLinkRequest): Promise<PaymentSepayRegisterResponse> {
-        const { planId, timeZone, userId } = request;
-
-        const plan = await planService.getPlanById(planId);
-
-        if (!plan) {
-            throw new Error('Server Error: Plan not found');
-        }
-
-        const ttlForExpirePayment = this.EXPIRE_IN_MINUTE * 60 * 1000;
-
-        const timeExpireMilliseconds = new Date().getTime() + ttlForExpirePayment;
-
-        const expireAt = new Date(timeExpireMilliseconds);
-
-        const expireAtTimeZone = getCurrentDateInTimeZone(timeZone, expireAt);
-
-        const price = parseFloat(plan.price as string);
-
-        const currencyVND = convertUsdToVnd(price);
-
-        const paymentData = {
-            ...request,
-            planId,
-            amount: currencyVND,
-            expireAt: expireAtTimeZone,
-        };
-
-        const paymentRegisterResponse = await sepayPayment.registerPaymentProcess(paymentData);
-
-        if (!paymentRegisterResponse) {
-            throw new Error('Server Error: Failed to create payment link');
-        }
-
-        const { orderCode, jobId } = paymentRegisterResponse;
-
-        const transaction = await this.initTransactionPayment({
-            gateway: GATEWAY.SEPAY,
-            userId,
-            amount: currencyVND,
-            currency: 'VND',
-            code: orderCode.toString(),
-            paymentId: jobId,
-            description: `Payment for plan ${plan.name}`,
-            metadata: { planId, orderCode, jobId },
-        });
-
-        const redisKey = `${this.REDIS_PREFIX}:${userId}:${jobId}`;
-
-        const dataStore = { planId, userId, expireAt: expireAtTimeZone, transactionId: transaction.transactionId };
-
-        const plusTimeToTtlSecond = 10; // Adding 10 minute to the TTL to ensure the data is available for a short time after expiration
-        const ttlCache = (this.EXPIRE_IN_MINUTE + plusTimeToTtlSecond) * 60;
-
-        await redis.set(redisKey, dataStore, ttlCache);
-
-        return {
-            ...paymentRegisterResponse,
-            expireAt: getDateFormattedWithTimeZone(expireAtTimeZone, timeZone),
-            transactionId: transaction.transactionId,
-        };
-    }
-
     private async initTransactionPayment(transactionData: {
         gateway: string;
         userId: number;
@@ -183,7 +110,7 @@ class PaymentService {
         const { gateway, userId, amount, currency, code, paymentId, description, metadata } = transactionData;
 
         try {
-            const transaction = await db
+            const [transaction] = await db
                 .insert(transactionsModel)
                 .values({
                     userId,
@@ -199,109 +126,75 @@ class PaymentService {
                     transactionId: transactionsModel.transactionId,
                 });
 
-            return transaction[0];
+            return transaction;
         } catch (error) {
             logger.error(`Error initializing transaction payment: ${error}`);
             throw new DatabaseError('Failed to initialize transaction payment');
         }
     }
 
-    /**
-     * Handle webhook from PayOS gateway
-     * @param webhookData - The webhook data from PayOS
-     * @returns boolean indicating if webhook was processed successfully
-     */
-    public async handleWebhook(webhookData: WebhookRequest): Promise<boolean> {
-        try {
-            const { data, signature, success } = webhookData;
+    public async getTransactionOfGateway({ orderCode, paymentId }: { orderCode: number; paymentId: string }) {
+        const [existing] = await db
+            .select({
+                userId: transactionsModel.userId,
+                transactionId: transactionsModel.transactionId,
+                status: transactionsModel.status,
+                metadata: transactionsModel.metadata,
+            })
+            .from(transactionsModel)
+            .where(and(eq(transactionsModel.code, orderCode.toString()), eq(transactionsModel.paymentId, paymentId)))
+            .limit(1);
 
-            // Verify webhook signature
-            const isValidSignature = payOS.validateSignature(data, signature);
-
-            if (!isValidSignature) {
-                logger.error('Invalid webhook signature from PayOS');
-                return false;
-            }
-
-            const { orderCode, amount, paymentLinkId } = data;
-
-            // Find payment info in Redis using pattern matching
-
-            const redisKey = `${this.REDIS_PREFIX}:${orderCode}:${paymentLinkId}`;
-            // Get payment info from Redis
-            const status = success ? PaymentStatus.PAID : PaymentStatus.CANCELLED;
-            const paymentInfo = await redis.get(redisKey);
-
-            if (!paymentInfo) {
-                logger.warn(`Payment info expired for orderCode: ${orderCode}`);
-                return false;
-            }
-
-            const { planId, userId } = paymentInfo;
-
-            // Create payment status update
-            const paymentUpdate: PaymentStatusUpdate = {
-                userId,
-                planId,
-                orderCode,
-                status: 'PAID',
-                amount,
-                timestamp: getCurrentDateInTimeZone().toISOString(),
-            };
-
-            //TODO: find key to matching webhook data and see
-            // Send SSE event to user
-            // const sseSuccess = sseManager.sendEvent(userId.toString(), {
-            //     type: 'payment_status',
-            //     data: paymentUpdate,
-            // });
-
-            // if (sseSuccess) {
-            //     logger.info(`Payment status sent via SSE to user ${userId}: ${status}`);
-            // }
-
-            // Handle successful payment
-            if (compareIgnoreCapitalization(status, PaymentStatus.PAID)) {
-                await this.handleSuccessfulPayment(paymentUpdate);
-            }
-
-            // Clean up Redis data for completed/cancelled payments
-            if (
-                compareIgnoreCapitalization(status, PaymentStatus.PAID) ||
-                compareIgnoreCapitalization(status, PaymentStatus.CANCELLED)
-            ) {
-                await redis.del(redisKey);
-                logger.info(`Cleaned up payment data for orderCode: ${orderCode}`);
-            }
-
-            return true;
-        } catch (error) {
-            logger.error(`Error handling webhook: ${error}`);
-            return false;
-        }
+        return existing;
     }
-
     /**
-     * Handle successful payment processing
-     * @param paymentUpdate - Payment status update data
+     *
+     * @param payment
      */
-    private async handleSuccessfulPayment(paymentUpdate: PaymentStatusUpdate): Promise<void> {
-        try {
-            const { userId, planId } = paymentUpdate;
+    public async updateTransactionStatus(payment: TransactionStatusUpdate) {
+        const { userId, orderCode, paymentId, timezone } = payment;
 
-            // TODO: Implement subscription activation logic
-            // - Update user subscription status
-            // - Check and update status transaction
+        await db.transaction(async tx => {
+            // Find the matching transaction
+            const [existing] = await tx
+                .select({
+                    transactionId: transactionsModel.transactionId,
+                    status: transactionsModel.status,
+                })
+                .from(transactionsModel)
+                .where(
+                    and(
+                        eq(transactionsModel.userId, userId),
+                        eq(transactionsModel.code, orderCode.toString()),
+                        eq(transactionsModel.paymentId, paymentId)
+                    )
+                )
+                .limit(1);
 
-            // - Update database records
-            logger.info(`Processing successful payment for user ${userId}, plan ${planId}`);
+            if (!existing) {
+                logger.warn(
+                    `updateTransactionStatus: transaction not found for orderCode=${orderCode}, paymentId=${paymentId}`
+                );
 
-            //TODO: Send confirmation email
-            // await emailService.sendPaymentConfirmation(userId);
-        } catch (error) {
-            logger.error(`Error processing successful payment: ${error}`);
-            throw error;
-        }
+                throw new NotFoundError('Transaction Unavailable');
+            }
+
+            // If it's already success, do nothing
+            if (existing.status !== PaymentStatus.PENDING) {
+                logger.info(
+                    `updateTransactionStatus: transaction status  already ${existing.status} for transactionId=${existing.transactionId}, skipping`
+                );
+                throw new BadRequest('Transaction exceed lifecycle');
+            }
+
+            await tx
+                .update(transactionsModel)
+                .set({
+                    status: PaymentStatus.SUCCESS,
+                    updatedAt: getCurrentDateInTimeZone(timezone),
+                })
+                .where(eq(transactionsModel.transactionId, existing.transactionId));
+        });
     }
 }
 

@@ -1,5 +1,5 @@
 import db from '@/libs/drizzleClient.lib';
-import { classTopicCommentsTable, NodeType } from '@/models';
+import { classTopicCommentsTable } from '@/models';
 import {
     ICreateCommentService,
     IUpdateCommentService,
@@ -8,7 +8,7 @@ import { IClassTopicComment, IGetCommentsQuery } from '@/types/class-based-learn
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 
 export type ICreateCommentRepo = ICreateCommentService & {
-    topicId: number;
+    topicId: number | null;
     author: { user_id: number; name: string; avatar?: string };
     level: number;
 };
@@ -59,7 +59,7 @@ class ClassTopicCommentRepo {
 
     public async getRootCommentsByNode(
         nodeId: number | string,
-        typeNode: NodeType,
+        typeNode: string,
         executor: DBExecutor = db
     ): Promise<IClassTopicComment[]> {
         const result = await executor
