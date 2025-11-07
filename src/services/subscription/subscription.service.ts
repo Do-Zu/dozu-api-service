@@ -54,10 +54,6 @@ export class SubscriptionService {
             throw new NotFoundError('No plans available');
         }
 
-        if (!plans || plans.length === 0) {
-            throw new NotFoundError('No plans available');
-        }
-
         const planFeatures = (await subscriptionRepo.getPlanFeaturesAvailable()) as IFeature[];
 
         if (!planFeatures || planFeatures.length === 0) {
