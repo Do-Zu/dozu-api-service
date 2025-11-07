@@ -12,11 +12,37 @@ class InputSetService {
         }
 
         const { metadata, setId, contentType, description, title } = inputSet;
+        // returned data
+        let data: any;
+        if (contentType === 'file') {
+            const fileContent = await this.handleGetFile({ metadata } as { metadata: { fileKey: string } });
 
-        const fileContent = await this.handleGetFile({ metadata } as { metadata: { fileKey: string } });
-
-        if (!fileContent) {
-            throw new InternalServerError('Error: Document does not exist');
+            if (!fileContent) {
+                throw new InternalServerError('Error: Document does not exist');
+            }
+            data = {
+                fileUrl: fileContent.downloadUrl,
+                expiresIn: fileContent.expiresIn,
+            };
+        } else if (contentType === 'youtube') {
+            const { url, content, videoInfo } = metadata as {
+                url?: string | null | undefined;
+                content?: string | null | undefined;
+                videoInfo?: { videoId: string } | null | undefined;
+            };
+            if (
+                url === null ||
+                url === undefined ||
+                content === null ||
+                content === undefined ||
+                videoInfo === null ||
+                videoInfo === undefined
+            ) {
+                throw new InternalServerError('Error: Youtube content does not exist');
+            }
+            data = { url, content, videoInfo };
+        } else {
+            throw new Error(`Error: Content type ${contentType} is not supported yet.`);
         }
 
         return {
@@ -24,8 +50,7 @@ class InputSetService {
             contentType,
             description,
             title,
-            fileUrl: fileContent.downloadUrl,
-            expiresIn: fileContent.expiresIn,
+            data,
         };
     };
 
