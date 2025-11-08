@@ -43,7 +43,7 @@ class FlashcardController {
         }
     }
 
-    public async batchFlashcardsForTopic(req: Request, res: Response): Promise<void> {
+    public async batchFlashcardsForTopicChanges(req: Request, res: Response): Promise<void> {
         const userId = getUserIdFromRequest(req);
         const topicId = requestHelper.getIdParam(req, 'topicId');
 
@@ -255,6 +255,44 @@ class FlashcardController {
             };
         });
         SuccessResponse.ok(res, result);
+    }
+
+    // this is for a new version of editing flashcard (serving for notewave-like UI)
+    public async batchFlashcardsForTopicState(req: Request, res: Response): Promise<void> {
+        const userId = getUserIdFromRequest(req);
+        const topicId = requestHelper.getIdParam(req, 'topicId');
+        const currentDate = getCurrentTimestampFromRequest(req);
+
+        const { flashcardsAdded, flashcardsUpdated, flashcardsDeleted }: IFlashcardsBatchInput = req.body;
+
+        await flashcardService.batchFlashcardsForTopic(userId, topicId, {
+            flashcardsAdded,
+            flashcardsUpdated,
+            flashcardsDeleted,
+        });
+
+        const flashcards = await flashcardService.getFlashcardsForTopic(topicId);
+        const dueFlashcards = await flashcardService.getDueFlashcardsForTopicAndUser(topicId, userId, currentDate);
+        const ankiSetting = await ankiSettingService.getSettingForTopicAndUser(topicId, userId);
+
+        const dueAnkiCards: IDueAnkiCard[] = dueFlashcards.map(card => {
+            return {
+                flashcardId: card.flashcardId,
+                front: card.front,
+                back: card.back,
+                iamgeUrl: card.imageUrl,
+                topicName: card.topicName,
+                nextReviewDataByRatings: flashcardService.getNextReviewByRatings(
+                    card.flashcardId,
+                    card.learningState!,
+                    ankiSetting
+                ),
+                nextReview: card.learningState!.nextReview,
+                status: card.learningState!.status,
+            };
+        });
+
+        SuccessResponse.ok(res, { flashcards, dueAnkiCards });
     }
 }
 
