@@ -87,6 +87,8 @@ export const handler = async (event: any) => {
             };
         }
 
+        console.log({ model });
+
         const contentDecompressed = isRawText ? content : decompressContent(content);
 
         console.log({
@@ -95,7 +97,6 @@ export const handler = async (event: any) => {
             queue_name,
             type,
             job_name,
-            contentDecompressed,
         });
 
         //generate content
@@ -203,8 +204,8 @@ async function generateContent(
             model,
             messages: messages,
             stream: false,
-            temperature: 0.7,
-            max_tokens: 500000,
+            temperature: 0.5,
+            max_tokens: 120000,
             response_format: {
                 type: 'json_object',
             },
