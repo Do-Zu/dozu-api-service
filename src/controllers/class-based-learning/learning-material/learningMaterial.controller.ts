@@ -3,18 +3,20 @@ import { BadRequest } from '@/core/error';
 import { SuccessResponse } from '@/core/success';
 import requestHelper from '@/core/request/request.helper';
 import {
-    createLearningMaterialService,
+    editLearningMaterialService,
     deleteLearningMaterialService,
     getLearningMaterialService,
     getLearningMaterialsOfClassService,
+    createLearningMaterialService,
 } from '@/services/class-based-learning/learning-material/learningMaterial.service';
+import { IUpdateLearningMaterialBody } from '@/types/class-based-learning/learning-material/learningMaterial.type';
 
 export const createLearningMaterialController = async (req: Request, res: Response) => {
     if (!req.body || !req.body.title) {
         throw new BadRequest('Invalid request');
     }
 
-    const { title, description, topicId, inputResources } = req.body;
+    const { title, content, topicId, inputResources } = req.body;
 
     const classId = requestHelper.getIdParam(req, 'classId');
 
@@ -24,7 +26,7 @@ export const createLearningMaterialController = async (req: Request, res: Respon
 
     const data = await createLearningMaterialService({
         title,
-        description: description ?? '',
+        content: content ?? '',
         classId,
         topicId,
         inputResources,
@@ -70,6 +72,36 @@ export const getLearningMaterialsOfClassController = async (req: Request, res: R
     if (data.success) {
         const returnData = {
             data,
+        };
+        SuccessResponse.ok(res, returnData);
+    } else {
+        throw new BadRequest('Invalid request');
+    }
+};
+
+export const updateLearningMaterialController = async (req: Request, res: Response) => {
+    const classId = requestHelper.getIdParam(req, 'classId');
+    const learningMaterialId = parseInt(req.params.learningMaterialId);
+    if (Number.isNaN(learningMaterialId)) {
+        throw new BadRequest('Missing learning material id');
+    }
+    const requestBodyData = req.body as IUpdateLearningMaterialBody;
+    const updatedLearningMaterial = {
+        ...requestBodyData,
+        classId,
+        learningMaterialId: learningMaterialId,
+        content: requestBodyData.content ?? '',
+        topicId: requestBodyData.topicId ?? null,
+    };
+
+    // handle edit
+    const data = await editLearningMaterialService({
+        learningMaterial: updatedLearningMaterial,
+        inputResources: requestBodyData.inputResources,
+    });
+    if (data.success) {
+        const returnData = {
+            data: data.learningMaterialWithAttachments,
         };
         SuccessResponse.ok(res, returnData);
     } else {
