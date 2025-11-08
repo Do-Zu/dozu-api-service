@@ -73,10 +73,12 @@ app.use(handleError);
 // Create HTTP server from Express app
 const httpServer = createServer(app);
 
-// Initialize WebSocket server (base service for job-based connections)
+// Initialize base WebSocket server first (for job-based connections)
+// This creates the Socket.IO server instance
 webSocketService.initialize(httpServer);
 
-// Initialize Notification WebSocket service (extends base service for user notifications)
+// Initialize Notification WebSocket service
+// This reuses the same Socket.IO instance from base service to avoid conflicts
 notificationWebSocketService.initialize(httpServer);
 
 // Start server

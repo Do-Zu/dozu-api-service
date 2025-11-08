@@ -247,9 +247,14 @@ export class NotificationService {
         return false;
       }
 
+      if (!process.env.FRONTEND_BASE_URL) {
+        logger.error('FRONTEND_BASE_URL environment variable is required');
+        return false;
+      }
+
       const template = getDailyReminderTemplate({
         fullName: context.fullName || context.username,
-        frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+        frontendUrl: process.env.FRONTEND_BASE_URL,
       });
 
       const emailNotification: EmailNotification = {
@@ -305,13 +310,18 @@ export class NotificationService {
         return false;
       }
 
+      if (!process.env.FRONTEND_BASE_URL) {
+        logger.error('FRONTEND_BASE_URL environment variable is required');
+        return false;
+      }
+
       const template = getWeeklyReportTemplate({
         fullName: context.fullName || context.username,
         studyHours: stats.studyHours,
         topicsCompleted: stats.topicsCompleted,
         achievementsEarned: stats.achievementsEarned,
         streak: stats.streak,
-        frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+        frontendUrl: process.env.FRONTEND_BASE_URL,
       });
 
       const emailNotification: EmailNotification = {
@@ -357,12 +367,17 @@ export class NotificationService {
         return false;
       }
 
+      if (!process.env.FRONTEND_BASE_URL) {
+        logger.error('FRONTEND_BASE_URL environment variable is required');
+        return false;
+      }
+
       const template = getAchievementTemplate({
         fullName: context.fullName || context.username,
         achievementTitle: achievement.title,
         achievementDescription: achievement.description,
         achievementIcon: achievement.icon,
-        frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+        frontendUrl: process.env.FRONTEND_BASE_URL,
       });
 
       const emailNotification: EmailNotification = {
@@ -513,9 +528,14 @@ export class NotificationService {
         return false;
       }
 
+      if (!process.env.FRONTEND_BASE_URL) {
+        logger.error('FRONTEND_BASE_URL environment variable is required');
+        return false;
+      }
+
       const template = getReEngagementTemplate({
         fullName: context.fullName || context.username,
-        frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+        frontendUrl: process.env.FRONTEND_BASE_URL,
       });
 
       const emailNotification: EmailNotification = {

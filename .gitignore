@@ -33,6 +33,7 @@ dist-*/
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+!.vscode/mcp.json
 *.code-workspace
 *.suo
 *.ntvs*

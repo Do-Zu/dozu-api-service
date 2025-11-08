@@ -26,11 +26,11 @@ export class NotificationScheduler {
 
     /**
      * Schedule daily learning reminders
-     * Runs every day at 9:00 AM
+     * Runs every day at 5:00 AM
      */
     private static scheduleDailyReminders(): void {
         cron.schedule(
-            '0 9 * * *',
+            '0 5 * * *',
             async () => {
                 logger.info('Running daily reminder notifications...');
 
@@ -70,16 +70,16 @@ export class NotificationScheduler {
             }
         );
 
-        logger.info('Daily reminder notifications scheduled for 9:00 AM');
+        logger.info('Daily reminder notifications scheduled for 5:00 AM');
     }
 
     /**
      * Schedule weekly progress reports
-     * Runs every Sunday at 10:00 AM
+     * Runs every Sunday at 2:00 AM
      */
     private static scheduleWeeklyReports(): void {
         cron.schedule(
-            '0 10 * * 0',
+            '0 2 * * 0',
             async () => {
                 logger.info('Running weekly report notifications...');
 
@@ -127,16 +127,16 @@ export class NotificationScheduler {
             }
         );
 
-        logger.info('Weekly report notifications scheduled for Sunday 10:00 AM');
+        logger.info('Weekly report notifications scheduled for Sunday 2:00 AM');
     }
 
     /**
      * Schedule re-engagement notifications for inactive users
-     * Runs every day at 8:00 PM to check for inactive users
+     * Runs every day at 10:00 PM to check for inactive users
      */
     private static scheduleReEngagementNotifications(): void {
         cron.schedule(
-            '0 20 * * *',
+            '0 22 * * *',
             async () => {
                 logger.info('Running re-engagement notifications...');
 
@@ -178,7 +178,7 @@ export class NotificationScheduler {
             }
         );
 
-        logger.info('Re-engagement notifications scheduled for 8:00 PM daily');
+        logger.info('Re-engagement notifications scheduled for 10:00 PM daily');
     }
 
     /**

@@ -91,6 +91,37 @@ export interface IRedisManager {
   flushdb(): Promise<'OK'>;
 
   /**
+   * Add one or more members to a set
+   * @param key Redis key
+   * @param members Members to add to the set
+   * @returns Number of members added (excluding duplicates)
+   */
+  sadd(key: string, ...members: string[]): Promise<number>;
+
+  /**
+   * Get all members of a set
+   * @param key Redis key
+   * @returns Array of all members in the set
+   */
+  smembers(key: string): Promise<string[]>;
+
+  /**
+   * Remove one or more members from a set
+   * @param key Redis key
+   * @param members Members to remove from the set
+   * @returns Number of members removed
+   */
+  srem(key: string, ...members: string[]): Promise<number>;
+
+  /**
+   * Check if a value is a member of a set
+   * @param key Redis key
+   * @param member Member to check
+   * @returns 1 if member exists, 0 if not
+   */
+  sismember(key: string, member: string): Promise<number>;
+
+  /**
    * Disconnect from Redis server
    */
   disconnect(): Promise<void>;

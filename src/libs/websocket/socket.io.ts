@@ -47,14 +47,6 @@ export class WebSocketService {
 
     this.io.on('connection', (socket: Socket) => {
       logger.info(`Client connected: ${socket.id} from origin: ${socket.handshake.headers.origin}`);
-      
-      // Log connection details for debugging
-      logger.debug(`Socket handshake:`, {
-        id: socket.id,
-        transport: socket.conn.transport.name,
-        remoteAddress: socket.handshake.address,
-        headers: socket.handshake.headers,
-      });
 
       // Register the client with a specific generation job ID
       socket.on('register', (jobId: string) => {
@@ -105,10 +97,25 @@ export class WebSocketService {
 
   /**
    * Get the Socket.IO server instance
-   * Useful for child classes to access the io instance
+   * Useful for child classes or other services to access the io instance
    */
-  protected getIO(): Server | null {
+  public getIO(): Server | null {
     return this.io;
+  }
+
+  /**
+   * Set the Socket.IO server instance (for sharing between services)
+   * Allows child classes or other services to reuse the same io instance
+   */
+  protected setIO(io: Server): void {
+    this.io = io;
+  }
+
+  /**
+   * Check if the service is initialized
+   */
+  public isInitialized(): boolean {
+    return this.io !== null;
   }
 }
 
