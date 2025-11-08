@@ -40,6 +40,7 @@ import './feynman/feynman.routes';
 import './backlog/backlog.routes';
 import './anki-setting/ankiSetting.routes';
 import './class-based-learning/learning-material/learningMaterial.routes';
+import './class-based-learning/quizClass.routes';
 import './package/package.routes';
 import './class-based-learning/assignment/assignmentSubmission.routes';
 
