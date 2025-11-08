@@ -27,3 +27,94 @@ export function lowercase(str: string): string {
 export function removeHyphensFromUUID(uuid: string): string {
     return uuid.replace(/-/g, '');
 }
+
+/**
+ * Returns true if the value is undefined, null, or an empty string.
+ *
+ * @param val - Value to test.
+ */
+export const isNilOrEmpty = (val: unknown): boolean => val === undefined || val === null || val === '';
+
+/**
+ * Check and convert to string
+ * @param val
+ * @returns string
+ */
+export const checkAndConvertToString = (val: string | number | undefined | null): string => {
+    if (isNilOrEmpty(val)) return '';
+
+    return val!.toString();
+};
+
+/**
+ *
+ * @param value
+ * @returns True if list is empty, false otherwise.
+ */
+const isListEmpty = (value: unknown[]): boolean => {
+    return value.length === 0;
+};
+
+/**
+ *
+ * @param obj
+ * @returns True if the object is empty, false otherwise.
+ */
+const isObjectEmpty = (obj: object): boolean => {
+    return Object.keys(obj).length === 0 && obj.constructor === Object;
+};
+
+/**
+ * Checks if an object is empty (has no own properties).
+ *
+ * @param obj - The object to be checked.
+ * @returns return empty for unknown type
+ */
+export const isEmpty = (value: unknown): boolean => {
+    if (value === null || value === undefined) return true;
+
+    if (typeof value === 'string') return value.length === 0;
+
+    if (Array.isArray(value)) return isListEmpty(value);
+
+    if (typeof value === 'object') {
+        return isObjectEmpty(value);
+    }
+
+    return false;
+};
+
+/**
+ * Checks if a value is null/undefined or empty.
+ *
+ * @param value - The value to be checked.
+ * @returns True if the value is null, undefined, or empty; false otherwise.
+ */
+export const isNullOrEmpty = (value: unknown): boolean => {
+    if (isNilOrEmpty(value)) return true;
+
+    return isEmpty(value);
+};
+
+/**
+ * Safely converts a value to a number.
+ * Returns defaultValue if conversion fails or result is not finite.
+ *
+ * @param value - Any input value.
+ * @param defaultValue - Value to return when parsing fails.
+ */
+export const toNumber = (value: unknown, defaultValue: number = NaN): number => {
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? value : defaultValue;
+    }
+
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) return defaultValue;
+
+        const parsed = Number(trimmed);
+        return Number.isFinite(parsed) ? parsed : defaultValue;
+    }
+
+    return defaultValue;
+};

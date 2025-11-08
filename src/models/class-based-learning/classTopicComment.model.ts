@@ -10,24 +10,18 @@ import {
     unique,
     pgEnum,
 } from 'drizzle-orm/pg-core';
-import { topicsTable } from '../topic.model';
-
-export const nodeTypeEnum = pgEnum('node_type', ['mindmap', 'flashcard', 'quiz']);
-
-export type NodeType = (typeof nodeTypeEnum.enumValues)[number];
+import { topicsTable } from '../topic/topic.model';
 
 export const classTopicCommentsTable = pgTable('class_topic_comments', {
     commentId: serial('comment_id').primaryKey(),
-    topicId: integer('topic_id')
-        .notNull()
-        .references(() => topicsTable.topicId, { onDelete: 'cascade' }),
+    topicId: integer('topic_id').references(() => topicsTable.topicId, { onDelete: 'cascade' }),
     nodeId: varchar('node_id', { length: 36 }).notNull(),
     author: jsonb('author').notNull().$type<{
         user_id: number;
         name: string;
         avatar?: string;
     }>(),
-    typeNode: nodeTypeEnum('node_type').notNull(),
+    typeNode: varchar('node_type', { length: 50 }).notNull(),
     isDeleted: boolean('is_deleted').notNull().default(false),
     parentCmtId: integer('parent_cmt_id').references((): any => classTopicCommentsTable.commentId, {
         onDelete: 'cascade',

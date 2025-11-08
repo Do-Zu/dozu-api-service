@@ -1,5 +1,5 @@
 import { pgTable, serial, integer, timestamp, boolean, doublePrecision } from 'drizzle-orm/pg-core';
-import { topicsTable } from '@/models/topic.model';
+import { topicsTable } from '@/models/topic/topic.model';
 
 export const schedulesTable = pgTable('schedules', {
   id: serial('id').primaryKey(),

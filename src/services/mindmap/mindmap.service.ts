@@ -1,6 +1,7 @@
 import { BadRequest } from '@/core/error';
 import { flashcardsTable, SelectMindmap } from '@/models';
 import {
+    deleteMindmapByTopicId,
     getFlashcardClassProgress,
     getFlashcardProgress,
     getFlashcardsByNodeId,
@@ -27,7 +28,7 @@ export const getMindmapAndProgressSummaryService = async (
     // check null
     if (!mindmap) {
         return { mindmap: undefined, nodeStats: [] };
-    }//returns empty, handled on frontend
+    } //returns empty, handled on frontend
 
     if (!mindmap.mindmapData) {
         //returns empty, check on frontend if handled correctly
@@ -154,4 +155,9 @@ export const changeNodeIdOfFlashcardsService = async (
         await db.update(flashcardsTable).set({ nodeId: finalSql }).where(inArray(flashcardsTable.flashcardId, ids));
     }
     return {};
+};
+
+export const deleteMindmapService = async ({ topicId }: { topicId: number }) => {
+    await deleteMindmapByTopicId(topicId);
+    
 };

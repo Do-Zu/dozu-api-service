@@ -10,6 +10,7 @@ import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Readable } from 'stream';
 import { insertInputSet } from '@/repositories/inputSet.repo';
+import { CONTENT_TYPE_INPUT_SET } from '@/types/inputSet/inputSet.type';
 /**
  * File upload configuration interface
  */
@@ -100,12 +101,12 @@ export class UploadFileService {
                 'text/html',
                 'text/xml',
                 // Images
-                // 'image/jpeg',
-                // 'image/png',
-                // 'image/gif',
-                // 'image/bmp',
-                // 'image/webp',
-                // 'image/svg+xml',
+                'image/jpeg',
+                'image/png',
+                'image/gif',
+                'image/bmp',
+                'image/webp',
+                'image/svg+xml',
                 // Archives
                 'application/zip',
                 'application/x-rar-compressed',
@@ -114,7 +115,16 @@ export class UploadFileService {
                 'application/gzip',
             ],
             uploadDir: config?.uploadDir || generateConfig.uploadDir,
-            allowedExtensions: config?.allowedExtensions || ['.pdf', '.doc', '.docx', '.txt', '.md'],
+            allowedExtensions: config?.allowedExtensions || [
+                '.pdf',
+                '.doc',
+                '.docx',
+                '.txt',
+                '.md',
+                '.jpeg',
+                '.png',
+                '.jpg',
+            ],
         };
     }
 
@@ -395,8 +405,9 @@ export class UploadFileService {
             const result = await insertInputSet({
                 userId,
                 title: fileName,
-                contentType,
+                contentType: CONTENT_TYPE_INPUT_SET.FILE,
                 metadata: {
+                    contentType,
                     fileSize,
                     fileKey,
                 },

@@ -1,6 +1,6 @@
 import { pgTable, varchar, jsonb, timestamp, serial, integer } from 'drizzle-orm/pg-core';
 
-import { topicsTable } from '../topic.model';
+import { topicsTable } from '../topic/topic.model';
 
 type NodeData = {
     id: string;

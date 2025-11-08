@@ -2,10 +2,11 @@ import db from '@/libs/drizzleClient.lib';
 import { redisInstance as redis } from '@/libs/redis/default/redisDefault';
 import { transactionsModel } from '@/models/payment/transaction.model';
 import { PaymentStatusUpdate } from '@/services/payment/type';
-import { SepayPaymentMapping, SepayWebhookData, } from '@/services/payment/type/sepay.type';
+import { SepayPaymentMapping, SepayWebhookData } from '@/services/payment/type/sepay.type';
 import { sseManager } from '@/services/sse/sse.service';
 import subscriptionService from '@/services/subscription/subscription.service';
 import { getCurrentDateInTimeZone } from '@/utils/date';
+import { PaymentStatus } from './payment.interface';
 import logger from '@/utils/logger';
 
 /**
@@ -59,9 +60,9 @@ class SepayWebhookService {
         }
     }
 
-
     /**
      * Handle incoming SePay webhook
+     * @deprecated This webhook handler is being phased out in favor of PayOS
      */
     public async handleWebhook(webhookData: SepayWebhookData): Promise<boolean> {
         try {
@@ -81,7 +82,6 @@ class SepayWebhookService {
                 logger.info(`Ignoring outgoing transfer: ${transactionId}`);
                 return true;
             }
-
 
             // HOW TO KOWN MAPPING BETWEEN ORDER CODE AND JOB ID?
             const orderCode = 0;
@@ -131,8 +131,9 @@ class SepayWebhookService {
                 userId,
                 planId,
                 orderCode,
-                status: 'PAID',
+                status: PaymentStatus.SUCCESS,
                 amount: transferAmount,
+                paymentId: transactionId.toString(),
                 timestamp: getCurrentDateInTimeZone(),
             };
 
@@ -216,7 +217,7 @@ class SepayWebhookService {
             await subscriptionService.changeSubscription({
                 userId,
                 newPlanId: planId,
-                timeZone: 'Asia/Bangkok', // Default timezone, could be made configurable
+                timeZone: 'UTC',
             });
 
             logger.info(`Successfully updated subscription for user ${userId} to plan ${planId}`);

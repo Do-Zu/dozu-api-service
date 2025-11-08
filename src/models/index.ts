@@ -1,6 +1,8 @@
 export * from '@/models/user.model';
 
-export * from '@/models/topic.model';
+export * from '@/models/package';
+
+export * from '@/models/topic/topic.model';
 
 export * from '@/models/flashcard.model';
 
@@ -18,6 +20,8 @@ export * from '@/models/quiz/questionInQuiz.model';
 
 export * from '@/models/quiz/quizResult.model';
 
+export * from '@/models/quiz/questionResult.model';
+
 export * from '@/models/tracking/itemSpacedRepetitionTracking.model';
 
 export * from '@/models/schedule/schedule.model';
@@ -33,6 +37,10 @@ export * from '@/models/schedule/reminder.model';
 export * from '@/models/tracking/taskProgress.model';
 
 export * from '@/models/mindmap/mindmap.model';
+
+export * from '@/models/attachment.model';
+
+export * from '@/models/flashcardBacklog.model';
 
 //auth
 export * from '@/models/auth/emailVerificationCode.model';
@@ -59,15 +67,45 @@ export * from '@/models/class-based-learning/class.model';
 
 export * from '@/models/class-based-learning/classEnrollment.model';
 
+export * from '@/models/class-based-learning/classInvite.model';
+
 export * from '@/models/class-based-learning/classTopicComment.model';
 
 export * from '@/models/teacher-request/teacherRequest.model';
 
 export * from '@/models/class-based-learning/classFeed.model';
 
+export * from '@/models/class-based-learning/quiz-class/classQuizzes.model';
+
+export * from '@/models/class-based-learning/quiz-class/classQuizVersions.model';
+
+export * from '@/models/class-based-learning/quiz-class/classQuizAttempts.model';
+
+export * from '@/models/class-based-learning/quiz-class/classQuizAttemptAnswers.model';
+
+export * from '@/models/class-based-learning/quiz-class/classQuizDraft.model';
+
 // progress
 export * from '@/models/progress/progress.model';
 
 export * from '@/models/progress/dailyStudy.model';
 
+// gamification
+export * from '@/models/gamification/points.model';
+
+export * from '@/models/gamification/achievement.model';
+
 export * from '@/models/feynman';
+
+export * from '@/models/anki-setting/ankiSetting.model';
+
+export * from '@/models/topic/userTopicSetting.model';
+
+// assignments
+export * from '@/models/class-based-learning/assignment';
+
+//learning material
+
+export * from '@/models/learning-material/learningMaterial.model';
+
+export * from '@/models/learning-material/attachmentInLearningMaterial.model';

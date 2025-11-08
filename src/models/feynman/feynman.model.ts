@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { pgTable, text, integer, timestamp, jsonb, varchar, serial } from 'drizzle-orm/pg-core';
-import { topicsTable } from '../topic.model';
+import { topicsTable } from '../topic/topic.model';
 import { getSystemDate } from '@/utils/date';
 
 export interface IFeynmanDetectedGap {

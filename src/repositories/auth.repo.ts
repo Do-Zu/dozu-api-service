@@ -13,7 +13,7 @@ import {
 import { emailVerificationCodesTable, InsertEmailVerificationCode } from '@/models/auth/emailVerificationCode.model';
 import type { InsertUser, SelectUser } from '@/models/user.model';
 import { generateSecureCode } from '@/utils/auth/crypto.utils';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, or } from 'drizzle-orm';
 
 export const insertUser = async (username: string, passwordHash: string, email: string): Promise<SelectUser> => {
     const newUser: InsertUser = {
@@ -92,6 +92,20 @@ export const selectOneUserByUsername = async (username: string) => {
 
 export const selectOneUserByEmail = async (email: string) => {
     const [result] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+    return result;
+};
+
+export const selectOneUserByEmailOrUsername = async ({
+    username,
+    email,
+}: {
+    username: string;
+    email: string;
+}): Promise<SelectUser> => {
+    const [result] = await db
+        .select()
+        .from(usersTable)
+        .where(or(eq(usersTable.username, username), eq(usersTable.email, email)));
     return result;
 };
 
@@ -174,7 +188,6 @@ export const addRole = async (userRoleId: number, userId: number): Promise<void>
     };
     await db.insert(userRolesTable).values(userRole);
 };
-
 
 export const updateUserPassword = async ({
     userId,

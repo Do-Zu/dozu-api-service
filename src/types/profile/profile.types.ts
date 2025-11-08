@@ -38,6 +38,29 @@ export interface ProfileData {
   isVerified: boolean;
   createdAt: Date;
   updatedAt?: Date;
+  
+  // Gamification stats (optional)
+  gamificationStats?: {
+    totalPoints: number;
+    currentStreak: number;
+    longestStreak: number;
+    level: number;
+    experiencePoints: number;
+    nextLevelExperience: number;
+    achievements: Array<{
+      id: number;
+      name: string;
+      description: string;
+      icon: string;
+      earnedAt: Date;
+      rarity: 'common' | 'rare' | 'epic' | 'legendary';
+    }>;
+    weeklyActivity: number[];
+    totalLessonsCompleted: number;
+    totalQuizzesCompleted: number;
+    totalFlashcardsCompleted: number;
+    averageScore: number;
+  };
   lastActiveAt?: Date;
 }
 

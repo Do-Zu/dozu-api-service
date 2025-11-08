@@ -2,7 +2,14 @@ import nodemailer from 'nodemailer';
 import { NotificationSettings } from '@/models/user.model';
 import ProfileRepository from '@/repositories/profile/profile.repo';
 import logger from '@/utils/logger';
-import { WebSocketService } from '@/libs/websocket/socket.io';
+import { NotificationWebSocketService } from '@/libs/websocket/notification.websocket';
+import {
+  getDailyReminderTemplate,
+  getWeeklyReportTemplate,
+  getAchievementTemplate,
+  getReEngagementTemplate,
+  getSystemAnnouncementTemplate,
+} from './notification.email.templates';
 
 export interface EmailNotification {
   to: string;
@@ -31,6 +38,7 @@ export interface RealtimeNotification {
 export interface NotificationContext {
   userId: number;
   username: string;
+  fullName: string | null;
   email: string;
   settings: NotificationSettings;
 }
@@ -71,13 +79,13 @@ export class NotificationService {
    */
   static async sendEmail(notification: EmailNotification): Promise<boolean> {
     try {
-      if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+      if (!process.env.MAIL_USERNAME  || !process.env.MAIL_APP_PASSWORD) {
         logger.warn('SMTP credentials not configured, skipping email notification');
         return false;
       }
 
       const info = await this.emailTransporter.sendMail({
-        from: `"Dozu Learning" <${process.env.SMTP_USER}>`,
+        from: `"Dozu Learning" <${process.env.MAIL_USERNAME}>`,
         to: notification.to,
         subject: notification.subject,
         text: notification.text,
@@ -97,15 +105,16 @@ export class NotificationService {
    */
   static async sendRealtimeNotification(notification: RealtimeNotification): Promise<boolean> {
     try {
-      const wsService = WebSocketService.getInstance();
-      
-      // Store notification in memory (use Redis in production)
+      // Store notification in memory FIRST (use Redis in production)
+      // This ensures notification is saved even if WebSocket fails
       const userNotifications = this.notifications.get(notification.userId) || [];
       userNotifications.unshift(notification);
       this.notifications.set(notification.userId, userNotifications.slice(0, 50)); // Keep last 50 notifications
 
-      // Send via WebSocket if user is connected
-      const success = await wsService.sendToUser(notification.userId.toString(), 'notification', {
+      // Try to send via WebSocket if user is connected (optional)
+      // If user is not connected, notification is still saved and will be retrieved when they check
+      const wsService = NotificationWebSocketService.getInstance();
+      const wsSuccess = await wsService.sendToUser(notification.userId.toString(), 'notification', {
         id: Date.now().toString(),
         type: notification.type,
         title: notification.title,
@@ -115,8 +124,15 @@ export class NotificationService {
         read: notification.read
       });
 
-      logger.info(`Realtime notification sent to user ${notification.userId}:`, notification.title);
-      return success;
+      if (wsSuccess) {
+        logger.info(`Realtime notification sent via WebSocket to user ${notification.userId}:`, notification.title);
+      } else {
+        logger.info(`Notification saved for user ${notification.userId} (user not connected):`, notification.title);
+      }
+
+      // Always return true since notification is successfully saved
+      // WebSocket delivery is just a bonus for real-time updates
+      return true;
     } catch (error) {
       logger.error('Failed to send realtime notification:', error);
       return false;
@@ -205,6 +221,7 @@ export class NotificationService {
       return {
         userId,
         username: user.username,
+        fullName: user.fullName || null,
         email: user.email,
         settings: user.notificationSettings as NotificationSettings || {
           dailyReminders: true,
@@ -230,24 +247,16 @@ export class NotificationService {
         return false;
       }
 
+      const template = getDailyReminderTemplate({
+        fullName: context.fullName || context.username,
+        frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+      });
+
       const emailNotification: EmailNotification = {
         to: context.email,
         subject: '🎯 Your Daily Learning Reminder - Dozu',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #2563eb;">Hi ${context.username}! 👋</h2>
-            <p>Time for your daily learning session!</p>
-            <p>Don't break your learning streak - even 10 minutes of study can make a difference.</p>
-            <a href="${process.env.FRONTEND_URL}/topics" 
-               style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 20px 0;">
-              Start Learning
-            </a>
-            <p style="color: #6b7280; font-size: 14px;">
-              You can update your notification preferences in your profile settings.
-            </p>
-          </div>
-        `,
-        text: `Hi ${context.username}! Time for your daily learning session. Visit ${process.env.FRONTEND_URL}/topics to start learning.`
+        html: template.html,
+        text: template.text,
       };
 
       const emailSent = context.settings.emailNotifications 
@@ -296,29 +305,20 @@ export class NotificationService {
         return false;
       }
 
+      const template = getWeeklyReportTemplate({
+        fullName: context.fullName || context.username,
+        studyHours: stats.studyHours,
+        topicsCompleted: stats.topicsCompleted,
+        achievementsEarned: stats.achievementsEarned,
+        streak: stats.streak,
+        frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+      });
+
       const emailNotification: EmailNotification = {
         to: context.email,
         subject: '📊 Your Weekly Learning Report - Dozu',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #2563eb;">Weekly Report for ${context.username} 📊</h2>
-            <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <h3>This Week's Achievements</h3>
-              <ul style="list-style: none; padding: 0;">
-                <li style="margin: 10px 0;">⏰ Study Time: <strong>${stats.studyHours} hours</strong></li>
-                <li style="margin: 10px 0;">📚 Topics Completed: <strong>${stats.topicsCompleted}</strong></li>
-                <li style="margin: 10px 0;">🏆 Achievements Earned: <strong>${stats.achievementsEarned}</strong></li>
-                <li style="margin: 10px 0;">🔥 Current Streak: <strong>${stats.streak} days</strong></li>
-              </ul>
-            </div>
-            <p>Keep up the great work! Continue your learning journey.</p>
-            <a href="${process.env.FRONTEND_URL}/progress" 
-               style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 20px 0;">
-              View Full Progress
-            </a>
-          </div>
-        `,
-        text: `Weekly Report: ${stats.studyHours}h study time, ${stats.topicsCompleted} topics completed, ${stats.achievementsEarned} achievements, ${stats.streak} day streak.`
+        html: template.html,
+        text: template.text,
       };
 
       const emailSent = context.settings.emailNotifications 
@@ -357,25 +357,19 @@ export class NotificationService {
         return false;
       }
 
+      const template = getAchievementTemplate({
+        fullName: context.fullName || context.username,
+        achievementTitle: achievement.title,
+        achievementDescription: achievement.description,
+        achievementIcon: achievement.icon,
+        frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+      });
+
       const emailNotification: EmailNotification = {
         to: context.email,
         subject: `🏆 New Achievement Unlocked - ${achievement.title}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #2563eb;">Congratulations ${context.username}! 🎉</h2>
-            <div style="background-color: #fef3c7; border: 2px solid #f59e0b; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
-              <div style="font-size: 48px; margin-bottom: 10px;">${achievement.icon}</div>
-              <h3 style="color: #92400e; margin: 0;">${achievement.title}</h3>
-              <p style="color: #92400e; margin: 10px 0 0 0;">${achievement.description}</p>
-            </div>
-            <p>You've unlocked a new achievement! Keep up the excellent work.</p>
-            <a href="${process.env.FRONTEND_URL}/progress" 
-               style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 20px 0;">
-              View All Achievements
-            </a>
-          </div>
-        `,
-        text: `Congratulations! You've unlocked: ${achievement.title} - ${achievement.description}`
+        html: template.html,
+        text: template.text,
       };
 
       const emailSent = context.settings.emailNotifications 
@@ -468,20 +462,15 @@ export class NotificationService {
       // Get all active users
       const activeUsers = await this.profileRepo.getAllActiveUsers();
       
+      const template = getSystemAnnouncementTemplate({
+        title: announcement.title,
+        message: announcement.message,
+      });
+
       const notification = {
         subject: `📢 ${announcement.title} - Dozu`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #2563eb;">📢 ${announcement.title}</h2>
-            <div style="background-color: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2563eb;">
-              <p style="margin: 0; font-size: 16px; line-height: 1.6;">${announcement.message}</p>
-            </div>
-            <p style="color: #6b7280; font-size: 14px;">
-              Thank you for being part of the Dozu learning community!
-            </p>
-          </div>
-        `,
-        text: `${announcement.title}: ${announcement.message}`
+        html: template.html,
+        text: template.text,
       };
 
       // Send bulk email notifications
@@ -524,33 +513,16 @@ export class NotificationService {
         return false;
       }
 
+      const template = getReEngagementTemplate({
+        fullName: context.fullName || context.username,
+        frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+      });
+
       const emailNotification: EmailNotification = {
         to: context.email,
         subject: `We miss you! 🎓 Come back to Dozu`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #2563eb;">Hi ${context.username}! 👋</h2>
-            <p>We noticed you haven't been active on Dozu lately. We miss you!</p>
-            <div style="background-color: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <h3 style="color: #1e40af; margin-top: 0;">What's waiting for you:</h3>
-              <ul style="color: #1e40af;">
-                <li>📚 New learning materials</li>
-                <li>🎯 Updated study goals</li>
-                <li>🏆 New achievements to unlock</li>
-                <li>📊 Track your progress</li>
-              </ul>
-            </div>
-            <p>Don't let your learning streak break! Come back and continue your journey.</p>
-            <a href="${process.env.FRONTEND_URL}/topics" 
-               style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 20px 0;">
-              Continue Learning
-            </a>
-            <p style="color: #6b7280; font-size: 14px;">
-              If you no longer wish to receive these emails, you can update your preferences in your profile settings.
-            </p>
-          </div>
-        `,
-        text: `Hi ${context.username}! We miss you on Dozu. Come back and continue your learning journey: ${process.env.FRONTEND_URL}/topics`
+        html: template.html,
+        text: template.text,
       };
 
       const emailSent = await this.sendEmail(emailNotification);

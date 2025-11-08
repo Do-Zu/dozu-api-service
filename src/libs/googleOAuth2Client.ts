@@ -24,6 +24,7 @@ export const getOAuthToken = async (code: any) => {
         client_secret: GOOGLE_CLIENT_SECRET,
         redirect_uri: GOOGLE_REDIRECT_URI,
         grant_type: 'authorization_code',
+        scope: 'openid email profile',
       }),
     }).then(res => res.json());
 

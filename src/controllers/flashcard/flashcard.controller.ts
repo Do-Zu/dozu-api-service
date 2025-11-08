@@ -17,11 +17,12 @@ import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import { getCurrentDateFromRequest, getCurrentTimestampFromRequest, TimeUnit } from '@/utils/date';
 import requestHelper from '@/core/request/request.helper';
 import unsplashLib, { IUnspashImage } from '@/libs/unsplash.lib';
-import ankiService, {
+import AnkiService, {
     IAnkiCard,
     IAnkiRating,
     learnAheadLimit,
 } from '@/services/spaced-repetition-system/super-memo-2/anki.service';
+import ankiSettingService from '@/services/anki-setting/ankiSetting.service';
 class FlashcardController {
     constructor() {}
 
@@ -166,6 +167,7 @@ class FlashcardController {
     // Anki SM2 algorithm
     public async reviewFlashcardByAnki(req: Request, res: Response): Promise<void> {
         const userId = getUserIdFromRequest(req);
+        const topicId = requestHelper.getIdParam(req, 'topicId');
         const flashcardId = requestHelper.getIdParam(req, 'flashcardId');
         const { rating } = req.body as { rating: IAnkiRating };
 
@@ -184,6 +186,8 @@ class FlashcardController {
             nextReview: new Date(flashcard.nextReview),
         };
 
+        const ankiSetting = await ankiSettingService.getSettingForTopicAndUser(topicId, userId);
+        const ankiService = new AnkiService(ankiSetting);
         const ankiResult = ankiService.schedule(ankiCard, rating);
 
         const sm2Info: IFlashcardLearningState = {
@@ -198,16 +202,25 @@ class FlashcardController {
 
         await flashcardService.applySM2ToFlashcard(userId, flashcardId, sm2Info);
 
+        // Award points for flashcard review
+        try {
+            const pointsService = (await import('@/services/gamification/points.service')).default;
+            await pointsService.awardFlashcardReview(userId, flashcardId);
+        } catch (error) {
+            console.error('Failed to award flashcard review points:', error);
+        }
+
         let result: IAnkiCardReviewed | null;
         if (
             ankiResult.nextReviewInterval.timeUnit === TimeUnit.MINUTE &&
             ankiResult.nextReviewInterval.interval <= learnAheadLimit
         ) {
+            const ankiSetting = await ankiSettingService.getSettingForTopicAndUser(topicId, userId);
             result = {
                 flashcardId,
                 nextReview: sm2Info.nextReview,
                 status: sm2Info.status,
-                nextReviewSchedule: flashcardService.getCardNextReview(flashcardId, sm2Info),
+                nextReviewDataByRatings: flashcardService.getNextReviewByRatings(flashcardId, sm2Info, ankiSetting),
                 rating,
             };
         } else {
@@ -223,6 +236,7 @@ class FlashcardController {
         const topicId = requestHelper.getIdParam(req, 'topicId');
 
         const flashcards = await flashcardService.getDueFlashcardsForTopicAndUser(topicId, userId, currentTimestamp);
+        const ankiSetting = await ankiSettingService.getSettingForTopicAndUser(topicId, userId);
 
         const result: IDueAnkiCard[] = flashcards.map(card => {
             return {
@@ -231,7 +245,11 @@ class FlashcardController {
                 back: card.back,
                 iamgeUrl: card.imageUrl,
                 topicName: card.topicName,
-                nextReviewSchedule: flashcardService.getCardNextReview(card.flashcardId, card.learningState!),
+                nextReviewDataByRatings: flashcardService.getNextReviewByRatings(
+                    card.flashcardId,
+                    card.learningState!,
+                    ankiSetting
+                ),
                 nextReview: card.learningState!.nextReview,
                 status: card.learningState!.status,
             };

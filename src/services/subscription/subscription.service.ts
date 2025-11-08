@@ -1,9 +1,10 @@
 import { NotFoundError } from '@/core/error';
-import db, { Transaction } from '@/libs/drizzleClient.lib';
+import db, { Database, Transaction } from '@/libs/drizzleClient.lib';
 import {
     featuresTable,
     IBillingInterval,
     planFeaturesTable,
+    SubscriptionStatus,
     userFeatureUsageTable,
     userSubscriptionsTable,
     type InsertUserFeatureUsage,
@@ -11,9 +12,9 @@ import {
     type SelectUserSubscription,
 } from '@/models/subscription';
 import subscriptionRepo from '@/repositories/subscription/subscription.repo';
-import { getCurrentDateInTimeZone } from '@/utils/date';
+import { getCurrentDateInTimeZone, getSystemDate } from '@/utils/date';
 import { addMonths, addYears } from 'date-fns';
-import { and, desc, eq, gte } from 'drizzle-orm';
+import { and, desc, eq, gte, sql } from 'drizzle-orm';
 import planService from './plan.service';
 import { featureUsageService } from './usage/featureUsage.service';
 
@@ -48,10 +49,6 @@ export class SubscriptionService {
      */
     public async getAvailablePlans() {
         const plans = await subscriptionRepo.getAllPlansAvailable();
-
-        if (!plans || plans.length === 0) {
-            throw new NotFoundError('No plans available');
-        }
 
         if (!plans || plans.length === 0) {
             throw new NotFoundError('No plans available');
@@ -311,7 +308,28 @@ export class SubscriptionService {
         });
 
         if (usageRecords.length > 0) {
-            await tx.insert(userFeatureUsageTable).values(usageRecords);
+            await tx
+                .insert(userFeatureUsageTable)
+                .values(usageRecords)
+                .onConflictDoUpdate({
+                    target: [
+                        userFeatureUsageTable.userId,
+                        userFeatureUsageTable.featureId,
+                        userFeatureUsageTable.resetPeriodStart,
+                    ],
+                    set: {
+                        // When plan changes or re-initializing within same period,
+                        // reset usage and update current limits and flags
+                        usedValue: this.DEFAULT_VALUE_USAGE,
+                        limitValue: sql`excluded.limit_value`,
+                        isUnlimited: sql`excluded.is_unlimited`,
+                        subscriptionId: sql`excluded.subscription_id`,
+                        resetPeriodStart: sql`excluded.reset_period_start`,
+                        resetPeriodEnd: sql`excluded.reset_period_end`,
+                        lastResetAt: sql`excluded.last_reset_at`,
+                        updatedAt: sql`excluded.updated_at`,
+                    },
+                });
         }
     }
 
@@ -461,6 +479,7 @@ export class SubscriptionService {
         newPlanId,
         timeZone,
         paymentData,
+        status = 'cancelled',
     }: {
         userId: number;
         newPlanId: number;
@@ -469,6 +488,7 @@ export class SubscriptionService {
             currency?: string;
             externalSubscriptionId?: string;
         };
+        status?: SubscriptionStatus;
     }): Promise<SelectUserSubscription | null> {
         return await db.transaction(async tx => {
             // Get current subscription
@@ -488,7 +508,7 @@ export class SubscriptionService {
             await tx
                 .update(userSubscriptionsTable)
                 .set({
-                    status: 'cancelled',
+                    status,
                     canceledAt: currentDate,
                     cancellationReason: 'Plan change',
                     autoRenew: false,
@@ -534,49 +554,70 @@ export class SubscriptionService {
     /**
      * Process subscription renewal
      */
-    async processRenewal(subscriptionId: number): Promise<boolean> {
-        const subscription = await db
-            .select()
-            .from(userSubscriptionsTable)
-            .where(eq(userSubscriptionsTable.subscriptionId, subscriptionId))
-            .limit(1);
+    async processRenewal({ subscriptionId, timezone }: { subscriptionId: number; timezone: string }): Promise<{
+        newPeriodStart: Date;
+        newPeriodEnd: Date;
+    } | null> {
+        return await db.transaction(async tx => {
+            const [subscription] = await tx
+                .select()
+                .from(userSubscriptionsTable)
+                .where(eq(userSubscriptionsTable.subscriptionId, subscriptionId))
+                .limit(1);
 
-        if (!subscription[0] || !subscription[0].autoRenew) {
-            return false;
-        }
+            if (!subscription) {
+                throw new NotFoundError('Subscription Not Found When Renewal');
+            }
 
-        const currentPeriodEnd = new Date(subscription[0].currentPeriodEnd);
-        const newPeriodStart = currentPeriodEnd;
-        const newPeriodEnd = new Date(currentPeriodEnd);
-        newPeriodEnd.setMonth(newPeriodEnd.getMonth() + 1);
+            if (!subscription.autoRenew) {
+                return null;
+            }
 
-        await db
-            .update(userSubscriptionsTable)
-            .set({
-                currentPeriodStart: newPeriodStart,
-                currentPeriodEnd: newPeriodEnd,
-                updatedAt: new Date(),
-            })
-            .where(eq(userSubscriptionsTable.subscriptionId, subscriptionId));
+            const plan = await planService.getPlanById(subscription.planId);
 
-        // Reset feature usage for the new period
-        await this.resetFeatureUsage(subscription[0].userId, subscriptionId);
+            if (!plan) {
+                return null;
+            }
 
-        return true;
+            const newPeriodStart = getCurrentDateInTimeZone(timezone, getSystemDate());
+            const newPeriodEnd = this.calculateSubscriptionEndDate(plan.billingInterval, newPeriodStart);
+
+            await tx
+                .update(userSubscriptionsTable)
+                .set({
+                    currentPeriodStart: newPeriodStart,
+                    currentPeriodEnd: newPeriodEnd,
+                    updatedAt: getSystemDate(),
+                })
+                .where(eq(userSubscriptionsTable.subscriptionId, subscriptionId));
+
+            // Reset feature usage for the new period
+            await this.resetFeatureUsage(subscription.userId, subscriptionId, timezone, tx);
+
+            return {
+                newPeriodStart,
+                newPeriodEnd,
+            };
+        });
     }
 
     /**
      * Reset feature usage for a new billing period
      */
-    private async resetFeatureUsage(userId: number, subscriptionId: number) {
-        const now = new Date();
-        const resetPeriodEnd = new Date();
-        resetPeriodEnd.setMonth(resetPeriodEnd.getMonth() + 1);
+    private async resetFeatureUsage(
+        userId: number,
+        subscriptionId: number,
+        timezone: string,
+        tx: Transaction | Database = db
+    ) {
+        const now = getCurrentDateInTimeZone(timezone, getSystemDate());
+        const resetPeriodEnd = addMonths(now, 1);
+        const resetValue = '0';
 
-        await db
+        await tx
             .update(userFeatureUsageTable)
             .set({
-                usedValue: '0',
+                usedValue: resetValue,
                 resetPeriodStart: now,
                 resetPeriodEnd,
                 lastResetAt: now,

@@ -4,6 +4,7 @@ import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 import { authMiddleware, validateTeacher } from '@/middleware/auth.middleware';
 import {
     addFlashcardsToNodeController,
+    deleteMindmapController,
     getAllChildrenOfANodeController,
     getAllNodesOfMindmapController,
     getClassProgressOfNodeController,
@@ -16,6 +17,7 @@ import {
 } from '@/controllers/mindmap/mindmap.controller';
 import { fileUploadSingleMiddleware } from '@/libs/multer.lib';
 import paramsValidator from '@/core/validations/params.validator';
+import { verifyMindmapOwner } from '@/middleware/mindmap/mindmap.middleware';
 const router = express.Router();
 
 globalAsyncHandler(router);
@@ -28,6 +30,7 @@ router.post('/uploadImageTESTINGDELETELATER', fileUploadSingleMiddleware, upload
 router.post('/:topicId', saveTopicMindmapController);
 
 router.get('/:topicId', getTopicMindmapController);
+router.delete('/:topicId',verifyMindmapOwner,deleteMindmapController)
 router.get('/:topicId/nodes', getAllNodesOfMindmapController);
 router.get('/:topicId/nodes/:nodeId/children', getAllChildrenOfANodeController);
 // router.get('/:topicId/nodes/:nodeId', getSingularNodeController);

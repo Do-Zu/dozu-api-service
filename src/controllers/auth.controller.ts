@@ -10,7 +10,7 @@ import {
     verifyEmailService,
 } from '@/services/auth.service';
 
-import { AuthenticationError, BadRequest, InternalServerError } from '@/core/error';
+import { AuthenticationError, BadRequest } from '@/core/error';
 const frontEndBaseUrl = process.env.FRONTEND_BASE_URL;
 
 export const testingAuthPath = async (req: Request, res: Response) => {
@@ -47,27 +47,37 @@ export const registerUserController = async (req: Request, res: Response) => {
     if (!req.body.username || !req.body.password || !req.body.email) {
         throw new BadRequest('Username, password and email are required');
     }
-    const data = await registerUserService(req.body.username, req.body.password, req.body.email);
-    // const sanitizedUser = sanitizeUserObject(data.user);
-    // const accessToken = signAccessJwtToken(sanitizedUser);
+    
+    // Validate role if provided
+    if (req.body.role && req.body.role !== 'user' && req.body.role !== 'teacher') {
+        throw new BadRequest('Invalid role. Must be either "user" or "teacher"');
+    }
+
+    const data = await registerUserService(req.body.username, req.body.password, req.body.email, req.body.role);
 
     if (!data.success) {
-        throw new AuthenticationError(data.reason);
+        res.status(409).json({
+            error: 'USER_ALREADY_EXISTS',
+            message: data.reason,
+        });
+        return;
     }
 
     //sets refreshToken cookie
-    res.cookie('refreshToken', data.refreshToken, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'none',
-    });
+    // res.cookie('refreshToken', data.refreshToken, {
+    //     httpOnly: true,
+    //     secure: true,
+    //     sameSite: 'none',
+    // });
 
     const returnData = {
-        ...data.user,
-        isNewUser: true, //technically business logic, can move to service
-        accessToken: data.accessToken,
+        // ...data.user,
+        // isNewUser: true, //technically business logic, can move to service
+        // accessToken: data.accessToken,
     };
-    SuccessResponse.created(res, returnData);
+    SuccessResponse.created(res, {
+        message: 'Registration successful. Please check your email to verify your account.',
+    });
 };
 
 export const logoutController = async (req: Request, res: Response) => {
@@ -95,17 +105,28 @@ export const refreshTokenController = async (req: Request, res: Response) => {
 };
 
 export const verifyEmailController = async (req: Request, res: Response) => {
-    if (!req.query.email || !req.query.verificationCode) {
+    if (!req.body.email || !req.body.verificationCode) {
         throw new BadRequest('Bad link');
         //todo: alternatively navigate to UI with error code
     }
-    const email = req.query.email;
-    const verificationCode = req.query.verificationCode;
+    const email = req.body.email as string;
+    const verificationCode = req.body.verificationCode as string;
 
     const data = await verifyEmailService(email, verificationCode);
-    //todo: login here
+
     if (data.success) {
-        res.redirect(`${frontEndBaseUrl}/auth/verifyEmail`);
+        res.cookie('refreshToken', data.refreshToken, {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'none',
+        });
+
+        const returnData = {
+            ...data.user,
+            isNewUser: true, //technically business logic, can move to service
+            accessToken: data.accessToken,
+        };
+        SuccessResponse.ok(res, returnData);
     } else {
         throw new BadRequest('Invalid verification code or email');
     }

@@ -1,0 +1,33 @@
+{
+    "servers": {
+        "github": {
+            "url": "https://api.githubcopilot.com/mcp/",
+            "capabilities": {
+                "commands": {
+                    "create_issue": {
+                        "enabled": true,
+                        "options": {
+                            "prefix_title": "[BUG]",
+                            "assign_from_contributors": true
+                        }
+                    },
+                    "create_branch": {
+                        "enabled": false
+                    },
+                    "create_pull_request": {
+                        "enabled": true
+                    },
+                    "update_file": {
+                        "enabled": false
+                    },
+                    "comment_issue": {
+                        "enabled": true
+                    }
+                }
+            },
+            "context": {
+                "repo": "perinst/dozu-api-service"
+            }
+        }
+    }
+}

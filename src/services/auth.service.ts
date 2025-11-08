@@ -4,6 +4,7 @@ import { sendChangePasswordLinkEmail, sendVerificationLinkEmail } from '@/libs/n
 import { InsertAuthAccount } from '@/models';
 import { InsertChangePasswordRequest, SelectChangePasswordRequest } from '@/models/auth/changePasswordRequest.model';
 import { InsertUser, SelectUser } from '@/models/user.model';
+import ProfileRepository from '@/repositories/profile/profile.repo';
 import {
     addRole,
     deleteVerificationCodeByEmailVerificationId,
@@ -18,6 +19,7 @@ import {
     insertVerificationCode,
     queryVerificationCode,
     selectOneUserByEmail,
+    selectOneUserByEmailOrUsername,
     selectOneUserByUsername,
     updateLastLoginAt,
     updateUserIsVerified,
@@ -74,6 +76,8 @@ export const loginService = async ({
     if (!userData.isActive) {
         //checks if user is banned
         return { success: false, reason: 'Account is inactive' };
+    } else if (!userData.isVerified) {
+        return { success: false, reason: 'Account is unverified' };
     } else if (isCorrectPassword) {
         const updatedUser = await getLoginData(userData.userId);
         const sanitizedUser = sanitizeUserObject(updatedUser);
@@ -150,16 +154,30 @@ export const addRoleTeacherForAccount = async (userId: number) => {
     await addRole(teacherRoleId, userId);
 };
 
-export const registerUserService = async (username: string, password: string, email: string): Promise<LoginResult> => {
+export const registerUserService = async (
+    username: string,
+    password: string,
+    email: string,
+    role: string = 'user'
+): Promise<LoginResult> => {
     const passwordHash = await hashPassword(password);
+
+    const checkExistingUser = await selectOneUserByEmailOrUsername({ username: username, email: email });
+    if (checkExistingUser) {
+        return { success: false, reason: 'Username or email already in use' };
+    }
 
     const newUserData = await insertUser(username, passwordHash, email);
     const verificationCodeData = await insertVerificationCode(newUserData);
     await sendVerificationLinkEmail(newUserData.email, verificationCodeData.verificationCode as string);
 
+    await addRoleUserForAccount(newUserData.userId);
+    if (role === 'teacher') {
+        await addRoleTeacherForAccount(newUserData.userId);
+    }
+
     const returnUserData = await getLoginData(newUserData.userId);
     const sanitizedUser = sanitizeUserObject(returnUserData);
-    await addRoleUserForAccount(newUserData.userId);
 
     const accessToken = signAccessJwtToken(sanitizedUser);
     const refreshToken = signRefreshJwtToken(sanitizedUser);
@@ -167,15 +185,32 @@ export const registerUserService = async (username: string, password: string, em
     return { success: true, user: sanitizedUser, accessToken: accessToken, refreshToken: refreshToken };
 };
 
-export const verifyEmailService = async (email: any, verificationCode: any) => {
+export const verifyEmailService = async (email: string, verificationCode: string): Promise<LoginResult> => {
     const verificationCodeData = await queryVerificationCode(email, verificationCode);
-    //todo:check expired code
-    if (!verificationCodeData) return { success: false, reason: 'Email or verification code is wrong' };
+    if (!verificationCodeData || !verificationCodeData.expiration) {
+        return { success: false, reason: 'Email or verification code is wrong' };
+    }
+    if (new Date() >= verificationCodeData.expiration) {
+        return {
+            success: false,
+            reason: 'Expired request',
+        };
+    }
     await updateUserIsVerified(verificationCodeData.userId);
     await deleteVerificationCodeByEmailVerificationId(verificationCodeData.emailVerificationCodeId);
 
-    //todo:WIP
-    return { success: true };
+    const updatedUser = await getLoginData(verificationCodeData.userId);
+    const sanitizedUser = sanitizeUserObject(updatedUser);
+
+    const accessToken = signAccessJwtToken(sanitizedUser);
+    const refreshToken = signRefreshJwtToken(sanitizedUser);
+
+    return {
+        success: true,
+        user: sanitizedUser,
+        accessToken,
+        refreshToken,
+    };
 };
 
 export const getOAuthJwtTokenService = async (code: string) => {
@@ -185,7 +220,7 @@ export const getOAuthJwtTokenService = async (code: string) => {
 
 export const googleOAuthLoginService = async (code: string): Promise<LoginResult> => {
     const googleTokens = await getOAuthJwtTokenService(code);
-    const decoded = decodeJwtToken(googleTokens); // contains sub, email, etc.
+    const decoded = decodeJwtToken(googleTokens); // contains sub, email, name, etc.
     //add type of decoded
 
     if (!decoded || typeof decoded.sub !== 'string') {
@@ -197,7 +232,14 @@ export const googleOAuthLoginService = async (code: string): Promise<LoginResult
     if (existingAuthAccount) {
         //checks if user exist
         user = await getLoginData(existingAuthAccount.userId);
-        //continues with login
+        
+        // Update fullName if it's available in the token and not already set
+        if (decoded.name && !user.fullName) {
+            const profileRepo = new ProfileRepository();
+            await profileRepo.updateProfile(user.userId, { fullName: decoded.name });
+            // Refresh user data to get updated fullName
+            user = await getLoginData(existingAuthAccount.userId);
+        }
 
         if (!user.isActive) {
             //checks if user is banned
@@ -222,6 +264,7 @@ export const googleOAuthLoginService = async (code: string): Promise<LoginResult
         const newUser: InsertUser = {
             username: username,
             email: decoded.email,
+            fullName: decoded.name || '', // Save fullName from Google OAuth
             avatarUrl: decoded.picture,
             isVerified: true,
         };

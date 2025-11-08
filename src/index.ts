@@ -13,9 +13,9 @@ import cors from './config/middlewares/cors.config';
 import rateLimit from './config/middlewares/rate-limit.config';
 import { db } from './libs/drizzleClient.lib';
 import NotificationScheduler from './services/notification/notification.scheduler';
-// import { redisInstance } from './libs/redis/redis.connect';
-// import { createServer } from 'http';
-// import { webSocketService } from './libs/websocket/socket.io';
+import { createServer } from 'http';
+import { webSocketService } from './libs/websocket/socket.io';
+import { notificationWebSocketService } from './libs/websocket/notification.websocket';
 
 setupGlobalErrorHandlers();
 
@@ -70,13 +70,24 @@ app.all('*', (req: Request, _res: Response, next: NextFunction) => {
 // Global error handler
 app.use(handleError);
 
-const server = app.listen(port, () => {
+// Create HTTP server from Express app
+const httpServer = createServer(app);
+
+// Initialize WebSocket server (base service for job-based connections)
+webSocketService.initialize(httpServer);
+
+// Initialize Notification WebSocket service (extends base service for user notifications)
+notificationWebSocketService.initialize(httpServer);
+
+// Start server
+const server = httpServer.listen(port, () => {
   db();
   
   // Initialize notification scheduler
   NotificationScheduler.init();
   
   logger.info(`Server is running at http://${host}:${port}`);
+  logger.info('WebSocket server initialized and ready for connections');
 });
 
 // Handle graceful shutdown

@@ -25,6 +25,69 @@ class TopicRepo {
         return topic;
     }
 
+    public async getTopicWithCardCounts({
+        userId,
+        topicId,
+        dueDate,
+    }: {
+        userId: number;
+        topicId: number;
+        dueDate: string;
+    }): Promise<ITopic | undefined> {
+        let [topic]: ITopic[] = await db
+            .select({
+                topicId: topicsTable.topicId,
+                userId: topicsTable.userId,
+                name: topicsTable.name,
+                description: topicsTable.description,
+                imageUrl: topicsTable.imageUrl,
+                createdAt: topicsTable.createdAt,
+                classId: topicsTable.classId,
+            })
+            .from(topicsTable)
+            .where(eq(topicsTable.topicId, topicId));
+
+        if (!topic) {
+            return undefined;
+        }
+
+        const [result] = await db
+            .select({
+                flashcardCounts: {
+                    total: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL THEN 1 END) AS INT)`.as(
+                        'total'
+                    ),
+                    review: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${dueDate} AND item_spaced_repetition_tracking.status = 'review' THEN 1 END) AS INT)`.as(
+                        'review'
+                    ),
+                    new: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.status = 'new' THEN 1 END) AS INT)`.as(
+                        'new'
+                    ),
+                    learning:
+                        sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${dueDate} AND item_spaced_repetition_tracking.status IN ('learning', 'relearning') THEN 1 END) AS INT)`.as(
+                            `learning`
+                        ),
+                },
+            })
+            .from(flashcardsTable)
+            .innerJoin(
+                itemSpacedRepetitionTrackingTable,
+                and(
+                    eq(itemSpacedRepetitionTrackingTable.userId, userId),
+                    eq(flashcardsTable.flashcardId, itemSpacedRepetitionTrackingTable.itemId),
+                    eq(itemSpacedRepetitionTrackingTable.type, 'flashcard')
+                )
+            )
+            .where(eq(flashcardsTable.topicId, topic.topicId))
+            .groupBy(flashcardsTable.topicId);
+
+        if (result) {
+            topic.flashcardCounts = result.flashcardCounts;
+        }
+
+        return topic;
+    }
+
     public async getTopicsForUser(userId: number, dueDate: string): Promise<ITopic[]> {
         let topics: ITopic[] = await db
             .select({
@@ -38,10 +101,9 @@ class TopicRepo {
                     total: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL THEN 1 END) AS INT)`.as(
                         'total'
                     ),
-                    dueToday:
-                        sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${dueDate} AND item_spaced_repetition_tracking.status = 'review' THEN 1 END) AS INT)`.as(
-                            'dueToday'
-                        ),
+                    review: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${dueDate} AND item_spaced_repetition_tracking.status = 'review' THEN 1 END) AS INT)`.as(
+                        'review'
+                    ),
                     new: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.status = 'new' THEN 1 END) AS INT)`.as(
                         'new'
                     ),
@@ -115,10 +177,9 @@ class TopicRepo {
                         total: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL THEN 1 END) AS INT)`.as(
                             'total'
                         ),
-                        dueToday:
-                            sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${dueDate} AND item_spaced_repetition_tracking.status = 'review' THEN 1 END) AS INT)`.as(
-                                'dueToday'
-                            ),
+                        review: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${dueDate} AND item_spaced_repetition_tracking.status = 'review' THEN 1 END) AS INT)`.as(
+                            'review'
+                        ),
                         new: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.status = 'new' THEN 1 END) AS INT)`.as(
                             'new'
                         ),
@@ -145,7 +206,6 @@ class TopicRepo {
 
             if (result) {
                 topic.hasProgress = true;
-                // topic.flashcardsDueToday = result.flashcardsDueToday;
                 topic.flashcardCounts = result.flashcardCounts;
             } else {
                 topic.hasProgress = false;
@@ -170,6 +230,19 @@ class TopicRepo {
             .groupBy(topicsTable.topicId);
 
         return topics;
+    }
+
+    public async getUserIdOfTopic(topicId: number): Promise<{ userId: number }> {
+        const [result] = await db
+            .select({
+                userId: topicsTable.userId,
+            })
+            .from(topicsTable)
+            .where(eq(topicsTable.topicId, topicId));
+        if (!result) {
+            throw new Error(`Topic with id ${topicId} not found`);
+        }
+        return result;
     }
 }
 

@@ -19,13 +19,15 @@ import { getUserRoles } from '@/repositories/auth.repo';
 import classEnrollmentService from '../class-based-learning/classEnrollment.service';
 import topicService from '../topic/topic.service';
 import unsplashLib from '@/libs/unsplash.lib';
-import ankiService, {
+import AnkiService, {
     IAnkiCard,
     IAnkiRating,
-    INextReviewIntervalForRating,
+    IBaseIntervalWithDeviation,
+    INextReviewInterval,
     learnAheadLimit,
 } from '../spaced-repetition-system/super-memo-2/anki.service';
 import { addMinutes } from 'date-fns';
+import { IAnkiSetting } from '@/types/anki-setting/ankiSetting.type';
 
 export type IFlashcardWithReviewPrediction = Pick<
     IFlashcard,
@@ -34,10 +36,11 @@ export type IFlashcardWithReviewPrediction = Pick<
     qualityResponsesNextReviewInterval: IQualityResponseNextReviewInterval[];
 };
 
-export type ICardNextReviewSchedule = {
-    flashcardId: number;
-    nextReviewIntervalsForRating: INextReviewIntervalForRating[];
-};
+export interface INextReviewDataByRating {
+    rating: IAnkiRating;
+    interval: INextReviewInterval;
+    baseIntervalWithDeviation: IBaseIntervalWithDeviation | null;
+}
 
 class FlashcardService {
     constructor() {}
@@ -306,14 +309,16 @@ class FlashcardService {
         return result;
     }
 
-    public getCardNextReview(flashcardId: number, learningState: IFlashcardLearningState): ICardNextReviewSchedule {
+    public getNextReviewByRatings(
+        flashcardId: number,
+        learningState: IFlashcardLearningState,
+        ankiSetting: IAnkiSetting
+    ): INextReviewDataByRating[] {
         if (!learningState) {
             throw new Error('Flashcard does not have learningState');
         }
-        let result: ICardNextReviewSchedule = {
-            flashcardId,
-            nextReviewIntervalsForRating: [],
-        };
+        let result: INextReviewDataByRating[] = [];
+
         let rating = IAnkiRating.AGAIN;
         for (; rating <= IAnkiRating.EASY; ++rating) {
             const ankiCard: IAnkiCard = {
@@ -323,12 +328,15 @@ class FlashcardService {
                 lastReviewed: learningState.lastReviewed ? new Date(learningState.lastReviewed) : null,
                 nextReview: new Date(learningState.nextReview),
             };
+            const ankiService = new AnkiService(ankiSetting);
             const ankiResult = ankiService.schedule(ankiCard, rating);
-            result.nextReviewIntervalsForRating.push({
+            result.push({
                 rating,
                 interval: ankiResult.nextReviewInterval,
+                baseIntervalWithDeviation: ankiResult.baseIntervalWithDeviation,
             });
         }
+
         return result;
     }
 
