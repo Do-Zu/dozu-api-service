@@ -132,7 +132,7 @@ export class NotificationScheduler {
 
     /**
      * Schedule re-engagement notifications for inactive users
-     * Runs every day at 22:00 PM to check for inactive users
+     * Runs every day at 10:00 PM to check for inactive users
      */
     private static scheduleReEngagementNotifications(): void {
         cron.schedule(
