@@ -5,7 +5,9 @@ import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 import {
     createLearningMaterialController,
     deleteLearningMaterialController,
+    getLearningMaterialController,
     getLearningMaterialsOfClassController,
+    updateLearningMaterialController,
 } from '@/controllers/class-based-learning/learning-material/learningMaterial.controller';
 
 const router = express.Router();
@@ -38,7 +40,14 @@ router.get(
     '/:learningMaterialId',
     // topicMiddleware.verifyTopicByIdInBody,
     // topicMiddleware.verifyUserCanAccessTopic,
-    getLearningMaterialsOfClassController
+    getLearningMaterialController
+);
+
+router.put(
+    '/:learningMaterialId',
+    // requireTeacher,
+    // paramsValidator.validateId('assignmentId'),
+    updateLearningMaterialController
 );
 
 router.delete('/:learningMaterialId', deleteLearningMaterialController);

@@ -4,6 +4,7 @@ import {
     getLearningMaterial,
     getLearningMaterialOfClass,
     insertLearningMaterial,
+    updateLearningMaterial,
 } from '@/repositories/class-based-learning/learning-material/learningMaterial.repo';
 import { attachmentService } from '../attachment/attachment.service';
 import { ReturnAttachment } from '@/types/class-based-learning/attachment/attachment.type';
@@ -56,13 +57,13 @@ type LearningMaterialResult =
 
 export const createLearningMaterialService = async ({
     title,
-    description,
+    content: content,
     topicId,
     classId,
     inputResources,
 }: {
     title: string;
-    description: string;
+    content: string;
     topicId?: number;
     classId: number;
     inputResources?: IInputResource[];
@@ -76,7 +77,7 @@ export const createLearningMaterialService = async ({
 
     const newLearningMaterial: TypeInsertLearningMaterial = {
         title,
-        description,
+        content,
         classId,
         topicId,
     };
@@ -89,6 +90,40 @@ export const createLearningMaterialService = async ({
             attachments: addedAttachments,
         });
     }
+
+    if (!resultLearningMaterial) {
+        return { success: false, reason: 'Internal server error' };
+    } else {
+        return {
+            success: true,
+            learningMaterialWithAttachments: {
+                learningMaterial: resultLearningMaterial,
+                attachments: addedAttachments,
+            },
+        };
+    }
+};
+
+export const editLearningMaterialService = async ({
+    learningMaterial,
+    inputResources,
+}: {
+    learningMaterial: Omit<TypeSelectLearningMaterial, 'createdAt'>;
+    inputResources?: IInputResource[];
+}): Promise<LearningMaterialResult> => {
+    let addedAttachments;
+    if (inputResources && inputResources.length > 0) {
+        //handle saving attachment
+        addedAttachments = await attachmentService.handleInsertMultipleResources({ inputResources });
+    }
+    if (addedAttachments && addedAttachments.length > 0) {
+        const result = await attachmentInLMService.linkMultipleAttachmentsToLearningMaterial({
+            learningMaterialId: learningMaterial.learningMaterialId,
+            attachments: addedAttachments,
+        });
+    }
+
+    const resultLearningMaterial = await updateLearningMaterial(learningMaterial);
 
     if (!resultLearningMaterial) {
         return { success: false, reason: 'Internal server error' };
