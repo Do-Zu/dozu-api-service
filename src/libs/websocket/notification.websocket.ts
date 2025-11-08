@@ -1,7 +1,8 @@
 import { Socket } from 'socket.io';
 import logger from '@/utils/logger';
-import { WebSocketService } from './socket.io';
+import { WebSocketService, webSocketService } from './socket.io';
 import { redisInstance } from '@/libs/redis/default/redisDefault';
+import { Server as HttpServer } from 'http';
 
 /**
  * Notification WebSocket Service
@@ -30,12 +31,25 @@ export class NotificationWebSocketService extends WebSocketService {
     return NotificationWebSocketService.notificationInstance;
   }
 
-  public initialize(httpServer: any): void {
-    // Get io instance from parent (or initialize if not done)
-    const io = this.getIO();
-    if (!io) {
-      // If parent hasn't initialized, initialize it first
-      super.initialize(httpServer);
+  public initialize(httpServer: HttpServer): void {
+    // Reuse the base WebSocketService's io instance if it's already initialized
+    // This prevents creating multiple Socket.IO servers on the same HTTP server
+    const baseIO = webSocketService.getIO();
+    
+    if (baseIO) {
+      // Base service is already initialized, reuse its io instance
+      this.setIO(baseIO);
+    } else {
+      // Base service not initialized yet, initialize it first
+      // This should not happen if initialization order is correct, but handle it gracefully
+      webSocketService.initialize(httpServer);
+      const io = webSocketService.getIO();
+      if (io) {
+        this.setIO(io);
+      } else {
+        logger.error('Failed to initialize base WebSocketService');
+        return;
+      }
     }
     
     // Setup notification-specific listeners on existing connections
@@ -94,29 +108,13 @@ export class NotificationWebSocketService extends WebSocketService {
         this.REDIS_TTL
       );
 
-      // Add socketId to user's socket set in Redis
+      // Add socketId to user's socket set in Redis (atomic operation)
       const userSocketsKey = `${this.REDIS_USER_SOCKETS_KEY}:${userId}`;
-      const existingSockets = await redisInstance.get(userSocketsKey);
+      await redisInstance.sadd(userSocketsKey, socketId);
+      await redisInstance.expire(userSocketsKey, this.REDIS_TTL);
       
-      let socketIds: string[] = [];
-      if (existingSockets) {
-        try {
-          socketIds = JSON.parse(existingSockets);
-        } catch (e) {
-          logger.warn(`Failed to parse socket IDs for user ${userId}, resetting`);
-          socketIds = [];
-        }
-      }
-
-      if (!socketIds.includes(socketId)) {
-        socketIds.push(socketId);
-        await redisInstance.set(
-          userSocketsKey,
-          JSON.stringify(socketIds),
-          this.REDIS_TTL
-        );
-      }
-
+      // Get current socket count
+      const socketIds = await redisInstance.smembers(userSocketsKey);
       const socketCount = socketIds.length;
       logger.info(
         `User ${userId} registered for notifications on socket ${socketId} (Total sockets: ${socketCount})`
@@ -147,34 +145,22 @@ export class NotificationWebSocketService extends WebSocketService {
       const userId = await redisInstance.get(`${this.REDIS_SOCKET_USER_KEY}:${socketId}`);
       
       if (userId) {
-        // Remove socketId from user's socket set in Redis
+        // Remove socketId from user's socket set in Redis (atomic operation)
         const userSocketsKey = `${this.REDIS_USER_SOCKETS_KEY}:${userId}`;
-        const existingSockets = await redisInstance.get(userSocketsKey);
+        const removedCount = await redisInstance.srem(userSocketsKey, socketId);
         
-        if (existingSockets) {
-          try {
-            let socketIds: string[] = JSON.parse(existingSockets);
-            socketIds = socketIds.filter(id => id !== socketId);
-            
-            if (socketIds.length > 0) {
-              await redisInstance.set(
-                userSocketsKey,
-                JSON.stringify(socketIds),
-                this.REDIS_TTL
-              );
-            } else {
-              // Remove the key if no sockets left
-              await redisInstance.del(userSocketsKey);
-            }
-          } catch (e) {
-            logger.warn(`Failed to update socket list for user ${userId}`);
-          }
+        // Check if set is empty and remove key if so
+        const remainingSockets = await redisInstance.smembers(userSocketsKey);
+        if (remainingSockets.length === 0) {
+          await redisInstance.del(userSocketsKey);
         }
 
         // Remove socketId -> userId mapping
         await redisInstance.del(`${this.REDIS_SOCKET_USER_KEY}:${socketId}`);
         
-        logger.info(`User ${userId} disconnected from socket ${socketId}`);
+        if (removedCount > 0) {
+          logger.info(`User ${userId} disconnected from socket ${socketId}`);
+        }
       }
 
       // Remove from local storage
@@ -193,22 +179,9 @@ export class NotificationWebSocketService extends WebSocketService {
     data: Record<string, unknown>
   ): Promise<boolean> {
     try {
-      // Get user's socket IDs from Redis
+      // Get user's socket IDs from Redis (atomic read)
       const userSocketsKey = `${this.REDIS_USER_SOCKETS_KEY}:${userId}`;
-      const socketIdsJson = await redisInstance.get(userSocketsKey);
-
-      if (!socketIdsJson) {
-        logger.debug(`No sockets found for user ${userId} in Redis`);
-        return false;
-      }
-
-      let socketIds: string[] = [];
-      try {
-        socketIds = JSON.parse(socketIdsJson);
-      } catch (e) {
-        logger.warn(`Failed to parse socket IDs for user ${userId}`);
-        return false;
-      }
+      const socketIds = await redisInstance.smembers(userSocketsKey);
 
       if (socketIds.length === 0) {
         logger.debug(`No active sockets found for user ${userId}`);
@@ -217,7 +190,7 @@ export class NotificationWebSocketService extends WebSocketService {
 
       // Send to all active sockets
       let sent = false;
-      const validSocketIds: string[] = [];
+      const invalidSocketIds: string[] = [];
 
       for (const socketId of socketIds) {
         const socket = this.socketStorage.get(socketId);
@@ -225,29 +198,28 @@ export class NotificationWebSocketService extends WebSocketService {
         if (socket && socket.connected) {
           socket.emit(event, data);
           sent = true;
-          validSocketIds.push(socketId);
         } else {
-          // Clean up invalid socket ID from Redis
+          // Mark invalid socket ID for cleanup
+          invalidSocketIds.push(socketId);
           logger.debug(`Removing invalid socket ${socketId} for user ${userId}`);
-          await this.cleanupInvalidSocket(userId, socketId);
         }
       }
 
-      // Update Redis with only valid socket IDs
-      if (validSocketIds.length > 0 && validSocketIds.length !== socketIds.length) {
-        await redisInstance.set(
-          userSocketsKey,
-          JSON.stringify(validSocketIds),
-          this.REDIS_TTL
-        );
-      } else if (validSocketIds.length === 0) {
-        // Remove key if no valid sockets
-        await redisInstance.del(userSocketsKey);
+      // Clean up invalid socket IDs (atomic remove)
+      if (invalidSocketIds.length > 0) {
+        await redisInstance.srem(userSocketsKey, ...invalidSocketIds);
+        
+        // Check if set is empty and remove key if so
+        const remainingSockets = await redisInstance.smembers(userSocketsKey);
+        if (remainingSockets.length === 0) {
+          await redisInstance.del(userSocketsKey);
+        }
       }
 
       if (sent) {
+        const validSocketCount = socketIds.length - invalidSocketIds.length;
         logger.info(
-          `Sent ${event} to user ${userId} on ${validSocketIds.length} socket(s)`
+          `Sent ${event} to user ${userId} on ${validSocketCount} socket(s)`
         );
       }
 
@@ -259,34 +231,21 @@ export class NotificationWebSocketService extends WebSocketService {
   }
 
   /**
-   * Clean up invalid socket from Redis
+   * Clean up invalid socket from Redis (atomic operation)
    */
   private async cleanupInvalidSocket(userId: string, socketId: string): Promise<void> {
     try {
       // Remove socketId -> userId mapping
       await redisInstance.del(`${this.REDIS_SOCKET_USER_KEY}:${socketId}`);
       
-      // Remove from user's socket set
+      // Remove from user's socket set (atomic operation)
       const userSocketsKey = `${this.REDIS_USER_SOCKETS_KEY}:${userId}`;
-      const existingSockets = await redisInstance.get(userSocketsKey);
+      await redisInstance.srem(userSocketsKey, socketId);
       
-      if (existingSockets) {
-        try {
-          let socketIds: string[] = JSON.parse(existingSockets);
-          socketIds = socketIds.filter(id => id !== socketId);
-          
-          if (socketIds.length > 0) {
-            await redisInstance.set(
-              userSocketsKey,
-              JSON.stringify(socketIds),
-              this.REDIS_TTL
-            );
-          } else {
-            await redisInstance.del(userSocketsKey);
-          }
-        } catch (e) {
-          logger.warn(`Failed to cleanup socket ${socketId} for user ${userId}`);
-        }
+      // Check if set is empty and remove key if so
+      const remainingSockets = await redisInstance.smembers(userSocketsKey);
+      if (remainingSockets.length === 0) {
+        await redisInstance.del(userSocketsKey);
       }
     } catch (error) {
       logger.error(`Error cleaning up invalid socket ${socketId}:`, error);
@@ -299,13 +258,11 @@ export class NotificationWebSocketService extends WebSocketService {
   public async getUserSocketCount(userId: string): Promise<number> {
     try {
       const userSocketsKey = `${this.REDIS_USER_SOCKETS_KEY}:${userId}`;
-      const socketIdsJson = await redisInstance.get(userSocketsKey);
+      const socketIds = await redisInstance.smembers(userSocketsKey);
 
-      if (!socketIdsJson) {
+      if (socketIds.length === 0) {
         return 0;
       }
-
-      const socketIds: string[] = JSON.parse(socketIdsJson);
       
       // Count only connected sockets
       let count = 0;
@@ -337,13 +294,7 @@ export class NotificationWebSocketService extends WebSocketService {
   public async getUserSocketIds(userId: string): Promise<string[]> {
     try {
       const userSocketsKey = `${this.REDIS_USER_SOCKETS_KEY}:${userId}`;
-      const socketIdsJson = await redisInstance.get(userSocketsKey);
-
-      if (!socketIdsJson) {
-        return [];
-      }
-
-      return JSON.parse(socketIdsJson);
+      return await redisInstance.smembers(userSocketsKey);
     } catch (error) {
       logger.error(`Failed to get socket IDs for user ${userId}:`, error);
       return [];
