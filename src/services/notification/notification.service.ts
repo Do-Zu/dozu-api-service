@@ -249,7 +249,7 @@ export class NotificationService {
 
       const template = getDailyReminderTemplate({
         fullName: context.fullName || context.username,
-        frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+        frontendUrl: process.env.FRONTEND_BASE_URL || 'http://localhost:3000',
       });
 
       const emailNotification: EmailNotification = {
@@ -311,7 +311,7 @@ export class NotificationService {
         topicsCompleted: stats.topicsCompleted,
         achievementsEarned: stats.achievementsEarned,
         streak: stats.streak,
-        frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+        frontendUrl: process.env.FRONTEND_BASE_URL || 'http://localhost:3000',
       });
 
       const emailNotification: EmailNotification = {
@@ -362,7 +362,7 @@ export class NotificationService {
         achievementTitle: achievement.title,
         achievementDescription: achievement.description,
         achievementIcon: achievement.icon,
-        frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+        frontendUrl: process.env.FRONTEND_BASE_URL || 'http://localhost:3000',
       });
 
       const emailNotification: EmailNotification = {
@@ -515,7 +515,7 @@ export class NotificationService {
 
       const template = getReEngagementTemplate({
         fullName: context.fullName || context.username,
-        frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+        frontendUrl: process.env.FRONTEND_BASE_URL || 'http://localhost:3000',
       });
 
       const emailNotification: EmailNotification = {
