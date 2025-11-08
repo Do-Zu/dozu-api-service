@@ -272,28 +272,43 @@ export abstract class BaseLLMProvider {
             logger.warn('No alternative models available for switching');
             return false;
         }
+        const originModelId = this.modelId;
+        const originalMinuteLimit = this.requestPerMinuteLimit;
+        const originDayLimit = this.requestPerDateLimit;
 
         // Try each model in order
         for (let attempt = 0; attempt < lengthModelAvailable; attempt++) {
             // Calculate next model index with wraparound
             const nextModelIndex = (this.currentModelIndex + 1 + attempt) % lengthModelAvailable;
-            const candidateModel = this.modelsAvailable[nextModelIndex];
 
-            // Skip if this model is also rate-limited
+            //TODO: re-check and write function for check only candidate model , don't assign directly for this class -> critical: Switch logic corrupts the active model state
+            const candidateModel = this.modelsAvailable[nextModelIndex];
+            const candidateMinuteLimit = candidateModel.requestPerMinute ?? this.DEFAULT_RATE_LIMIT_PER_MINUTE;
+            const candidateDayLimit = candidateModel.requestPerDay ?? this.DEFAULT_RATE_LIMIT_PER_DATE;
+
             this.modelId = candidateModel.modelId;
+            this.requestPerMinuteLimit = candidateMinuteLimit;
+            this.requestPerDateLimit = candidateDayLimit;
+
             const isRateLimited = await this.isCurrentModelRateLimited();
 
-            if (!isRateLimited) {
-                // Update to new model
-                this.model = candidateModel.name;
-                this.currentModelIndex = nextModelIndex;
-                this.requestPerDateLimit = candidateModel.requestPerDay ?? this.DEFAULT_RATE_LIMIT_PER_DATE;
-                this.requestPerMinuteLimit = candidateModel.requestPerMinute ?? this.DEFAULT_RATE_LIMIT_PER_MINUTE;
+            // Skip if this model is also rate-limited
+            if (isRateLimited) continue;
 
-                logger.info(`Switched to model ${this.model} due to rate limiting`);
-                return true;
-            }
+            // If current model not rate limit then choose for next generate process
+            // Update to new model
+            this.model = candidateModel.name;
+            this.currentModelIndex = nextModelIndex;
+            this.requestPerDateLimit = candidateModel.requestPerDay ?? this.DEFAULT_RATE_LIMIT_PER_DATE;
+            this.requestPerMinuteLimit = candidateModel.requestPerMinute ?? this.DEFAULT_RATE_LIMIT_PER_MINUTE;
+
+            logger.info(`Switched to model ${this.model} due to rate limiting`);
+            return true;
         }
+
+        this.modelId = originModelId;
+        this.requestPerMinuteLimit = originalMinuteLimit;
+        this.requestPerDateLimit = originDayLimit;
 
         // All models are rate-limited
         logger.error('All models are rate-limited');
