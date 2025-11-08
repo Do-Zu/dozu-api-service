@@ -237,7 +237,7 @@ export abstract class AbstractRedisManager implements IRedisManager {
 
             srem: async (key: string, ...members: string[]) => {
                 console.debug(`[Redis Fallback] SREM ${key} ${members.join(', ')}`);
-                return members.length;
+                return 0;
             },
 
             sismember: async (key: string, member: string) => {
