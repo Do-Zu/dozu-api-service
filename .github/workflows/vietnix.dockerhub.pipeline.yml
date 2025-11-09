@@ -41,7 +41,7 @@ jobs:
                   PASSWORD: ${{ secrets.VIETNIX_PASSWORD }}
               run: |
                   set -e
-                  sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "$USERNAME@$HOST" "echo 'VIETNIX connection OK'; \
+                  sshpass -p "$PASSWORD" ssh -p 8622 -o StrictHostKeyChecking=no "$USERNAME@$HOST" "echo 'VIETNIX connection OK'; \
                     echo 'Checking sudo access (may prompt internally)...'; \
                     echo \"$PASSWORD\" | sudo -S -p '' echo 'Sudo access confirmed' || echo 'Sudo access not required or failed'"
     build-source:
@@ -302,4 +302,4 @@ jobs:
                   )
 
                   # run remote with sudo and pass env vars explicitly
-                  sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "$USERNAME@$HOST" "command -v docker >/dev/null 2>&1 || { echo 'Docker is not installed on remote'; exit 1; }; echo \"$PASSWORD\" | sudo -S -p '' env DOCKER_USER='$DOCKER_USER' DOCKER_TOKEN='$DOCKER_TOKEN' IMAGE='$IMAGE' TAG='$TAG' bash -lc '$REMOTE_CMDS'"
+                  sshpass -p "$PASSWORD" ssh -p 8622 -o StrictHostKeyChecking=no "$USERNAME@$HOST" "command -v docker >/dev/null 2>&1 || { echo 'Docker is not installed on remote'; exit 1; }; echo \"$PASSWORD\" | sudo -S -p '' env DOCKER_USER='$DOCKER_USER' DOCKER_TOKEN='$DOCKER_TOKEN' IMAGE='$IMAGE' TAG='$TAG' bash -lc '$REMOTE_CMDS'"
