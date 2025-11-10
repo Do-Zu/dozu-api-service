@@ -58,9 +58,8 @@ class YoutubeService {
                     endTime: number = 0,
                     arrayOfText: string[] = [],
                     currentLength = 0;
-                let isFirstSegment: boolean = true;
                 for (const segment of transcriptSegments) {
-                    if (startTime === 0 && !isFirstSegment) startTime = segment.startTime;
+                    if (arrayOfText.length === 0) startTime = segment.startTime;
                     endTime = segment.endTime;
                     const cleanedText = segment.text.replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\s+/g, ' ');
                     arrayOfText.push(cleanedText);
@@ -71,13 +70,12 @@ class YoutubeService {
                             endTime,
                             text: arrayOfText.join(' '),
                         });
-                        isFirstSegment = false;
                         startTime = 0;
                         currentLength = 0;
                         arrayOfText = [];
                     }
                 }
-                if (startTime > 0) {
+                if (arrayOfText.length > 0) {
                     result.push({
                         startTime,
                         endTime,
