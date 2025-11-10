@@ -265,8 +265,33 @@ class FlashcardService {
     ): Promise<IFlashcard[]> {
         // serve for Anki algorithm
         const dueDate = addMinutes(new Date(currentDate), learnAheadLimit);
-        const flashcards = await flashcardRepo.getDueFlashcardsForTopicAndUser(topicId, userId, dueDate.toISOString());
-        return flashcards;
+        const allFlashcards = await this.getFlashcardsForTopic(topicId);
+        const allAnkiCards = await this.getAllAnkiCardsForTopic({ userId, topicId });
+
+        // initial tracking record if some flashcards missing its record
+        const trackingRecords = allFlashcards
+            .map(flashcard => {
+                if (allAnkiCards.find(ankiCard => ankiCard.flashcardId === flashcard.flashcardId) !== undefined) {
+                    return null;
+                }
+                return {
+                    userId,
+                    topicId,
+                    itemId: flashcard.flashcardId,
+                    type: 'flashcard',
+                    step: 0,
+                };
+            })
+            .filter(e => e !== null) as ICreateTrackingRecord[];
+
+        await itemSpacedRepetitionTrackingRepo.initializeTrackingRecords(trackingRecords);
+        
+        const dueFlashcards = await flashcardRepo.getDueFlashcardsForTopicAndUser(
+            topicId,
+            userId,
+            dueDate.toISOString()
+        );
+        return dueFlashcards;
     }
 
     public async getReviewIntervalsByQualityResponses(
@@ -342,6 +367,14 @@ class FlashcardService {
 
     public async saveFlashcardImage(image: IImageSaveInput) {
         await unsplashLib.downloadImage(image.downloadLocation);
+    }
+
+    // check if there is any anki card from a topic
+    public async getAllAnkiCardsForTopic({ userId, topicId }: { userId: number; topicId: number }) {
+        // 01/01/2100, trying to get all anki cards including cards that are not due today
+        const future = new Date(2100, 0, 1);
+        const result = await flashcardRepo.getDueFlashcardsForTopicAndUser(topicId, userId, future.toISOString());
+        return result;
     }
 }
 

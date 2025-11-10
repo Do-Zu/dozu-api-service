@@ -54,9 +54,7 @@ class TopicRepo {
         const [result] = await db
             .select({
                 flashcardCounts: {
-                    total: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL THEN 1 END) AS INT)`.as(
-                        'total'
-                    ),
+                    total: sql<number>`CAST(COUNT(*) AS INT)`.as('total'),
                     review: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${dueDate} AND item_spaced_repetition_tracking.status = 'review' THEN 1 END) AS INT)`.as(
                         'review'
                     ),
@@ -70,7 +68,7 @@ class TopicRepo {
                 },
             })
             .from(flashcardsTable)
-            .innerJoin(
+            .leftJoin(
                 itemSpacedRepetitionTrackingTable,
                 and(
                     eq(itemSpacedRepetitionTrackingTable.userId, userId),
