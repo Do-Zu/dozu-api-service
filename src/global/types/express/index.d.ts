@@ -2,6 +2,7 @@ import { DecodedTokenPayload } from '@/types/auth/jwtPayload.type';
 import { IClass } from '@/types/class-based-learning/class.type';
 import { ITopic } from '@/types/topic/topic.type';
 import { IClassInvite } from '@/types/class-based-learning/classInvite.type';
+import { IClassQuizResource } from '@/types/class-based-learning/quizClass.type';
 
 declare global {
     namespace Express {
@@ -16,6 +17,7 @@ declare global {
                     feedId?: number;
                     settingId?: number;
                     assignmentId?: number;
+                    classQuizId?: number;
                     submissionId?: number;
                 };
                 body?: any;
@@ -24,6 +26,7 @@ declare global {
             resources?: {
                 topic?: ITopic;
                 class?: IClass;
+                classQuiz?: IClassQuizResource;
             };
             invite?: IClassInvite;
         }
