@@ -243,7 +243,7 @@ class FlashcardController {
                 flashcardId: card.flashcardId,
                 front: card.front,
                 back: card.back,
-                iamgeUrl: card.imageUrl,
+                imageUrl: card.imageUrl,
                 topicName: card.topicName,
                 nextReviewDataByRatings: flashcardService.getNextReviewByRatings(
                     card.flashcardId,
@@ -280,7 +280,7 @@ class FlashcardController {
                 flashcardId: card.flashcardId,
                 front: card.front,
                 back: card.back,
-                iamgeUrl: card.imageUrl,
+                imageUrl: card.imageUrl,
                 topicName: card.topicName,
                 nextReviewDataByRatings: flashcardService.getNextReviewByRatings(
                     card.flashcardId,
