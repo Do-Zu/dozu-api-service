@@ -16,7 +16,6 @@ export const createLlmProviderSchema = z.object({
   name: z.string().min(1).max(100),
   isDefault: z.boolean().default(false),
   isAvailable: z.boolean().default(true),
-  index: z.number().int().min(0),
   description: z.string().optional(),
   baseUrl: z.string().url().optional().or(z.literal('')),
 });

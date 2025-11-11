@@ -1,5 +1,5 @@
 import db from '@/libs/drizzleClient.lib';
-import { eq, and, or, ilike, count, asc } from 'drizzle-orm';
+import { eq, and, or, ilike, count, asc, max } from 'drizzle-orm';
 import { llmProvidersTable } from '@/models/llmIntegrate.model';
 import { NotFoundError, BadRequest } from '@/core/error';
 import {
@@ -79,6 +79,13 @@ class AdminLlmProviderService {
       throw new BadRequest('Provider with this name already exists');
     }
 
+    // Auto-increment index: get max index and add 1
+    const maxIndexResult = await db
+      .select({ maxIndex: max(llmProvidersTable.index) })
+      .from(llmProvidersTable);
+    
+    const nextIndex = (maxIndexResult[0]?.maxIndex ?? -1) + 1;
+
     // Allow multiple default providers - no need to unset other defaults
     const [newProvider] = await db
       .insert(llmProvidersTable)
@@ -86,7 +93,7 @@ class AdminLlmProviderService {
         name: payload.name,
         isDefault: payload.isDefault,
         isAvailable: payload.isAvailable,
-        index: payload.index,
+        index: nextIndex,
         description: payload.description,
         baseUrl: payload.baseUrl || null,
       })

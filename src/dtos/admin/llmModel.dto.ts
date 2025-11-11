@@ -3,6 +3,7 @@ import { z } from 'zod';
 // Query schema for getting all models
 export const getLlmModelsQuerySchema = z.object({
   providerId: z.string().transform(val => parseInt(val)).optional(),
+  providerName: z.string().optional(),
   isAvailable: z.enum(['true', 'false']).transform(val => val === 'true').optional(),
   isDefault: z.enum(['true', 'false']).transform(val => val === 'true').optional(),
   page: z.string().default('1'),

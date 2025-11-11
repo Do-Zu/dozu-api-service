@@ -11,12 +11,13 @@ import {
 class AdminLlmModelService {
   // ============ GET ALL MODELS ============
   async getAllModels(filters: GetLlmModelsQueryDto) {
-    const { providerId, isAvailable, isDefault, page = '1', limit = '50', search } = filters;
+    const { providerId, providerName, isAvailable, isDefault, page = '1', limit = '50', search } = filters;
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
     const conditions = [];
 
     if (providerId) conditions.push(eq(llmModelsTable.providerId, providerId));
+    if (providerName) conditions.push(ilike(llmProvidersTable.name, `%${providerName}%`));
     if (isAvailable !== undefined) conditions.push(eq(llmModelsTable.isAvailable, isAvailable));
     if (isDefault !== undefined) conditions.push(eq(llmModelsTable.isDefault, isDefault));
 
