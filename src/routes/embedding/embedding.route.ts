@@ -10,6 +10,7 @@ globalAsyncHandler(router);
 
 // router.use(middleware function here)
 router.post('/', embeddingController.processEmbedding);
+router.post('/query', embeddingController.queryTopSimilarity);
 
 //important: remember register router
 registerRoute('/v1/embedding', router, {

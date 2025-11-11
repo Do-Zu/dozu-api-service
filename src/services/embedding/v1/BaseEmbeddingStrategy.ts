@@ -1,5 +1,5 @@
-import { embeddingRepo, NewEmbedding } from '@/repositories/embedding/embedding.repo';
-import { EmbeddingInput, EmbeddingResult } from './embedding.type';
+import { embeddingRepo, IReturnItemQuery, NewEmbedding } from '@/repositories/embedding/embedding.repo';
+import { EmbeddingInput, EmbeddingInputType, EmbeddingResult, IQuerySimilarity } from './embedding.type';
 import { isEmpty } from '@/utils/common';
 
 /**
@@ -7,7 +7,8 @@ import { isEmpty } from '@/utils/common';
  */
 export interface IEmbeddingStrategy {
     process(input: EmbeddingInput): Promise<EmbeddingResult>;
-    canHandle(input: EmbeddingInput): boolean;
+    canHandle(input: EmbeddingInputType): boolean;
+    queryTopSimilarity(payload: IQuerySimilarity): Promise<IReturnItemQuery[]>;
 }
 
 const BASE_API_EMBEDDING_SERVICE = 'http://localhost:8686';
@@ -17,12 +18,18 @@ export abstract class BaseEmbeddingStrategy implements IEmbeddingStrategy {
     /**
      * Check if this strategy can handle the given input
      */
-    public abstract canHandle(payload: EmbeddingInput): boolean;
+    public abstract canHandle(type: EmbeddingInputType): boolean;
 
     /**
      * Process the input and generate embeddings
      */
     public abstract process(payload: EmbeddingInput): Promise<EmbeddingResult>;
+
+    /**
+     *
+     * @param payload
+     */
+    public abstract queryTopSimilarity(payload: IQuerySimilarity): Promise<IReturnItemQuery[]>;
 
     /**
      * Store Embedding

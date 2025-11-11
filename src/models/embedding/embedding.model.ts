@@ -1,6 +1,9 @@
 import { pgTable, serial, integer, text, timestamp, vector, jsonb, index, varchar } from 'drizzle-orm/pg-core';
 import { topicsTable } from '@/models/topic/topic.model';
-
+export type TypeMetaDataChunkEmbed = {
+    type: string;
+    content: string | number | object | Array<unknown>;
+};
 export const embeddingsTable = pgTable(
     'embeddings',
     {
@@ -14,10 +17,7 @@ export const embeddingsTable = pgTable(
         embedding: vector('embedding', { dimensions: 384 }).notNull(),
 
         // Original content chunk that was embedded
-        originContent: jsonb('origin_content').notNull().$type<{
-            type: string;
-            content: string;
-        }>(),
+        originContent: jsonb('origin_content').notNull().$type<TypeMetaDataChunkEmbed>(),
 
         contentType: varchar('content_type', { length: 50 }).notNull(), // Content type: 'document', 'video', 'audio', 'youtube'
 
@@ -51,5 +51,3 @@ export type OriginContent = {
     type: 'text' | 'image' | 'audio';
     content: string;
 };
-
-export type TypeMetaDataChunkEmbed = Record<string, string | number | object | Array<unknown>>;

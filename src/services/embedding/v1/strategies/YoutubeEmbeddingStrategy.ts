@@ -1,12 +1,19 @@
 import axios from 'axios';
 import { youtubeContentService } from '@/services/content/youtube.content.service';
 import { BaseEmbeddingStrategy } from '../BaseEmbeddingStrategy';
-import { EmbeddingInput, EmbeddingInputRequest, EmbeddingResult, EnumEmbeddingInput } from '../embedding.type';
+import {
+    EmbeddingInputRequest,
+    EmbeddingInputType,
+    EmbeddingResult,
+    EnumEmbeddingInput,
+    IQuerySimilarity,
+} from '../embedding.type';
 import { BadRequest } from '@/core/error';
 import logger from '@/utils/logger';
-import { isNilOrEmpty, toNumber } from '@/utils/common';
-import { NewEmbedding } from '@/repositories/embedding/embedding.repo';
-import { isEmpty } from 'bullmq';
+import { compareIgnoreCapitalization, isNilOrEmpty, toNumber } from '@/utils/common';
+import { IReturnItemQuery, NewEmbedding } from '@/repositories/embedding/embedding.repo';
+import { embeddingRepo } from '@/repositories/embedding/embedding.repo';
+import { TypeMetaDataChunkEmbed } from '@/models/embedding';
 
 interface EmbeddingItemRes {
     start: number;
@@ -21,45 +28,12 @@ class YoutubeEmbeddingService extends BaseEmbeddingStrategy {
         this.API_END_POINT_EMBEDDING = `${this.BASE_API_EMBEDDING_SERVICE_PROVIDER}/youtube/segments/embedding`;
     }
 
-    public canHandle(payload: EmbeddingInput): boolean {
-        const { type } = payload;
-
-        return type === EnumEmbeddingInput.YOUTUBE;
+    public canHandle(type: EmbeddingInputType): boolean {
+        return compareIgnoreCapitalization(type, EnumEmbeddingInput.YOUTUBE);
     }
 
     private async getYoutubeTranscript({ videoId }: { videoId: string }) {
         return await youtubeContentService.getTranscript({ videoId });
-    }
-
-    private adapterChunkItemAfterEmbedding({
-        topicId,
-        type,
-        embeddings,
-    }: {
-        topicId: number;
-        type: string;
-        embeddings: EmbeddingItemRes[];
-    }): NewEmbedding[] {
-        try {
-            if (isEmpty(embeddings)) return [];
-
-            return embeddings?.map(({ embedding: vector, start, text }, index) => ({
-                contentType: type,
-                embedding: vector,
-                originContent: {
-                    content: text,
-                    type: 'text',
-                },
-                metadata: {
-                    startTime: start,
-                },
-                topicId,
-                chunkIndex: index,
-            }));
-        } catch (error) {
-            logger.error('YoutubeEmbedding Service:  adapterChunkItemAfterEmbedding', error);
-            return [];
-        }
     }
 
     public async process(payload: EmbeddingInputRequest): Promise<EmbeddingResult> {
@@ -103,6 +77,73 @@ class YoutubeEmbeddingService extends BaseEmbeddingStrategy {
         } catch (error) {
             logger.error('YoutubeEmbeddingService: process ', error);
             throw error;
+        }
+    }
+
+    public async queryTopSimilarity(payload: IQuerySimilarity): Promise<IReturnItemQuery[]> {
+        try {
+            const { query, topicId, topK } = payload;
+
+            const { data, status } = await axios.post(
+                `${this.BASE_API_EMBEDDING_SERVICE_PROVIDER}/single/text/embedding`,
+                {
+                    query,
+                }
+            );
+
+            if (status !== 200) {
+                throw new BadRequest('Failed to generate query embedding');
+            }
+
+            const queryEmbedding = data?.embedding as number[];
+
+            const similarEmbeddings = await embeddingRepo.findSimilarEmbeddings({ queryEmbedding, topicId, topK });
+
+            const results: IReturnItemQuery[] = similarEmbeddings.map(item => ({
+                embeddingId: item.embeddingId,
+                topicId: item.topicId,
+                contentType: item.contentType,
+                originContent: item.originContent as TypeMetaDataChunkEmbed,
+                metadata: item.metadata,
+                createdAt: item.createdAt,
+                similarity: item.similarity,
+            }));
+
+            return results;
+        } catch (error) {
+            logger.error('YoutubeEmbeddingService: queryTopSimilarity ', error);
+            throw error;
+        }
+    }
+
+    private adapterChunkItemAfterEmbedding({
+        topicId,
+        type,
+        embeddings,
+    }: {
+        topicId: number;
+        type: string;
+        embeddings: EmbeddingItemRes[];
+    }): NewEmbedding[] {
+        try {
+            if (!embeddings || embeddings.length === 0) return [];
+
+            return embeddings.map(({ embedding: vector, start, text }, index) => ({
+                contentType: type,
+                embedding: vector,
+                originContent: {
+                    content: text,
+                    type: 'text',
+                },
+                metadata: {
+                    startTime: start,
+                },
+                topicId,
+                chunkIndex: index,
+            }));
+        } catch (error) {
+            logger.error('YoutubeEmbedding Service:  adapterChunkItemAfterEmbedding', error);
+            return [];
         }
     }
 }

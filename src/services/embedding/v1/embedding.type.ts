@@ -17,6 +17,13 @@ interface EmbeddingInputRequest extends EmbeddingInput {
     topicId: number;
 }
 
+interface IQuerySimilarity {
+    type: EmbeddingInputType;
+    query: string;
+    topicId: number;
+    topK: number;
+}
+
 export type VideoMetadata = {
     startTime: number; // seconds
     index: number;
@@ -33,4 +40,11 @@ export type DocumentMetadata = {
 
 export type EmbeddingMetadata = VideoMetadata | DocumentMetadata | Record<string, any>;
 
-export { EmbeddingInputRequest, EmbeddingResult, EmbeddingInput, EmbeddingInputType, EnumEmbeddingInput };
+export {
+    IQuerySimilarity,
+    EmbeddingInputRequest,
+    EmbeddingResult,
+    EmbeddingInput,
+    EmbeddingInputType,
+    EnumEmbeddingInput,
+};
