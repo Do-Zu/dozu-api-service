@@ -1,4 +1,6 @@
+import { embeddingRepo, NewEmbedding } from '@/repositories/embedding/embedding.repo';
 import { EmbeddingInput, EmbeddingResult } from './embedding.type';
+import { isEmpty } from '@/utils/common';
 
 /**
  * Base strategy interface for different embedding types
@@ -21,4 +23,12 @@ export abstract class BaseEmbeddingStrategy implements IEmbeddingStrategy {
      * Process the input and generate embeddings
      */
     public abstract process(payload: EmbeddingInput): Promise<EmbeddingResult>;
+
+    /**
+     * Store Embedding
+     */
+    protected async storageVectorAfterEmbedding(data: NewEmbedding[]) {
+        if (isEmpty(data)) return [];
+        return await embeddingRepo.insertEmbeddingsBatch(data);
+    }
 }

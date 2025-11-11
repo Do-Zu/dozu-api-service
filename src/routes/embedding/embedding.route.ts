@@ -12,7 +12,7 @@ globalAsyncHandler(router);
 router.post('/', embeddingController.processEmbedding);
 
 //important: remember register router
-registerRoute('/embedding', router, {
+registerRoute('/v1/embedding', router, {
     description: 'embedding API endpoints ',
     version: 'v1',
     isEnabled: true,

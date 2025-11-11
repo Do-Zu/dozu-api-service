@@ -5,13 +5,19 @@ export const embeddingsTable = pgTable(
     'embeddings',
     {
         embeddingId: serial('embedding_id').primaryKey(),
+
         topicId: integer('topic_id')
             .notNull()
             .references(() => topicsTable.topicId, { onDelete: 'cascade' }),
 
-        embedding: vector('embedding', { dimensions: 384 }).notNull(), // 384 dimensions for sentence-transformers, adjust if using different model
+        // 384 dimensions for sentence-transformers, adjust if using different model
+        embedding: vector('embedding', { dimensions: 384 }).notNull(),
 
-        originText: text('origin_text').notNull(), // Original text chunk that was embedded
+        // Original content chunk that was embedded
+        originContent: jsonb('origin_content').notNull().$type<{
+            type: string;
+            content: string;
+        }>(),
 
         contentType: varchar('content_type', { length: 50 }).notNull(), // Content type: 'document', 'video', 'audio', 'youtube'
 
@@ -40,3 +46,10 @@ export const embeddingsTable = pgTable(
         topicIdIdx: index('embeddings_topic_id_idx').on(table.topicId),
     })
 );
+
+export type OriginContent = {
+    type: 'text' | 'image' | 'audio';
+    content: string;
+};
+
+export type TypeMetaDataChunkEmbed = Record<string, string | number | object | Array<unknown>>;

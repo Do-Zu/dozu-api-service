@@ -1,8 +1,3 @@
-interface EmbeddingInputReq {
-    text: string;
-    metadata: Record<string, unknown>;
-}
-
 interface EmbeddingResult extends Record<string, unknown> {}
 
 const EnumEmbeddingInput = {
@@ -15,8 +10,11 @@ type EmbeddingInputType = (typeof EnumEmbeddingInput)[keyof typeof EnumEmbedding
 
 interface EmbeddingInput {
     type: EmbeddingInputType;
-    segments: EmbeddingInputReq[];
     metadata?: Record<string, unknown>;
+}
+
+interface EmbeddingInputRequest extends EmbeddingInput {
+    topicId: number;
 }
 
 export type VideoMetadata = {
@@ -35,4 +33,4 @@ export type DocumentMetadata = {
 
 export type EmbeddingMetadata = VideoMetadata | DocumentMetadata | Record<string, any>;
 
-export { EmbeddingInputReq, EmbeddingResult, EmbeddingInput, EmbeddingInputType, EnumEmbeddingInput };
+export { EmbeddingInputRequest, EmbeddingResult, EmbeddingInput, EmbeddingInputType, EnumEmbeddingInput };
