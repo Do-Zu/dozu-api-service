@@ -19,4 +19,20 @@ interface EmbeddingInput {
     metadata?: Record<string, unknown>;
 }
 
+export type VideoMetadata = {
+    startTime: number; // seconds
+    index: number;
+};
+
+export type DocumentMetadata = {
+    pageIndex: number;
+    lineStart: number;
+    lineEnd: number;
+    chunkIndex: number;
+    fileName?: string;
+    fileType?: string;
+};
+
+export type EmbeddingMetadata = VideoMetadata | DocumentMetadata | Record<string, any>;
+
 export { EmbeddingInputReq, EmbeddingResult, EmbeddingInput, EmbeddingInputType, EnumEmbeddingInput };
