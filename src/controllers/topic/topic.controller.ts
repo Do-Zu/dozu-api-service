@@ -8,6 +8,7 @@ import { updateTopicIdOfInputSet } from '@/repositories/inputSet.repo';
 import requestHelper from '@/core/request/request.helper';
 import { deleteImage, uploadImage } from '@/libs/cloudinary.lib';
 import { extractPublicId } from 'cloudinary-build-url';
+import { NotFoundError } from '@/core/error';
 
 class TopicController {
     constructor() {}
@@ -18,6 +19,11 @@ class TopicController {
         const currentDate = getCurrentTimestampFromRequest(req);
 
         const topic: ITopic | undefined = await topicService.getTopicWithCardCounts({ userId, topicId, currentDate });
+
+        if (!topic) {
+            throw new NotFoundError('Topic not found');
+        }
+
         SuccessResponse.ok(res, topic);
     }
 
