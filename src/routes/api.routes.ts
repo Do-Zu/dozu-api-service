@@ -44,8 +44,9 @@ import './class-based-learning/quizClass.routes';
 import './package/package.routes';
 import './class-based-learning/assignment/assignmentSubmission.routes';
 import './class-based-learning/class-quiz/studentClassQuiz.routes';
-import './class-based-learning/class-quiz/teacherClassQuiz.routes'
-
+import './class-based-learning/class-quiz/teacherClassQuiz.routes';
+import './content/content.routes';
+import './embedding/embedding.route';
 
 // Apply global async handler to router
 globalAsyncHandler(router);

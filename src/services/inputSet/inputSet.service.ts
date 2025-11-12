@@ -1,7 +1,68 @@
-import { InternalServerError } from '@/core/error';
+import { BadRequest, InternalServerError } from '@/core/error';
 import { getInputSetByTopicId, insertInputSet } from '@/repositories/inputSet.repo';
 import { uploadFileServiceOnR2 } from '../uploads/files/upload.file.R2.service';
-import { checkAndConvertToString } from '@/utils/common';
+import { checkAndConvertToString, isNilOrEmpty } from '@/utils/common';
+import { embeddingService } from '../embedding/v1/embedding.service';
+import { extractYoutubeVideoId } from '@/utils/youtube/youtube.util';
+import { MetaDataInputEmbedding } from '../embedding/v1/embedding.type';
+
+export const RESOURCE_CONTENT_TYPE = {
+    FILE: 'file',
+    YOUTUBE: 'youtube',
+    WEBSITE: 'website',
+    TEXT: 'text',
+} as const;
+
+interface UploadFileResponse {
+    id?: string;
+    fileName: string;
+    originalName: string;
+    filePath?: string;
+    fileSize: number;
+    mimeType?: string;
+    status: 'completed' | 'processing' | 'failed';
+    uploadedAt?: string;
+    setId?: string;
+    fileKey: string;
+}
+
+interface IEmbedVideoInfo {
+    iframe_url: string;
+    flash_url: string;
+    flash_secure_url: string;
+    width: number;
+    height: number;
+}
+
+interface VideoInfo {
+    title: string;
+    thumbnailUrl: string;
+    videoId: string;
+    duration: number;
+    embed: IEmbedVideoInfo;
+}
+
+interface YoutubeResourceMetadata {
+    url: string;
+    videoId: string;
+    videoInfo: VideoInfo | null;
+    lengthContent: number;
+}
+
+type WebsiteResourceMetadata = {
+    url: string;
+    content: string;
+};
+
+type TextResourceMetadata = {
+    content: string;
+};
+
+export type ResourceContentType = (typeof RESOURCE_CONTENT_TYPE)[keyof typeof RESOURCE_CONTENT_TYPE];
+
+type MetaDataInputSet = UploadFileResponse | YoutubeResourceMetadata | WebsiteResourceMetadata | TextResourceMetadata;
+
+type TopicId = number;
 
 class InputSetService {
     public getDocumentService = async (topicId: number) => {
@@ -82,19 +143,78 @@ class InputSetService {
     }: {
         userId: number;
         topicId: number;
-        contentType: string;
-        metadata: object;
+        metadata: MetaDataInputSet;
+        contentType: ResourceContentType;
         title?: string;
     }) => {
-        const result = await insertInputSet({
+        // Storage input set of topic
+        const inputSet = await insertInputSet({
             userId,
             topicId,
             title: checkAndConvertToString(title),
             contentType,
             metadata,
         });
-        return result;
+
+        const parseMetaDataBelongTypeForEmbedding = this.resolveResourceMetadata({
+            topicId,
+            contentType,
+            payload: metadata,
+        });
+
+        if (isNilOrEmpty(parseMetaDataBelongTypeForEmbedding)) {
+            throw new BadRequest('Parse Embedding Data Error');
+        }
+
+        // Processing embedding and store vector
+        const embedding = await embeddingService.generateEmbedding({
+            topicId,
+            type: contentType,
+            metadata: parseMetaDataBelongTypeForEmbedding!,
+        });
+
+        return {
+            inputSet,
+            embedding,
+        };
     };
+
+    private resolveResourceMetadata(params: {
+        topicId: TopicId;
+        contentType: ResourceContentType;
+        payload: MetaDataInputSet;
+    }): MetaDataInputEmbedding | null {
+        switch (params.contentType) {
+            case RESOURCE_CONTENT_TYPE.FILE: {
+                return { ...(params.payload as UploadFileResponse) };
+            }
+            case RESOURCE_CONTENT_TYPE.YOUTUBE: {
+                const { url, videoInfo, lengthContent } = params.payload as YoutubeResourceMetadata;
+
+                if (!url) return null;
+
+                const videoId = extractYoutubeVideoId(url);
+
+                return { videoId, url, lengthContent, videoInfo: videoInfo ?? null };
+            }
+            case RESOURCE_CONTENT_TYPE.WEBSITE: {
+                const { url, content } = params.payload as WebsiteResourceMetadata;
+
+                if (!url || !content) return null;
+
+                return { url, content };
+            }
+            case RESOURCE_CONTENT_TYPE.TEXT: {
+                const { content } = params.payload as TextResourceMetadata;
+
+                if (!content) return null;
+
+                return { content };
+            }
+            default:
+                return null;
+        }
+    }
 }
 
 export const inputSetService = new InputSetService();
