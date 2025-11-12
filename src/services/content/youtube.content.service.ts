@@ -22,6 +22,7 @@ class YoutubeContentService {
         const info = await yt.getInfo(videoId);
 
         const title = info?.basic_info?.title || videoId;
+        const videoInfo = info.basic_info;
 
         if (!info.captions || !info.captions.caption_tracks?.length) {
             throw new NotFoundError('No captions available for this video');
@@ -68,6 +69,7 @@ class YoutubeContentService {
             title,
             language: track.language_code,
             segments,
+            videoInfo,
         };
     }
 }

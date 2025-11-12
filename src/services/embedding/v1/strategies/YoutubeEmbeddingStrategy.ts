@@ -44,7 +44,7 @@ class YoutubeEmbeddingService extends BaseEmbeddingStrategy {
 
             if (isNilOrEmpty(metadata)) throw new BadRequest('Empty Meta Data For Youtube Type');
 
-            const { videoId, videoInfo, lengthContent } = metadata as YoutubeMetaDataInput;
+            const { videoId, videoInfo, lengthContent, wordCount } = metadata as YoutubeMetaDataInput;
 
             if (isNilOrEmpty(videoId)) {
                 throw new BadRequest('Video Id Invalid');
@@ -55,6 +55,7 @@ class YoutubeEmbeddingService extends BaseEmbeddingStrategy {
             const { maxGap, minLength } = calculateAttributeEmbedding({
                 lengthContent,
                 duration,
+                wordCount,
             });
 
             const { segments } = await this.getYoutubeTranscript({ videoId });
@@ -81,6 +82,7 @@ class YoutubeEmbeddingService extends BaseEmbeddingStrategy {
             return {
                 type,
                 metadata,
+                count: storages.length,
                 data: storages,
             };
         } catch (error) {

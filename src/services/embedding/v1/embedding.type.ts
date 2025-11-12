@@ -13,6 +13,7 @@ interface YoutubeMetaDataInput {
     videoId: string;
     videoInfo: Record<string, unknown>;
     lengthContent: number;
+    wordCount: number;
 }
 
 type MetaDataInputEmbedding = Record<string, unknown> | YoutubeMetaDataInput;
