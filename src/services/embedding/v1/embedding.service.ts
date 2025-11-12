@@ -1,7 +1,7 @@
 import { BadRequest } from '@/core/error';
 import { BaseEmbeddingService } from './base';
 import { IEmbeddingStrategy } from './BaseEmbeddingStrategy';
-import { EmbeddingInput, IQuerySimilarity } from './embedding.type';
+import { EmbeddingInput, EmbeddingInputRequest, EmbeddingResult, IQuerySimilarity } from './embedding.type';
 import { youtubeEmbeddingService } from './strategies/YoutubeEmbeddingStrategy';
 import { IReturnItemQuery } from '@/repositories/embedding/embedding.repo';
 
@@ -20,7 +20,7 @@ class EmbeddingService extends BaseEmbeddingService {
     /**
      * Generate embedding using appropriate strategy
      */
-    public override async generateEmbedding(payload: EmbeddingInput): Promise<any> {
+    public override async generateEmbedding(payload: EmbeddingInputRequest): Promise<EmbeddingResult> {
         const strategy = this.strategies.find(s => s.canHandle(payload?.type));
 
         if (!strategy) throw new BadRequest('Strategy Unavailable');

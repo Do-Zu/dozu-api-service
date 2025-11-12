@@ -84,7 +84,7 @@ class EmbeddingRepo {
     }: {
         queryEmbedding: number[];
         topicId: number;
-        topK: number;
+        topK?: number;
     }): Promise<
         Array<{
             embeddingId: number;

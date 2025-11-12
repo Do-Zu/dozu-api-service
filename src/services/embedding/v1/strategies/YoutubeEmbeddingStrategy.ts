@@ -7,6 +7,7 @@ import {
     EmbeddingResult,
     EnumEmbeddingInput,
     IQuerySimilarity,
+    YoutubeMetaDataInput,
 } from '../embedding.type';
 import { BadRequest } from '@/core/error';
 import logger from '@/utils/logger';
@@ -14,6 +15,7 @@ import { compareIgnoreCapitalization, isNilOrEmpty, toNumber } from '@/utils/com
 import { IReturnItemQuery, NewEmbedding } from '@/repositories/embedding/embedding.repo';
 import { embeddingRepo } from '@/repositories/embedding/embedding.repo';
 import { TypeMetaDataChunkEmbed } from '@/models/embedding';
+import { calculateAttributeEmbedding } from '@/utils/youtube/youtube.util';
 
 interface EmbeddingItemRes {
     start: number;
@@ -40,13 +42,20 @@ class YoutubeEmbeddingService extends BaseEmbeddingStrategy {
         try {
             const { topicId, type, metadata } = payload;
 
-            const videoId = metadata?.videoId as string;
-            const maxGap = toNumber(metadata?.max_gap, 2);
-            const minLength = toNumber(metadata?.min_length, 10);
+            if (isNilOrEmpty(metadata)) throw new BadRequest('Empty Meta Data For Youtube Type');
+
+            const { videoId, videoInfo, lengthContent } = metadata as YoutubeMetaDataInput;
 
             if (isNilOrEmpty(videoId)) {
                 throw new BadRequest('Video Id Invalid');
             }
+
+            const duration = toNumber(videoInfo?.duration, 0);
+
+            const { maxGap, minLength } = calculateAttributeEmbedding({
+                lengthContent,
+                duration,
+            });
 
             const { segments } = await this.getYoutubeTranscript({ videoId });
 

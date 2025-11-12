@@ -8,9 +8,17 @@ const EnumEmbeddingInput = {
 
 type EmbeddingInputType = (typeof EnumEmbeddingInput)[keyof typeof EnumEmbeddingInput];
 
+interface YoutubeMetaDataInput {
+    url: string;
+    videoId: string;
+    videoInfo: Record<string, unknown>;
+    lengthContent: number;
+}
+
+type MetaDataInputEmbedding = Record<string, unknown> | YoutubeMetaDataInput;
 interface EmbeddingInput {
     type: EmbeddingInputType;
-    metadata?: Record<string, unknown>;
+    metadata?: MetaDataInputEmbedding;
 }
 
 interface EmbeddingInputRequest extends EmbeddingInput {
@@ -21,7 +29,7 @@ interface IQuerySimilarity {
     type: EmbeddingInputType;
     query: string;
     topicId: number;
-    topK: number;
+    topK?: number;
 }
 
 export type VideoMetadata = {
@@ -47,4 +55,6 @@ export {
     EmbeddingInput,
     EmbeddingInputType,
     EnumEmbeddingInput,
+    MetaDataInputEmbedding,
+    YoutubeMetaDataInput,
 };
