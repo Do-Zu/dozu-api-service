@@ -10,8 +10,8 @@ import { BadRequest } from '@/core/error';
 // https://youtube.com/watch?v=VIDEO_ID&ab_channel=...
 
 const YT_REGEXES: RegExp[] = [
-    /(?:youtube\.com\/(?:watch\?.*v=|embed\/|shorts\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/i,
-    /v=([A-Za-z0-9_-]{11})/i,
+    /(?:youtu\.be|youtube\.com\/(?:embed|shorts|live))\/([A-Za-z0-9_-]{11})/i,
+    /[?&]v=([A-Za-z0-9_-]{11})/i,
 ];
 
 export const extractYoutubeVideoId = (input?: string | null): string => {
