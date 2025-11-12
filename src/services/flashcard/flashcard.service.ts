@@ -287,7 +287,11 @@ class FlashcardService {
             })
             .filter(e => e !== null) as ICreateTrackingRecord[];
 
-        await itemSpacedRepetitionTrackingRepo.initializeTrackingRecords(trackingRecords);
+        if (trackingRecords.length > 0) {
+            await db.transaction(async tx => {
+                await itemSpacedRepetitionTrackingRepo.initializeTrackingRecords(trackingRecords, tx);
+            });
+        }
 
         const dueFlashcards: IFlashcard[] = await flashcardRepo.getDueFlashcardsForTopicAndUser(
             topicId,
