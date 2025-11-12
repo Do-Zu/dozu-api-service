@@ -30,67 +30,58 @@ export const extractYoutubeVideoId = (input?: string | null): string => {
     throw new BadRequest('Unable to extract YouTube videoId from provided url');
 };
 
-export const calculateAttributeEmbedding = ({
-    lengthContent,
-    duration,
-}: {
-    lengthContent: number;
-    duration: number;
-}) => {
-    // Guards
-    const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0; // seconds
-    const safeLength = Number.isFinite(lengthContent) && lengthContent > 0 ? lengthContent : 0; // chars
+export const calculateAttributeEmbedding = (params: { duration: number; wordCount: number; lengthContent: number }) => {
+    const { duration, wordCount, lengthContent } = params;
+
+    const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
+
+    const avgCharsPerWord = 5;
+
+    const safeWords = wordCount > 0 ? wordCount : Math.max(0, Math.round((lengthContent as number) / avgCharsPerWord));
 
     // Helper
     const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 
-    // Estimate speech density (chars/sec). Typical YouTube speech ~10–18 char/s.
-    const density = safeDuration > 0 ? safeLength / safeDuration : 12;
+    // Words per second. Typical speech ~2.0–3.0 wps (120–180 wpm)
+    const wps = safeDuration > 0 ? safeWords / safeDuration : 2.5;
 
     // Target segments per minute scales down as videos get longer
-    // Short → finer, Long → coarser
     let segmentsPerMinute: number;
     if (safeDuration <= 5 * 60) segmentsPerMinute = 2.0;
     else if (safeDuration <= 15 * 60) segmentsPerMinute = 1.6;
-    else if (safeDuration <= 30 * 60) segmentsPerMinute = 1.4;
-    else if (safeDuration <= 60 * 60) segmentsPerMinute = 1.2;
-    else segmentsPerMinute = 1.0;
+    else if (safeDuration <= 30 * 60) segmentsPerMinute = 1.3;
+    else if (safeDuration <= 60 * 60) segmentsPerMinute = 1.1;
+    else segmentsPerMinute = 0.9;
 
     // Compute target number of segments and bound them
-    // You can tune these bounds to control cost/perf
     const minSegments = 8;
-    const maxSegments = 120;
+    const maxSegments = 100;
     const targetSegmentsRaw = safeDuration > 0 ? Math.ceil((safeDuration / 60) * segmentsPerMinute) : minSegments;
     const targetSegments = clamp(targetSegmentsRaw, minSegments, maxSegments);
 
-    // Derive minLength so that total chars / minLength ~= targetSegments
-    // Clamp to keep each segment not too tiny or too huge
-    const minLengthLowerBound = 80; // short segments lower bound
-    const minLengthUpperBound = 320; // long segments upper bound
-    const targetMinLengthRaw = targetSegments > 0 ? Math.ceil(safeLength / targetSegments) : minLengthLowerBound;
-    const minLength = clamp(targetMinLengthRaw, minLengthLowerBound, minLengthUpperBound);
+    // Derive minLength (now: words) so that totalWords / minWords ~= targetSegments
+    // Clamp to keep each segment reasonable
+    const minWordsLowerBound = 30;
+    const minWordsUpperBound = 180;
+    const targetMinWordsRaw = targetSegments > 0 ? Math.ceil(safeWords / targetSegments) : minWordsLowerBound;
+    const minLength = clamp(targetMinWordsRaw, minWordsLowerBound, minWordsUpperBound);
 
     // Base maxGap by duration bucket (seconds)
     let baseMaxGap: number;
-    if (safeDuration <= 5 * 60) baseMaxGap = 2.8;
-    else if (safeDuration <= 15 * 60) baseMaxGap = 2.85;
+    if (safeDuration <= 5 * 60) baseMaxGap = 2.2;
+    else if (safeDuration <= 15 * 60) baseMaxGap = 2.6;
     else if (safeDuration <= 30 * 60) baseMaxGap = 2.9;
-    else if (safeDuration <= 60 * 60) baseMaxGap = 2.95;
-    else if (safeDuration <= 2 * 60 * 60) baseMaxGap = 3.0;
-    else baseMaxGap = 3.05;
+    else if (safeDuration <= 60 * 60) baseMaxGap = 3.2;
+    else if (safeDuration <= 2 * 60 * 60) baseMaxGap = 3.6;
+    else baseMaxGap = 4.0;
 
-    // Adjust maxGap by speech density:
-    // Faster speech (higher density) → smaller gap (more natural breaks)
-    // Slower speech → larger gap to merge across silences
-    // densityRef ~12 char/s; clamp the adjustment to avoid big swings
-    const densityRef = 12;
-    const densityFactor = clamp(densityRef / Math.max(density, 1e-6), 0.85, 1.2);
-    const maxGap = clamp(baseMaxGap * densityFactor, 1.8, 4.5);
+    // Adjust maxGap by speech rate:
+    // Faster speech (higher wps) → smaller gap. Slower speech → larger gap.
+    const wpsRef = 2.5;
+    const densityFactor = clamp(wpsRef / Math.max(wps, 1e-6), 0.8, 1.3);
+    const maxGap = clamp(baseMaxGap * densityFactor, 1.8, 5.0);
 
-    return {
-        maxGap,
-        minLength,
-    };
+    return { maxGap, minLength };
 };
 
 export interface IYoutubeSegment {
