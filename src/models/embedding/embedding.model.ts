@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { pgTable, serial, integer, text, timestamp, vector, jsonb, index, varchar } from 'drizzle-orm/pg-core';
 import { topicsTable } from '@/models/topic/topic.model';
 export type TypeMetaDataChunkEmbed = {
@@ -27,7 +28,9 @@ export const embeddingsTable = pgTable(
         // For video/audio: { startTime, endTime, duration, index }
         // For documents: { pageIndex, lineStart, lineEnd }
         // For YouTube: { startTime, etc }
-        metadata: jsonb('metadata').notNull().default('{}'),
+        metadata: jsonb('metadata')
+            .notNull()
+            .default(sql`'{}'::jsonb`),
 
         // Chunk sequence number within the source
         chunkIndex: integer('chunk_index').notNull().default(0),
