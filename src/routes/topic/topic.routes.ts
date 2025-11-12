@@ -8,6 +8,7 @@ import paramsValidator from '@/core/validations/params.validator';
 import { flashcardRoutes } from '../flashcard/flashcard.routes';
 import topicMiddleware from '@/middleware/topic/topic.middleware';
 import { fileUploadSingleMiddleware } from '@/libs/multer.lib';
+import { noteRoutes } from '@/routes/note/note.routes';
 
 const router = Router();
 globalAsyncHandler(router);
@@ -42,6 +43,14 @@ router.use(
     topicMiddleware.verifyTopicByIdInParam,
     topicMiddleware.verifyUserCanAccessTopic,
     flashcardRoutes
+);
+
+router.use(
+    '/:topicId/notes',
+    paramsValidator.validateId('topicId'),
+    topicMiddleware.verifyTopicByIdInParam,
+    topicMiddleware.verifyUserCanAccessTopic,
+    noteRoutes
 );
 
 registerRoute('/topics', router, {

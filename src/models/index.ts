@@ -111,3 +111,6 @@ export * from '@/models/class-based-learning/assignment';
 export * from '@/models/learning-material/learningMaterial.model';
 
 export * from '@/models/learning-material/attachmentInLearningMaterial.model';
+
+// notes
+export * from '@/models/note/note.model';

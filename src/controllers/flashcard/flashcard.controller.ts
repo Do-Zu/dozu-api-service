@@ -1,20 +1,18 @@
 import { BadRequest } from '@/core/error';
 import { SuccessResponse } from '@/core/success';
-import flashcardService, { IFlashcardWithReviewPrediction } from '@/services/flashcard/flashcard.service';
+import flashcardService from '@/services/flashcard/flashcard.service';
 import topicService from '@/services/topic/topic.service';
 import {
     IFlashcard,
     IFlashcardLearningState,
     IFlashcardsBatchInput,
     IFlashcardBatchResult,
-    IDueAnkiCard,
     IAnkiCardReviewed,
 } from '@/types/flashcard/flashcard.type';
 import logger from '@/utils/logger';
 import { Request, Response } from 'express';
-import SuperMemo2, { IQualityResponse } from '@/services/spaced-repetition-system/super-memo-2/superMemo2.service';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
-import { getCurrentDateFromRequest, getCurrentTimestampFromRequest, TimeUnit } from '@/utils/date';
+import { getCurrentTimestampFromRequest, TimeUnit } from '@/utils/date';
 import requestHelper from '@/core/request/request.helper';
 import unsplashLib, { IUnspashImage } from '@/libs/unsplash.lib';
 import AnkiService, {
@@ -90,54 +88,6 @@ class FlashcardController {
         });
 
         SuccessResponse.created(res, {});
-    }
-
-    // !old version: get due flashcards by original SM2 algorithm, replaced by get cards by Anki algorithm
-    public async getDueFlashcardsForTopic(req: Request, res: Response): Promise<void> {
-        const currentDate = getCurrentTimestampFromRequest(req);
-        const userId = getUserIdFromRequest(req);
-        const topicId = requestHelper.getIdParam(req, 'topicId');
-
-        const flashcards = await flashcardService.getDueFlashcardsForTopicAndUser(topicId, userId, currentDate);
-
-        const flashcardsReturned: IFlashcardWithReviewPrediction[] =
-            await flashcardService.getReviewIntervalsByQualityResponses(flashcards);
-
-        SuccessResponse.ok(res, flashcardsReturned);
-    }
-
-    // !old version: review flashcards by old original SM-2 algorithm
-    public async reviewFlashcardByOriginalSM2(req: Request, res: Response): Promise<void> {
-        const userId = getUserIdFromRequest(req);
-        const flashcardId = requestHelper.getIdParam(req, 'flashcardId');
-        const { qualityResponse } = req.body as { qualityResponse: IQualityResponse };
-
-        const flashcard: IFlashcardLearningState =
-            await flashcardService.getSpacedRepetitionDataForFlashcard(flashcardId);
-
-        if (!flashcard) {
-            throw new BadRequest('Flashcard is invalid');
-        }
-        const { reviewInterval, easinessFactor, repetitionNumber } = flashcard;
-        const currentDate = getCurrentDateFromRequest(req);
-
-        const superMemo2 = new SuperMemo2(easinessFactor, reviewInterval, repetitionNumber, qualityResponse);
-        const sm2 = superMemo2.calc();
-
-        const nextReview = SuperMemo2.getNextReview(currentDate, sm2.reviewInterval);
-
-        const sm2Info: Omit<IFlashcardLearningState, 'status'> = {
-            repetitionNumber: sm2.repetitionNumber,
-            easinessFactor: sm2.easinessFactor,
-            reviewInterval: sm2.reviewInterval,
-            lastReviewed: currentDate,
-            nextReview,
-            step: null,
-        };
-
-        await flashcardService.applySM2ToFlashcard(userId, flashcardId, sm2Info);
-
-        SuccessResponse.ok(res, {});
     }
 
     public async searchFlashcardImages(req: Request, res: Response) {
@@ -235,25 +185,7 @@ class FlashcardController {
         const userId = getUserIdFromRequest(req);
         const topicId = requestHelper.getIdParam(req, 'topicId');
 
-        const flashcards = await flashcardService.getDueFlashcardsForTopicAndUser(topicId, userId, currentTimestamp);
-        const ankiSetting = await ankiSettingService.getSettingForTopicAndUser(topicId, userId);
-
-        const result: IDueAnkiCard[] = flashcards.map(card => {
-            return {
-                flashcardId: card.flashcardId,
-                front: card.front,
-                back: card.back,
-                iamgeUrl: card.imageUrl,
-                topicName: card.topicName,
-                nextReviewDataByRatings: flashcardService.getNextReviewByRatings(
-                    card.flashcardId,
-                    card.learningState!,
-                    ankiSetting
-                ),
-                nextReview: card.learningState!.nextReview,
-                status: card.learningState!.status,
-            };
-        });
+        const result = await flashcardService.getDueAnkiCardsForTopicAndUser(topicId, userId, currentTimestamp);
         SuccessResponse.ok(res, result);
     }
 
@@ -272,25 +204,7 @@ class FlashcardController {
         });
 
         const flashcards = await flashcardService.getFlashcardsForTopic(topicId);
-        const dueFlashcards = await flashcardService.getDueFlashcardsForTopicAndUser(topicId, userId, currentDate);
-        const ankiSetting = await ankiSettingService.getSettingForTopicAndUser(topicId, userId);
-
-        const dueAnkiCards: IDueAnkiCard[] = dueFlashcards.map(card => {
-            return {
-                flashcardId: card.flashcardId,
-                front: card.front,
-                back: card.back,
-                iamgeUrl: card.imageUrl,
-                topicName: card.topicName,
-                nextReviewDataByRatings: flashcardService.getNextReviewByRatings(
-                    card.flashcardId,
-                    card.learningState!,
-                    ankiSetting
-                ),
-                nextReview: card.learningState!.nextReview,
-                status: card.learningState!.status,
-            };
-        });
+        const dueAnkiCards = await flashcardService.getDueAnkiCardsForTopicAndUser(topicId, userId, currentDate);
 
         SuccessResponse.ok(res, { flashcards, dueAnkiCards });
     }
