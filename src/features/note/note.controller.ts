@@ -28,6 +28,7 @@ class NoteController {
                 throw new NotFoundError('Note not found');
             }
             SuccessResponse.ok(res, existing);
+            return;
         }
 
         SuccessResponse.ok(res, result);

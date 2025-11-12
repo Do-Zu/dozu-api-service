@@ -317,22 +317,22 @@ class FlashcardService {
             };
         });
 
-        const result: IDueAnkiCard[] = [];
-        const { newCardsPerDay, maximumReviewsPerDay } = ankiSetting;
-        let numberOfNewCards = 0,
-            numberOfReviewCards = 0;
-        for (const card of dueAnkiCards) {
-            if (card.status === IAnkiStatus.NEW && numberOfNewCards < newCardsPerDay) {
-                ++numberOfNewCards;
-                result.push(card);
-            }
-            if (card.status === IAnkiStatus.REVIEW && numberOfReviewCards < maximumReviewsPerDay) {
-                ++numberOfReviewCards;
-                result.push(card);
-            }
-        }
+        // const result: IDueAnkiCard[] = [];
+        // const { newCardsPerDay, maximumReviewsPerDay } = ankiSetting;
+        // let numberOfNewCards = 0,
+        //     numberOfReviewCards = 0;
+        // for (const card of dueAnkiCards) {
+        //     if (card.status === IAnkiStatus.NEW && numberOfNewCards < newCardsPerDay) {
+        //         ++numberOfNewCards;
+        //         result.push(card);
+        //     }
+        //     if (card.status === IAnkiStatus.REVIEW && numberOfReviewCards < maximumReviewsPerDay) {
+        //         ++numberOfReviewCards;
+        //         result.push(card);
+        //     }
+        // }
 
-        return result;
+        return dueAnkiCards;
     }
 
     public async getReviewIntervalsByQualityResponses(
