@@ -1,4 +1,5 @@
 import { BadRequest } from '@/core/error';
+import { toNumber } from '../common';
 
 // Common YouTube URL patterns we support
 // Examples:
@@ -33,7 +34,7 @@ export const extractYoutubeVideoId = (input?: string | null): string => {
 export const calculateAttributeEmbedding = (params: { duration: number; wordCount: number; lengthContent: number }) => {
     const { duration, wordCount, lengthContent } = params;
 
-    const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
+    const safeDuration = toNumber(duration, 0);
 
     const avgCharsPerWord = 5;
 
