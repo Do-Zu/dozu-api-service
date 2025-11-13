@@ -34,6 +34,10 @@ class PdfFileEmbeddingService extends BaseEmbeddingStrategy {
     public async process(payload: EmbeddingInputRequest): Promise<EmbeddingResult> {
         const { type, metadata, topicId } = payload;
 
+        if (!metadata) {
+            throw new BadRequest('Missing file metadata!');
+        }
+
         const { fileKey } = metadata as FileMetaDataInput;
 
         if (isNilOrEmpty(fileKey)) throw new BadRequest('Miss File Key!');

@@ -198,9 +198,17 @@ class InputSetService {
                     videoId: videoIdParam,
                 } = params.payload as YoutubeResourceMetadata;
 
-                if (!url) return null;
+                let videoId: string | undefined;
 
-                const videoId = extractYoutubeVideoId(url) ?? videoIdParam;
+                try {
+                    videoId = extractYoutubeVideoId(url);
+                } catch (error) {
+                    if (!isNilOrEmpty(videoIdParam)) {
+                        videoId = videoIdParam;
+                    } else {
+                        throw error;
+                    }
+                }
 
                 return { videoId, url, lengthContent, videoInfo: videoInfo ?? null };
             }
