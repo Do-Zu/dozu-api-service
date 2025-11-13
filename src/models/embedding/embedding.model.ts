@@ -1,8 +1,19 @@
 import { sql } from 'drizzle-orm';
 import { pgTable, serial, integer, text, timestamp, vector, jsonb, index, varchar } from 'drizzle-orm/pg-core';
 import { topicsTable } from '@/models/topic/topic.model';
+
+export const EnumContentSegmentType = {
+    TEXT: 'text',
+    FILE: 'file',
+    NUMBER: 'number',
+    OBJECT: 'object',
+    ARRAY: 'array',
+} as const;
+
+export type TypeContentEmbedChunk = (typeof EnumContentSegmentType)[keyof typeof EnumContentSegmentType];
+
 export type TypeMetaDataChunkEmbed = {
-    type: string;
+    type: TypeContentEmbedChunk;
     content: string | number | object | Array<unknown>;
 };
 export const embeddingsTable = pgTable(

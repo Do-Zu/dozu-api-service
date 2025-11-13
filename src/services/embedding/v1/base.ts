@@ -1,5 +1,5 @@
 import { IReturnItemQuery } from '@/repositories/embedding/embedding.repo';
-import { EmbeddingInput, EmbeddingInputRequest, IQuerySimilarity } from './embedding.type';
+import { EmbeddingInputRequest, IQuerySimilarity } from './embedding.type';
 
 export interface IBaseEmbeddingService {
     generateEmbedding(payload: EmbeddingInputRequest): Promise<any>;
@@ -14,7 +14,7 @@ export abstract class BaseEmbeddingService implements IBaseEmbeddingService {
     /**
      * Validate input before processing
      */
-    protected abstract validateInput(payload: EmbeddingInput): boolean;
+    protected abstract validateInput(payload: EmbeddingInputRequest): boolean;
 
     /**
      *

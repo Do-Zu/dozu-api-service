@@ -1,9 +1,9 @@
 import { BadRequest } from '@/core/error';
 import { BaseEmbeddingService } from './base';
+import { pdfFileEmbeddingService, youtubeEmbeddingService } from './strategies';
 import { IEmbeddingStrategy } from './BaseEmbeddingStrategy';
-import { EmbeddingInput, EmbeddingInputRequest, EmbeddingResult, IQuerySimilarity } from './embedding.type';
-import { youtubeEmbeddingService } from './strategies/YoutubeEmbeddingStrategy';
 import { IReturnItemQuery } from '@/repositories/embedding/embedding.repo';
+import { EmbeddingInput, EmbeddingInputRequest, EmbeddingResult, IQuerySimilarity } from './embedding.type';
 
 class EmbeddingService extends BaseEmbeddingService {
     private strategies: IEmbeddingStrategy[] = [];
@@ -14,7 +14,7 @@ class EmbeddingService extends BaseEmbeddingService {
     }
 
     private initializeStrategies() {
-        this.strategies = [youtubeEmbeddingService];
+        this.strategies = [youtubeEmbeddingService, pdfFileEmbeddingService];
     }
 
     /**

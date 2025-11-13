@@ -1,6 +1,16 @@
+import axios from 'axios';
 import { embeddingRepo, IReturnItemQuery, NewEmbedding } from '@/repositories/embedding/embedding.repo';
-import { EmbeddingInput, EmbeddingInputType, EmbeddingResult, IQuerySimilarity } from './embedding.type';
+import {
+    EmbeddingInput,
+    EmbeddingInputRequest,
+    EmbeddingInputType,
+    EmbeddingResult,
+    IQuerySimilarity,
+} from './embedding.type';
 import { isEmpty, isNilOrEmpty } from '@/utils/common';
+import { BadRequest, ServiceUnavailable } from '@/core/error';
+import { HTTP_STATUS } from '@/constants/index.constant';
+import { TypeMetaDataChunkEmbed } from '@/models/embedding';
 import logger from '@/utils/logger';
 
 /**
@@ -36,13 +46,60 @@ export abstract class BaseEmbeddingStrategy implements IEmbeddingStrategy {
     /**
      * Process the input and generate embeddings
      */
-    public abstract process(payload: EmbeddingInput): Promise<EmbeddingResult>;
+    public abstract process(payload: EmbeddingInputRequest): Promise<EmbeddingResult>;
 
     /**
      *
-     * @param payload
+     * @param payload IQuerySimilarity
      */
-    public abstract queryTopSimilarity(payload: IQuerySimilarity): Promise<IReturnItemQuery[]>;
+    public async queryTopSimilarity(payload: IQuerySimilarity): Promise<IReturnItemQuery[]> {
+        try {
+            const { query, topicId, topK } = payload;
+
+            const { data, status } = await axios.post(
+                `${this.BASE_API_EMBEDDING_SERVICE_PROVIDER}/single/text/embedding`,
+                {
+                    query,
+                }
+            );
+
+            if (status !== HTTP_STATUS.OK) {
+                throw new BadRequest('Failed to generate query embedding');
+            }
+
+            const queryEmbedding = data?.embedding as number[];
+
+            const similarEmbeddings = await embeddingRepo.findSimilarEmbeddings({ queryEmbedding, topicId, topK });
+
+            const results: IReturnItemQuery[] = similarEmbeddings.map(item => ({
+                embeddingId: item.embeddingId,
+                topicId: item.topicId,
+                contentType: item.contentType,
+                originContent: item.originContent as TypeMetaDataChunkEmbed,
+                metadata: item.metadata,
+                createdAt: item.createdAt,
+                similarity: item.similarity,
+            }));
+
+            return results;
+        } catch (error) {
+            logger.error('YoutubeEmbeddingService: queryTopSimilarity ', error);
+            throw error;
+        }
+    }
+
+    /**
+     *
+     */
+    protected async sendEventEmbedding({ url, payload }: { url: string; payload: Record<string, unknown> }) {
+        const { data, status, statusText } = await axios.post(url, payload);
+
+        if (status !== HTTP_STATUS.OK) {
+            throw new ServiceUnavailable(statusText);
+        }
+
+        return { data, status, statusText };
+    }
 
     /**
      * Store Embedding

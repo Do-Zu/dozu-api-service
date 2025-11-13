@@ -6,16 +6,16 @@ import {
     EmbeddingInputType,
     EmbeddingResult,
     EnumEmbeddingInput,
-    IQuerySimilarity,
     YoutubeMetaDataInput,
 } from '../embedding.type';
 import { BadRequest } from '@/core/error';
 import logger from '@/utils/logger';
 import { compareIgnoreCapitalization, isNilOrEmpty, toNumber } from '@/utils/common';
-import { IReturnItemQuery, NewEmbedding } from '@/repositories/embedding/embedding.repo';
-import { embeddingRepo } from '@/repositories/embedding/embedding.repo';
-import { TypeMetaDataChunkEmbed } from '@/models/embedding';
+
 import { calculateAttributeEmbedding } from '@/utils/youtube/youtube.util';
+import { HTTP_STATUS } from '@/constants/index.constant';
+import { NewEmbedding } from '@/repositories/embedding/embedding.repo';
+import { EnumContentSegmentType } from '@/models';
 
 interface EmbeddingItemRes {
     start: number;
@@ -67,7 +67,7 @@ class YoutubeEmbeddingService extends BaseEmbeddingStrategy {
                 min_length: minLength,
             });
 
-            if (status !== 200) throw new BadRequest(statusText);
+            if (status !== HTTP_STATUS.OK) throw new BadRequest(statusText);
 
             const embeddings = (data as { count: number; embeddings: EmbeddingItemRes[] }).embeddings;
 
@@ -91,42 +91,6 @@ class YoutubeEmbeddingService extends BaseEmbeddingStrategy {
         }
     }
 
-    public async queryTopSimilarity(payload: IQuerySimilarity): Promise<IReturnItemQuery[]> {
-        try {
-            const { query, topicId, topK } = payload;
-
-            const { data, status } = await axios.post(
-                `${this.BASE_API_EMBEDDING_SERVICE_PROVIDER}/single/text/embedding`,
-                {
-                    query,
-                }
-            );
-
-            if (status !== 200) {
-                throw new BadRequest('Failed to generate query embedding');
-            }
-
-            const queryEmbedding = data?.embedding as number[];
-
-            const similarEmbeddings = await embeddingRepo.findSimilarEmbeddings({ queryEmbedding, topicId, topK });
-
-            const results: IReturnItemQuery[] = similarEmbeddings.map(item => ({
-                embeddingId: item.embeddingId,
-                topicId: item.topicId,
-                contentType: item.contentType,
-                originContent: item.originContent as TypeMetaDataChunkEmbed,
-                metadata: item.metadata,
-                createdAt: item.createdAt,
-                similarity: item.similarity,
-            }));
-
-            return results;
-        } catch (error) {
-            logger.error('YoutubeEmbeddingService: queryTopSimilarity ', error);
-            throw error;
-        }
-    }
-
     private adapterChunkItemAfterEmbedding({
         topicId,
         type,
@@ -144,7 +108,7 @@ class YoutubeEmbeddingService extends BaseEmbeddingStrategy {
                 embedding: vector,
                 originContent: {
                     content: text,
-                    type: 'text',
+                    type: EnumContentSegmentType.TEXT,
                 },
                 metadata: {
                     startTime: start,

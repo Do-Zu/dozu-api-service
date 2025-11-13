@@ -13,7 +13,7 @@ export const RESOURCE_CONTENT_TYPE = {
     TEXT: 'text',
 } as const;
 
-interface UploadFileResponse {
+export interface UploadFileResponse {
     id?: string;
     fileName: string;
     originalName: string;
@@ -75,12 +75,14 @@ class InputSetService {
         const { metadata, setId, contentType, description, title } = inputSet;
         // returned data
         let data: any;
+
         if (contentType === 'file') {
             const fileContent = await this.handleGetFile({ metadata } as { metadata: { fileKey: string } });
 
             if (!fileContent) {
                 throw new InternalServerError('Error: Document does not exist');
             }
+
             data = {
                 fileUrl: fileContent.downloadUrl,
                 expiresIn: fileContent.expiresIn,
@@ -189,11 +191,24 @@ class InputSetService {
                 return { ...(params.payload as UploadFileResponse) };
             }
             case RESOURCE_CONTENT_TYPE.YOUTUBE: {
-                const { url, videoInfo, lengthContent } = params.payload as YoutubeResourceMetadata;
+                const {
+                    url,
+                    videoInfo,
+                    lengthContent,
+                    videoId: videoIdParam,
+                } = params.payload as YoutubeResourceMetadata;
 
-                if (!url) return null;
+                let videoId: string | undefined;
 
-                const videoId = extractYoutubeVideoId(url);
+                try {
+                    videoId = extractYoutubeVideoId(url);
+                } catch (error) {
+                    if (!isNilOrEmpty(videoIdParam)) {
+                        videoId = videoIdParam;
+                    } else {
+                        throw error;
+                    }
+                }
 
                 return { videoId, url, lengthContent, videoInfo: videoInfo ?? null };
             }

@@ -16,7 +16,20 @@ interface YoutubeMetaDataInput {
     wordCount: number;
 }
 
-type MetaDataInputEmbedding = Record<string, unknown> | YoutubeMetaDataInput;
+interface FileMetaDataInput {
+    id?: string;
+    fileName: string;
+    originalName: string;
+    filePath?: string;
+    fileSize: number;
+    mimeType?: string;
+    status: 'completed' | 'processing' | 'failed';
+    uploadedAt?: string;
+    setId?: string;
+    fileKey: string;
+}
+
+type MetaDataInputEmbedding = Record<string, unknown> | YoutubeMetaDataInput | FileMetaDataInput;
 interface EmbeddingInput {
     type: EmbeddingInputType;
     metadata?: MetaDataInputEmbedding;
@@ -58,4 +71,5 @@ export {
     EnumEmbeddingInput,
     MetaDataInputEmbedding,
     YoutubeMetaDataInput,
+    FileMetaDataInput,
 };
