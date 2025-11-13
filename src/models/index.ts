@@ -8,6 +8,8 @@ export * from '@/models/flashcard.model';
 
 export * from '@/models/inputSet.model';
 
+export * from '@/models/embedding';
+
 export * from '@/models/demo.model';
 
 export * from '@/models//llmIntegrate.model';

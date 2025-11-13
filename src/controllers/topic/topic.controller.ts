@@ -51,6 +51,7 @@ class TopicController {
         }
 
         const result = await topicService.createTopicForUser(userId, { name, description, imageUrl });
+
         if (inputSetId) {
             const topicId = result.topicId;
             await updateTopicIdOfInputSet({ topicId: topicId, inputSetId: parseInt(inputSetId) });

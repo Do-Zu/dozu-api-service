@@ -156,6 +156,7 @@ jobs:
                   CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
                   UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
                   ALLOWED_ORIGINS: ${{ secrets.ALLOWED_ORIGINS }}
+                  EMBEDDING_API_URL: ${{ secrets.EMBEDDING_API_URL }}
               run: |
                   set -euo pipefail
                   if [ "$ENV_INPUT" = "production" ]; then
@@ -206,6 +207,7 @@ jobs:
                     echo "CLOUDFLARE_R2_SECRET_ACCESS_KEY=$CLOUDFLARE_R2_SECRET_ACCESS_KEY"
                     echo "UNSPLASH_ACCESS_KEY=$UNSPLASH_ACCESS_KEY"
                     echo "ALLOWED_ORIGINS=$ALLOWED_ORIGINS"
+                    echo "EMBEDDING_API_URL=$EMBEDDING_API_URL"
                   } > "$ENV_FILE"
                   echo "env_file=$ENV_FILE" >> "$GITHUB_OUTPUT"
 
