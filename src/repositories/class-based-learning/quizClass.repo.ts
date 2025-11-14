@@ -198,11 +198,12 @@ class QuizClassRepo {
     /**
      * Get quiz information
      */
-    public async getQuizInfo(classQuizId: number): Promise<{ classQuizId: number; title: string; dueDate: Date | null }> {
+    public async getQuizInfo(classQuizId: number): Promise<{ classQuizId: number; title: string; content: string; dueDate: Date | null }> {
         const [quiz] = await db
             .select({
                 classQuizId: classQuizzesTable.classQuizId,
                 title: classQuizzesTable.title,
+                content: classQuizzesTable.content,
                 dueDate: classQuizzesTable.endAt,
             })
             .from(classQuizzesTable)
