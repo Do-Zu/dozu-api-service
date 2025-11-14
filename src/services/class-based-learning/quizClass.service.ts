@@ -181,8 +181,11 @@ class QuizClassService {
         // Use questionDetails to get all questions from the quiz, then add statistics
         if (questionDetails && questionDetails.length > 0) {
             // We have question details, so iterate through all questions
-            questionDetails.forEach((detail: any) => {
-                const questionIndex = detail.questionIndex;
+            // questionDetails uses 0-based array index, but answers use 1-based snapshotQuestionIdx
+            // Convert questionDetails index to 1-based to match answers
+            questionDetails.forEach((detail: any, arrayIndex: number) => {
+                // Convert 0-based array index to 1-based to match snapshotQuestionIdx from answers
+                const questionIndex = arrayIndex + 1;
                 const questionStats = questionMap.get(questionIndex) || {
                     questionIndex,
                     correctAnswers: 0,

@@ -9,6 +9,7 @@ class QuizClassController {
      * Get complete quiz results for a class
      * GET /class-based-learning/quiz-class/:classQuizId/results?includeAnswers=true
      */
+         
     public async getQuizResults(req: Request, res: Response) {
         const classQuizId = requestHelper.getIdParam(req, 'classQuizId');
         

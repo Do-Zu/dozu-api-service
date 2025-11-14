@@ -30,6 +30,7 @@ export interface IQuizClassResultsResponse {
     quizInfo: {
         classQuizId: number;
         title: string;
+        content: string;
         dueDate: Date | null;
     };
     statistics: IQuizClassStatistics;
