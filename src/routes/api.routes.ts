@@ -21,6 +21,8 @@ import './admin/admin.routes';
 import './admin/subscription.route';
 import './admin/revenue.route';
 import './admin/payment.route';
+import './admin/llmModel.routes';
+import './admin/llmProvider.routes';
 import './progress/progress.routes';
 import './class-based-learning/class.routes';
 import './tracking/tracking.routes';
