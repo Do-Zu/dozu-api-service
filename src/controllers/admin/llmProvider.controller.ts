@@ -11,8 +11,8 @@ class AdminLlmProviderController {
   }
 
   async handleGetProviderById(req: Request, res: Response) {
-    const { id } = req.params;
-    const provider = await adminLlmProviderService.getProviderById(Number(id));
+    const { id } = req.validated!.params as { id: number };
+    const provider = await adminLlmProviderService.getProviderById(id);
     SuccessResponse.ok(res, provider, 'Fetched LLM provider successfully');
   }
 
@@ -22,20 +22,20 @@ class AdminLlmProviderController {
   }
 
   async handleUpdateProvider(req: Request, res: Response) {
-    const { id } = req.params;
-    const provider = await adminLlmProviderService.updateProvider(Number(id), req.body);
+    const { id } = req.validated!.params as { id: number };
+    const provider = await adminLlmProviderService.updateProvider(id, req.body);
     SuccessResponse.ok(res, provider, 'Updated LLM provider successfully');
   }
 
   async handleDeleteProvider(req: Request, res: Response) {
-    const { id } = req.params;
-    const result = await adminLlmProviderService.deleteProvider(Number(id));
+    const { id } = req.validated!.params as { id: number };
+    const result = await adminLlmProviderService.deleteProvider(id);
     SuccessResponse.ok(res, result, 'Deleted LLM provider successfully');
   }
 
   async handleToggleProviderAvailability(req: Request, res: Response) {
-    const { id } = req.params;
-    const provider = await adminLlmProviderService.toggleProviderAvailability(Number(id));
+    const { id } = req.validated!.params as { id: number };
+    const provider = await adminLlmProviderService.toggleProviderAvailability(id);
     SuccessResponse.ok(res, provider, 'Toggled provider availability successfully');
   }
 }

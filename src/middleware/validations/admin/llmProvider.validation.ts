@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import validator from '@/core/validations/validator';
 import {
   getLlmProvidersQuerySchema,
@@ -21,5 +22,13 @@ export const validateUpdateLlmProvider = () =>
   validator.validate({
     selector: 'body',
     schema: updateLlmProviderSchema,
+  });
+
+export const validateIdParam = () =>
+  validator.validate({
+    selector: 'params',
+    schema: z.object({
+      id: z.string().regex(/^\d+$/, 'ID must be a valid number').transform(val => parseInt(val, 10)),
+    }),
   });
 

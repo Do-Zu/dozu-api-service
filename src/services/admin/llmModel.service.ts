@@ -11,8 +11,8 @@ import {
 class AdminLlmModelService {
   // ============ GET ALL MODELS ============
   async getAllModels(filters: GetLlmModelsQueryDto) {
-    const { providerId, providerName, isAvailable, isDefault, page = '1', limit = '50', search } = filters;
-    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const { providerId, providerName, isAvailable, isDefault, page = 1, limit = 50, search } = filters;
+    const offset = (page - 1) * limit;
 
     const conditions = [];
 
@@ -47,7 +47,7 @@ class AdminLlmModelService {
       .leftJoin(llmProvidersTable, eq(llmModelsTable.providerId, llmProvidersTable.providerId))
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(asc(llmModelsTable.modelId))
-      .limit(parseInt(limit))
+      .limit(limit)
       .offset(offset);
 
     // Get total count
@@ -60,8 +60,8 @@ class AdminLlmModelService {
     return {
       models,
       total: Number(totalResult[0]?.count || 0),
-      page: parseInt(page),
-      limit: parseInt(limit),
+      page,
+      limit,
     };
   }
 

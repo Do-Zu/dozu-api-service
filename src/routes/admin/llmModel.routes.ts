@@ -7,6 +7,7 @@ import {
   validateGetLlmModelsQuery,
   validateCreateLlmModel,
   validateUpdateLlmModel,
+  validateIdParam,
 } from '@/middleware/validations/admin/llmModel.validation';
 
 const router = Router();
@@ -18,19 +19,19 @@ router.use(validateAdmin);
 router.get('/', validateGetLlmModelsQuery(), adminLlmModelController.handleGetAllModels);
 
 // Get model by ID
-router.get('/:id', adminLlmModelController.handleGetModelById);
+router.get('/:id', validateIdParam(), adminLlmModelController.handleGetModelById);
 
 // Create new model
 router.post('/', validateCreateLlmModel(), adminLlmModelController.handleCreateModel);
 
 // Update model
-router.patch('/:id', validateUpdateLlmModel(), adminLlmModelController.handleUpdateModel);
+router.patch('/:id', validateIdParam(), validateUpdateLlmModel(), adminLlmModelController.handleUpdateModel);
 
 // Delete model
-router.delete('/:id', adminLlmModelController.handleDeleteModel);
+router.delete('/:id', validateIdParam(), adminLlmModelController.handleDeleteModel);
 
 // Toggle model availability
-router.patch('/:id/toggle-availability', adminLlmModelController.handleToggleModelAvailability);
+router.patch('/:id/toggle-availability', validateIdParam(), adminLlmModelController.handleToggleModelAvailability);
 
 registerRoute('/admin/llm-models', router, {
   description: 'Admin LLM Models Management API',
