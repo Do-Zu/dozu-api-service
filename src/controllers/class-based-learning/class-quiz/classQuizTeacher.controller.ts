@@ -98,6 +98,15 @@ class ClassQuizTeacherController {
     // out: { draftJson, version, updatedAt }
     SuccessResponse.ok(res, out);
   }
+
+  async getClassQuiz(req: Request, res: Response) {
+    const classQuizId = Number(req.params.classQuizId);
+    if (isNaN(classQuizId)) throw new BadRequest('Invalid classQuizId');
+
+    const teacherId = (req as any)?.user?.userId as number | undefined;
+    const out = await classQuizTeacherService.getClassQuizInfo(classQuizId, teacherId);
+    SuccessResponse.ok(res, out);
+  }
 }
 
 export const classQuizTeacherController = new ClassQuizTeacherController();

@@ -23,4 +23,5 @@ export const classQuizTeacherRepo = {
 
   listClassQuizzes: classQuizSharedRepo.listClassQuizzes,
   getDraft: classQuizSharedRepo.getDraft,
+  getClassQuizInfo: classQuizSharedRepo.getClassQuizInfo,
 };
