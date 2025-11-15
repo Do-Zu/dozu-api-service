@@ -18,6 +18,7 @@ router.use(authMiddleware);
 router.post('/classes/:classId/quizzes', validateCreateClassQuiz(), classQuizTeacherController.createClassQuiz);
 router.put('/class-quizzes/:classQuizId/draft', validateUpsertDraft(), classQuizTeacherController.upsertDraft);
 router.get('/class-quizzes/:classQuizId/draft', classQuizTeacherController.getDraft);
+router.get('/class-quizzes/:classQuizId', classQuizTeacherController.getClassQuiz);
 router.patch('/class-quizzes/:classQuizId/settings', validateUpdateSettings(), classQuizTeacherController.updateSettings);
 router.post('/class-quizzes/:classQuizId/schedule', validateSchedule(), classQuizTeacherController.schedule);
 router.post('/class-quizzes/:classQuizId/publish', classQuizTeacherController.publish);

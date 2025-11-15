@@ -29,5 +29,8 @@ class ClassQuizTeacherService {
     getDraft(classQuizId: number, teacherId?: number) {
     return classQuizTeacherRepo.getDraft(classQuizId, teacherId);
   }
+  getClassQuizInfo(classQuizId: number, teacherId?: number) {
+    return classQuizTeacherRepo.getClassQuizInfo(classQuizId, teacherId);
+  }
 }
 export const classQuizTeacherService = new ClassQuizTeacherService();

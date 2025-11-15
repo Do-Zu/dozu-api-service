@@ -731,4 +731,20 @@ export const classQuizSharedRepo = {
             updatedAt: draft?.updatedAt ? ((draft.updatedAt as Date).toISOString?.() ?? String(draft.updatedAt)) : null,
         };
     },
+
+    async getClassQuizInfo(classQuizId: number, teacherId?: number) {
+        const quiz = await db.query.classQuizzesTable.findFirst({
+            where: eq(classQuizzesTable.classQuizId, classQuizId),
+            columns: { classQuizId: true, title: true, content: true, teacherId: true },
+        });
+        if (!quiz) throw new NotFoundError('class_quiz not found');
+        if (teacherId && quiz.teacherId !== teacherId) {
+            throw new Forbidden('Not quiz owner');
+        }
+        return {
+            classQuizId: quiz.classQuizId,
+            title: quiz.title,
+            content: quiz.content ?? '',
+        };
+    },
 };
