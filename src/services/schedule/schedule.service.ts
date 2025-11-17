@@ -131,9 +131,9 @@ class ScheduleService {
 
         const cachedSchedule = await redis.get(KEY_MEMCACHE_SCHEDULE_PERSONAL);
 
-        // if (cachedSchedule) {
-        //     return cachedSchedule;
-        // }
+        if (cachedSchedule) {
+            return cachedSchedule;
+        }
 
         const data = await this.generateSchedule({
             userId,
@@ -142,9 +142,9 @@ class ScheduleService {
             timezone,
         });
 
-        // if (data && data.schedules && Object.keys(data.schedules).length > 0) {
-        //     await redis.set(KEY_MEMCACHE_SCHEDULE_PERSONAL, data, this.TTL_SCHEDULE);
-        // }
+        if (data && data.schedules && Object.keys(data.schedules).length > 0) {
+            await redis.set(KEY_MEMCACHE_SCHEDULE_PERSONAL, data, this.TTL_SCHEDULE);
+        }
 
         return data;
     }
@@ -176,7 +176,7 @@ class ScheduleService {
         const KEY_MEMCACHE_SCHEDULE_PERSONAL = `schedule-personal:${userId}:${fromDateString}:${toDateString}`;
 
         //Store in mem-cache
-        //await redis.set(KEY_MEMCACHE_SCHEDULE_PERSONAL, updates, this.TTL_SCHEDULE);
+        await redis.set(KEY_MEMCACHE_SCHEDULE_PERSONAL, updates, this.TTL_SCHEDULE);
 
         //TODO: Must update on DB
 
