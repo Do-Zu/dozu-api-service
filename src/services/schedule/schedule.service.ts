@@ -13,6 +13,7 @@ import { SchedulePriorityQueue } from '@/utils/queue/schedule.queue';
 import { BadRequest } from '@/core/error';
 import { redisInstance as redis } from '@/libs/redis/default/redisDefault';
 import { addDays, addMinutes, differenceInDays, differenceInMinutes, isValid, parse, parseISO } from 'date-fns';
+import { isEmpty } from '@/utils/common';
 
 const DEFINE_DEFAULT_FREE_TIME: FreeTimeSlotDays = {
     Monday: [
@@ -130,9 +131,9 @@ class ScheduleService {
 
         const cachedSchedule = await redis.get(KEY_MEMCACHE_SCHEDULE_PERSONAL);
 
-        if (cachedSchedule) {
-            return cachedSchedule;
-        }
+        // if (cachedSchedule) {
+        //     return cachedSchedule;
+        // }
 
         const data = await this.generateSchedule({
             userId,
@@ -141,9 +142,9 @@ class ScheduleService {
             timezone,
         });
 
-        if (data && data.schedules && Object.keys(data.schedules).length > 0) {
-            await redis.set(KEY_MEMCACHE_SCHEDULE_PERSONAL, data, this.TTL_SCHEDULE);
-        }
+        // if (data && data.schedules && Object.keys(data.schedules).length > 0) {
+        //     await redis.set(KEY_MEMCACHE_SCHEDULE_PERSONAL, data, this.TTL_SCHEDULE);
+        // }
 
         return data;
     }
@@ -175,7 +176,7 @@ class ScheduleService {
         const KEY_MEMCACHE_SCHEDULE_PERSONAL = `schedule-personal:${userId}:${fromDateString}:${toDateString}`;
 
         //Store in mem-cache
-        await redis.set(KEY_MEMCACHE_SCHEDULE_PERSONAL, updates, this.TTL_SCHEDULE);
+        //await redis.set(KEY_MEMCACHE_SCHEDULE_PERSONAL, updates, this.TTL_SCHEDULE);
 
         //TODO: Must update on DB
 
@@ -201,7 +202,7 @@ class ScheduleService {
             toDateString
         );
 
-        if (listItemTracking.length === 0) {
+        if (isEmpty(listItemTracking)) {
             return {
                 schedules: {},
                 waitingTopics: [],
@@ -377,7 +378,7 @@ class ScheduleService {
                 const chunks = this.splitItemsIntoStudyChunks(items, itemsPerSlot);
 
                 for (const chunk of chunks) {
-                    if (!chunk || !chunk.length) continue;
+                    if (isEmpty(chunk)) continue;
 
                     const priority = this.calculatePriority(chunk);
 
@@ -612,7 +613,7 @@ class ScheduleService {
         const chunks: IGroupTopic[][] = [];
 
         if (items.length <= targetItemsPerChunk) {
-            return [items];
+            return [];
         }
 
         // Sort items by priority (new items first, then by difficulty)
