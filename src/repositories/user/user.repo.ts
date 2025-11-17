@@ -3,6 +3,7 @@ import db from '../../libs/drizzleClient.lib';
 import { usersTable } from '../../models/user.model';
 import { FreeTimeSlotDays, TimeSlot } from './type';
 import { getSystemDate } from '@/utils/date';
+import { isNilOrEmpty } from '@/utils/common';
 
 export class UserRepository {
     /**
@@ -156,22 +157,29 @@ export class UserRepository {
      */
     public async batchUpdatePreferencesSchedule({
         userId,
-        preferences,
+        preferencesParam,
     }: {
         userId: number;
-        preferences: Partial<{
+        preferencesParam: {
             studyPreferences: string[];
-            avgStudyDuration: string | number;
+            preferences: {
+                studyDuration: number | null;
+                studyMethods: string[];
+            };
             freeTime: FreeTimeSlotDays;
-        }>;
+        };
     }) {
-        const { studyPreferences, avgStudyDuration, freeTime } = preferences;
+        const { studyPreferences, preferences, freeTime } = preferencesParam;
+
+        const { studyDuration } = preferences;
+
         const [updatedUser] = await db
             .update(usersTable)
             .set({
-                studyPreferences: studyPreferences ? JSON.stringify(studyPreferences) : undefined,
-                avgStudyDuration: avgStudyDuration ? avgStudyDuration.toString() : undefined,
-                freeTime: freeTime ? JSON.stringify(freeTime) : undefined,
+                studyPreferences: isNilOrEmpty(studyPreferences) ? null : studyPreferences,
+                preferences: preferences,
+                avgStudyDuration: isNilOrEmpty(studyDuration) ? null : studyDuration!.toString(),
+                freeTime: isNilOrEmpty(freeTime) ? null : freeTime,
                 updatedAt: getSystemDate(),
             })
             .where(eq(usersTable.userId, userId))

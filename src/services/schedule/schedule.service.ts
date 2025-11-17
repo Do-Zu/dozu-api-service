@@ -793,11 +793,14 @@ class ScheduleService {
         preferences,
     }: {
         userId: number;
-        preferences: Partial<{
+        preferences: {
             studyPreferences: string[];
-            avgStudyDuration: string | number;
+            preferences: {
+                studyDuration: number | null;
+                studyMethods: string[];
+            };
             freeTime: FreeTimeSlotDays;
-        }>;
+        };
     }) {
         const user = await userRepository.getUserById(userId);
 
@@ -807,7 +810,7 @@ class ScheduleService {
 
         const update = await userRepository.batchUpdatePreferencesSchedule({
             userId,
-            preferences,
+            preferencesParam: preferences,
         });
 
         return {
