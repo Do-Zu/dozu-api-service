@@ -5,6 +5,8 @@ import { checkAndConvertToString, isNilOrEmpty } from '@/utils/common';
 import { embeddingService } from '../embedding/v1/embedding.service';
 import { extractYoutubeVideoId } from '@/utils/youtube/youtube.util';
 import { MetaDataInputEmbedding } from '../embedding/v1/embedding.type';
+import youtubeService from '../youtube/youtube.service';
+import { IBalancedSegment } from '@/types/youtube/youtube.type';
 
 export const RESOURCE_CONTENT_TYPE = {
     FILE: 'file',
@@ -46,7 +48,9 @@ interface YoutubeResourceMetadata {
     url: string;
     videoId: string;
     videoInfo: VideoInfo | null;
+    content: string | IBalancedSegment[];
     lengthContent: number;
+    wordCount: number;
 }
 
 type WebsiteResourceMetadata = {
@@ -76,7 +80,7 @@ class InputSetService {
         // returned data
         let data: any;
 
-        if (contentType === 'file') {
+        if (contentType === RESOURCE_CONTENT_TYPE.FILE) {
             const fileContent = await this.handleGetFile({ metadata } as { metadata: { fileKey: string } });
 
             if (!fileContent) {
@@ -87,10 +91,10 @@ class InputSetService {
                 fileUrl: fileContent.downloadUrl,
                 expiresIn: fileContent.expiresIn,
             };
-        } else if (contentType === 'youtube') {
+        } else if (contentType === RESOURCE_CONTENT_TYPE.YOUTUBE) {
             const { url, content, videoInfo } = metadata as {
                 url?: string | null | undefined;
-                content?: string | null | undefined;
+                content?: string | IBalancedSegment[] | null | undefined;
                 videoInfo?: { videoId: string } | null | undefined;
             };
             if (
@@ -150,12 +154,14 @@ class InputSetService {
         title?: string;
     }) => {
         // Storage input set of topic
+        const formatedMetadata = await this.convertYoutubeContentToBalancedSegments({ metadata, contentType });
+
         const inputSet = await insertInputSet({
             userId,
             topicId,
             title: checkAndConvertToString(title),
             contentType,
-            metadata,
+            metadata: formatedMetadata,
         });
 
         const parseMetaDataBelongTypeForEmbedding = this.resolveResourceMetadata({
@@ -229,6 +235,27 @@ class InputSetService {
             default:
                 return null;
         }
+    }
+
+    // if contentType is Youtube, convert its content in metadata to balanced segments that are executed in youtube service. It not, return initial metadata
+    private async convertYoutubeContentToBalancedSegments({
+        metadata,
+        contentType,
+    }: {
+        metadata: MetaDataInputSet;
+        contentType: ResourceContentType;
+    }) {
+        let result: MetaDataInputSet = { ...metadata };
+        if (contentType !== RESOURCE_CONTENT_TYPE.YOUTUBE) {
+            return result;
+        }
+        const videoId = (result as YoutubeResourceMetadata).videoInfo?.videoId;
+        if (!videoId) {
+            throw new BadRequest('Video Id is required');
+        }
+        const youtubeContent = await youtubeService.getYoutubeContent({ videoId });
+        (result as YoutubeResourceMetadata).content = youtubeContent.balancedSegments;
+        return result as YoutubeResourceMetadata;
     }
 }
 

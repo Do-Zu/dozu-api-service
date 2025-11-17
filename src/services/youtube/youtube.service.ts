@@ -39,10 +39,9 @@ class YoutubeService {
                 }
 
                 const transcriptSegments = initialSegments.map((segment: any) => ({
-                    text: segment.snippet.text as string,
+                    text: segment.snippet.text as string | undefined,
                     startTime: segment.start_ms ? Math.floor(segment.start_ms / 1000) : 0,
                     endTime: segment.end_ms ? Math.floor(segment.end_ms / 1000) : 0,
-                    duration: segment.duration_ms ? Math.floor(segment.duration_ms / 1000) : 0,
                 }));
 
                 const fullTranscript = transcriptSegments
@@ -61,6 +60,7 @@ class YoutubeService {
                 for (const segment of transcriptSegments) {
                     if (arrayOfText.length === 0) startTime = segment.startTime;
                     endTime = segment.endTime;
+                    if (!segment.text) continue;
                     const cleanedText = segment.text.replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\s+/g, ' ');
                     arrayOfText.push(cleanedText);
                     currentLength += cleanedText.length;
@@ -84,11 +84,11 @@ class YoutubeService {
                 }
                 return { metadata, balancedSegments: result, fullTranscript };
             } catch (err) {
-                logger.error('Failed to retrieve transcript from YouTube video', err);
+                logger.error('Failed to retrieve transcript from YouTube video:', err);
                 throw new Error('Failed to retrieve transcript from YouTube video');
             }
         } catch (err) {
-            logger.error('Failed to retrieve transcript from YouTube video', err);
+            logger.error('Failed to retrieve transcript from YouTube video:', err);
             throw new Error('Failed to retrieve transcript from YouTube video');
         }
     }
