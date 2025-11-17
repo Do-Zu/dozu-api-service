@@ -6,6 +6,7 @@ import { SepayPaymentMapping, SepayWebhookData } from '@/services/payment/type/s
 import { sseManager } from '@/services/sse/sse.service';
 import subscriptionService from '@/services/subscription/subscription.service';
 import { getCurrentDateInTimeZone } from '@/utils/date';
+import { PaymentStatus } from './payment.interface';
 import logger from '@/utils/logger';
 
 /**
@@ -61,6 +62,7 @@ class SepayWebhookService {
 
     /**
      * Handle incoming SePay webhook
+     * @deprecated This webhook handler is being phased out in favor of PayOS
      */
     public async handleWebhook(webhookData: SepayWebhookData): Promise<boolean> {
         try {
@@ -129,8 +131,9 @@ class SepayWebhookService {
                 userId,
                 planId,
                 orderCode,
-                status: 'PAID',
+                status: PaymentStatus.SUCCESS,
                 amount: transferAmount,
+                paymentId: transactionId.toString(),
                 timestamp: getCurrentDateInTimeZone(),
             };
 

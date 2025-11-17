@@ -1,5 +1,3 @@
-import { IAnkiStatus } from '@/services/spaced-repetition-system/super-memo-2/anki.service';
-
 export interface ITopic {
     topicId: number;
     name: string;
@@ -14,7 +12,12 @@ export interface ITopic {
     hasProgress?: boolean;
 }
 
-export type IFlashcardCounts = Record<Exclude<IAnkiStatus, IAnkiStatus.RELEARNING> | 'total', number>;
+export type IFlashcardCounts = {
+    new: number;
+    learning: number;
+    review: number;
+    total: number;
+};
 
 export type ICreateTopicBody = Pick<ITopic, 'name' | 'description'>;
 export type ICreateTopicResponse = Pick<ITopic, 'topicId' | 'name' | 'description' | 'createdAt' | 'imageUrl'>;

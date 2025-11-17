@@ -6,29 +6,22 @@ import { config } from '../env.config';
  * Handles Cross-Origin Resource Sharing settings for different environments
  */
 const corsConfig = () => {
-  const developmentOptions = {
-   origin: 'http://localhost:3000', // Allow UI origins in development
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Timestamp', 'X-Timezone'],
-    credentials: true,
-  };
+    const developmentOptions = {
+        origin: config.allowedOrigins,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-Timestamp', 'X-Timezone'],
+        credentials: true,
+    };
 
-  const productionOptions = {
-    origin: [
-      'https://dozu.blog',
-      'https://dev.web.dozu.blog',
-      'https://api.stream.dozu.blog',
-      'https://dev.api.stream.dozu.blog',
-      'http://192.168.1.6:3000',
+    const productionOptions = {
+        origin: config.allowedOrigins,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-Timestamp', 'X-Timezone'],
+        credentials: true,
+        maxAge: 86400, // 24h
+    };
 
-    ],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Timestamp', 'X-Timezone'],
-    credentials: true,
-    maxAge: 86400, // 24h
-  };
-
-  return cors(config.isDevelopment ? developmentOptions : productionOptions);
+    return cors(config.isDevelopment ? developmentOptions : productionOptions);
 };
 
 export default corsConfig;

@@ -14,7 +14,7 @@ router.use(authMiddleware);
 
 router.get('/', flashcardController.getFlashcardsForTopic);
 router.get('/learning', flashcardController.getDueAnkiCardsForTopic);
-router.post('/batch', validateFlashcardsBatch(), flashcardController.batchFlashcardsForTopic);
+router.post('/batch/changes', validateFlashcardsBatch(), flashcardController.batchFlashcardsForTopicChanges);
 router.post('/batch/node', validateFlashcardsBatch(), flashcardController.handleBatchFlashcardsForNode); //for use with mindmap's node
 router.patch(
     '/:flashcardId/review',
@@ -23,6 +23,8 @@ router.patch(
 );
 router.post('/start-learning', classTopicController.startLearningFlashcards);
 router.post('/search-images', flashcardController.searchFlashcardImages);
+
+router.post('/batch/state', validateFlashcardsBatch(), flashcardController.batchFlashcardsForTopicState);
 
 registerRoute('/flashcards', router, {
     description: 'Flashcards API for CRUD single flashcard',

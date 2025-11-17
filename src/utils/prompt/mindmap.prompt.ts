@@ -149,7 +149,9 @@ IMPORTANT: Return your response as valid JSON that matches this exact structure:
         "description":"Summary of the content related to this node",
         "pageStartIndex": "Page start index belonging to this node",
         "pageEndIndex": "Page end index belonging to this node",
-        "isRoot": true
+        "isRoot": true,
+        "color":"#ef4444",
+        "roadmapOrder":0
       }
     }
   ],
@@ -157,7 +159,10 @@ IMPORTANT: Return your response as valid JSON that matches this exact structure:
     {
       "id": "unique_edge_id",
       "source": "source_node_id",
-      "target": "target_node_id"
+      "target": "target_node_id",
+      "data":{
+        "color":"#ef4444"
+      }
     }
   ]
 }
@@ -175,6 +180,9 @@ ${isLargeDocument ? '7. Ensure comprehensive coverage of the document section' :
 ${isLargeDocument ? '8. Position nodes to avoid overlapping' : ''}
 9. Response must be follow language of the content
 10. Each node must have a comprehensive summary of the related content including the overall themes and the major ideas covered.
+11. Color may be assigned to each node as one of the following strings ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#6b7280'] to the property color inside node data, the provided structure has included a color as an example but root node shouldn't have color, the branches from can have a unifying color to distinguish themselves
+12. Color may be assigned to each edge, in this case, if the target node is colored, the edge should be the same color, the color is specified as property color inside edge data, , the provided structure has included a color as an example 
+13. Each of the child node of root may include one distinct roadmapOrder to help visualize learning path, going from 0 to amount of child node of root node minus 1. It's supposed to represent a roadmap so try to keep the node in roughly logical learning progression. Root node should not be included in the roadmap, roadmapOrder here is only shown as a reference.
 
 Content to analyze:
 ${content}

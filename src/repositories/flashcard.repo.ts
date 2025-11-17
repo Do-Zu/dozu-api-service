@@ -92,7 +92,7 @@ class FlashcardRepo {
             })
             .from(flashcardsTable)
             .where(eq(flashcardsTable.topicId, topicId))
-            .orderBy(flashcardsTable.createdAt);
+            .orderBy(asc(flashcardsTable.flashcardId));
         return flashcards;
     }
 

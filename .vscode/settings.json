@@ -7,6 +7,7 @@
         "dtos",
         "envfile",
         "hset",
+        "Innertube",
         "Millis",
         "Mindmap",
         "payos",
@@ -16,6 +17,7 @@
         "sshpass",
         "uuidv",
         "vercel",
-        "VIETNIX"
+        "VIETNIX",
+        "youtubei"
     ]
 }
