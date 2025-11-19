@@ -23,7 +23,6 @@ import unsplashLib from '@/libs/unsplash.lib';
 import AnkiService, {
     IAnkiCard,
     IAnkiRating,
-    IAnkiStatus,
     IBaseIntervalWithDeviation,
     INextReviewInterval,
     learnAheadLimit,
@@ -302,6 +301,7 @@ class FlashcardService {
         const ankiSetting = await ankiSettingService.getSettingForTopicAndUser(topicId, userId);
         const dueAnkiCards: IDueAnkiCard[] = dueFlashcards.map(card => {
             return {
+                nodeId: card.nodeId,
                 flashcardId: card.flashcardId,
                 front: card.front,
                 back: card.back,

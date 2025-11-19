@@ -8,7 +8,7 @@ import {
     getMindmapByTopicId,
     getNodesStats,
 } from '@/repositories/mindmap/mindmap.repo';
-import { inArray, sql, SQL } from 'drizzle-orm';
+import { and, eq, inArray, sql, SQL } from 'drizzle-orm';
 import db from '@/libs/drizzleClient.lib';
 import { IStudentInClass } from '@/types/class-based-learning/classEnrollment.type';
 import classEnrollmentService from '../class-based-learning/classEnrollment.service';
@@ -159,5 +159,44 @@ export const changeNodeIdOfFlashcardsService = async (
 
 export const deleteMindmapService = async ({ topicId }: { topicId: number }) => {
     await deleteMindmapByTopicId(topicId);
-    
+};
+
+export const linkFlashcardsToNodeService = async ({
+    topicId,
+    nodeId,
+    flashcards,
+}: {
+    topicId: number;
+    nodeId: string;
+    flashcards: number[];
+}) => {
+    const result = await db
+        .update(flashcardsTable)
+        .set({ nodeId })
+        .where(and(inArray(flashcardsTable.flashcardId, flashcards), eq(flashcardsTable.topicId, topicId)))
+        .returning();
+    return result;
+};
+
+export const unlinkFlashcardsFromNodeService = async ({
+    topicId,
+    nodeId,
+    flashcards,
+}: {
+    topicId: number;
+    nodeId: string;
+    flashcards: number[];
+}) => {
+    const result = await db
+        .update(flashcardsTable)
+        .set({ nodeId: null })
+        .where(
+            and(
+                inArray(flashcardsTable.flashcardId, flashcards),
+                eq(flashcardsTable.topicId, topicId),
+                eq(flashcardsTable.nodeId, nodeId)
+            )
+        )
+        .returning();
+    return result;
 };

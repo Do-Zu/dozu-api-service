@@ -47,6 +47,7 @@ class FlashcardRepo {
             .select({
                 flashcardId: flashcardsTable.flashcardId,
                 topicId: topicsTable.topicId,
+                nodeId: flashcardsTable.nodeId,
                 topicName: topicsTable.name,
                 front: flashcardsTable.front,
                 back: flashcardsTable.back,
@@ -85,6 +86,7 @@ class FlashcardRepo {
             .select({
                 flashcardId: flashcardsTable.flashcardId,
                 topicId: flashcardsTable.topicId,
+                nodeId: flashcardsTable.nodeId,
                 front: flashcardsTable.front,
                 back: flashcardsTable.back,
                 imageUrl: flashcardsTable.imageUrl,
