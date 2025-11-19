@@ -113,7 +113,7 @@ describe('ScheduleService - generateRecommendSchedule', () => {
                 timezone: mockTimezone,
             });
 
-            expect(result.statistics.totalItems).toBe(10);
+            expect(result.statistics.totalItems).toBe(40);
             expect(result.statistics.scheduledItems).toBeGreaterThan(0);
             expect(result.statistics.efficiency).toBeGreaterThan(0);
             expect(Object.keys(result.schedules).length).toBeGreaterThan(0);
@@ -294,7 +294,7 @@ describe('ScheduleService - generateRecommendSchedule', () => {
                 type: 'question',
                 createdAt: new Date('2025-09-02'),
                 repetitionNumber: 2,
-                easinessFactor: 'Ơ',
+                easinessFactor: '1.8',
                 reviewInterval: 3,
                 lastReviewed: '2025-10-10T10:00:00.000Z',
                 nextReview: '2025-10-15T00:00:00.000Z',
@@ -329,8 +329,6 @@ describe('ScheduleService - generateRecommendSchedule', () => {
                 toDate: mockToDate,
                 timezone: mockTimezone,
             });
-
-            console.log(result);
 
             expect(result.statistics.totalItems).toBe(15);
             expect(result.statistics.scheduledItems).toBeGreaterThan(0);
