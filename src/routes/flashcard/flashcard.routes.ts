@@ -25,6 +25,7 @@ router.post('/start-learning', classTopicController.startLearningFlashcards);
 router.post('/search-images', flashcardController.searchFlashcardImages);
 
 router.post('/batch/state', validateFlashcardsBatch(), flashcardController.batchFlashcardsForTopicState);
+router.post('/batch/node/state', flashcardController.batchFlashcardsForNodeState);
 
 registerRoute('/flashcards', router, {
     description: 'Flashcards API for CRUD single flashcard',

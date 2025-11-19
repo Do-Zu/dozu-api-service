@@ -1,13 +1,13 @@
 import db, { Transaction } from '@/libs/drizzleClient.lib';
-import { flashcardsTable, itemSpacedRepetitionTrackingTable, topicsTable } from '@/models';
+import { flashcardsTable, itemSpacedRepetitionTrackingTable, topicsTable, TypeInsertFlashcard } from '@/models';
 import { IFlashcardLearningState, IFlashcard } from '@/types/flashcard/flashcard.type';
 import { and, asc, eq, lte } from 'drizzle-orm';
 import itemSpacedRepetitionTrackingService from '@/services/tracking/itemSpacedRepetitionTracking.service';
 
 type IInsertFlashcard = Pick<IFlashcard, 'topicId' | 'front' | 'back'>;
-type IUpdateFlashcard = Pick<IFlashcard, 'flashcardId' | 'front' | 'back'>;
+// type IUpdateFlashcard = Pick<IFlashcard, 'flashcardId' | 'front' | 'back'>;
 
-export type ICreateFlashcardRepo = Pick<IFlashcard, 'topicId' | 'front' | 'back'> & { imageUrl?: string | null };
+// export type ICreateFlashcardRepo = Pick<IFlashcard, 'topicId' | 'front' | 'back'> & { imageUrl?: string | null };
 export type IUpdateFlashcardRepo = Pick<IFlashcard, 'flashcardId' | 'front' | 'back'> & { imageUrl?: string | null };
 
 class FlashcardRepo {
@@ -98,7 +98,7 @@ class FlashcardRepo {
         return flashcards;
     }
 
-    public async insertFlashcards(flashcards: ICreateFlashcardRepo[], tx?: Transaction): Promise<IFlashcard[]> {
+    public async insertFlashcards(flashcards: TypeInsertFlashcard[], tx?: Transaction): Promise<IFlashcard[]> {
         let result: IFlashcard[];
         const executor = tx ?? db;
         result = await executor.insert(flashcardsTable).values(flashcards).returning({
@@ -131,7 +131,7 @@ class FlashcardRepo {
     }
 
     // !!this should not alter topicId of a flashcard
-    public async updateFlashcards(flashcards: IUpdateFlashcard[]): Promise<IFlashcard[]> {
+    public async updateFlashcards(flashcards: IUpdateFlashcardRepo[]): Promise<IFlashcard[]> {
         let result: IFlashcard[] = [];
         for (const flashcard of flashcards) {
             const { flashcardId, ...rest } = flashcard;
