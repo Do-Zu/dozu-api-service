@@ -245,17 +245,32 @@ class InputSetService {
         metadata: MetaDataInputSet;
         contentType: ResourceContentType;
     }) {
-        let result: MetaDataInputSet = { ...metadata };
         if (contentType !== RESOURCE_CONTENT_TYPE.YOUTUBE) {
-            return result;
+            return metadata;
         }
-        const videoId = (result as YoutubeResourceMetadata).videoInfo?.videoId;
+        const youtubeMetadata = metadata as YoutubeResourceMetadata;
+        let videoId = youtubeMetadata.videoInfo?.videoId;
+        if (!videoId && youtubeMetadata.url) {
+            try {
+                videoId = extractYoutubeVideoId(youtubeMetadata.url);
+            } catch {
+                videoId = undefined;
+            }
+        }
+
         if (!videoId) {
             throw new BadRequest('Video Id is required');
         }
-        const youtubeContent = await youtubeService.getYoutubeContent({ videoId });
-        (result as YoutubeResourceMetadata).content = youtubeContent.balancedSegments;
-        return result as YoutubeResourceMetadata;
+
+        try {
+            const youtubeContent = await youtubeService.getYoutubeContent({ videoId });
+            return {
+                ...youtubeMetadata,
+                content: youtubeContent.balancedSegments,
+            };
+        } catch (error) {
+            throw new InternalServerError(`Failed to convert YouTube content to balanced segments: ${error}`);
+        }
     }
 }
 

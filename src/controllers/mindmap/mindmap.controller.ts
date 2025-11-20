@@ -136,11 +136,14 @@ export const updateFlashcardLinksController = async (req: Request, res: Response
         throw new BadRequest('nodeId is required');
     }
 
-    const { linkedFlashcards, unlinkedFlashcards } = req.body as {
+    const body = req.body as Partial<{
         linkedFlashcards: number[];
         unlinkedFlashcards: number[];
-    };
+    }>;
 
+    const linkedFlashcards = Array.isArray(body.linkedFlashcards) ? body.linkedFlashcards : [];
+    const unlinkedFlashcards = Array.isArray(body.unlinkedFlashcards) ? body.unlinkedFlashcards : [];
+    
     let result: { flashcardId: number; nodeId: string | null }[] = [];
 
     if (linkedFlashcards.length > 0) {

@@ -45,6 +45,7 @@ class YoutubeService {
                 }));
 
                 const fullTranscript = transcriptSegments
+                    .filter(segment => segment.text !== undefined)
                     .map(segment => segment.text)
                     .join(' ')
                     .replace(/[\u200B-\u200D\uFEFF]/g, '')
