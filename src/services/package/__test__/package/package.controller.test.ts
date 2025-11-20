@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable no-undef */
 import { Request, Response } from 'express';
-import { packageController } from '../../controllers/package/package.controller';
+import { packageController } from '../../../../controllers/package/package.controller';
 import { packageService } from '@/services/package/package.service';
 import { SuccessResponse } from '@/core/success';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
