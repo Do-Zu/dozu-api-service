@@ -193,47 +193,8 @@ export abstract class BaseGenerativeService implements IGenerativeService {
         // Return what we have, even if incomplete
         return fullContent;
     }
-    /**
-     * Generate mindmap from uploaded file using LLM
-     * This method handles file processing and mindmap generation
-     *
-     * @param filePath Path to the uploaded file
-     * @param metadata File metadata information
-     * @param customPrompt Optional custom prompt to override default
-     * @returns Generated mindmap data or null if failed
-     */
-    protected async generateMindmapFromFile(
-        filePath: string,
-        metadata: FileMetadata,
-        customPrompt?: string
-    ): Promise<MindmapData | null> {
-        try {
-            // Check rate limits before processing
-            const canProcess = await this.updateStatusLLMRateLimit();
-            if (!canProcess) {
-                return null;
-            }
 
-            // Generate mindmap using the LLM provider
-            return await this.llmProvider.generateMindmapFromFile(filePath, metadata.originalName, customPrompt);
-        } catch {
-            return null;
-        }
-    }
 
-    /**
-     * Process uploaded file and extract readable content
-     * @param filePath Path to the uploaded file
-     * @returns Extracted content or null if failed
-     */
-    protected async processUploadedFile(filePath: string): Promise<string | null> {
-        try {
-            // This method should extract text content, not generate mindmap
-            // We need to add a separate method for content extraction
-            const fs = await import('fs');
-            return fs.readFileSync(filePath, 'utf-8');
-        } catch {
-            return null;
-        }
-    }
+
+
 }

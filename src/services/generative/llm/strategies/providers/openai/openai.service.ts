@@ -15,7 +15,7 @@ export class OpenAIService extends BaseLLMProvider {
     private openai: OpenAI | undefined;
     private isClientInitialized = false;
     private mindmapService: MindmapGenerateService | undefined;
-
+    private MAIN_ROLE_DESC_LLM: string = 'You are an expert at creating educational content from academic content.';
     constructor() {
         super();
         this.initialize();
@@ -39,11 +39,6 @@ export class OpenAIService extends BaseLLMProvider {
                 apiKey: this.apiKey!,
                 baseURL: this.baseURL!,
             });
-
-            // Initialize mindmap service
-            if (this.openai && this.model) {
-                this.mindmapService = new MindmapGenerateService(this.openai, this.model);
-            }
 
             this.isClientInitialized = true;
             logger.info('OpenAI client initialized successfully');
@@ -191,7 +186,7 @@ export class OpenAIService extends BaseLLMProvider {
             messages = [
                 {
                     role: 'system',
-                    content: 'You are an expert at creating educational content from academic content.',
+                    content: this.MAIN_ROLE_DESC_LLM,
                 },
                 { role: 'user', content: prompt },
             ];
@@ -202,8 +197,8 @@ export class OpenAIService extends BaseLLMProvider {
             return await this.openai!.chat.completions.create({
                 model: this.model!,
                 messages,
-                max_tokens: config?.maxTokens ?? 8000,
-                temperature: config?.temperature ?? 0.1,
+                max_tokens: config?.maxTokens ?? 100000,
+                temperature: config?.temperature ?? 0.3,
                 top_p: config?.topP,
                 response_format: { type: 'json_object' },
             });
@@ -224,7 +219,7 @@ export class OpenAIService extends BaseLLMProvider {
         const messages: ChatCompletionMessageParam[] = [
             {
                 role: 'system',
-                content: 'You are an expert at creating educational content from academic content.',
+                content: this.MAIN_ROLE_DESC_LLM,
             },
             { role: 'user', content: prompt },
         ];
