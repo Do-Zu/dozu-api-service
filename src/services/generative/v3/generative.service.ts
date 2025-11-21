@@ -267,32 +267,25 @@ class GenerativeService extends BaseGenerativeService {
 
 
 
-    public async streamGenerateContent(payload: GenerateContentRequestInterface, res: Response) {
-        try {
-            const { content, type } = payload;
+    public async *streamGenerateContent(payload: GenerateContentRequestInterface, res: Response) {
 
-            const key = lowercase(type);
+        const { content, type } = payload;
 
-            const promptType = this.TYPE_PROMPT_MAPPING[key];
+        const key = lowercase(type);
 
-            const prompt = generatePromptText(content, promptType);
+        const promptType = this.TYPE_PROMPT_MAPPING[key];
 
-            if (isNilOrEmpty(prompt)) {
-                throw new BadRequest('Prompt Invalid');
-            }
+        const prompt = generatePromptText(content, promptType);
 
-            for await (const chunk of this.getLLMProvider().handleProcessStreamContent(prompt)) {
-                res.write(`data: ${JSON.stringify({ status: 'connected', data: chunk })}\n\n`);
-            }
-
-        } catch (error) {
-
-            res.write(`data: ${JSON.stringify({ status: 'error', error })}\n\n`);
-
-            res.on('close', () => {
-                logger.info(`Client disconnected`);
-            });
+        if (isNilOrEmpty(prompt)) {
+            throw new BadRequest('Prompt Invalid');
         }
+
+        for await (const chunk of this.getLLMProvider().handleProcessStreamContent(prompt)) {
+            yield { status: 'connected', data: chunk };
+        }
+
+
     }
 
 

@@ -35,32 +35,57 @@ class GenerateController {
     }
 
     public async streamGenerateContent(req: Request, res: Response) {
+        let isClientDisConnected = false;
 
-        const { content, type, inputSetId, method } = req.body as GenerateContentRequestInterface;
+        try {
+            const { content, type, inputSetId, method } = req.body as GenerateContentRequestInterface;
 
-        if (!content) {
-            throw new BadRequest('Content is required');
+            if (!content) {
+                throw new BadRequest('Content is required');
+            }
+
+            if (isEmpty(type)) {
+                throw new BadRequest('Type is required');
+            }
+
+            res.writeHead(200, {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                Connection: 'keep-alive',
+            });
+
+            res.write(`data: ${JSON.stringify({ status: 'connected' })}\n\n`);
+
+
+            res.on('close', () => {
+                isClientDisConnected = true;
+                logger.info(`Client disconnected`);
+            });
+
+
+            const streamGenerator = generativeService.streamGenerateContent({ content, type, inputSetId, method }, res)
+
+            for await (const packet of streamGenerator) {
+                if (isClientDisConnected) break;
+
+                res.write(`data: ${JSON.stringify(packet)}\n\n`);
+
+                // if (res.flush) res.flush();
+            }
+
+            if (!isClientDisConnected) {
+                res.write(`data: ${JSON.stringify({ status: 'completed' })}\n\n`);
+                res.end();
+            }
+
+        } catch (error) {
+
+            if (!isClientDisConnected) {
+                res.write(`data: ${JSON.stringify({ status: 'error', error })}\n\n`);
+            }
+
+            res.end();
         }
-
-        if (isEmpty(type)) {
-            throw new BadRequest('Type is required');
-        }
-
-
-        res.writeHead(200, {
-            'Content-Type': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-            Connection: 'keep-alive',
-        });
-
-        res.write(`data: ${JSON.stringify({ status: 'connected' })}\n\n`);
-
-
-        await generativeService.streamGenerateContent({ content, type, inputSetId, method }, res)
-
-        res.on('close', () => {
-            logger.info(`Client disconnected`);
-        });
     }
 
 
