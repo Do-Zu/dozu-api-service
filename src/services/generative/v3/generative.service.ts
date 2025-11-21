@@ -95,7 +95,7 @@ class GenerativeService extends BaseGenerativeService {
                 errorType: error.name || 'ProcessingError',
                 errorCode: 500,
                 errorDetails: error.message,
-                status: STATUS_GEN.fail,
+                status: STATUS_GEN.error,
             };
 
             sseManager.sendEvent(jobId, clientError, true);
@@ -163,7 +163,7 @@ class GenerativeService extends BaseGenerativeService {
                 errorType: error.name || 'ProcessingError',
                 errorCode: 500,
                 errorDetails: error.message,
-                status: STATUS_GEN.fail,
+                status: STATUS_GEN.error,
             };
 
             // Send error to client if connected
@@ -508,8 +508,8 @@ class GenerativeService extends BaseGenerativeService {
                 return STATUS_GEN.success;
             case 'completed':
                 return STATUS_GEN.completed;
-            case 'failed':
-                return STATUS_GEN.fail;
+            case 'error':
+                return STATUS_GEN.error;
             default:
                 return STATUS_GEN.register;
         }

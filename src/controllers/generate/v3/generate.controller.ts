@@ -5,6 +5,7 @@ import { BadRequest } from '@/core/error';
 import { GenerateContentRequestInterface, JobStatusResponseInterface } from '@/dtos/generate';
 import { isEmpty, lowercase } from '@/utils/common';
 import logger from '@/utils/logger';
+import { STATUS_GEN } from '@/services/generative/utils/constant';
 
 class GenerateController {
     constructor() { }
@@ -54,7 +55,7 @@ class GenerateController {
                 Connection: 'keep-alive',
             });
 
-            res.write(`data: ${JSON.stringify({ status: 'connected' })}\n\n`);
+            res.write(`data: ${JSON.stringify({ status: STATUS_GEN.connected })}\n\n`);
 
 
             res.on('close', () => {
@@ -74,14 +75,14 @@ class GenerateController {
             }
 
             if (!isClientDisConnected) {
-                res.write(`data: ${JSON.stringify({ status: 'completed' })}\n\n`);
+                res.write(`data: ${JSON.stringify({ status: STATUS_GEN.completed })}\n\n`);
                 res.end();
             }
 
         } catch (error) {
 
             if (!isClientDisConnected) {
-                res.write(`data: ${JSON.stringify({ status: 'error', error })}\n\n`);
+                res.write(`data: ${JSON.stringify({ status: STATUS_GEN.error, error })}\n\n`);
             }
 
             res.end();
