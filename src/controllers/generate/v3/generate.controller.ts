@@ -62,7 +62,7 @@ class GenerateController {
                 logger.info(`Client disconnected`);
             });
 
-            const streamGenerator = generativeService.streamGenerateContent({ content, type, inputSetId, method }, res);
+            const streamGenerator = generativeService.streamGenerateContent({ content, type, inputSetId, method });
 
             for await (const packet of streamGenerator) {
                 if (isClientDisConnected) break;

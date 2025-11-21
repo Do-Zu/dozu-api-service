@@ -15,6 +15,9 @@ export class OpenAIService extends BaseLLMProvider {
     private openai: OpenAI | undefined;
     private isClientInitialized = false;
     private mindmapService: MindmapGenerateService | undefined;
+
+    private DEFAULT_MAX_TOKEN = 50000;
+    private DEFAULT_TEMPERATURE = 0.3;
     private MAIN_ROLE_DESC_LLM: string = 'You are an expert at creating educational content from academic content.';
     constructor() {
         super();
@@ -123,7 +126,7 @@ export class OpenAIService extends BaseLLMProvider {
      */
     private async createStream(
         messages: Array<ChatCompletionMessageParam>,
-        config?: Omit<ChatCompletionCreateParamsStreaming, 'model'>
+        config?: Partial<Omit<ChatCompletionCreateParamsStreaming, 'model'>>
     ) {
         // Check if service is available
         if (!this.isAvailable()) {
@@ -144,8 +147,8 @@ export class OpenAIService extends BaseLLMProvider {
             return await this.openai!.chat.completions.create({
                 model: this.model!,
                 messages,
-                max_tokens: config?.max_tokens ?? 8000,
-                temperature: config?.temperature ?? 0.1,
+                max_tokens: config?.max_tokens ?? this.DEFAULT_MAX_TOKEN,
+                temperature: config?.temperature ?? this.DEFAULT_TEMPERATURE,
                 stream: true,
                 stream_options: {
                     include_usage: true,
@@ -225,7 +228,11 @@ export class OpenAIService extends BaseLLMProvider {
         ];
 
         // Create streaming response
-        const stream = await this.createStream(messages);
+        const stream = await this.createStream(messages, {
+            response_format: {
+                type: 'json_object',
+            },
+        });
 
         if (!stream) return;
 

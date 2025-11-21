@@ -1,4 +1,3 @@
-import { Response } from 'express'
 import { Worker, Job } from 'bullmq';
 import { pubSubGenerateManager as queue } from '../pub-sub/pubSub.generate';
 import { BaseGenerativeService } from '../base/base.abstract';
@@ -34,7 +33,6 @@ import { isNilOrEmpty, lowercase } from '@/utils/common';
  * 5. Result caching in Redis
  */
 class GenerativeService extends BaseGenerativeService {
-
     private readonly TYPE_PROMPT_MAPPING: Record<string, TYPE_PROMPT> = {
         flashcard: 'FLASH_CARD',
         quiz: 'QUIZ',
@@ -235,9 +233,6 @@ class GenerativeService extends BaseGenerativeService {
         return await this.processWithLambdaAsync(dataSend);
     }
 
-
-
-
     /**
      * Generate content using LLM in background
      */
@@ -265,10 +260,7 @@ class GenerativeService extends BaseGenerativeService {
         };
     }
 
-
-
-    public async *streamGenerateContent(payload: GenerateContentRequestInterface, res: Response) {
-
+    public async *streamGenerateContent(payload: GenerateContentRequestInterface) {
         const { content, type } = payload;
 
         const key = lowercase(type);
@@ -284,10 +276,7 @@ class GenerativeService extends BaseGenerativeService {
         for await (const chunk of this.getLLMProvider().handleProcessStreamContent(prompt)) {
             yield { status: 'connected', data: chunk };
         }
-
-
     }
-
 
     /**
      * Get job status and results
