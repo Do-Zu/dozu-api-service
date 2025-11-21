@@ -3,12 +3,12 @@ import { generativeService } from '@/services/generative/v3/generative.service';
 import { SuccessResponse } from '@/core/success';
 import { BadRequest } from '@/core/error';
 import { GenerateContentRequestInterface, JobStatusResponseInterface } from '@/dtos/generate';
-import { isEmpty, lowercase } from '@/utils/common';
+import { isEmpty } from '@/utils/common';
 import logger from '@/utils/logger';
 import { STATUS_GEN } from '@/services/generative/utils/constant';
 
 class GenerateController {
-    constructor() { }
+    constructor() {}
 
     public async generateContent(req: Request, res: Response) {
         const { content, type, inputSetId, method } = req.body as GenerateContentRequestInterface;
@@ -57,14 +57,12 @@ class GenerateController {
 
             res.write(`data: ${JSON.stringify({ status: STATUS_GEN.connected })}\n\n`);
 
-
             res.on('close', () => {
                 isClientDisConnected = true;
                 logger.info(`Client disconnected`);
             });
 
-
-            const streamGenerator = generativeService.streamGenerateContent({ content, type, inputSetId, method }, res)
+            const streamGenerator = generativeService.streamGenerateContent({ content, type, inputSetId, method }, res);
 
             for await (const packet of streamGenerator) {
                 if (isClientDisConnected) break;
@@ -78,9 +76,7 @@ class GenerateController {
                 res.write(`data: ${JSON.stringify({ status: STATUS_GEN.completed })}\n\n`);
                 res.end();
             }
-
         } catch (error) {
-
             if (!isClientDisConnected) {
                 res.write(`data: ${JSON.stringify({ status: STATUS_GEN.error, error })}\n\n`);
             }
@@ -88,7 +84,6 @@ class GenerateController {
             res.end();
         }
     }
-
 
     public async getGenerateContentStatus(req: Request, res: Response<JobStatusResponseInterface>) {
         const { jobId, type } = req.body;
@@ -101,8 +96,6 @@ class GenerateController {
 
         SuccessResponse.ok(res, result);
     }
-
-
 }
 
 export const generateController = new GenerateController();

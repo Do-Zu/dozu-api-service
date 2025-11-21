@@ -1,7 +1,5 @@
 import { OpenAIService } from '../llm/strategies/providers/openai/openai.service';
 import { GenerateContentRequestInterface, GenerateContentResponseInterface } from '@/dtos/generate';
-import { MindmapData } from '@/models/mindmap/mindmap.model';
-import { FileMetadata } from '@/types/generate/generate.type';
 
 /**
  * Configuration options for content generation
@@ -52,27 +50,6 @@ export interface ITextFormatGenerateService extends IGenerativeService {
 /**
  * Interface for file-based generation services
  */
-export interface IFileGenerationService extends IGenerativeService {
-    /**
-     * Generate mindmap from uploaded file
-     * @param filePath Path to the uploaded file
-     * @param metadata File metadata
-     * @param customPrompt Optional custom prompt
-     * @returns Generated mindmap data
-     */
-    generateMindmapFromFile(
-        filePath: string,
-        metadata: FileMetadata,
-        customPrompt?: string
-    ): Promise<MindmapData | null>;
-
-    /**
-     * Process uploaded file and extract content
-     * @param filePath Path to the uploaded file
-     * @returns Extracted text content
-     */
-    processUploadedFile(filePath: string): Promise<string | null>;
-}
 
 /**
  * Abstract base class for all generative services
@@ -193,8 +170,4 @@ export abstract class BaseGenerativeService implements IGenerativeService {
         // Return what we have, even if incomplete
         return fullContent;
     }
-
-
-
-
 }
