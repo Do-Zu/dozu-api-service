@@ -2,11 +2,11 @@ import { Request, Response } from 'express';
 import { sseManager } from '@/services/sse/sse.service';
 import logger from '@/utils/logger';
 
-export class SSEController {
+class SSEController {
   /**
    * Establishes SSE connection for a specific job
    */
-  public static connectToJobEvents(req: Request, res: Response): void {
+  public connectToJobEvents(req: Request, res: Response): void {
     const jobId = req.params.jobId;
     logger.info(`SSE connection request for job ${jobId}`);
 
@@ -17,10 +17,13 @@ export class SSEController {
   /**
    * Returns statistics about SSE connections (admin only)
    */
-  public static getStats(req: Request, res: Response): void {
+  public getStats(req: Request, res: Response): void {
     res.json({
       totalConnections: sseManager.getTotalConnections(),
       timestamp: new Date().toISOString(),
     });
   }
 }
+
+export const sseController = new SSEController();
+
