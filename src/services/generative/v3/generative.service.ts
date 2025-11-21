@@ -1,3 +1,4 @@
+import { Response } from 'express'
 import { Worker, Job } from 'bullmq';
 import { pubSubGenerateManager as queue } from '../pub-sub/pubSub.generate';
 import { BaseGenerativeService } from '../base/base.abstract';
@@ -20,7 +21,7 @@ import { STATUS_GEN } from '../utils/constant';
 import { JOB_NAME, WORKER_NAME } from '../constants/constant';
 import { HTTP_STATUS } from '@/constants/index.constant';
 import { validatePayloadSizeBuffer } from '../utils/validate';
-import { lowercase } from '@/utils/common';
+import { isNilOrEmpty, lowercase } from '@/utils/common';
 
 /**
  * Main generative service implementation
@@ -33,6 +34,7 @@ import { lowercase } from '@/utils/common';
  * 5. Result caching in Redis
  */
 class GenerativeService extends BaseGenerativeService {
+
     private readonly TYPE_PROMPT_MAPPING: Record<string, TYPE_PROMPT> = {
         flashcard: 'FLASH_CARD',
         quiz: 'QUIZ',
@@ -184,12 +186,6 @@ class GenerativeService extends BaseGenerativeService {
         await redisInstance.set(key, data, this.RESULT_TTL);
     }
 
-    private async makeResultGenerateSent(type: string, jobId: string): Promise<boolean> {
-        const key = `result:sent:${type}:${jobId}`;
-        const res = await redisInstance.setnx(key, '1');
-        return res === 1;
-    }
-
     /**
      *
      */
@@ -239,6 +235,9 @@ class GenerativeService extends BaseGenerativeService {
         return await this.processWithLambdaAsync(dataSend);
     }
 
+
+
+
     /**
      * Generate content using LLM in background
      */
@@ -258,12 +257,44 @@ class GenerativeService extends BaseGenerativeService {
 
         // Parse output and return formatted result
         const data = convertJsonToArray(fullContent || '[]');
+
         return {
             data,
             text: fullContent,
             status: STATUS_GEN.completed,
         };
     }
+
+
+
+    public async streamGenerateContent(payload: GenerateContentRequestInterface, res: Response) {
+        try {
+            const { content, type } = payload;
+
+            const key = lowercase(type);
+
+            const promptType = this.TYPE_PROMPT_MAPPING[key];
+
+            const prompt = generatePromptText(content, promptType);
+
+            if (isNilOrEmpty(prompt)) {
+                throw new BadRequest('Prompt Invalid');
+            }
+
+            for await (const chunk of this.getLLMProvider().handleProcessStreamContent(prompt)) {
+                res.write(`data: ${JSON.stringify({ status: 'connected', data: chunk })}\n\n`);
+            }
+
+        } catch (error) {
+
+            res.write(`data: ${JSON.stringify({ status: 'error', error })}\n\n`);
+
+            res.on('close', () => {
+                logger.info(`Client disconnected`);
+            });
+        }
+    }
+
 
     /**
      * Get job status and results

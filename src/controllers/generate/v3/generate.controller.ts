@@ -1,22 +1,22 @@
 import { Request, Response } from 'express';
 import { generativeService } from '@/services/generative/v3/generative.service';
-
-import { BadRequest } from '@/core/error';
 import { SuccessResponse } from '@/core/success';
-import { isEmptyObject } from '@/utils/validate';
+import { BadRequest } from '@/core/error';
 import { GenerateContentRequestInterface, JobStatusResponseInterface } from '@/dtos/generate';
+import { isEmpty, lowercase } from '@/utils/common';
+import logger from '@/utils/logger';
 
 class GenerateController {
-    constructor() {}
+    constructor() { }
 
-    async generateContent(req: Request, res: Response) {
+    public async generateContent(req: Request, res: Response) {
         const { content, type, inputSetId, method } = req.body as GenerateContentRequestInterface;
 
         if (!content) {
             throw new BadRequest('Content is required');
         }
 
-        if (!type || (typeof type === 'object' && !isEmptyObject(type))) {
+        if (isEmpty(type)) {
             throw new BadRequest('Type is required');
         }
 
@@ -34,7 +34,37 @@ class GenerateController {
         );
     }
 
-    async getGenerateContentStatus(req: Request, res: Response<JobStatusResponseInterface>) {
+    public async streamGenerateContent(req: Request, res: Response) {
+
+        const { content, type, inputSetId, method } = req.body as GenerateContentRequestInterface;
+
+        if (!content) {
+            throw new BadRequest('Content is required');
+        }
+
+        if (isEmpty(type)) {
+            throw new BadRequest('Type is required');
+        }
+
+
+        res.writeHead(200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            Connection: 'keep-alive',
+        });
+
+        res.write(`data: ${JSON.stringify({ status: 'connected' })}\n\n`);
+
+
+        await generativeService.streamGenerateContent({ content, type, inputSetId, method }, res)
+
+        res.on('close', () => {
+            logger.info(`Client disconnected`);
+        });
+    }
+
+
+    public async getGenerateContentStatus(req: Request, res: Response<JobStatusResponseInterface>) {
         const { jobId, type } = req.body;
 
         if (!jobId) {
@@ -45,6 +75,8 @@ class GenerateController {
 
         SuccessResponse.ok(res, result);
     }
+
+
 }
 
 export const generateController = new GenerateController();
