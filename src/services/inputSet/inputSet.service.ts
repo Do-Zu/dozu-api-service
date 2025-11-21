@@ -1,7 +1,68 @@
-import { InternalServerError } from '@/core/error';
+import { BadRequest, InternalServerError } from '@/core/error';
 import { getInputSetByTopicId, insertInputSet } from '@/repositories/inputSet.repo';
 import { uploadFileServiceOnR2 } from '../uploads/files/upload.file.R2.service';
-import { checkAndConvertToString } from '@/utils/common';
+import { checkAndConvertToString, isNilOrEmpty } from '@/utils/common';
+import { embeddingService } from '../embedding/v1/embedding.service';
+import { extractYoutubeVideoId } from '@/utils/youtube/youtube.util';
+import { MetaDataInputEmbedding } from '../embedding/v1/embedding.type';
+
+export const RESOURCE_CONTENT_TYPE = {
+    FILE: 'file',
+    YOUTUBE: 'youtube',
+    WEBSITE: 'website',
+    TEXT: 'text',
+} as const;
+
+export interface UploadFileResponse {
+    id?: string;
+    fileName: string;
+    originalName: string;
+    filePath?: string;
+    fileSize: number;
+    mimeType?: string;
+    status: 'completed' | 'processing' | 'failed';
+    uploadedAt?: string;
+    setId?: string;
+    fileKey: string;
+}
+
+interface IEmbedVideoInfo {
+    iframe_url: string;
+    flash_url: string;
+    flash_secure_url: string;
+    width: number;
+    height: number;
+}
+
+interface VideoInfo {
+    title: string;
+    thumbnailUrl: string;
+    videoId: string;
+    duration: number;
+    embed: IEmbedVideoInfo;
+}
+
+interface YoutubeResourceMetadata {
+    url: string;
+    videoId: string;
+    videoInfo: VideoInfo | null;
+    lengthContent: number;
+}
+
+type WebsiteResourceMetadata = {
+    url: string;
+    content: string;
+};
+
+type TextResourceMetadata = {
+    content: string;
+};
+
+export type ResourceContentType = (typeof RESOURCE_CONTENT_TYPE)[keyof typeof RESOURCE_CONTENT_TYPE];
+
+type MetaDataInputSet = UploadFileResponse | YoutubeResourceMetadata | WebsiteResourceMetadata | TextResourceMetadata;
+
+type TopicId = number;
 
 class InputSetService {
     public getDocumentService = async (topicId: number) => {
@@ -12,11 +73,39 @@ class InputSetService {
         }
 
         const { metadata, setId, contentType, description, title } = inputSet;
+        // returned data
+        let data: any;
 
-        const fileContent = await this.handleGetFile({ metadata } as { metadata: { fileKey: string } });
+        if (contentType === 'file') {
+            const fileContent = await this.handleGetFile({ metadata } as { metadata: { fileKey: string } });
 
-        if (!fileContent) {
-            throw new InternalServerError('Error: Document does not exist');
+            if (!fileContent) {
+                throw new InternalServerError('Error: Document does not exist');
+            }
+
+            data = {
+                fileUrl: fileContent.downloadUrl,
+                expiresIn: fileContent.expiresIn,
+            };
+        } else if (contentType === 'youtube') {
+            const { url, content, videoInfo } = metadata as {
+                url?: string | null | undefined;
+                content?: string | null | undefined;
+                videoInfo?: { videoId: string } | null | undefined;
+            };
+            if (
+                url === null ||
+                url === undefined ||
+                content === null ||
+                content === undefined ||
+                videoInfo === null ||
+                videoInfo === undefined
+            ) {
+                throw new InternalServerError('Error: Youtube content does not exist');
+            }
+            data = { url, content, videoInfo };
+        } else {
+            throw new Error(`Error: Content type ${contentType} is not supported yet.`);
         }
 
         return {
@@ -24,8 +113,7 @@ class InputSetService {
             contentType,
             description,
             title,
-            fileUrl: fileContent.downloadUrl,
-            expiresIn: fileContent.expiresIn,
+            data,
         };
     };
 
@@ -57,19 +145,91 @@ class InputSetService {
     }: {
         userId: number;
         topicId: number;
-        contentType: string;
-        metadata: object;
+        metadata: MetaDataInputSet;
+        contentType: ResourceContentType;
         title?: string;
     }) => {
-        const result = await insertInputSet({
+        // Storage input set of topic
+        const inputSet = await insertInputSet({
             userId,
             topicId,
             title: checkAndConvertToString(title),
             contentType,
             metadata,
         });
-        return result;
+
+        const parseMetaDataBelongTypeForEmbedding = this.resolveResourceMetadata({
+            topicId,
+            contentType,
+            payload: metadata,
+        });
+
+        if (isNilOrEmpty(parseMetaDataBelongTypeForEmbedding)) {
+            throw new BadRequest('Parse Embedding Data Error');
+        }
+
+        // Processing embedding and store vector
+        const embedding = await embeddingService.generateEmbedding({
+            topicId,
+            type: contentType,
+            metadata: parseMetaDataBelongTypeForEmbedding!,
+        });
+
+        return {
+            inputSet,
+            embedding,
+        };
     };
+
+    private resolveResourceMetadata(params: {
+        topicId: TopicId;
+        contentType: ResourceContentType;
+        payload: MetaDataInputSet;
+    }): MetaDataInputEmbedding | null {
+        switch (params.contentType) {
+            case RESOURCE_CONTENT_TYPE.FILE: {
+                return { ...(params.payload as UploadFileResponse) };
+            }
+            case RESOURCE_CONTENT_TYPE.YOUTUBE: {
+                const {
+                    url,
+                    videoInfo,
+                    lengthContent,
+                    videoId: videoIdParam,
+                } = params.payload as YoutubeResourceMetadata;
+
+                let videoId: string | undefined;
+
+                try {
+                    videoId = extractYoutubeVideoId(url);
+                } catch (error) {
+                    if (!isNilOrEmpty(videoIdParam)) {
+                        videoId = videoIdParam;
+                    } else {
+                        throw error;
+                    }
+                }
+
+                return { videoId, url, lengthContent, videoInfo: videoInfo ?? null };
+            }
+            case RESOURCE_CONTENT_TYPE.WEBSITE: {
+                const { url, content } = params.payload as WebsiteResourceMetadata;
+
+                if (!url || !content) return null;
+
+                return { url, content };
+            }
+            case RESOURCE_CONTENT_TYPE.TEXT: {
+                const { content } = params.payload as TextResourceMetadata;
+
+                if (!content) return null;
+
+                return { content };
+            }
+            default:
+                return null;
+        }
+    }
 }
 
 export const inputSetService = new InputSetService();

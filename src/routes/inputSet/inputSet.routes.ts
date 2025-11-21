@@ -1,7 +1,7 @@
 import express from 'express';
 import { registerRoute } from '../register.routes';
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
-import { inputSetController } from '@/controllers/inputSet.controller';
+import { inputSetController } from '@/controllers/inputSet/inputSet.controller';
 import { authMiddleware } from '@/middleware/auth.middleware';
 import topicMiddleware from '@/middleware/topic/topic.middleware';
 import paramsValidator from '@/core/validations/params.validator';

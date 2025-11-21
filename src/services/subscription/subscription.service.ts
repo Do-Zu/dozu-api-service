@@ -14,7 +14,7 @@ import {
 import subscriptionRepo from '@/repositories/subscription/subscription.repo';
 import { getCurrentDateInTimeZone, getSystemDate } from '@/utils/date';
 import { addMonths, addYears } from 'date-fns';
-import { and, desc, eq, gte } from 'drizzle-orm';
+import { and, desc, eq, gte, sql } from 'drizzle-orm';
 import planService from './plan.service';
 import { featureUsageService } from './usage/featureUsage.service';
 
@@ -49,10 +49,6 @@ export class SubscriptionService {
      */
     public async getAvailablePlans() {
         const plans = await subscriptionRepo.getAllPlansAvailable();
-
-        if (!plans || plans.length === 0) {
-            throw new NotFoundError('No plans available');
-        }
 
         if (!plans || plans.length === 0) {
             throw new NotFoundError('No plans available');
@@ -312,7 +308,28 @@ export class SubscriptionService {
         });
 
         if (usageRecords.length > 0) {
-            await tx.insert(userFeatureUsageTable).values(usageRecords);
+            await tx
+                .insert(userFeatureUsageTable)
+                .values(usageRecords)
+                .onConflictDoUpdate({
+                    target: [
+                        userFeatureUsageTable.userId,
+                        userFeatureUsageTable.featureId,
+                        userFeatureUsageTable.resetPeriodStart,
+                    ],
+                    set: {
+                        // When plan changes or re-initializing within same period,
+                        // reset usage and update current limits and flags
+                        usedValue: this.DEFAULT_VALUE_USAGE,
+                        limitValue: sql`excluded.limit_value`,
+                        isUnlimited: sql`excluded.is_unlimited`,
+                        subscriptionId: sql`excluded.subscription_id`,
+                        resetPeriodStart: sql`excluded.reset_period_start`,
+                        resetPeriodEnd: sql`excluded.reset_period_end`,
+                        lastResetAt: sql`excluded.last_reset_at`,
+                        updatedAt: sql`excluded.updated_at`,
+                    },
+                });
         }
     }
 

@@ -6,14 +6,14 @@ import { teacherClassTopicRoutes } from './teacherClassTopic.routes';
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 import { fileUploadSingleMiddleware } from '@/libs/multer.lib';
 import { teacherClassFeedRoutes } from './teacherClassFeed.routes';
-import { teacherClassAssignmentRoutes } from './assignment/teacherClassAssignment.routes';
+import { teacherClassInviteRoutes } from './teacherClassInvite.routes';
 
 const router = Router({ mergeParams: true });
 globalAsyncHandler(router);
 
 router.get('/', classController.getClassesForTeacher);
 
-const verifyClassAccess = [paramsValidator.validateId('classId'), classMiddleware.verifyTeacherOwnsClass];
+const verifyClassAccess = [paramsValidator.validateId('classId'), classMiddleware.verifyTeacherOwnsClass.bind(classMiddleware)];
 
 router.post('/', fileUploadSingleMiddleware, classController.createClassForTeacher);
 
@@ -21,7 +21,6 @@ router.get('/:classId', ...verifyClassAccess, classController.getClassById);
 router.put('/:classId', ...verifyClassAccess, fileUploadSingleMiddleware, classController.updateClassById);
 router.use('/:classId/topics', ...verifyClassAccess, teacherClassTopicRoutes);
 router.use('/:classId/feeds', ...verifyClassAccess, teacherClassFeedRoutes);
-
-router.use('/:classId/assignments', ...verifyClassAccess, teacherClassAssignmentRoutes);
+router.use('/:classId/invites', ...verifyClassAccess, teacherClassInviteRoutes);
 
 export const teacherClassRoutes = router;

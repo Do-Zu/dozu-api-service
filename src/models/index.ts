@@ -8,6 +8,8 @@ export * from '@/models/flashcard.model';
 
 export * from '@/models/inputSet.model';
 
+export * from '@/models/embedding';
+
 export * from '@/models/demo.model';
 
 export * from '@/models//llmIntegrate.model';
@@ -67,11 +69,23 @@ export * from '@/models/class-based-learning/class.model';
 
 export * from '@/models/class-based-learning/classEnrollment.model';
 
+export * from '@/models/class-based-learning/classInvite.model';
+
 export * from '@/models/class-based-learning/classTopicComment.model';
 
 export * from '@/models/teacher-request/teacherRequest.model';
 
 export * from '@/models/class-based-learning/classFeed.model';
+
+export * from '@/models/class-based-learning/quiz-class/classQuizzes.model';
+
+export * from '@/models/class-based-learning/quiz-class/classQuizVersions.model';
+
+export * from '@/models/class-based-learning/quiz-class/classQuizAttempts.model';
+
+export * from '@/models/class-based-learning/quiz-class/classQuizAttemptAnswers.model';
+
+export * from '@/models/class-based-learning/quiz-class/classQuizDraft.model';
 
 // progress
 export * from '@/models/progress/progress.model';
@@ -89,4 +103,14 @@ export * from '@/models/anki-setting/ankiSetting.model';
 
 export * from '@/models/topic/userTopicSetting.model';
 
+// assignments
 export * from '@/models/class-based-learning/assignment';
+
+//learning material
+
+export * from '@/models/learning-material/learningMaterial.model';
+
+export * from '@/models/learning-material/attachmentInLearningMaterial.model';
+
+// notes
+export * from '@/models/note/note.model';

@@ -18,6 +18,11 @@ import './recommendation/recommendation.routes';
 import './schedule/schedule.routes';
 import './uploads/upload.routes';
 import './admin/admin.routes';
+import './admin/subscription.route';
+import './admin/revenue.route';
+import './admin/payment.route';
+import './admin/llmModel.routes';
+import './admin/llmProvider.routes';
 import './progress/progress.routes';
 import './class-based-learning/class.routes';
 import './tracking/tracking.routes';
@@ -36,7 +41,14 @@ import './gamification/points.routes';
 import './feynman/feynman.routes';
 import './backlog/backlog.routes';
 import './anki-setting/ankiSetting.routes';
+import './class-based-learning/learning-material/learningMaterial.routes';
+import './class-based-learning/quizClass.routes';
 import './package/package.routes';
+import './class-based-learning/assignment/assignmentSubmission.routes';
+import './class-based-learning/class-quiz/studentClassQuiz.routes';
+import './class-based-learning/class-quiz/teacherClassQuiz.routes';
+import './content/content.routes';
+import './embedding/embedding.route';
 
 // Apply global async handler to router
 globalAsyncHandler(router);

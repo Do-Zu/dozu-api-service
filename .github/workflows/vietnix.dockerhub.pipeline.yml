@@ -22,7 +22,7 @@ on:
                     - production
 
 env:
-    NODE_VERSION: '20.x'
+    NODE_VERSION: '22.x'
     PROJECT_DIR: '/projects/dozu-api-service'
 
 jobs:
@@ -41,7 +41,7 @@ jobs:
                   PASSWORD: ${{ secrets.VIETNIX_PASSWORD }}
               run: |
                   set -e
-                  sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "$USERNAME@$HOST" "echo 'VIETNIX connection OK'; \
+                  sshpass -p "$PASSWORD" ssh -p 8622 -o StrictHostKeyChecking=no "$USERNAME@$HOST" "echo 'VIETNIX connection OK'; \
                     echo 'Checking sudo access (may prompt internally)...'; \
                     echo \"$PASSWORD\" | sudo -S -p '' echo 'Sudo access confirmed' || echo 'Sudo access not required or failed'"
     build-source:
@@ -155,6 +155,8 @@ jobs:
                   CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
                   CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
                   UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
+                  ALLOWED_ORIGINS: ${{ secrets.ALLOWED_ORIGINS }}
+                  EMBEDDING_API_URL: ${{ secrets.EMBEDDING_API_URL }}
               run: |
                   set -euo pipefail
                   if [ "$ENV_INPUT" = "production" ]; then
@@ -204,6 +206,8 @@ jobs:
                     echo "CLOUDFLARE_R2_ACCESS_KEY_ID=$CLOUDFLARE_R2_ACCESS_KEY_ID"
                     echo "CLOUDFLARE_R2_SECRET_ACCESS_KEY=$CLOUDFLARE_R2_SECRET_ACCESS_KEY"
                     echo "UNSPLASH_ACCESS_KEY=$UNSPLASH_ACCESS_KEY"
+                    echo "ALLOWED_ORIGINS=$ALLOWED_ORIGINS"
+                    echo "EMBEDDING_API_URL=$EMBEDDING_API_URL"
                   } > "$ENV_FILE"
                   echo "env_file=$ENV_FILE" >> "$GITHUB_OUTPUT"
 
@@ -300,4 +304,4 @@ jobs:
                   )
 
                   # run remote with sudo and pass env vars explicitly
-                  sshpass -p "$PASSWORD" ssh -o StrictHostKeyChecking=no "$USERNAME@$HOST" "command -v docker >/dev/null 2>&1 || { echo 'Docker is not installed on remote'; exit 1; }; echo \"$PASSWORD\" | sudo -S -p '' env DOCKER_USER='$DOCKER_USER' DOCKER_TOKEN='$DOCKER_TOKEN' IMAGE='$IMAGE' TAG='$TAG' bash -lc '$REMOTE_CMDS'"
+                  sshpass -p "$PASSWORD" ssh -p 8622 -o StrictHostKeyChecking=no "$USERNAME@$HOST" "command -v docker >/dev/null 2>&1 || { echo 'Docker is not installed on remote'; exit 1; }; echo \"$PASSWORD\" | sudo -S -p '' env DOCKER_USER='$DOCKER_USER' DOCKER_TOKEN='$DOCKER_TOKEN' IMAGE='$IMAGE' TAG='$TAG' bash -lc '$REMOTE_CMDS'"

@@ -70,10 +70,11 @@ export const createSubscriptionSchema = z.object({
 export const upgradeSubscriptionSchema = z.object({
     planId: z.number().positive().or(z.string().min(1)),
     paymentMethod: z.string().optional(),
+    paymentId: z.string(),
     externalSubscriptionId: z.string().optional(),
-    code: z.string().optional(),
+    orderCode: z.string(),
     autoRenew: z.boolean().optional(),
-    paymentData:z.record(z.any()).optional(),
+    paymentData: z.record(z.any()).optional(),
 });
 
 export const updateSubscriptionSchema = z.object({
