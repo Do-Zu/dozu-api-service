@@ -46,12 +46,9 @@ class FlashcardController {
         const topicId = requestHelper.getIdParam(req, 'topicId');
 
         const { flashcardsAdded, flashcardsUpdated, flashcardsDeleted }: IFlashcardsBatchInput = req.body;
+        const data = { flashcardsAdded, flashcardsUpdated, flashcardsDeleted };
 
-        const result: IFlashcardBatchResult = await flashcardService.batchFlashcardsForTopic(userId, topicId, {
-            flashcardsAdded,
-            flashcardsUpdated,
-            flashcardsDeleted,
-        });
+        const result: IFlashcardBatchResult = await flashcardService.batchFlashcardsForTopic({ userId, topicId, data });
 
         SuccessResponse.created(res, result);
     }
@@ -196,11 +193,36 @@ class FlashcardController {
         const currentDate = getCurrentTimestampFromRequest(req);
 
         const { flashcardsAdded, flashcardsUpdated, flashcardsDeleted }: IFlashcardsBatchInput = req.body;
+        const data = { flashcardsAdded, flashcardsUpdated, flashcardsDeleted };
 
-        await flashcardService.batchFlashcardsForTopic(userId, topicId, {
-            flashcardsAdded,
-            flashcardsUpdated,
-            flashcardsDeleted,
+        await flashcardService.batchFlashcardsForTopic({ userId, topicId, data });
+
+        const flashcards = await flashcardService.getFlashcardsForTopic(topicId);
+        const dueAnkiCards = await flashcardService.getDueAnkiCardsForTopicAndUser(topicId, userId, currentDate);
+
+        SuccessResponse.ok(res, { flashcards, dueAnkiCards });
+    }
+
+    public async batchFlashcardsForNodeState(req: Request, res: Response) {
+        const userId = getUserIdFromRequest(req);
+        const topicId = requestHelper.getIdParam(req, 'topicId');
+        const nodeId = req.body.nodeId;
+        const currentDate = getCurrentTimestampFromRequest(req);
+        if (!nodeId) {
+            throw new BadRequest('nodeId is required');
+        }
+        if (req.body.flashcards === undefined || req.body.flashcards === null) {
+            throw new BadRequest('flashcards is required');
+        }
+
+        const { flashcardsAdded, flashcardsUpdated, flashcardsDeleted }: IFlashcardsBatchInput = req.body.flashcards;
+        const data = { flashcardsAdded, flashcardsUpdated, flashcardsDeleted };
+
+        await flashcardService.batchFlashcardsForTopic({
+            userId,
+            topicId,
+            nodeId,
+            data,
         });
 
         const flashcards = await flashcardService.getFlashcardsForTopic(topicId);

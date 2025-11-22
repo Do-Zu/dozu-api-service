@@ -81,7 +81,7 @@ export interface IImageSaveInput {
     downloadLocation: string;
 }
 
-export type IDueAnkiCard = Pick<IFlashcard, 'flashcardId' | 'front' | 'back' | 'imageUrl' | 'topicName'> & {
+export type IDueAnkiCard = Pick<IFlashcard, 'flashcardId' | 'front' | 'back' | 'imageUrl' | 'topicName' | 'nodeId'> & {
     nextReviewDataByRatings: INextReviewDataByRating[];
     nextReview: string;
     status: IItemStatus;
