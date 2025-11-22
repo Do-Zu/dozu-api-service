@@ -209,7 +209,7 @@ class GenerativeService extends BaseGenerativeService {
     public override async registerGenerateContentByLLM(
         requestData: GenerateContentRequestInterface
     ): Promise<GenerateContentResponseInterface> {
-        const { content, type } = requestData;
+        const { content, type, options } = requestData;
 
         // Generate unique ID for job tracking
         const jobId = uuidv4();
@@ -224,6 +224,7 @@ class GenerativeService extends BaseGenerativeService {
             queue_name: WORKER_NAME,
             job_name: JOB_NAME,
             type: typeSending,
+            options,
         };
 
         // Check rate limit and update remaining requests for model

@@ -4,6 +4,7 @@ import { decompressContent } from '../../../../utils/compress';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 import OpenAI from 'openai';
+import { IGenerateOptions } from '@/dtos/generate/models/GenerateContentRequestInterface';
 
 // Configure Redis connection
 const REDIS_HOST = process.env.REDIS_HOST || 'localhost';
@@ -67,6 +68,7 @@ export const handler = async (event: any) => {
             job_name,
             model,
             apiKey,
+            options,
             providerBaseUrl,
             isRawText = false,
             isAsync = true,
@@ -100,7 +102,7 @@ export const handler = async (event: any) => {
         });
 
         //generate content
-        const result = await generateContent(contentDecompressed, type, apiKey, providerBaseUrl, model);
+        const result = await generateContent(contentDecompressed, type, apiKey, providerBaseUrl, model, options);
 
         let job;
 
@@ -167,7 +169,8 @@ async function generateContent(
     type: TYPE_PROMPT,
     apiKey: string,
     baseURL: string,
-    model: string
+    model: string,
+    options?: IGenerateOptions
 ): Promise<any> {
     console.log(`Starting content generation with type: ${type}`);
 
@@ -181,7 +184,7 @@ async function generateContent(
         console.log('OpenAI client initialized');
 
         // Generate the appropriate prompt for the requested content type
-        const prompt = generatePromptText(content, type);
+        const prompt = generatePromptText(content, type, options);
 
         console.log(`Generated prompt`);
 
