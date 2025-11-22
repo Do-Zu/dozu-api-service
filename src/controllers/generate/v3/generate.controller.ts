@@ -22,7 +22,9 @@ class GenerateController {
         }
 
         if (options?.numberOfItem && options.numberOfItem > DEFAULT_MAX_ITEM_GEN) {
-            throw new BadRequest('Amount Item Request Over');
+            throw new BadRequest(
+                `Number of items requested (${options.numberOfItem}) exceeds the maximum limit of ${DEFAULT_MAX_ITEM_GEN}`
+            );
         }
 
         const jobInfo = await generativeService.registerGenerateContentByLLM({
