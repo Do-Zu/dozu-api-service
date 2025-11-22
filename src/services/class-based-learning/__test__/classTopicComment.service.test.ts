@@ -3,7 +3,7 @@
 import classTopicCommentService from '../classTopicComment.service';
 import classTopicCommentRepo from '@/repositories/class-based-learning/classTopicComment.repo';
 import { NotFoundError, BadRequest, DatabaseError } from '@/core/error';
-import { NodeType } from '@/models';
+import { NodeType } from '@/types/class-based-learning/classTopicComment.type';
 
 // Mock dependencies
 jest.mock('@/repositories/class-based-learning/classTopicComment.repo');
