@@ -23,7 +23,7 @@ export const createFlashcardPrompt = (
   - Focus on ${focus}
   - Difficulty level: ${difficulty}
   - Aim for the smallest effective set, approximately ${numberOfItem} flashcards
-  - Responses follow this format: [{"q": "your term/question", "a": "your definition/answer"}]
+  - Responses follow this format: [{"q": "your term/question", "a": "your definition/answer", "type": "One of ${listTypeStr} "}}]
   - Response follow language of the content
   - Create a variety format for flashcard: ${listTypeStr} styles
   - Output should be in only one array

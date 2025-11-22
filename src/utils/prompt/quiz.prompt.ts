@@ -28,7 +28,7 @@ export const createQuizPrompt = (
 - Create a variety of question types: OPEN-ENDED QUESTIONS, CLOSED-ENDED QUESTIONS, INVESTIGATION QUESTIONS, DIRECTIONAL QUESTIONS, REVERSE QUESTIONS
 - Randomize the position of the correct answer within the options
   Note: q: is question, o: options, idx: index of the correct answer (0-3). For example:
-[{"q": "Your question here", "o": ["A", "B", "C", "D"], "idx": 1}]
+[{"q": "Your question here", "o": ["A", "B", "C", "D"], "idx": 1, "type": "One of ${listTypeStr} "}]
 - Response follow language of the content
 - Output should be in only one array
 
