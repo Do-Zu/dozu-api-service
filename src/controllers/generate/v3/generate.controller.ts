@@ -5,12 +5,13 @@ import { BadRequest } from '@/core/error';
 import { SuccessResponse } from '@/core/success';
 import { isEmptyObject } from '@/utils/validate';
 import { GenerateContentRequestInterface, JobStatusResponseInterface } from '@/dtos/generate';
+import { DEFAULT_MAX_ITEM_GEN } from '@/utils/prompt';
 
 class GenerateController {
     constructor() {}
 
     async generateContent(req: Request, res: Response) {
-        const { content, type, inputSetId, method } = req.body as GenerateContentRequestInterface;
+        const { content, type, inputSetId, method, options } = req.body as GenerateContentRequestInterface;
 
         if (!content) {
             throw new BadRequest('Content is required');
@@ -20,7 +21,17 @@ class GenerateController {
             throw new BadRequest('Type is required');
         }
 
-        const jobInfo = await generativeService.registerGenerateContentByLLM({ content, type, inputSetId, method });
+        if (options?.numberOfItem && options.numberOfItem > DEFAULT_MAX_ITEM_GEN) {
+            throw new BadRequest('Amount Item Request Over');
+        }
+
+        const jobInfo = await generativeService.registerGenerateContentByLLM({
+            content,
+            type,
+            inputSetId,
+            method,
+            options,
+        });
 
         SuccessResponse.accepted(
             res,
