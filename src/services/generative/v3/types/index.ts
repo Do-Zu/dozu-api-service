@@ -1,9 +1,11 @@
+import { IGenerateOptions } from '@/dtos/generate/models/GenerateContentRequestInterface';
 import { TYPE_PROMPT } from '@/utils/prompt';
 
 export interface IBodyRequestGenContent {
     content: string;
     type: string;
     method: string;
+    options?: IGenerateOptions;
 }
 
 export interface ContentGenerationJobDataInterface {
@@ -23,6 +25,11 @@ export interface ContentGenerationJobDataInterface {
     type: TYPE_PROMPT;
 
     isRawText?: boolean;
+
+    /**
+     * Customize result of llm
+     */
+    options?: IGenerateOptions;
 }
 export interface IJobPushQueue {
     type: TYPE_PROMPT;
