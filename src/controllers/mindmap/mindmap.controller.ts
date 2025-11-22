@@ -143,7 +143,14 @@ export const updateFlashcardLinksController = async (req: Request, res: Response
 
     const linkedFlashcards = Array.isArray(body.linkedFlashcards) ? body.linkedFlashcards : [];
     const unlinkedFlashcards = Array.isArray(body.unlinkedFlashcards) ? body.unlinkedFlashcards : [];
-    
+
+    const overlapping = linkedFlashcards.filter(id => unlinkedFlashcards.includes(id));
+    if (overlapping.length > 0) {
+        throw new BadRequest(
+            `Flashcard IDs cannot appear in both linked and unlinked arrays: ${overlapping.join(', ')}`
+        );
+    }
+
     let result: { flashcardId: number; nodeId: string | null }[] = [];
 
     if (linkedFlashcards.length > 0) {
