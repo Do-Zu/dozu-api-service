@@ -6,6 +6,8 @@ export type ParentCommentId = number | null;
 
 export type NodeId = string;
 
+export type NodeType = 'mindmap' | 'flashcard' | 'quiz' | 'feed';
+
 export interface IClassTopicComment {
     commentId: number;
     topicId: TopicIdCommentClass;

@@ -13,11 +13,13 @@ import {
     getSingularNodeController,
     getTopicMindmapController,
     saveTopicMindmapController,
+    updateFlashcardLinksController,
     uploadImageTESTDELETELATER,
 } from '@/controllers/mindmap/mindmap.controller';
 import { fileUploadSingleMiddleware } from '@/libs/multer.lib';
 import paramsValidator from '@/core/validations/params.validator';
 import { verifyMindmapOwner } from '@/middleware/mindmap/mindmap.middleware';
+import topicMiddleware from '@/middleware/topic/topic.middleware';
 const router = express.Router();
 
 globalAsyncHandler(router);
@@ -30,7 +32,7 @@ router.post('/uploadImageTESTINGDELETELATER', fileUploadSingleMiddleware, upload
 router.post('/:topicId', saveTopicMindmapController);
 
 router.get('/:topicId', getTopicMindmapController);
-router.delete('/:topicId',verifyMindmapOwner,deleteMindmapController)
+router.delete('/:topicId', verifyMindmapOwner, deleteMindmapController);
 router.get('/:topicId/nodes', getAllNodesOfMindmapController);
 router.get('/:topicId/nodes/:nodeId/children', getAllChildrenOfANodeController);
 // router.get('/:topicId/nodes/:nodeId', getSingularNodeController);
@@ -43,7 +45,14 @@ router.get(
     getClassProgressOfNodeController
 );
 
-router.put('/:topicId/nodes/:nodeId', addFlashcardsToNodeController);
+// router.put('/:topicId/nodes/:nodeId', addFlashcardsToNodeController);
+router.put(
+    '/:topicId/nodes/:nodeId',
+    paramsValidator.validateId('topicId'),
+    topicMiddleware.verifyTopicByIdInParam,
+    topicMiddleware.verifyUserCanAccessTopic,
+    updateFlashcardLinksController
+);
 
 registerRoute('/mindmap', router, {
     description: 'Mindmap endpoints',
