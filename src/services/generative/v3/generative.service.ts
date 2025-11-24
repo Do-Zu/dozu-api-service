@@ -39,6 +39,7 @@ class GenerativeService extends BaseGenerativeService {
         mindmap: 'MIND_MAP',
         feynman_review: 'FEYNMAN_REVIEW',
         feynman_question: 'FEYNMAN_QUESTION',
+        short_summary: 'SHORT_SUMMARY',
     };
 
     // BullMQ Worker configuration

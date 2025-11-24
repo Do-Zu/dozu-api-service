@@ -9,13 +9,20 @@ import { flashcardRoutes } from '../flashcard/flashcard.routes';
 import topicMiddleware from '@/middleware/topic/topic.middleware';
 import { fileUploadSingleMiddleware } from '@/libs/multer.lib';
 import { noteRoutes } from '@/routes/note/note.routes';
+import noteController from '@/features/note/note.controller';
 
 const router = Router();
 globalAsyncHandler(router);
 
 router.use(authMiddleware);
 
-router.get('/:topicId', paramsValidator.validateId('topicId'), topicController.getTopicById);
+router.get(
+    '/:topicId',
+    paramsValidator.validateId('topicId'),
+    topicMiddleware.verifyTopicByIdInParam,
+    topicMiddleware.verifyUserCanAccessTopic,
+    topicController.getTopicById
+);
 router.get('/', topicController.getTopicsForUser);
 router.post(
     '/',
@@ -51,6 +58,14 @@ router.use(
     topicMiddleware.verifyTopicByIdInParam,
     topicMiddleware.verifyUserCanAccessTopic,
     noteRoutes
+);
+
+router.put(
+    '/:topicId/note',
+    paramsValidator.validateId('topicId'),
+    topicMiddleware.verifyTopicByIdInParam,
+    topicMiddleware.verifyUserCanAccessTopic,
+    noteController.updateNote
 );
 
 registerRoute('/topics', router, {
