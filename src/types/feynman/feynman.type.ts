@@ -26,3 +26,13 @@ export interface IGetSession {
     method: string;
     limit?: number;
 }
+
+export interface ICompareSimilarityRequest {
+    topicId: number;
+    methodLearning?: string;
+    type: string;
+    pattern: string;
+    query: string;
+    question: string;
+    metaData?: Record<string, unknown>;
+}

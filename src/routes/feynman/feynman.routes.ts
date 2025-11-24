@@ -12,6 +12,7 @@ router.post('/session', feynmanController.storageSessionFeynman);
 router.post('/session/retrieval', feynmanController.getFeynmanSession);
 router.post('/submit/review', feynmanController.updateReview);
 router.post('/modify', feynmanController.updateSession);
+router.post('/compare/similarity', feynmanController.compareSimilarQuestionAnswer);
 
 // Register the router
 registerRoute('/feynman', router, {
