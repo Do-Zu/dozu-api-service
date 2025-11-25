@@ -10,5 +10,6 @@ export const questionsTable = pgTable('questions', {
   questionText: text('question_text').notNull().default(''),
   choices: text('choices').array(),
   correctIndex: integer('correct_index'),
+  questionType: text('question_type'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });

@@ -5,6 +5,7 @@ export const questionSchema = z.object({
   questionText: z.string(),
   choices: z.array(z.string()).min(2),
   correctIndex: z.number().min(0),
+  questionType: z.string().optional().nullable(),
 });
 
 export const batchQuestionSchema = z.object({
