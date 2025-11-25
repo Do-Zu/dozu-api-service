@@ -21,6 +21,7 @@ public async handleGetAllQuestionsForTopic(topicId: number): Promise<IQuestionBa
       questionText: questionsTable.questionText,
       choices: questionsTable.choices,
       correctIndex: questionsTable.correctIndex,
+      questionType: questionsTable.questionType,
       status: itemSpacedRepetitionTrackingTable.status, 
     })
     .from(questionsTable)
@@ -39,6 +40,7 @@ public async handleGetAllQuestionsForTopic(topicId: number): Promise<IQuestionBa
     questionText: q.questionText,
     choices: q.choices ?? [],
     correctIndex: q.correctIndex ?? 0,
+    questionType: q.questionType ?? null,
     status: (q.status ?? 'new') as IFlashcardStatus, 
   }));
 }
@@ -52,6 +54,7 @@ public async handleGetAllQuestionsForTopic(topicId: number): Promise<IQuestionBa
       questionText: q.questionText,
       choices: q.choices,
       correctIndex: q.correctIndex,
+      questionType: q.questionType ?? null,
     })) ?? [];
 
     const updateOps = update
@@ -63,6 +66,7 @@ public async handleGetAllQuestionsForTopic(topicId: number): Promise<IQuestionBa
             questionText: q.questionText,
             choices: q.choices,
             correctIndex: q.correctIndex,
+            questionType: q.questionType ?? null,
           })
           .where(eq(questionsTable.questionId, q.id as number))
       ) ?? [];
