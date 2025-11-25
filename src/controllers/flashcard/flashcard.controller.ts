@@ -162,12 +162,11 @@ class FlashcardController {
             ankiResult.nextReviewInterval.timeUnit === TimeUnit.MINUTE &&
             ankiResult.nextReviewInterval.interval <= learnAheadLimit
         ) {
-            const ankiSetting = await ankiSettingService.getSettingForTopicAndUser(topicId, userId);
             result = {
                 flashcardId,
                 nextReview: sm2Info.nextReview,
                 status: sm2Info.status,
-                nextReviewDataByRatings: flashcardService.getNextReviewByRatings(flashcardId, sm2Info, ankiSetting),
+                learningState: sm2Info,
                 rating,
             };
         } else {
