@@ -34,7 +34,7 @@ class SSEManager {
         });
 
         // Send initial connection established message
-        res.write(`data: ${JSON.stringify({ status: STATUS_GEN.completed, jobId })}\n\n`);
+        res.write(`data: ${JSON.stringify({ status: STATUS_GEN.connected, jobId })}\n\n`);
 
         // Add client to the map (one client per jobId)
         this.clients.set(jobId, res);
