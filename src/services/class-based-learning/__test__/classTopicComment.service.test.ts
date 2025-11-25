@@ -3,7 +3,7 @@
 import classTopicCommentService from '../classTopicComment.service';
 import classTopicCommentRepo from '@/repositories/class-based-learning/classTopicComment.repo';
 import { NotFoundError, BadRequest, DatabaseError } from '@/core/error';
-import { NodeType } from '@/models';
+import { NodeType } from '@/types/class-based-learning/classTopicComment.type';
 
 // Mock dependencies
 jest.mock('@/repositories/class-based-learning/classTopicComment.repo');
@@ -54,7 +54,7 @@ describe('ClassTopicCommentService', () => {
     describe('getCommentsWithReplies', () => {
         it('should return comments with their replies', async () => {
             const nodeId = 'node-1';
-            const typeNode = 'mindmap' as NodeType;
+            const typeNode = 'mindmap';
             const rootComments = [{ commentId: 1, content: 'root' }] as any[];
             const replies = [{ commentId: 2, parentCmtId: 1, content: 'reply' }] as any[];
 
@@ -76,7 +76,7 @@ describe('ClassTopicCommentService', () => {
             topicId: 1,
             content: 'test',
             nodeId: 'node-1',
-            typeNode: 'mindmap' as NodeType,
+            typeNode: 'mindmap',
         };
 
         it('should create a root comment successfully', async () => {

@@ -1,5 +1,5 @@
 import db from '@/libs/drizzleClient.lib';
-import flashcardRepo, { ICreateFlashcardRepo, IUpdateFlashcardRepo } from '@/repositories/flashcard.repo';
+import flashcardRepo, { IUpdateFlashcardRepo } from '@/repositories/flashcard.repo';
 import {
     IFlashcardCreateInput,
     IFlashcard,
@@ -23,14 +23,13 @@ import unsplashLib from '@/libs/unsplash.lib';
 import AnkiService, {
     IAnkiCard,
     IAnkiRating,
-    IAnkiStatus,
     IBaseIntervalWithDeviation,
     INextReviewInterval,
     learnAheadLimit,
 } from '../spaced-repetition-system/super-memo-2/anki.service';
 import { addMinutes } from 'date-fns';
 import { IAnkiSetting } from '@/types/anki-setting/ankiSetting.type';
-import ankiSettingService from '../anki-setting/ankiSetting.service';
+import { TypeInsertFlashcard } from '@/models';
 
 export type IFlashcardWithReviewPrediction = Pick<
     IFlashcard,
@@ -58,11 +57,17 @@ class FlashcardService {
         return flashcards;
     }
 
-    public async createFlashcardsForTopic(
-        userId: number,
-        topicId: number,
-        flashcards: IFlashcardCreateInput[]
-    ): Promise<IFlashcard[]> {
+    public async createFlashcardsForTopic({
+        userId,
+        topicId,
+        nodeId,
+        flashcards,
+    }: {
+        userId: number;
+        topicId: number;
+        nodeId?: string | null | undefined;
+        flashcards: IFlashcardCreateInput[];
+    }): Promise<IFlashcard[]> {
         const roles = await getUserRoles(userId);
         const isTeacher = roles.find(role => role.name === 'teacher') !== undefined;
 
@@ -70,15 +75,19 @@ class FlashcardService {
             if (card.image) await this.saveFlashcardImage(card.image);
         }
 
-        const data: ICreateFlashcardRepo[] = flashcards.map(flashcard => {
+        const data: TypeInsertFlashcard[] = flashcards.map(flashcard => {
             const card = {
                 topicId,
                 front: flashcard.front,
                 back: flashcard.back,
                 imageUrl: flashcard.image?.url, // insert imageUrl
+                nodeId,
             };
             if (card.imageUrl === undefined) {
                 delete card['imageUrl'];
+            }
+            if (card.nodeId === undefined) {
+                delete card['nodeId'];
             }
             return card;
         });
@@ -182,7 +191,7 @@ class FlashcardService {
         await flashcardRepo.insertFlashcardsIntoTopic(userId, topicId, data);
     }
 
-    public async updateFlashcardsInTopic(flashcards: IFlashcardUpdateInput[]): Promise<IFlashcard[]> {
+    public async updateFlashcardsByIds(flashcards: IFlashcardUpdateInput[]): Promise<IFlashcard[]> {
         for (const card of flashcards) {
             if (card.image) await this.saveFlashcardImage(card.image);
         }
@@ -191,7 +200,7 @@ class FlashcardService {
                 flashcardId: flashcard.flashcardId,
                 front: flashcard.front,
                 back: flashcard.back,
-                imageUrl: flashcard.image?.url, // insert imageUrl
+                imageUrl: flashcard.image?.url, // update imageUrl
             };
             if (card.imageUrl === undefined) {
                 delete card['imageUrl'];
@@ -210,19 +219,31 @@ class FlashcardService {
     }
 
     // todo-ka: use transaction
-    public async batchFlashcardsForTopic(
-        userId: number,
-        topicId: number,
-        { flashcardsAdded, flashcardsUpdated, flashcardsDeleted }: IFlashcardsBatchInput
-    ): Promise<IFlashcardBatchResult> {
+    public async batchFlashcardsForTopic({
+        userId,
+        topicId,
+        nodeId,
+        data,
+    }: {
+        userId: number;
+        topicId: number;
+        nodeId?: string | null | undefined;
+        data: IFlashcardsBatchInput;
+    }): Promise<IFlashcardBatchResult> {
+        const { flashcardsAdded, flashcardsUpdated, flashcardsDeleted } = data;
         let result: IFlashcardBatchResult = { flashcardsAdded: [], flashcardsUpdated: [] };
 
         if (flashcardsAdded && flashcardsAdded.length > 0) {
-            result.flashcardsAdded = await this.createFlashcardsForTopic(userId, topicId, flashcardsAdded);
+            result.flashcardsAdded = await this.createFlashcardsForTopic({
+                userId,
+                topicId,
+                nodeId,
+                flashcards: flashcardsAdded,
+            });
         }
 
         if (flashcardsUpdated && flashcardsUpdated.length > 0) {
-            result.flashcardsUpdated = await this.updateFlashcardsInTopic(flashcardsUpdated);
+            result.flashcardsUpdated = await this.updateFlashcardsByIds(flashcardsUpdated);
         }
 
         if (flashcardsDeleted && flashcardsDeleted.length > 0) {
@@ -299,19 +320,15 @@ class FlashcardService {
             dueDate.toISOString()
         );
 
-        const ankiSetting = await ankiSettingService.getSettingForTopicAndUser(topicId, userId);
         const dueAnkiCards: IDueAnkiCard[] = dueFlashcards.map(card => {
             return {
+                nodeId: card.nodeId,
                 flashcardId: card.flashcardId,
                 front: card.front,
                 back: card.back,
                 imageUrl: card.imageUrl,
                 topicName: card.topicName,
-                nextReviewDataByRatings: this.getNextReviewByRatings(
-                    card.flashcardId,
-                    card.learningState!,
-                    ankiSetting
-                ),
+                learningState: card.learningState as IFlashcardLearningState,
                 nextReview: card.learningState!.nextReview,
                 status: card.learningState!.status,
             };

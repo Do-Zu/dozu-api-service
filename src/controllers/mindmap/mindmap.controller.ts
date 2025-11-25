@@ -17,9 +17,12 @@ import {
     getFlashcardsOfNodeWithSummaryService,
     getMindmapAndProgressSummaryService,
     getSingleNodeService,
+    linkFlashcardsToNodeService,
+    unlinkFlashcardsFromNodeService,
 } from '@/services/mindmap/mindmap.service';
 import { uploadImage } from '@/libs/cloudinary.lib';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
+import requestHelper from '@/core/request/request.helper';
 
 export const saveTopicMindmapController = async (req: Request, res: Response) => {
     const topicId = parseInt(req.params.topicId);
@@ -126,6 +129,48 @@ export const addFlashcardsToNodeController = async (req: Request, res: Response)
     SuccessResponse.ok(res, result);
 };
 
+export const updateFlashcardLinksController = async (req: Request, res: Response) => {
+    const topicId = requestHelper.getIdParam(req, 'topicId');
+    const nodeId = req.params.nodeId;
+    if (!nodeId) {
+        throw new BadRequest('nodeId is required');
+    }
+
+    const body = req.body as Partial<{
+        linkedFlashcards: number[];
+        unlinkedFlashcards: number[];
+    }>;
+
+    const linkedFlashcards = Array.isArray(body.linkedFlashcards) ? body.linkedFlashcards : [];
+    const unlinkedFlashcards = Array.isArray(body.unlinkedFlashcards) ? body.unlinkedFlashcards : [];
+
+    const overlapping = linkedFlashcards.filter(id => unlinkedFlashcards.includes(id));
+    if (overlapping.length > 0) {
+        throw new BadRequest(
+            `Flashcard IDs cannot appear in both linked and unlinked arrays: ${overlapping.join(', ')}`
+        );
+    }
+
+    let result: { flashcardId: number; nodeId: string | null }[] = [];
+
+    if (linkedFlashcards.length > 0) {
+        const linkedResult = await linkFlashcardsToNodeService({ topicId, nodeId, flashcards: linkedFlashcards });
+        const temp = linkedResult.map(card => ({ flashcardId: card.flashcardId, nodeId: card.nodeId }));
+        result = result.concat(temp);
+    }
+    if (unlinkedFlashcards.length > 0) {
+        const unlinkedResult = await unlinkFlashcardsFromNodeService({
+            topicId,
+            nodeId,
+            flashcards: unlinkedFlashcards,
+        });
+        const temp = unlinkedResult.map(card => ({ flashcardId: card.flashcardId, nodeId: card.nodeId }));
+        result = result.concat(temp);
+    }
+
+    SuccessResponse.ok(res, result);
+};
+
 export const getFlashcardsOfNodeController = async (req: Request, res: Response) => {
     const nodeId = req.params.nodeId;
     const userId = getUserIdFromRequest(req);
@@ -165,12 +210,12 @@ export const uploadImageTESTDELETELATER = async (req: Request, res: Response) =>
     SuccessResponse.ok(res, { object: imageObject });
 };
 
-export const deleteMindmapController=async (req: Request, res: Response) => {
-     const topicId = parseInt(req.params.topicId);
+export const deleteMindmapController = async (req: Request, res: Response) => {
+    const topicId = parseInt(req.params.topicId);
     if (!topicId) {
         throw new BadRequest('Missing topic id');
     } else {
-        await deleteMindmapService({topicId:topicId});
-        SuccessResponse.ok(res,{message:'Deleted'});
+        await deleteMindmapService({ topicId: topicId });
+        SuccessResponse.ok(res, { message: 'Deleted' });
     }
 };
