@@ -1,7 +1,6 @@
 import { IQualityResponse } from '@/services/spaced-repetition-system/super-memo-2/superMemo2.service';
 import { z } from 'zod';
 import { IItemSpacedRepetition } from '../tracking/itemSpacedRepetitionTracking.type';
-import { INextReviewDataByRating } from '@/services/flashcard/flashcard.service';
 import { IItemStatus } from '@/models';
 import { IAnkiRating } from '@/services/spaced-repetition-system/super-memo-2/anki.service';
 
@@ -82,14 +81,14 @@ export interface IImageSaveInput {
 }
 
 export type IDueAnkiCard = Pick<IFlashcard, 'flashcardId' | 'front' | 'back' | 'imageUrl' | 'topicName' | 'nodeId'> & {
-    nextReviewDataByRatings: INextReviewDataByRating[];
+    learningState: IFlashcardLearningState;
     nextReview: string;
     status: IItemStatus;
 };
 
 export type IAnkiCardReviewed = Pick<IFlashcard, 'flashcardId'> & {
+    learningState: IFlashcardLearningState;
     nextReview: string;
     status: IItemStatus;
-    nextReviewDataByRatings: INextReviewDataByRating[];
     rating: IAnkiRating;
 };
