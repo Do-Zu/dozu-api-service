@@ -1,10 +1,11 @@
 import { Request, Response } from 'express';
 import { generativeService } from '@/services/generative/v3/generative.service';
-
-import { BadRequest } from '@/core/error';
 import { SuccessResponse } from '@/core/success';
-import { isEmptyObject } from '@/utils/validate';
+import { BadRequest } from '@/core/error';
 import { GenerateContentRequestInterface, JobStatusResponseInterface } from '@/dtos/generate';
+import { isEmpty } from '@/utils/common';
+import logger from '@/utils/logger';
+import { STATUS_GEN } from '@/services/generative/utils/constant';
 import { DEFAULT_MAX_ITEM_GEN } from '@/utils/prompt';
 
 class GenerateController {
@@ -17,7 +18,7 @@ class GenerateController {
             throw new BadRequest('Content is required');
         }
 
-        if (!type || (typeof type === 'object' && !isEmptyObject(type))) {
+        if (isEmpty(type)) {
             throw new BadRequest('Type is required');
         }
 
@@ -45,7 +46,57 @@ class GenerateController {
         );
     }
 
-    async getGenerateContentStatus(req: Request, res: Response<JobStatusResponseInterface>) {
+    public async streamGenerateContent(req: Request, res: Response) {
+        let isClientDisConnected = false;
+
+        try {
+            const { content, type, inputSetId, method } = req.body as GenerateContentRequestInterface;
+
+            if (!content) {
+                throw new BadRequest('Content is required');
+            }
+
+            if (isEmpty(type)) {
+                throw new BadRequest('Type is required');
+            }
+
+            res.writeHead(200, {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                Connection: 'keep-alive',
+            });
+
+            res.write(`data: ${JSON.stringify({ status: STATUS_GEN.connected })}\n\n`);
+
+            res.on('close', () => {
+                isClientDisConnected = true;
+                logger.info(`Client disconnected`);
+            });
+
+            const streamGenerator = generativeService.streamGenerateContent({ content, type, inputSetId, method });
+
+            for await (const packet of streamGenerator) {
+                if (isClientDisConnected) break;
+
+                res.write(`data: ${JSON.stringify(packet)}\n\n`);
+
+                // if (res.flush) res.flush();
+            }
+
+            if (!isClientDisConnected) {
+                res.write(`data: ${JSON.stringify({ status: STATUS_GEN.completed })}\n\n`);
+                res.end();
+            }
+        } catch (error) {
+            if (!isClientDisConnected) {
+                res.write(`data: ${JSON.stringify({ status: STATUS_GEN.error, error })}\n\n`);
+            }
+
+            res.end();
+        }
+    }
+
+    public async getGenerateContentStatus(req: Request, res: Response<JobStatusResponseInterface>) {
         const { jobId, type } = req.body;
 
         if (!jobId) {
