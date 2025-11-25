@@ -29,23 +29,13 @@ class NoteController {
             throw new BadRequest('Content is required');
         }
 
-        const [note] = await db
-            .select()
-            .from(notesTable)
-            .where(and(eq(notesTable.userId, userId), eq(notesTable.topicId, topicId)));
+        const [result] = await db
+            .insert(notesTable)
+            .values({ userId, topicId, content })
+            .onConflictDoUpdate({ target: [notesTable.userId, notesTable.topicId], set: { content } })
+            .returning();
 
-        if (note) {
-            const [updated] = await db
-                .update(notesTable)
-                .set({ content })
-                .where(and(eq(notesTable.userId, userId), eq(notesTable.noteId, note.noteId)))
-                .returning();
-
-            SuccessResponse.created(res, updated);
-        } else {
-            const [inserted] = await db.insert(notesTable).values({ userId, topicId, content }).returning();
-            SuccessResponse.ok(res, inserted);
-        }
+        SuccessResponse.ok(res, result);
     }
 }
 
