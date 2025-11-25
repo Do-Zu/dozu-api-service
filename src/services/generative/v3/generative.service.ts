@@ -194,7 +194,7 @@ class GenerativeService extends BaseGenerativeService {
 
     private mapRequestType(input: string): TYPE_PROMPT {
         const key = lowercase(input);
-        return this.TYPE_PROMPT_MAPPING[key] ?? 'FLASH_CARD';
+        return this.TYPE_PROMPT_MAPPING[key];
     }
 
     /**
