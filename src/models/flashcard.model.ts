@@ -13,3 +13,5 @@ export const flashcardsTable = pgTable('flashcards', {
   imageUrl: text('image_url'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+export type TypeInsertFlashcard = typeof flashcardsTable.$inferInsert;

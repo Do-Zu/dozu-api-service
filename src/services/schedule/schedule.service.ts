@@ -13,6 +13,7 @@ import { SchedulePriorityQueue } from '@/utils/queue/schedule.queue';
 import { BadRequest } from '@/core/error';
 import { redisInstance as redis } from '@/libs/redis/default/redisDefault';
 import { addDays, addMinutes, differenceInDays, differenceInMinutes, isValid, parse, parseISO } from 'date-fns';
+import { isEmpty } from '@/utils/common';
 
 const DEFINE_DEFAULT_FREE_TIME: FreeTimeSlotDays = {
     Monday: [
@@ -201,7 +202,7 @@ class ScheduleService {
             toDateString
         );
 
-        if (listItemTracking.length === 0) {
+        if (isEmpty(listItemTracking)) {
             return {
                 schedules: {},
                 waitingTopics: [],
@@ -311,11 +312,11 @@ class ScheduleService {
         const scheduleGenerateFollowFreeTimeSlotPerDay: Record<string, IItemScheduleGenerated[]> = {};
 
         const scheduleWaitingPriorityQueue = new SchedulePriorityQueue<IGroupTopic[]>(
-            (topic1, topic2) => this.calculatePriority(topic2) - this.calculatePriority(topic1) // Higher priority first
+            (topic1, topic2) => this.calculatePriority(topic1) - this.calculatePriority(topic2) // Higher priority first
         );
 
         const dailyPriorityQueue = new SchedulePriorityQueue<IItemScheduleGenerated>(
-            (topic1, topic2) => topic2.priority - topic1.priority
+            (topic1, topic2) => topic1.priority - topic2.priority
         );
 
         let totalItems = 0;
@@ -377,7 +378,7 @@ class ScheduleService {
                 const chunks = this.splitItemsIntoStudyChunks(items, itemsPerSlot);
 
                 for (const chunk of chunks) {
-                    if (!chunk || !chunk.length) continue;
+                    if (isEmpty(chunk)) continue;
 
                     const priority = this.calculatePriority(chunk);
 
@@ -612,7 +613,7 @@ class ScheduleService {
         const chunks: IGroupTopic[][] = [];
 
         if (items.length <= targetItemsPerChunk) {
-            return [items];
+            return [];
         }
 
         // Sort items by priority (new items first, then by difficulty)
@@ -698,7 +699,7 @@ class ScheduleService {
             const statusScore =
                 this.PRIORITY_STATUS_ITEM_LEARNING_TRACKING[
                     item.status as keyof typeof this.PRIORITY_STATUS_ITEM_LEARNING_TRACKING
-                ];
+                ] ?? 0;
 
             const score =
                 overdueScore * this.WEIGHT_STRATEGY.OVERDUE +
@@ -712,7 +713,9 @@ class ScheduleService {
             };
         });
 
-        const meanPriority = scores.reduce((sum, item) => sum + item.score, 0) / (scores.length ?? 1);
+        const len = scores.length || 1;
+
+        const meanPriority = scores.reduce((sum, s) => sum + (Number.isFinite(s.score) ? s.score : 0), 0) / len;
 
         /**
          * TODO for medianPriority
@@ -790,11 +793,14 @@ class ScheduleService {
         preferences,
     }: {
         userId: number;
-        preferences: Partial<{
+        preferences: {
             studyPreferences: string[];
-            avgStudyDuration: string | number;
+            preferences: {
+                studyDuration: number | null;
+                studyMethods: string[];
+            };
             freeTime: FreeTimeSlotDays;
-        }>;
+        };
     }) {
         const user = await userRepository.getUserById(userId);
 
@@ -804,7 +810,7 @@ class ScheduleService {
 
         const update = await userRepository.batchUpdatePreferencesSchedule({
             userId,
-            preferences,
+            preferencesParam: preferences,
         });
 
         return {
