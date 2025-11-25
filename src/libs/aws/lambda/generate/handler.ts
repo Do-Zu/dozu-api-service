@@ -233,15 +233,9 @@ async function generateContent(
 
             // If the response is already an array, use it directly
             // If it's an object, try to extract the array from it
-            let data: any[];
+            const data: any = jsonData;
 
-            if (Array.isArray(jsonData) || typeof jsonData === 'object') {
-                data = jsonData;
-            } else {
-                data = [jsonData];
-            }
-
-            console.log(`Successfully parsed JSON data, items: ${data.length}`);
+            console.log(`Successfully parsed JSON data`);
 
             return {
                 data,
