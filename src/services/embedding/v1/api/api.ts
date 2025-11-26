@@ -1,23 +1,14 @@
 import axios from 'axios';
 import { HTTP_STATUS } from '@/constants/index.constant';
 import { BadRequest, ServiceUnavailable } from '@/core/error';
+import { CompareEmbeddingRequest, CompareEmbeddingResponse } from '../types/embedding.type';
 import logger from '@/utils/logger';
 
 export const BASE_API_EMBEDDING_SERVICE = process.env.EMBEDDING_API_URL;
 
-interface CompareEmbeddingRequest {
-    pattern: string;
-    query: string;
-}
-
-interface CompareEmbeddingResponse {
-    similarity: number;
-    queryEmbedding: number[];
-    patternEmbedding: number[];
-}
-
 class EmbeddingApiService {
     private baseUrl: string;
+    private DEFAULT_TIMEOUT = 30000; // 30 seconds
 
     constructor() {
         this.baseUrl = BASE_API_EMBEDDING_SERVICE || '';
@@ -42,10 +33,16 @@ class EmbeddingApiService {
 
             const url = `${this.baseUrl}/embedding/compare`;
 
-            const { data, status, statusText } = await axios.post<CompareEmbeddingResponse>(url, {
-                pattern,
-                query,
-            });
+            const { data, status, statusText } = await axios.post<CompareEmbeddingResponse>(
+                url,
+                {
+                    pattern,
+                    query,
+                },
+                {
+                    timeout: this.DEFAULT_TIMEOUT,
+                }
+            );
 
             if (status !== HTTP_STATUS.OK) {
                 throw new ServiceUnavailable(`Failed to compare embeddings: ${statusText}`);
