@@ -39,8 +39,6 @@ class QuestionController {
         }
 
         const { insert, update, delete: deleteIds }: QuestionBatchPayload = req.body;
-        console.log("Batch received:", req.body);
-
 
         try {
             await questionService.handleBatchQuestions(topicId, {

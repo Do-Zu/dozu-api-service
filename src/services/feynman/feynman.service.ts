@@ -35,19 +35,11 @@ class FeynmanService {
     };
 
     public compareSimilarQuestionAnswer = async (payload: ICompareSimilarityRequest) => {
-        const { pattern, query, topicId, type, question } = safeDestructure(payload);
+        const { pattern, query } = safeDestructure(payload);
 
         const MAX_SCORE = 4;
 
-        // Execute both API calls in parallel for better performance
-        const [{ similarity }, reference] = await Promise.all([
-            embeddingApiService.compareEmbedding({ pattern, query }),
-            embeddingService.queryTopSimilarity({
-                query: `${question}: ${pattern}`,
-                topicId,
-                type,
-            }),
-        ]);
+        const { similarity } = await embeddingApiService.compareEmbedding({ pattern, query });
 
         // Calculate score based on similarity thresholds
         const score = Math.min(Math.ceil(similarity / 0.25), MAX_SCORE);
@@ -56,8 +48,7 @@ class FeynmanService {
             similarityAnswer: similarity,
             score,
             maxScore: MAX_SCORE,
-            originContent: reference?.[0],
-            reference,
+            isCorrect: similarity > 0.75,
         };
     };
 }
