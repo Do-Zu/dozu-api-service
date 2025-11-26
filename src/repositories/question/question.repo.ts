@@ -21,6 +21,8 @@ class QuestionRepo {
                 questionText: questionsTable.questionText,
                 choices: questionsTable.choices,
                 correctIndex: questionsTable.correctIndex,
+                hint: questionsTable.hint,
+                explain: questionsTable.explain,
                 questionType: questionsTable.questionType,
                 status: itemSpacedRepetitionTrackingTable.status,
             })
@@ -41,6 +43,8 @@ class QuestionRepo {
             choices: q.choices ?? [],
             correctIndex: q.correctIndex ?? 0,
             questionType: q.questionType ?? null,
+            hint: q.hint,
+            explain: q.explain,
             status: (q.status ?? 'new') as IFlashcardStatus,
         }));
     }
