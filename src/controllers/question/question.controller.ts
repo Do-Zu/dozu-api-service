@@ -4,6 +4,7 @@ import { SuccessResponse } from '@/core/success';
 import { questionService } from '@/services/question/question.service';
 import topicService from '@/services/topic/topic.service';
 import { QuestionBatchPayload } from '@/dtos/question/ question.dto';
+import logger from '@/utils/logger';
 
 class QuestionController {
     constructor() {}
@@ -45,7 +46,8 @@ class QuestionController {
                 update,
                 delete: deleteIds,
             });
-        } catch {
+        } catch (error) {
+            logger.error('Failed to batch process questions', { topicId, error });
             throw new DatabaseError('Failed to batch process questions');
         }
 
