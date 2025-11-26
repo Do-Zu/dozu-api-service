@@ -33,7 +33,7 @@ class EmbeddingApiService {
 
             const url = `${this.baseUrl}/embedding/compare`;
 
-            const { data, status, statusText } = await axios.post<CompareEmbeddingResponse>(
+            const { data } = await axios.post<CompareEmbeddingResponse>(
                 url,
                 {
                     pattern,
@@ -43,10 +43,6 @@ class EmbeddingApiService {
                     timeout: this.DEFAULT_TIMEOUT,
                 }
             );
-
-            if (status !== HTTP_STATUS.OK) {
-                throw new ServiceUnavailable(`Failed to compare embeddings: ${statusText}`);
-            }
 
             return data;
         } catch (error) {
