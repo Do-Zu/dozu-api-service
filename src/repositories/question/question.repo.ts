@@ -10,6 +10,7 @@ export type IQuestionBasic = {
     choices: string[];
     correctIndex: number;
     status: IFlashcardStatus;
+    questionType: string | null;
 };
 
 class QuestionRepo {
