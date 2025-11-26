@@ -5,7 +5,7 @@ const defaultOptions = {
     numberOfItem: 20,
     difficulty: 'Medium',
     focus: 'essential concepts and key points',
-    listType: ['question', 'true/false', 'open-ended', ' multiple-choice', 'fill-in-the-blank'],
+    listType: ['QUESTION', 'TRUE FALSE', 'OPEN ENDED', 'MULTIPLE CHOICE', 'FILL BLANK'],
 };
 
 export const createFlashcardPrompt = (
@@ -17,16 +17,41 @@ export const createFlashcardPrompt = (
         ...defaultOptionsParam,
     });
 
-    const listTypeStr = listType?.join(', ');
+    const validListTypes = listType?.map(t => t.trim()).join(', ');
 
-    return `Create flashcards from the following content.
-  - Focus on ${focus}
-  - Difficulty level: ${difficulty}
-  - Aim for the smallest effective set, approximately ${numberOfItem} flashcards
-  - Responses follow this format: [{"q": "your term/question", "a": "your definition/answer", "type": "One of ${listTypeStr} "}}]
-  - Response follow language of the content
-  - Create a variety format for flashcard: ${listTypeStr} styles
-  - Output should be in only one array
-  
-  Content: ${content}`;
+    return `
+# ROLE
+You are an expert in Learning Science and Spaced Repetition Systems.
+
+# TASK
+Create a set of ${numberOfItem} flashcards based on the provided CONTENT.
+
+# CONSTRAINTS
+1. **Quantity:** Generate exactly ${numberOfItem} flashcards.
+2. **Difficulty:** ${difficulty}.
+3. **Focus:** Focus strictly on ${focus}.
+4. **Language:** The output language MUST match the language of the CONTENT text.
+5. **Format:** Return ONLY a valid JSON array. No markdown, no intro text.
+6. **Brevity:** The "a" (Answer) side must be concise (under 50 words). Avoid long paragraphs. 
+7. **Atomic Principle:** Each card should test only ONE specific concept.
+
+# FLASHCARD TYPES formatting
+You must format the "q" (Front) and "a" (Back) according to the selected types: ${validListTypes}
+
+# OUTPUT SCHEMA
+The output must strictly follow this define:
+{
+  q: string; // The front of the card (Prompt)
+  a: string; // The back of the card (Solution)
+  type: string; // One of: ${validListTypes}
+}
+
+# CONTENT
+"""
+${content}
+"""
+
+# RESPONSE
+ Should be in only one array
+`;
 };
