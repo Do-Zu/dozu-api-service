@@ -1,4 +1,4 @@
-import { BadRequest, NotFoundError } from '@/core/error';
+import { BadRequest } from '@/core/error';
 import requestHelper from '@/core/request/request.helper';
 import { SuccessResponse } from '@/core/success';
 import db from '@/libs/drizzleClient.lib';
@@ -13,44 +13,27 @@ class NoteController {
         const userId = getUserIdFromRequest(req);
         const topicId = requestHelper.getIdParam(req, 'topicId');
         const [result] = await db
-            .insert(notesTable)
-            .values({ userId, topicId })
-            .onConflictDoNothing({ target: [notesTable.userId, notesTable.topicId] })
-            .returning();
+            .select()
+            .from(notesTable)
+            .where(and(eq(notesTable.userId, userId), eq(notesTable.topicId, topicId)));
 
-        if (!result) {
-            const [existing] = await db
-                .select()
-                .from(notesTable)
-                .where(and(eq(notesTable.userId, userId), eq(notesTable.topicId, topicId)));
-
-            if (!existing) {
-                throw new NotFoundError('Note not found');
-            }
-            SuccessResponse.ok(res, existing);
-            return;
-        }
-
-        SuccessResponse.ok(res, result);
+        SuccessResponse.ok(res, result ?? null);
     }
 
-    public async updateNoteById(req: Request, res: Response) {
+    public async updateNote(req: Request, res: Response) {
         const userId = getUserIdFromRequest(req);
-        const noteId = requestHelper.getIdParam(req, 'noteId');
+        const topicId = requestHelper.getIdParam(req, 'topicId');
+
         const { content } = req.body as IUpdateNoteBody;
         if (content === null || content === undefined) {
             throw new BadRequest('Content is required');
         }
 
         const [result] = await db
-            .update(notesTable)
-            .set({ content })
-            .where(and(eq(notesTable.userId, userId), eq(notesTable.noteId, noteId)))
+            .insert(notesTable)
+            .values({ userId, topicId, content })
+            .onConflictDoUpdate({ target: [notesTable.userId, notesTable.topicId], set: { content } })
             .returning();
-
-        if (!result) {
-            throw new NotFoundError('Note not found');
-        }
 
         SuccessResponse.ok(res, result);
     }

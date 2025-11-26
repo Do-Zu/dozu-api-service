@@ -151,7 +151,7 @@ class AnkiService {
         let nextReviewInterval: INextReviewInterval;
         let baseIntervalWithDeviation: IBaseIntervalWithDeviation | null = null;
         const { learningSteps, startingEase, graduatingInterval, easyInterval } = this.ankiSetting;
-        if (learningSteps.length === 0 || (card.step && card.step >= learningSteps.length)) {
+        if (learningSteps.length === 0 || (card.step !== null && card.step >= learningSteps.length)) {
             card.status = IAnkiStatus.REVIEW;
             card.step = null;
             card.easinessFactor = startingEase.toFixed(3);
@@ -372,7 +372,7 @@ class AnkiService {
         let baseIntervalWithDeviation: IBaseIntervalWithDeviation | null = null;
         const { intervalModifier, minimumInterval, maximumInterval, relearningSteps, easyBonus } = this.ankiSetting;
 
-        if (relearningSteps.length === 0 || (card.step && card.step >= relearningSteps.length)) {
+        if (relearningSteps.length === 0 || (card.step !== null && card.step >= relearningSteps.length)) {
             card.status = IAnkiStatus.REVIEW;
             card.step = null;
             // do not update ease

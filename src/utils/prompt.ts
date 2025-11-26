@@ -3,6 +3,8 @@ import { createFeynmanEvaluationPrompt, createFeynmanPromptGenerateQuestion } fr
 import { createFlashcardPrompt } from './prompt/flashcard.prompt';
 import { createQuizPrompt } from './prompt/quiz.prompt';
 import { IGenerateOptions } from '@/dtos/generate/models/GenerateContentRequestInterface';
+import summaryPrompt from './prompt/summary.prompt';
+
 export const DEFAULT_MAX_ITEM_GEN = 40;
 const PROMPT_SUMMARY_CONTENT = `Create a summary of the following content.
 - Focus on essential concepts and key points only
@@ -19,7 +21,8 @@ export type TYPE_PROMPT =
     | 'MIND_MAP'
     | 'QUIZ'
     | 'FEYNMAN_QUESTION'
-    | 'FEYNMAN_REVIEW';
+    | 'FEYNMAN_REVIEW'
+    | 'SHORT_SUMMARY';
 
 const generatePromptText = (content: string, type: TYPE_PROMPT, options?: IGenerateOptions): string => {
     switch (type) {
@@ -33,6 +36,8 @@ const generatePromptText = (content: string, type: TYPE_PROMPT, options?: IGener
             return createFeynmanPromptGenerateQuestion(content);
         case 'FEYNMAN_REVIEW':
             return createFeynmanEvaluationPrompt(content);
+        case 'SHORT_SUMMARY':
+            return summaryPrompt.createShortSummaryPrompt(content);
         default:
             return `${PROMPT_SUMMARY_CONTENT} 
                 Content: ${content}`;

@@ -20,7 +20,7 @@ import { STATUS_GEN } from '../utils/constant';
 import { JOB_NAME, WORKER_NAME } from '../constants/constant';
 import { HTTP_STATUS } from '@/constants/index.constant';
 import { validatePayloadSizeBuffer } from '../utils/validate';
-import { lowercase } from '@/utils/common';
+import { isNilOrEmpty, lowercase } from '@/utils/common';
 
 /**
  * Main generative service implementation
@@ -39,6 +39,7 @@ class GenerativeService extends BaseGenerativeService {
         mindmap: 'MIND_MAP',
         feynman_review: 'FEYNMAN_REVIEW',
         feynman_question: 'FEYNMAN_QUESTION',
+        short_summary: 'SHORT_SUMMARY',
     };
 
     // BullMQ Worker configuration
@@ -93,7 +94,7 @@ class GenerativeService extends BaseGenerativeService {
                 errorType: error.name || 'ProcessingError',
                 errorCode: 500,
                 errorDetails: error.message,
-                status: STATUS_GEN.fail,
+                status: STATUS_GEN.error,
             };
 
             sseManager.sendEvent(jobId, clientError, true);
@@ -161,7 +162,7 @@ class GenerativeService extends BaseGenerativeService {
                 errorType: error.name || 'ProcessingError',
                 errorCode: 500,
                 errorDetails: error.message,
-                status: STATUS_GEN.fail,
+                status: STATUS_GEN.error,
             };
 
             // Send error to client if connected
@@ -184,12 +185,6 @@ class GenerativeService extends BaseGenerativeService {
         await redisInstance.set(key, data, this.RESULT_TTL);
     }
 
-    private async makeResultGenerateSent(type: string, jobId: string): Promise<boolean> {
-        const key = `result:sent:${type}:${jobId}`;
-        const res = await redisInstance.setnx(key, '1');
-        return res === 1;
-    }
-
     /**
      *
      */
@@ -199,7 +194,7 @@ class GenerativeService extends BaseGenerativeService {
 
     private mapRequestType(input: string): TYPE_PROMPT {
         const key = lowercase(input);
-        return this.TYPE_PROMPT_MAPPING[key] ?? 'FLASH_CARD';
+        return this.TYPE_PROMPT_MAPPING[key];
     }
 
     /**
@@ -259,11 +254,30 @@ class GenerativeService extends BaseGenerativeService {
 
         // Parse output and return formatted result
         const data = convertJsonToArray(fullContent || '[]');
+
         return {
             data,
             text: fullContent,
             status: STATUS_GEN.completed,
         };
+    }
+
+    public async *streamGenerateContent(payload: GenerateContentRequestInterface) {
+        const { content, type } = payload;
+
+        const key = lowercase(type);
+
+        const promptType = this.TYPE_PROMPT_MAPPING[key];
+
+        const prompt = generatePromptText(content, promptType);
+
+        if (isNilOrEmpty(prompt)) {
+            throw new BadRequest('Prompt Invalid');
+        }
+
+        for await (const chunk of this.getLLMProvider().handleProcessStreamContent(prompt)) {
+            yield { status: 'connected', data: chunk };
+        }
     }
 
     /**
@@ -485,8 +499,8 @@ class GenerativeService extends BaseGenerativeService {
                 return STATUS_GEN.success;
             case 'completed':
                 return STATUS_GEN.completed;
-            case 'failed':
-                return STATUS_GEN.fail;
+            case 'error':
+                return STATUS_GEN.error;
             default:
                 return STATUS_GEN.register;
         }

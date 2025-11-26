@@ -1,9 +1,10 @@
 const STATUS_GEN = {
+    connected: "connected",
     register: 'register',
     success: 'success',
     completed: 'completed',
     fallback: 'fallback',
-    fail: 'fail',
+    error: 'error',
     not_found: 'not found',
 };
 

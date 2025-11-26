@@ -29,7 +29,6 @@ import AnkiService, {
 } from '../spaced-repetition-system/super-memo-2/anki.service';
 import { addMinutes } from 'date-fns';
 import { IAnkiSetting } from '@/types/anki-setting/ankiSetting.type';
-import ankiSettingService from '../anki-setting/ankiSetting.service';
 import { TypeInsertFlashcard } from '@/models';
 
 export type IFlashcardWithReviewPrediction = Pick<
@@ -321,7 +320,6 @@ class FlashcardService {
             dueDate.toISOString()
         );
 
-        const ankiSetting = await ankiSettingService.getSettingForTopicAndUser(topicId, userId);
         const dueAnkiCards: IDueAnkiCard[] = dueFlashcards.map(card => {
             return {
                 nodeId: card.nodeId,
@@ -330,11 +328,7 @@ class FlashcardService {
                 back: card.back,
                 imageUrl: card.imageUrl,
                 topicName: card.topicName,
-                nextReviewDataByRatings: this.getNextReviewByRatings(
-                    card.flashcardId,
-                    card.learningState!,
-                    ankiSetting
-                ),
+                learningState: card.learningState as IFlashcardLearningState,
                 nextReview: card.learningState!.nextReview,
                 status: card.learningState!.status,
             };
