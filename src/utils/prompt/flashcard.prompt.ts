@@ -5,7 +5,7 @@ const defaultOptions = {
     numberOfItem: 20,
     difficulty: 'Medium',
     focus: 'essential concepts and key points',
-    listType: ['question', 'true/false', 'open-ended', 'multiple-choice', 'fill-in-the-blank'],
+    listType: ['QUESTION', 'TRUE FALSE', 'OPEN ENDED', 'MULTIPLE CHOICE', 'FILL BLANK'],
 };
 
 export const createFlashcardPrompt = (
