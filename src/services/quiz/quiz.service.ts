@@ -5,6 +5,8 @@ import { fisherYatesShuffle } from '@/utils/quiz/shuffle';
 import { IQuizResultPayload } from '@/types/quiz/quiz.type';
 import { BadRequest } from '@/core/error';
 import { ContentType } from '@/types/progress/progress.type';
+import { progressService } from '@/services/progress/progress.service';
+import pointsService from '@/services/gamification/points.service';
 
 class QuizService {
     constructor() {}
@@ -55,7 +57,6 @@ class QuizService {
         // Create progress record for quiz completion
         if (topicId !== -1) {
             try {
-                const { progressService } = await import('@/services/progress/progress.service');
                 await progressService.updateLearningProgress({
                     userId,
                     topicId: topicId.toString(),
@@ -75,7 +76,6 @@ class QuizService {
 
         // Award points for quiz completion
         try {
-            const pointsService = (await import('@/services/gamification/points.service')).default;
             await pointsService.awardQuizCompletion(userId, quizId, score);
         } catch (error) {
             console.error('Failed to award quiz completion points:', error);
