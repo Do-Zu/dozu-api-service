@@ -8,7 +8,6 @@ import {
 } from '@/types/feynman/feynman.type';
 import { safeDestructure } from '@/utils/common';
 import { embeddingApiService } from '../embedding/v1/constant/api';
-import { embeddingService } from '../embedding/v1/embedding.service';
 
 /**
  * Service class for Feynman functionality

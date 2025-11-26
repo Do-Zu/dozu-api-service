@@ -1,5 +1,4 @@
 import { Request, Response } from 'express';
-import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import { BadRequest, DatabaseError } from '@/core/error';
 import { SuccessResponse } from '@/core/success';
 import { questionService } from '@/services/question/question.service';
@@ -21,7 +20,7 @@ class QuestionController {
             const questions = await questionService.handleGetAllQuestionsForTopic(topicId);
             const topicName = topic.name;
             SuccessResponse.ok(res, { questions, topicName });
-        } catch (err) {
+        } catch {
             throw new DatabaseError('Something went wrong while fetching questions');
         }
     }
@@ -46,7 +45,7 @@ class QuestionController {
                 update,
                 delete: deleteIds,
             });
-        } catch (err) {
+        } catch {
             throw new DatabaseError('Failed to batch process questions');
         }
 
