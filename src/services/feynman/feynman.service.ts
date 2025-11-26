@@ -7,7 +7,7 @@ import {
     IUpdateReview,
 } from '@/types/feynman/feynman.type';
 import { safeDestructure } from '@/utils/common';
-import { embeddingApiService } from '../embedding/v1/constant/api';
+import { embeddingApiService } from '../embedding/v1/api/api';
 
 /**
  * Service class for Feynman functionality

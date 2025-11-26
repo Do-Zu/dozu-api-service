@@ -12,7 +12,7 @@ import { BadRequest, ServiceUnavailable } from '@/core/error';
 import { HTTP_STATUS } from '@/constants/index.constant';
 import { TypeMetaDataChunkEmbed } from '@/models/embedding';
 import logger from '@/utils/logger';
-import { BASE_API_EMBEDDING_SERVICE } from './constant/api';
+import { BASE_API_EMBEDDING_SERVICE } from './api/api';
 
 /**
  * Base strategy interface for different embedding types
