@@ -51,6 +51,7 @@ import './class-based-learning/class-quiz/studentClassQuiz.routes';
 import './class-based-learning/class-quiz/teacherClassQuiz.routes';
 import './content/content.routes';
 import './embedding/embedding.route';
+import './image/image.routes';
 
 // Apply global async handler to router
 globalAsyncHandler(router);
