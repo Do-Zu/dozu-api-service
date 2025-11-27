@@ -9,7 +9,7 @@ class SummaryPrompts {
                 + For each key point, use <li><p>{key_point}</p></li>
                 + Each essential concept is separated by a line, use <p></p>
             - Keep the summary short and avoid unnecessary explanations. 
-            - Output must be in only one string, do not use any other forms such as array or object. 
+            - Your response must be only one single string that contains the entire markdown summary. Do not return any objects, keys, fields, or additional text—only the markdown string itself.
             - Content: ${content}
         `;
     }

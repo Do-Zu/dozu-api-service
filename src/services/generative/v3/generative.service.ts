@@ -21,6 +21,7 @@ import { JOB_NAME, WORKER_NAME } from '../constants/constant';
 import { HTTP_STATUS } from '@/constants/index.constant';
 import { validatePayloadSizeBuffer } from '../utils/validate';
 import { isNilOrEmpty, lowercase } from '@/utils/common';
+import { ResponseFormatJSONObject, ResponseFormatJSONSchema, ResponseFormatText } from 'openai/resources/shared';
 
 /**
  * Main generative service implementation
@@ -32,6 +33,11 @@ import { isNilOrEmpty, lowercase } from '@/utils/common';
  * 4. AWS Lambda integration for scalable processing
  * 5. Result caching in Redis
  */
+
+export interface IStreamGenerateOptions {
+    response_format?: ResponseFormatJSONObject | ResponseFormatJSONSchema | ResponseFormatText | undefined;
+}
+
 class GenerativeService extends BaseGenerativeService {
     private readonly TYPE_PROMPT_MAPPING: Record<string, TYPE_PROMPT> = {
         flashcard: 'FLASH_CARD',
@@ -270,12 +276,13 @@ class GenerativeService extends BaseGenerativeService {
         const promptType = this.TYPE_PROMPT_MAPPING[key];
 
         const prompt = generatePromptText(content, promptType);
+        const response_format = this.getResponseFormatForGenerationType(type);
 
         if (isNilOrEmpty(prompt)) {
             throw new BadRequest('Prompt Invalid');
         }
 
-        for await (const chunk of this.getLLMProvider().handleProcessStreamContent(prompt)) {
+        for await (const chunk of this.getLLMProvider().handleProcessStreamContent(prompt, { response_format })) {
             yield { status: 'connected', data: chunk };
         }
     }
@@ -562,6 +569,19 @@ class GenerativeService extends BaseGenerativeService {
         } catch (err) {
             logger.error(`Error in completion handler dispatch for job ${bullJobId}: ${(err as Error).message}`);
             return false;
+        }
+    }
+
+    private getResponseFormatForGenerationType(
+        type: string
+    ): ResponseFormatText | ResponseFormatJSONSchema | ResponseFormatJSONObject | undefined {
+        switch (type) {
+            case 'short_summary': {
+                return { type: 'text' };
+            }
+            default: {
+                return { type: 'json_object' };
+            }
         }
     }
 }

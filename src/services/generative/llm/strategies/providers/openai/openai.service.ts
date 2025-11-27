@@ -6,6 +6,8 @@ import { GenerationOptions } from '@/services/generative/base/base.abstract';
 import { MindmapData } from '@/models/mindmap/mindmap.model';
 import { MindmapGenerateService } from '../../../../v3/mindmap.generate.service';
 import { ProcessingProgress } from '@/types/generate/large-file.type';
+import { IStreamGenerateOptions } from '@/services/generative/v3/generative.service';
+import { safeDestructure } from '@/utils/common';
 
 /**
  * Implements AbstractBaseLLMService for OpenAI API
@@ -19,6 +21,10 @@ export class OpenAIService extends BaseLLMProvider {
     private DEFAULT_MAX_TOKEN = 50000;
     private DEFAULT_TEMPERATURE = 0.3;
     private MAIN_ROLE_DESC_LLM: string = 'You are an expert at creating educational content from academic content.';
+    private NOT_OUTPUT_CODE_FENCES: string = `Do not output any code fences, including \`\`\`markdown, \`\`\`json, \`\`\`text, or any variant.
+        Always follow the format instructions in the user prompt literally.
+    `;
+
     constructor() {
         super();
         this.initialize();
@@ -217,21 +223,23 @@ export class OpenAIService extends BaseLLMProvider {
      *
      * @param prompt The prompt to generate from
      * @yields Chunks of generated content
-     */ public async *handleProcessStreamContent(prompt: string): AsyncGenerator<string, void, unknown> {
+     */ public async *handleProcessStreamContent(
+        prompt: string,
+        options?: IStreamGenerateOptions
+    ): AsyncGenerator<string, void, unknown> {
+        const { response_format } = safeDestructure(options);
         // Configure generation context
         const messages: ChatCompletionMessageParam[] = [
             {
                 role: 'system',
-                content: this.MAIN_ROLE_DESC_LLM,
+                content: this.MAIN_ROLE_DESC_LLM + ' ' + this.NOT_OUTPUT_CODE_FENCES,
             },
             { role: 'user', content: prompt },
         ];
 
         // Create streaming response
         const stream = await this.createStream(messages, {
-            response_format: {
-                type: 'json_object',
-            },
+            response_format,
         });
 
         if (!stream) return;
