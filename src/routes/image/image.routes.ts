@@ -12,13 +12,9 @@ const router = Router();
 globalAsyncHandler(router);
 router.use(authMiddleware);
 
-router.post(
-    '/',
-    fileUploadSingleMiddleware,
-    validateSingleFileUpload(),
-    imageValidation.validateImageSizeLimit,
-    imageController.uploadImage
-);
+const validateImage = [imageValidation.validateImageSizeLimit, imageValidation.validateImageMimeType];
+
+router.post('/', fileUploadSingleMiddleware, validateSingleFileUpload(), ...validateImage, imageController.uploadImage);
 
 registerRoute('/images', router, {
     description: 'Image API for uploading images',

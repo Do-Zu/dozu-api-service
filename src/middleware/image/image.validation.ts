@@ -17,6 +17,21 @@ class ImageValidation {
 
         next();
     }
+
+    public validateImageMimeType(req: Request, res: Response, next: NextFunction) {
+        const file = req.file;
+
+        if (!file) {
+            throw new BadRequest('No file uploaded');
+        }
+
+        const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (!allowedMimeTypes.includes(file.mimetype)) {
+            throw new BadRequest('Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.');
+        }
+
+        next();
+    }
 }
 
 export default new ImageValidation();
