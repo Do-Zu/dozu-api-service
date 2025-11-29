@@ -48,6 +48,7 @@ export interface IFlashcard {
     front: string;
     back: string;
     imageUrl?: string | null;
+    isStar?: boolean;
     createdAt: Date;
     learningState?: IFlashcardLearningState;
 

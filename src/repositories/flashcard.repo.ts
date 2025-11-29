@@ -52,6 +52,7 @@ class FlashcardRepo {
                 front: flashcardsTable.front,
                 back: flashcardsTable.back,
                 imageUrl: flashcardsTable.imageUrl,
+                isStar: flashcardsTable.isStar,
                 createdAt: flashcardsTable.createdAt,
 
                 // learning state (sm-2)
@@ -90,6 +91,7 @@ class FlashcardRepo {
                 front: flashcardsTable.front,
                 back: flashcardsTable.back,
                 imageUrl: flashcardsTable.imageUrl,
+                isStar: flashcardsTable.isStar,
                 createdAt: flashcardsTable.createdAt,
             })
             .from(flashcardsTable)
@@ -107,6 +109,7 @@ class FlashcardRepo {
             front: flashcardsTable.front,
             back: flashcardsTable.back,
             imageUrl: flashcardsTable.imageUrl,
+            isStar: flashcardsTable.isStar,
             createdAt: flashcardsTable.createdAt,
         });
         return result;
@@ -146,6 +149,7 @@ class FlashcardRepo {
                     front: flashcardsTable.front,
                     back: flashcardsTable.back,
                     imageUrl: flashcardsTable.imageUrl,
+                    isStar: flashcardsTable.isStar,
                     createdAt: flashcardsTable.createdAt,
                 });
             result.push(card);
@@ -183,6 +187,31 @@ class FlashcardRepo {
     public async deleteFlashcardsInTopic(topicId: number, tx?: Transaction) {
         const executor = tx ?? db;
         await executor.delete(flashcardsTable).where(eq(flashcardsTable.topicId, topicId));
+    }
+
+    public async toggleStar(flashcardId: number): Promise<{ flashcardId: number; isStar: boolean }> {
+        // Get current star status
+        const [current] = await db
+            .select({ isStar: flashcardsTable.isStar })
+            .from(flashcardsTable)
+            .where(eq(flashcardsTable.flashcardId, flashcardId))
+            .limit(1);
+
+        if (!current) {
+            throw new Error('Flashcard not found');
+        }
+
+        // Toggle star status
+        const [updated] = await db
+            .update(flashcardsTable)
+            .set({ isStar: !current.isStar })
+            .where(eq(flashcardsTable.flashcardId, flashcardId))
+            .returning({ 
+                flashcardId: flashcardsTable.flashcardId,
+                isStar: flashcardsTable.isStar 
+            });
+
+        return { flashcardId: updated.flashcardId, isStar: updated.isStar };
     }
 }
 
