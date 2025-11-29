@@ -143,7 +143,7 @@ class SubscriptionMiddleware {
         });
 
         if (isFeatureExceeded) {
-            // throw new PaymentRequire('You have exceeded your feature usage limit. Please upgrade your subscription.');
+            throw new PaymentRequire('You have exceeded your feature usage limit. Please upgrade your subscription.');
         }
 
         next();
