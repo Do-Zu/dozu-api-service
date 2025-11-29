@@ -180,11 +180,11 @@ ${'6. Use clear, descriptive labels (' + labelWords + ' words per node)'}
 8. Connect nodes with edges, do not create loop and all nodes must be connected
 9. Response must follow the language of the content
 10. Each node must have a comprehensive summary of the related content including the overall themes and the major ideas covered, stored in the description property of data.
-11. Color may be assigned to each node as one of the following strings ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#6b7280'] to the property color inside node data, the provided structure has included a color as an example but root node shouldn't have color, the branches from can have a unifying color to distinguish themselves
+11. Color may be assigned to each node as one of the following strings ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#6b7280'] to the property color inside node data, the provided structure has included a color as an example but root node shouldn't have color, the branches from it can have a unifying color to distinguish themselves
 12. Color may be assigned to each edge, in this case, if the target node is colored, the edge should be the same color, the color is specified as property color inside edge data, , the provided structure has included a color as an example 
-14. If there are only a few branches, use distinct colors (for example, avoid using '#ef4444', '#f97316' for branches close to each other as they are red and orange, making them blend in with each other). Disregard if there are too many branches.
-15. Consider using only one color for each branch if there are enough colors.
-16. Each child node of a node may include one distinct roadmapOrder with respect to the parent node (meaning for all child nodes of a node, they may be numbered from 0, 1, 2,... and child nodes of another parent node may also be numbered from 0, 1, 2,...) to help visualize learning path, going from 0 to amount of child node of root node minus 1. It's supposed to represent a roadmap so try to keep the node in roughly the chronological order of the original content. Root node should not be included in the roadmap, roadmapOrder here is only shown as a reference.
+13. If there are only a few branches, use distinct colors (for example, avoid using '#ef4444', '#f97316' for branches close to each other as they are red and orange, making them blend in with each other). Disregard if there are too many branches.
+14. Consider using only one color for each branch if there are enough colors.
+15. Each child node of a node may include one distinct roadmapOrder with respect to the parent node (meaning for all child nodes of a node, they may be numbered from 0, 1, 2,... and child nodes of another parent node may also be numbered from 0, 1, 2,...) to help visualize learning path, going from 0 to amount of child node of root node minus 1. It's supposed to represent a roadmap so try to keep the node in roughly the chronological order of the original content. Root node should not be included in the roadmap, roadmapOrder here is only shown as a reference.
 
 
 Content to analyze:
