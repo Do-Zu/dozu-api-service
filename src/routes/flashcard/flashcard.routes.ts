@@ -21,6 +21,11 @@ router.patch(
     paramsValidator.validateId('flashcardId'),
     flashcardController.reviewFlashcardByAnki
 );
+router.patch(
+    '/:flashcardId/toggle-star',
+    paramsValidator.validateId('flashcardId'),
+    flashcardController.toggleStar
+);
 router.post('/start-learning', classTopicController.startLearningFlashcards);
 router.post('/search-images', flashcardController.searchFlashcardImages);
 

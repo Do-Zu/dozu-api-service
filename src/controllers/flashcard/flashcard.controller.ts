@@ -229,6 +229,12 @@ class FlashcardController {
 
         SuccessResponse.ok(res, { flashcards, dueAnkiCards });
     }
+
+    public async toggleStar(req: Request, res: Response): Promise<void> {
+        const flashcardId = requestHelper.getIdParam(req, 'flashcardId');
+        const result = await flashcardService.toggleStar(flashcardId);
+        SuccessResponse.ok(res, result);
+    }
 }
 
 export default new FlashcardController();

@@ -232,6 +232,10 @@ class FlashcardService {
         });
     }
 
+    public async toggleStar(flashcardId: number): Promise<{ flashcardId: number; isStar: boolean }> {
+        return await flashcardRepo.toggleStar(flashcardId);
+    }
+
     // todo-ka: use transaction
     public async batchFlashcardsForTopic({
         userId,
