@@ -10,6 +10,7 @@ import {
     IImageSaveInput,
     IFlashcardBatchResult,
     IDueAnkiCard,
+    IUnspashImageSaveInput,
 } from '@/types/flashcard/flashcard.type';
 import { IQualityResponse } from '../spaced-repetition-system/super-memo-2/superMemo2.service';
 import SuperMemo2 from '../spaced-repetition-system/super-memo-2/superMemo2.service';
@@ -57,6 +58,16 @@ class FlashcardService {
         return flashcards;
     }
 
+    private getSavedImageUrl(imageInput: IImageSaveInput | null | undefined) {
+        let savedImageUrl: string | undefined = undefined;
+        if (imageInput?.type === 'unsplash') {
+            savedImageUrl = imageInput.data.url;
+        } else if (imageInput?.type === 'upload') {
+            savedImageUrl = imageInput.data;
+        }
+        return savedImageUrl;
+    }
+
     public async createFlashcardsForTopic({
         userId,
         topicId,
@@ -72,15 +83,17 @@ class FlashcardService {
         const isTeacher = roles.find(role => role.name === 'teacher') !== undefined;
 
         for (const card of flashcards) {
-            if (card.image) await this.saveFlashcardImage(card.image);
+            if (card.image && card.image.type === 'unsplash') await this.saveFlashcardImage(card.image);
         }
 
         const data: TypeInsertFlashcard[] = flashcards.map(flashcard => {
+            const savedImageUrl = this.getSavedImageUrl(flashcard.image);
+
             const card = {
                 topicId,
                 front: flashcard.front,
                 back: flashcard.back,
-                imageUrl: flashcard.image?.url, // insert imageUrl
+                imageUrl: savedImageUrl, // insert imageUrl
                 nodeId,
             };
             if (card.imageUrl === undefined) {
@@ -193,14 +206,15 @@ class FlashcardService {
 
     public async updateFlashcardsByIds(flashcards: IFlashcardUpdateInput[]): Promise<IFlashcard[]> {
         for (const card of flashcards) {
-            if (card.image) await this.saveFlashcardImage(card.image);
+            if (card.image && card.image.type === 'unsplash') await this.saveFlashcardImage(card.image);
         }
         const data: IUpdateFlashcardRepo[] = flashcards.map(flashcard => {
+            const savedImageUrl = this.getSavedImageUrl(flashcard.image);
             const card = {
                 flashcardId: flashcard.flashcardId,
                 front: flashcard.front,
                 back: flashcard.back,
-                imageUrl: flashcard.image?.url, // update imageUrl
+                imageUrl: savedImageUrl, // update imageUrl
             };
             if (card.imageUrl === undefined) {
                 delete card['imageUrl'];
@@ -423,8 +437,8 @@ class FlashcardService {
         return result;
     }
 
-    public async saveFlashcardImage(image: IImageSaveInput) {
-        await unsplashLib.downloadImage(image.downloadLocation);
+    public async saveFlashcardImage(image: IUnspashImageSaveInput) {
+        await unsplashLib.downloadImage(image.data.downloadLocation);
     }
 
     // check if there is any anki card from a topic

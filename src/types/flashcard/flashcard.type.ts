@@ -74,11 +74,21 @@ export type IFlashcardBatchResult = {
     flashcardsUpdated: IFlashcard[];
 };
 
-export interface IImageSaveInput {
-    id: string;
-    url: string;
-    downloadLocation: string;
+export interface IUnspashImageSaveInput {
+    type: 'unsplash';
+    data: {
+        id: string;
+        url: string;
+        downloadLocation: string;
+    };
 }
+
+export interface IUploadImageSaveInput {
+    type: 'upload';
+    data: string;
+}
+
+export type IImageSaveInput = IUnspashImageSaveInput | IUploadImageSaveInput;
 
 export type IDueAnkiCard = Pick<IFlashcard, 'flashcardId' | 'front' | 'back' | 'imageUrl' | 'topicName' | 'nodeId'> & {
     learningState: IFlashcardLearningState;
