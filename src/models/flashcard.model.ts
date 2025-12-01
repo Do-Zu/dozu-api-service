@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, serial, integer, text, timestamp, boolean } from 'drizzle-orm/pg-core';
 import { topicsTable } from '@/models/topic/topic.model';
 
 export const flashcardsTable = pgTable('flashcards', {
@@ -11,6 +11,7 @@ export const flashcardsTable = pgTable('flashcards', {
   front: text('front').notNull(),
   back: text('back').notNull(),
   imageUrl: text('image_url'),
+  isStar: boolean('is_star').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
