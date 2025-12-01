@@ -11,7 +11,7 @@ import { payOS } from './gateway/payos';
 import { PaymentStatus } from './payment.interface';
 import { addMilliseconds } from 'date-fns';
 import { PaymentLinkRequest, PaymentLinkResponse, TransactionStatusUpdate } from './type';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, desc } from 'drizzle-orm';
 
 export const REDIS_PREFIX_PAYMENT_GATEWAY_INFO = 'PAYMENT_REGISTER_PROCESS_GATEWAY_INFO';
 /**
@@ -195,6 +195,42 @@ class PaymentService {
                 })
                 .where(eq(transactionsModel.transactionId, existing.transactionId));
         });
+    }
+
+    /**
+     * Get transaction history for a user
+     * @param userId - The user ID
+     * @param limit - Maximum number of transactions to return (default: 50)
+     * @returns Array of transactions
+     */
+    public async getUserTransactionHistory(userId: number, limit: number = 50) {
+        try {
+            const transactions = await db
+                .select({
+                    transactionId: transactionsModel.transactionId,
+                    gateway: transactionsModel.gateway,
+                    transactionDate: transactionsModel.transactionDate,
+                    accountNumber: transactionsModel.accountNumber,
+                    amount: transactionsModel.amount,
+                    currency: transactionsModel.currency,
+                    code: transactionsModel.code,
+                    paymentId: transactionsModel.paymentId,
+                    description: transactionsModel.description,
+                    status: transactionsModel.status,
+                    metadata: transactionsModel.metadata,
+                    createdAt: transactionsModel.createdAt,
+                    updatedAt: transactionsModel.updatedAt,
+                })
+                .from(transactionsModel)
+                .where(eq(transactionsModel.userId, userId))
+                .orderBy(desc(transactionsModel.createdAt))
+                .limit(limit);
+
+            return transactions;
+        } catch (error) {
+            logger.error(`Error getting user transaction history: ${error}`);
+            throw new DatabaseError('Failed to get transaction history');
+        }
     }
 }
 

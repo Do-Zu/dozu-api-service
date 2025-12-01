@@ -169,6 +169,18 @@ class PaymentController {
 
         SuccessResponse.ok(res, transaction);
     }
+
+    /**
+     * Get transaction history for the current user
+     */
+    public async getTransactionHistory(req: Request, res: Response) {
+        const userId = getUserIdFromRequest(req);
+        const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+
+        const transactions = await paymentService.getUserTransactionHistory(userId, limit);
+
+        SuccessResponse.ok(res, transactions, 'Transaction history retrieved successfully');
+    }
 }
 
 export const paymentController = new PaymentController();
