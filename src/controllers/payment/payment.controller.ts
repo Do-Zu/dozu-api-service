@@ -175,7 +175,22 @@ class PaymentController {
      */
     public async getTransactionHistory(req: Request, res: Response) {
         const userId = getUserIdFromRequest(req);
-        const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+
+        const DEFAULT_LIMIT = 50;
+        const MAX_LIMIT = 100; // adjust as appropriate
+        const rawLimit = req.query.limit;
+
+        let limit = DEFAULT_LIMIT;
+
+        if (rawLimit !== undefined) {
+            const parsed = Number(rawLimit);
+
+            if (!Number.isInteger(parsed) || parsed <= 0) {
+                throw new BadRequest('limit must be a positive integer');
+            }
+
+            limit = Math.min(parsed, MAX_LIMIT);
+        }
 
         const transactions = await paymentService.getUserTransactionHistory(userId, limit);
 
