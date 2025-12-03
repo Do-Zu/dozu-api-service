@@ -580,7 +580,17 @@ export const classQuizSharedRepo = {
         if (a.userId !== userId) throw new Forbidden('Not your attempt');
         if (a.classQuizId !== classQuizId) throw new Forbidden('Wrong quiz');
         if (a.status !== 'in_progress') throw new BadRequest('Attempt is not editable');
-        if (a.attemptEndAt && now() > a.attemptEndAt) throw new BadRequest('Attempt time is over');
+        if (a.attemptEndAt && now() > a.attemptEndAt) {
+            const diff = now().getTime() - a.attemptEndAt.getTime();
+
+            // Allow submission within 2 seconds after deadline (auto-submit)
+            if (diff <= 2000) {
+                //DO NOT THROW -> pass through finalize
+            } else {
+                throw new BadRequest('Attempt time is over');
+            }
+        }
+
         return a;
     },
 
