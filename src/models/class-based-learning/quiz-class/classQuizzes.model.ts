@@ -31,6 +31,9 @@ export const classQuizzesTable = pgTable('class_quizzes', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }),
   publishedAt: timestamp('published_at', { withTimezone: true }),
+
+  autoPublishError: text('auto_publish_error'),
+  autoPublishLastTriedAt: timestamp('auto_publish_last_tried_at', { withTimezone: true }),
 });
 
 export type IClassQuiz = typeof classQuizzesTable.$inferSelect;

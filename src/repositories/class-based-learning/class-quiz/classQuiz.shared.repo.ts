@@ -229,7 +229,42 @@ export const classQuizSharedRepo = {
     },
 
     async publish(classQuizId: number) {
-        // 1) read draft
+        // Take quiz to check window & duration
+        const quiz = await db.query.classQuizzesTable.findFirst({
+            where: eq(classQuizzesTable.classQuizId, classQuizId),
+            columns: {
+                classQuizId: true,
+                title: true,
+                startAt: true,
+                endAt: true,
+                durationSeconds: true,
+                status: true,
+            },
+        });
+
+        if (!quiz) throw new NotFoundError('class_quiz not found');
+
+        // (optional) không cho publish nếu không ở trạng thái draft/scheduled
+        if (!['draft', 'scheduled'].includes(quiz.status as string)) {
+            throw new BadRequest('Quiz is not in a publishable status');
+        }
+
+        const { startAt, endAt, durationSeconds } = quiz;
+
+        if (!startAt || !endAt || !durationSeconds || durationSeconds <= 0) {
+            throw new BadRequest('Missing schedule info: startAt, endAt or durationSeconds');
+        }
+
+        if (!(startAt < endAt)) {
+            throw new BadRequest('Invalid time window: startAt must be before endAt');
+        }
+
+        const windowSeconds = (endAt.getTime() - startAt.getTime()) / 1000;
+        if (durationSeconds > windowSeconds) {
+            throw new BadRequest('Invalid duration: must be <= quiz time window');
+        }
+
+        // Read draft & validate questions like FE hasAllValidQuestions
         const draft = await db.query.classQuizDraftsTable.findFirst({
             where: eq(classQuizDraftsTable.classQuizId, classQuizId),
             columns: { draftJson: true },
@@ -239,22 +274,51 @@ export const classQuizSharedRepo = {
         const draftJson = draft.draftJson as DraftJson;
         if (!draftJson.items?.length) throw new BadRequest('Draft has no items');
 
-        // 2) prepare snapshot text & seed
-        // const seed = draftJson.orderSeed || makeSeed();
-        // const snapshotObj = { ...draftJson, orderSeed: seed };
-        // const snapshotText = JSON.stringify(snapshotObj);
+        // Validate each item
+        const allValid = draftJson.items.every(item => {
+            // If it is adHoc then validate content
+            if (
+                typeof item === 'object' &&
+                item !== null &&
+                'text' in item &&
+                'choices' in item &&
+                'correctIndex' in item
+            ) {
+                const text = (item as any).text ?? '';
+                const choices: string[] = (item as any).choices ?? [];
+                const correctIndex: number = (item as any).correctIndex ?? -1;
+
+                const textOK = text.trim().length > 0;
+
+                const nonEmpty = choices.filter(c => (c ?? '').trim().length > 0);
+                const enough = nonEmpty.length >= 2;
+                const lower = nonEmpty.map(c => c.toLowerCase());
+                const dup = new Set(lower).size !== lower.length;
+
+                const ciOK =
+                    correctIndex >= 0 &&
+                    correctIndex < choices.length &&
+                    (choices[correctIndex] ?? '').trim().length > 0;
+
+                return textOK && enough && !dup && ciOK;
+            }
+
+            // If it is originQuestionId then temporarily give pass (assuming original question is valid)
+            return true;
+        });
+
+        if (!allValid) {
+            throw new BadRequest('Draft contains invalid questions');
+        }
+
         const seed = draftJson.orderSeed || makeSeed();
         const snapshotObj: DraftJson = { ...draftJson, orderSeed: seed };
 
-        // 3) insert version
         const [ver] = await db
             .insert(classQuizVersionsTable)
             .values({
                 classQuizId,
-                // Nếu cột là JSON/JSONB:
                 questionsSnapshot: snapshotObj as any,
-                // Nếu cột là TEXT -> dùng dòng dưới thay cho dòng trên:
-                // questionsSnapshot: JSON.stringify(snapshotObj),
                 choicesShuffleSeed: seed,
                 createdAt: now(),
             })
@@ -263,13 +327,17 @@ export const classQuizSharedRepo = {
                 choicesShuffleSeed: classQuizVersionsTable.choicesShuffleSeed,
             });
 
-        // 4) mark quiz published
         await db
             .update(classQuizzesTable)
-            .set({ status: 'published', publishedAt: now(), updatedAt: now() })
+            .set({
+                status: 'published',
+                publishedAt: now(),
+                updatedAt: now(),
+                autoPublishError: null,
+                autoPublishLastTriedAt: now(),
+            })
             .where(eq(classQuizzesTable.classQuizId, classQuizId));
 
-        // 5) delete draft (your choice was delete)
         await db.delete(classQuizDraftsTable).where(eq(classQuizDraftsTable.classQuizId, classQuizId));
 
         return {
@@ -300,6 +368,8 @@ export const classQuizSharedRepo = {
              cq.published_at AS "publishedAt",
              cq.accepting_submissions AS "acceptingSubmissions",
              cq.max_attempts AS "maxAttempts",
+             cq.auto_publish_error AS "autoPublishError",
+             cq.auto_publish_last_tried_at AS "autoPublishLastTriedAt",
              COUNT(a.attempt_id) FILTER (WHERE a.status = 'submitted') AS "submittedCount"
       FROM class_quizzes cq
       LEFT JOIN class_quiz_attempts a ON a.class_quiz_id = cq.class_quiz_id
@@ -510,7 +580,17 @@ export const classQuizSharedRepo = {
         if (a.userId !== userId) throw new Forbidden('Not your attempt');
         if (a.classQuizId !== classQuizId) throw new Forbidden('Wrong quiz');
         if (a.status !== 'in_progress') throw new BadRequest('Attempt is not editable');
-        if (a.attemptEndAt && now() > a.attemptEndAt) throw new BadRequest('Attempt time is over');
+        if (a.attemptEndAt && now() > a.attemptEndAt) {
+            const diff = now().getTime() - a.attemptEndAt.getTime();
+
+            // Allow submission within 2 seconds after deadline (auto-submit)
+            if (diff <= 2000) {
+                //DO NOT THROW -> pass through finalize
+            } else {
+                throw new BadRequest('Attempt time is over');
+            }
+        }
+
         return a;
     },
 
@@ -735,7 +815,15 @@ export const classQuizSharedRepo = {
     async getClassQuizInfo(classQuizId: number, teacherId?: number) {
         const quiz = await db.query.classQuizzesTable.findFirst({
             where: eq(classQuizzesTable.classQuizId, classQuizId),
-            columns: { classQuizId: true, title: true, content: true, teacherId: true },
+            columns: {
+                classQuizId: true,
+                title: true,
+                content: true,
+                teacherId: true,
+                startAt: true,
+                endAt: true,
+                durationSeconds: true,
+            },
         });
         if (!quiz) throw new NotFoundError('class_quiz not found');
         if (teacherId && quiz.teacherId !== teacherId) {
@@ -745,6 +833,9 @@ export const classQuizSharedRepo = {
             classQuizId: quiz.classQuizId,
             title: quiz.title,
             content: quiz.content ?? '',
+            startAt: quiz.startAt ?? null,
+            endAt: quiz.endAt ?? null,
+            durationSeconds: quiz.durationSeconds ?? null,
         };
     },
 };

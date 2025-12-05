@@ -255,14 +255,6 @@ class ClassInviteService {
     }
 
     /**
-     * Get pending invites for a class
-     */
-    public async getPendingInvites(classId: number): Promise<IClassInviteWithDetails[]> {
-        const invites = await classInviteRepo.getInvitesByClassId(classId);
-        return invites.filter(invite => invite.status === 'pending');
-    }
-
-    /**
      * Regenerate invite link
      */
     public async regenerateInviteLink(

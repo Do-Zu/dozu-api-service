@@ -17,6 +17,7 @@ import { createServer } from 'http';
 import { webSocketService } from './libs/websocket/socket.io';
 import { notificationWebSocketService } from './libs/websocket/notification.websocket';
 import { quizActivityWebSocketService } from './libs/websocket/quizActivity.websocket';
+import { startClassQuizScheduler } from './utils/quiz/classQuizScheduler.job';
 
 setupGlobalErrorHandlers();
 
@@ -92,6 +93,9 @@ const server = httpServer.listen(port, () => {
   
   // Initialize notification scheduler
   NotificationScheduler.init();
+
+  // Start class quiz scheduler
+  startClassQuizScheduler();
   
   logger.info(`Server is running at http://${host}:${port}`);
   logger.info('WebSocket server initialized and ready for connections');
