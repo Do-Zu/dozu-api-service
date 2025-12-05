@@ -5,15 +5,11 @@ import {
     IFlashcard,
     IFlashcardLearningState,
     IFlashcardsBatchInput,
-    IQualityResponseNextReviewInterval,
     IFlashcardUpdateInput,
     IImageSaveInput,
     IFlashcardBatchResult,
-    IDueAnkiCard,
     IUnspashImageSaveInput,
 } from '@/types/flashcard/flashcard.type';
-import { IQualityResponse } from '../spaced-repetition-system/super-memo-2/superMemo2.service';
-import SuperMemo2 from '../spaced-repetition-system/super-memo-2/superMemo2.service';
 import { FlashcardItemInterface } from '@/dtos/generate';
 import { ICreateTrackingRecord } from '@/types/tracking/itemSpacedRepetitionTracking.type';
 import itemSpacedRepetitionTrackingRepo from '@/repositories/tracking/itemSpacedRepetitionTracking.repo';
@@ -21,23 +17,12 @@ import { getUserRoles } from '@/repositories/auth.repo';
 import classEnrollmentService from '../class-based-learning/classEnrollment.service';
 import topicService from '../topic/topic.service';
 import unsplashLib from '@/libs/unsplash.lib';
-import AnkiService, {
-    IAnkiCard,
+import {
     IAnkiRating,
     IBaseIntervalWithDeviation,
     INextReviewInterval,
-    learnAheadLimit,
 } from '../spaced-repetition-system/super-memo-2/anki.service';
-import { addMinutes } from 'date-fns';
-import { IAnkiSetting } from '@/types/anki-setting/ankiSetting.type';
 import { TypeInsertFlashcard } from '@/models';
-
-export type IFlashcardWithReviewPrediction = Pick<
-    IFlashcard,
-    'flashcardId' | 'front' | 'back' | 'imageUrl' | 'topicName'
-> & {
-    qualityResponsesNextReviewInterval: IQualityResponseNextReviewInterval[];
-};
 
 export interface INextReviewDataByRating {
     rating: IAnkiRating;
@@ -300,157 +285,8 @@ class FlashcardService {
         await flashcardRepo.applySM2ToFlashcard(userId, flashcardId, sm2);
     }
 
-    public async getDueAnkiCardsForTopicAndUser(
-        topicId: number,
-        userId: number,
-        currentDate: string
-    ): Promise<IDueAnkiCard[]> {
-        // serve for Anki algorithm
-        const dueDate = addMinutes(new Date(currentDate), learnAheadLimit);
-        const allFlashcards = await this.getFlashcardsForTopic(topicId);
-        const allAnkiCards = await this.getAllAnkiCardsForTopic({ userId, topicId });
-
-        // initial tracking record if some flashcards missing its record
-        const trackingRecords = allFlashcards
-            .map(flashcard => {
-                if (allAnkiCards.find(ankiCard => ankiCard.flashcardId === flashcard.flashcardId) !== undefined) {
-                    return null;
-                }
-                return {
-                    userId,
-                    topicId,
-                    itemId: flashcard.flashcardId,
-                    type: 'flashcard',
-                    step: 0,
-                };
-            })
-            .filter(e => e !== null) as ICreateTrackingRecord[];
-
-        if (trackingRecords.length > 0) {
-            await db.transaction(async tx => {
-                await itemSpacedRepetitionTrackingRepo.initializeTrackingRecords(trackingRecords, tx);
-            });
-        }
-
-        const dueFlashcards: IFlashcard[] = await flashcardRepo.getDueFlashcardsForTopicAndUser(
-            topicId,
-            userId,
-            dueDate.toISOString()
-        );
-
-        const dueAnkiCards: IDueAnkiCard[] = dueFlashcards.map(card => {
-            return {
-                nodeId: card.nodeId,
-                flashcardId: card.flashcardId,
-                front: card.front,
-                back: card.back,
-                imageUrl: card.imageUrl,
-                topicName: card.topicName,
-                learningState: card.learningState as IFlashcardLearningState,
-                nextReview: card.learningState!.nextReview,
-                status: card.learningState!.status,
-            };
-        });
-
-        // const result: IDueAnkiCard[] = [];
-        // const { newCardsPerDay, maximumReviewsPerDay } = ankiSetting;
-        // let numberOfNewCards = 0,
-        //     numberOfReviewCards = 0;
-        // for (const card of dueAnkiCards) {
-        //     if (card.status === IAnkiStatus.NEW && numberOfNewCards < newCardsPerDay) {
-        //         ++numberOfNewCards;
-        //         result.push(card);
-        //     }
-        //     if (card.status === IAnkiStatus.REVIEW && numberOfReviewCards < maximumReviewsPerDay) {
-        //         ++numberOfReviewCards;
-        //         result.push(card);
-        //     }
-        // }
-
-        return dueAnkiCards;
-    }
-
-    public async getReviewIntervalsByQualityResponses(
-        flashcards: IFlashcard[]
-    ): Promise<IFlashcardWithReviewPrediction[]> {
-        let result: IFlashcardWithReviewPrediction[] = [];
-
-        for (const flashcard of flashcards) {
-            if (!flashcard.learningState) {
-                throw new Error('Flashcard does not have learningState');
-            }
-            const { reviewInterval, easinessFactor, repetitionNumber } = flashcard.learningState;
-            let qualityResponse = 0;
-            let data: IFlashcardWithReviewPrediction & {
-                qualityResponsesNextReviewInterval: IQualityResponseNextReviewInterval[];
-            } = {
-                flashcardId: flashcard.flashcardId,
-                front: flashcard.front,
-                back: flashcard.back,
-                imageUrl: flashcard.imageUrl,
-
-                topicName: flashcard.topicName ? flashcard.topicName : '',
-                qualityResponsesNextReviewInterval: [],
-            };
-            for (; qualityResponse <= 5; ++qualityResponse) {
-                const superMemo2 = new SuperMemo2(
-                    easinessFactor,
-                    reviewInterval,
-                    repetitionNumber,
-                    qualityResponse as IQualityResponse
-                );
-                const info = superMemo2.calc();
-                data.qualityResponsesNextReviewInterval.push({
-                    qualityResponse: qualityResponse as IQualityResponse,
-                    nextReviewInterval: info.reviewInterval,
-                });
-            }
-            result.push(data);
-        }
-        return result;
-    }
-
-    public getNextReviewByRatings(
-        flashcardId: number,
-        learningState: IFlashcardLearningState,
-        ankiSetting: IAnkiSetting
-    ): INextReviewDataByRating[] {
-        if (!learningState) {
-            throw new Error('Flashcard does not have learningState');
-        }
-        let result: INextReviewDataByRating[] = [];
-
-        let rating = IAnkiRating.AGAIN;
-        for (; rating <= IAnkiRating.EASY; ++rating) {
-            const ankiCard: IAnkiCard = {
-                ...learningState,
-                step: learningState.step,
-                flashcardId,
-                lastReviewed: learningState.lastReviewed ? new Date(learningState.lastReviewed) : null,
-                nextReview: new Date(learningState.nextReview),
-            };
-            const ankiService = new AnkiService(ankiSetting);
-            const ankiResult = ankiService.schedule(ankiCard, rating);
-            result.push({
-                rating,
-                interval: ankiResult.nextReviewInterval,
-                baseIntervalWithDeviation: ankiResult.baseIntervalWithDeviation,
-            });
-        }
-
-        return result;
-    }
-
     public async saveFlashcardImage(image: IUnspashImageSaveInput) {
         await unsplashLib.downloadImage(image.data.downloadLocation);
-    }
-
-    // check if there is any anki card from a topic
-    public async getAllAnkiCardsForTopic({ userId, topicId }: { userId: number; topicId: number }) {
-        // 01/01/2100, trying to get all anki cards including cards that are not due today
-        const future = new Date(2100, 0, 1);
-        const result = await flashcardRepo.getDueFlashcardsForTopicAndUser(topicId, userId, future.toISOString());
-        return result;
     }
 }
 

@@ -1,4 +1,4 @@
-import { IFlashcardStatus, IItemType } from "@/models";
+import { IFlashcardStatus, IItemType, TypeInsertSpacedRepetitionTracking } from '@/models';
 
 export interface IItemSpacedRepetition {
     itemId: number;
@@ -15,4 +15,7 @@ export interface IItemSpacedRepetition {
     step: number | null;
 }
 
-export type ICreateTrackingRecord = Pick<IItemSpacedRepetition, 'userId' | 'topicId' | 'itemId' | 'type'>;
+export type ICreateTrackingRecord = Pick<
+    TypeInsertSpacedRepetitionTracking,
+    'userId' | 'topicId' | 'itemId' | 'type' | 'nextReview'
+>;

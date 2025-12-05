@@ -1,4 +1,3 @@
-import { IQualityResponse } from '@/services/spaced-repetition-system/super-memo-2/superMemo2.service';
 import { z } from 'zod';
 import { IItemSpacedRepetition } from '../tracking/itemSpacedRepetitionTracking.type';
 import { IItemStatus } from '@/models';
@@ -34,11 +33,6 @@ export const ZFlashcardTracked = z.object({
     flashcardId: z.number(),
     qualityResponse: ZQualityResponse,
 });
-
-export interface IQualityResponseNextReviewInterval {
-    qualityResponse: IQualityResponse;
-    nextReviewInterval: number;
-}
 
 export interface IFlashcard {
     flashcardId: number;
@@ -103,3 +97,13 @@ export type IAnkiCardReviewed = Pick<IFlashcard, 'flashcardId'> & {
     status: IItemStatus;
     rating: IAnkiRating;
 };
+
+export type InsertFlashcardsBody = (Pick<IFlashcard, 'front' | 'back' | 'nodeId'> & {
+    image?: IImageSaveInput | null;
+})[];
+
+export type IUpdateFlashcard = Pick<IFlashcard, 'flashcardId' | 'front' | 'back' | 'nodeId' | 'imageUrl'>;
+
+export type IUpdateFlashcardsBody = (Pick<IFlashcard, 'flashcardId' | 'front' | 'back' | 'nodeId'> & {
+    image?: IImageSaveInput | null;
+})[];
