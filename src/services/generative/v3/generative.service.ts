@@ -46,6 +46,7 @@ class GenerativeService extends BaseGenerativeService {
         feynman_review: 'FEYNMAN_REVIEW',
         feynman_question: 'FEYNMAN_QUESTION',
         short_summary: 'SHORT_SUMMARY',
+        multi_node_flashcard: 'MULTI_NODE_FLASHCARD',
     };
 
     // BullMQ Worker configuration

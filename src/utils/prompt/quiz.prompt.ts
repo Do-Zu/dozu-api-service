@@ -27,6 +27,12 @@ You are an expert educational content creator and a strict JSON parser.
 # TASK
 Generate a quiz array based on the provided CONTENT text. 
 
+# LIST TYPE DESCRIPTIONS
+- MULTIPLE CHOICE: A question with 4 options where only one option is correct. Tests recognition, recall, or application of knowledge.
+- TRUE FALSE: A statement that the learner must judge as true or false. Use additional distractors like "Not Given" or "Unknown" to fill 4 options.
+- FILL BLANK: A sentence or phrase with a missing word or phrase. One correct answer and 3 plausible distractors.
+- FREE RESPONSE: An open-ended question requiring a written answer in the learner's own words. Still provide 4 suggested options as examples if needed.
+
 # CONSTRAINTS
 1. **Quantity:** Generate exactly ${numberOfItem} questions.
 2. **Difficulty:** ${difficulty}.
@@ -35,8 +41,7 @@ Generate a quiz array based on the provided CONTENT text.
 5. **Format:** Return ONLY a valid JSON array. Do not include markdown code blocks (like \`\`\`json), comments, or introductory text.
 6. **Question Types:** Use these formats: ${validListTypes}.
 7. **Options:** Every question must have exactly 4 options ("o" array). 
-   - For TRUE/FALSE: Use ["True", "False", "Not Given", "Unknown"] or similar distractors to fill 4 spots, but point to the correct boolean logic.
-   - For FILL BLANK: Provide the correct word as one option and 3 plausible distractors.
+8. **Distribution:** The total number of questions must be distributed as evenly as possible among the specified question types in ${validListTypes}. If the number cannot be divided equally, assign the remaining questions starting from the first type in the list.
 
 # COGNITIVE TYPES
 While following the formats above, vary the cognitive style of questions:

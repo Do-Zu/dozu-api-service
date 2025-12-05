@@ -55,3 +55,50 @@ ${content}
  Should be in only one array
 `;
 };
+
+export function createFlashcardForMultiNodesPrompt(content: string, nodesData: any): string {
+    let nodes = nodesData as { nodeId: string; label: string; description: string; start: string; end: string }[];
+    return `
+        Create a set of flashcards for multiple nodes of a mindmap as described below.
+
+        Each node has:
+        - a nodeId
+        - a label (the node's title)
+        - a description (a brief summary of the node)
+        - a start and end section that define which part of the full content belongs to that node
+
+        The "full content" is the original content of the topic.  
+        The start and end sections indicate the boundaries of the node's content relative to the full content.
+
+        Your task:
+        - Create flashcards **separately for each node**, strictly based on the portion of the full content that lies between the node's start and end sections.
+        - Do NOT mix information between nodes.
+        - Do NOT include content outside the start-end range of each node.
+        - For each node, generate 3-10 high-quality flashcards, depending on the richness of the content.
+
+        Output format (strict):
+        - The result must be **one single array**.
+        - Each element of the array is an object:  
+          { nodeId: string, flashcards: [{ q: string, a: string }] }
+        - The "flashcards" array for each node must appear exactly once.
+        - Each flashcard is an object:  
+          { q: "question or term", a: "answer or definition" }
+
+        Below is the list of nodes with their metadata:
+
+        ${nodes
+            .map((node, index) => {
+                return `- Node ${index}:
+                    - NodeId: ${node.nodeId}
+                    - Label: ${node.label}
+                    - Description: ${node.description}
+                    - Start section: ${node.start} ...
+                    - End section: ... ${node.end}\n
+            `;
+            })
+            .join('')}
+
+        The following is the full original content:
+        - Content: ${content}
+    `;
+}
