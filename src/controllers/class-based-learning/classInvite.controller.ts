@@ -35,17 +35,6 @@ class ClassInviteController {
     }
 
     /**
-     * Get invites for a class
-     * GET /api/classes/teacher/:classId/invites
-     */
-    public async getInvitesForClass(req: Request, res: Response) {
-        const classId = requestHelper.getIdParam(req, 'classId');
-
-        const result = await classInviteService.getPendingInvites(classId);
-        SuccessResponse.ok(res, result);
-    }
-
-    /**
      * Regenerate invite link
      * POST /api/classes/teacher/:classId/invites/regenerate
      */
