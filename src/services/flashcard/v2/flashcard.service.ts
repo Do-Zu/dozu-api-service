@@ -45,7 +45,7 @@ class FlashcardService {
             return {
                 ...item,
                 topicId,
-                image: savedImageUrl,
+                imageUrl: savedImageUrl,
             };
         });
         const insertedFlashcards = await flashcardRepo.insertFlashcards(insertInputs);
@@ -80,7 +80,7 @@ class FlashcardService {
             const savedImageUrl = this.getSavedImageUrl(item.image);
             return {
                 ...item,
-                image: savedImageUrl,
+                imageUrl: savedImageUrl,
             };
         });
 
