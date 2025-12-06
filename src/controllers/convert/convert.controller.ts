@@ -22,7 +22,7 @@ class ConvertController {
         const result = await convertService.convertFile(inputPath, originalname);
 
         res.setHeader('Content-Type', result.mimeType);
-        res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(result.filename)}"`);
         res.send(result.buffer);
     }
 
@@ -41,7 +41,7 @@ class ConvertController {
         const result = await convertService.convertUrl(url);
 
         res.setHeader('Content-Type', result.mimeType);
-        res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(result.filename)}"`);
         res.send(result.buffer);
     }
 }
