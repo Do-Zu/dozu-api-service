@@ -28,9 +28,9 @@ export type TYPE_PROMPT =
 const generatePromptText = (content: string, type: TYPE_PROMPT, options?: IGenerateOptions): string => {
     switch (type) {
         case 'FLASH_CARD':
-            return createFlashcardPrompt(content, options);
+            return createFlashcardPrompt(content, options?.commonGenerateOptions);
         case 'QUIZ':
-            return createQuizPrompt(content, options);
+            return createQuizPrompt(content, options?.commonGenerateOptions);
         case 'MIND_MAP':
             return createCustomMindmapPrompt(content);
         case 'FEYNMAN_QUESTION':
@@ -40,7 +40,7 @@ const generatePromptText = (content: string, type: TYPE_PROMPT, options?: IGener
         case 'SHORT_SUMMARY':
             return summaryPrompt.createShortSummaryPrompt(content);
         case 'MULTI_NODE_FLASHCARD':
-            return createFlashcardForMultiNodesPrompt(content, options);
+            return createFlashcardForMultiNodesPrompt(content, options?.nodesData);
         default:
             return `${PROMPT_SUMMARY_CONTENT} 
                 Content: ${content}`;

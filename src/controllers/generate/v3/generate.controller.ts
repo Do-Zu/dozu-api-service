@@ -22,7 +22,10 @@ class GenerateController {
             throw new BadRequest('Type is required');
         }
 
-        if (options?.numberOfItem && options.numberOfItem > DEFAULT_MAX_ITEM_GEN) {
+        if (
+            options?.commonGenerateOptions?.numberOfItem &&
+            options?.commonGenerateOptions.numberOfItem > DEFAULT_MAX_ITEM_GEN
+        ) {
             throw new BadRequest('Amount Item Request Over');
         }
 

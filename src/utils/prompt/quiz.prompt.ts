@@ -1,4 +1,4 @@
-import { IGenerateOptions } from '@/dtos/generate/models/GenerateContentRequestInterface';
+import { ICommonGenerateOptions } from '@/dtos/generate/models/GenerateContentRequestInterface';
 import { safeDestructure } from '../common';
 
 const defaultOptions = {
@@ -10,7 +10,7 @@ const defaultOptions = {
 
 export const createQuizPrompt = (
     content: string,
-    options?: IGenerateOptions,
+    options?: ICommonGenerateOptions,
     defaultOptionsParam = defaultOptions
 ): string => {
     const { numberOfItem, difficulty, focus, listType } = safeDestructure(options, {

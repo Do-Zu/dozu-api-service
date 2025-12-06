@@ -1,4 +1,4 @@
-import { IGenerateOptions } from '@/dtos/generate/models/GenerateContentRequestInterface';
+import { ICommonGenerateOptions, NodesData } from '@/dtos/generate/models/GenerateContentRequestInterface';
 import { safeDestructure } from '../common';
 
 const defaultOptions = {
@@ -10,7 +10,7 @@ const defaultOptions = {
 
 export const createFlashcardPrompt = (
     content: string,
-    options?: IGenerateOptions,
+    options?: ICommonGenerateOptions,
     defaultOptionsParam = defaultOptions
 ): string => {
     const { numberOfItem, difficulty, focus, listType } = safeDestructure(options, {
@@ -56,8 +56,7 @@ ${content}
 `;
 };
 
-export function createFlashcardForMultiNodesPrompt(content: string, nodesData: any): string {
-    let nodes = nodesData as { nodeId: string; label: string; description: string; start: string; end: string }[];
+export function createFlashcardForMultiNodesPrompt(content: string, nodesData?: NodesData | undefined): string {
     return `
         Create a set of flashcards for multiple nodes of a mindmap as described below.
 
@@ -86,14 +85,14 @@ export function createFlashcardForMultiNodesPrompt(content: string, nodesData: a
 
         Below is the list of nodes with their metadata:
 
-        ${nodes
+        ${(nodesData ?? [])
             .map((node, index) => {
                 return `- Node ${index}:
                     - NodeId: ${node.nodeId}
                     - Label: ${node.label}
                     - Description: ${node.description}
-                    - Start section: ${node.start} ...
-                    - End section: ... ${node.end}\n
+                    - Start section: ${node.startSection} ...
+                    - End section: ... ${node.endSection}\n
             `;
             })
             .join('')}
