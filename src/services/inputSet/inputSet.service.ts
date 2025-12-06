@@ -1,4 +1,4 @@
-import { BadRequest, InternalServerError } from '@/core/error';
+import { BadRequest, InternalServerError, NotFoundError } from '@/core/error';
 import { getInputSetByTopicId, insertInputSet } from '@/repositories/inputSet.repo';
 import { uploadFileServiceOnR2 } from '../uploads/files/upload.file.R2.service';
 import { checkAndConvertToString, isNilOrEmpty } from '@/utils/common';
@@ -73,7 +73,7 @@ class InputSetService {
         const inputSet = await getInputSetByTopicId(topicId);
 
         if (!inputSet) {
-            throw new InternalServerError('Input set not found for the given topicId');
+            throw new NotFoundError('Input set not found for the given topicId');
         }
 
         const { metadata, setId, contentType, description, title } = inputSet;
@@ -84,7 +84,7 @@ class InputSetService {
             const fileContent = await this.handleGetFile({ metadata } as { metadata: { fileKey: string } });
 
             if (!fileContent) {
-                throw new InternalServerError('Error: Document does not exist');
+                throw new NotFoundError('Error: Document does not exist');
             }
 
             data = {
@@ -105,7 +105,7 @@ class InputSetService {
                 videoInfo === null ||
                 videoInfo === undefined
             ) {
-                throw new InternalServerError('Error: Youtube content does not exist');
+                throw new NotFoundError('Error: Youtube content does not exist');
             }
             data = { url, content, videoInfo };
         } else {
