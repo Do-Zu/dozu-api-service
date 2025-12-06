@@ -10,41 +10,54 @@
 name: ESLint
 
 on:
-  push:
-    branches: [ "feature/merge" ]
-  pull_request:
-    # The branches below must be a subset of the branches above
-    branches: [ "feature/merge" ]
+    pull_request:
+        branches: ['**']
 
 jobs:
-  eslint:
-    name: Run eslint scanning
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-      actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    eslint:
+        name: Run eslint scanning
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            security-events: write
+            actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
 
-      - name: Install ESLint
-        run: |
-          npm install eslint@8.10.0
-          npm install @microsoft/eslint-formatter-sarif@3.1.0
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+                  cache: 'npm'
 
-      - name: Run ESLint
-        env:
-          SARIF_ESLINT_IGNORE_SUPPRESSED: "true"
-        run: npx eslint .
-          --config .eslintrc.js
-          --ext .js,.jsx,.ts,.tsx
-          --format @microsoft/eslint-formatter-sarif
-          --output-file eslint-results.sarif
-        continue-on-error: true
+            - name: Install dependencies
+              run: npm install --no-save eslint @eslint/js typescript-eslint eslint-config-prettier globals
 
-      - name: Upload analysis results to GitHub
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: eslint-results.sarif
-          wait-for-processing: true
+            - name: Install SARIF formatter
+              run: npm install --no-save @microsoft/eslint-formatter-sarif@3.1.0
+
+            - name: Get changed files
+              id: changed-files
+              uses: tj-actions/changed-files@v45
+              with:
+                  files: |
+                      **/*.ts
+                      **/*.tsx
+                      **/*.js
+                      **/*.jsx
+
+            - name: Run ESLint on changed files
+              if: steps.changed-files.outputs.any_changed == 'true'
+              env:
+                  SARIF_ESLINT_IGNORE_SUPPRESSED: 'true'
+              run: npx eslint ${{ steps.changed-files.outputs.all_changed_files }}
+                  --format @microsoft/eslint-formatter-sarif
+                  --output-file eslint-results.sarif
+              continue-on-error: true
+
+            - name: Upload analysis results to GitHub
+              uses: github/codeql-action/upload-sarif@v3
+              with:
+                  sarif_file: eslint-results.sarif
+                  wait-for-processing: true
