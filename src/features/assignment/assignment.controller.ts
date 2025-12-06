@@ -21,6 +21,17 @@ import { IAddedAttachment, inputResourcesSchema } from '@/types/class-based-lear
 import { attachmentService } from '@/services/class-based-learning/attachment/attachment.service';
 import assignmentAttachmentService from './assignmentAttachment.service';
 import { TypeSelectAttachment } from '@/models';
+import { ReturnAttachment } from '@/types/class-based-learning/attachment/attachment.type';
+
+const getBackendBaseUrl = (): string => {
+    const backendBaseUrl = process.env.BACKEND_BASE_URL;
+
+    if (!backendBaseUrl) {
+        throw new Error('BACKEND_BASE_URL is missing');
+    }
+
+    return backendBaseUrl;
+};
 
 class AssignmentController {
     public async getAssignmentsForClass(req: Request, res: Response) {
@@ -34,6 +45,7 @@ class AssignmentController {
     }
 
     public async getAssignmentById(req: Request, res: Response) {
+        const backendBaseUrl = getBackendBaseUrl();
         const classId = requestHelper.getIdParam(req, 'classId');
         const assignmentId = requestHelper.getIdParam(req, 'assignmentId');
         const [assignment] = (await db
@@ -50,7 +62,26 @@ class AssignmentController {
             assignmentId,
         });
 
-        const result: IAssignmentWithAttachments = { assignment, attachments };
+        const mapAttachment = (attachment: TypeSelectAttachment): ReturnAttachment => {
+            let fileUrl: string | undefined = undefined;
+
+            const metadata = attachment.metadata as unknown;
+            if (metadata && typeof metadata === 'object' && 'fileKey' in metadata) {
+                const fileKey = (metadata as any).fileKey;
+                if (typeof fileKey === 'string' && fileKey.length > 0) {
+                    fileUrl = `${backendBaseUrl}/api/upload/r2/${encodeURIComponent(fileKey)}`;
+                }
+            }
+
+            return {
+                ...attachment,
+                fileUrl,
+            } as ReturnAttachment;
+        };
+
+        const returnAttachments = attachments.map(mapAttachment);
+
+        const result: IAssignmentWithAttachments = { assignment, attachments: returnAttachments };
 
         SuccessResponse.ok(res, result);
     }
