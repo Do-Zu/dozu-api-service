@@ -5,7 +5,6 @@ import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import { getCurrentTimestampFromRequest } from '@/utils/date';
 import { ICreateTopicInClassBody, ITopic, IUpdateTopicBody } from '@/types/topic/topic.type';
 import { updateTopicIdOfInputSet } from '@/repositories/inputSet.repo';
-import itemSpacedRepetitionTrackingService from '@/services/tracking/itemSpacedRepetitionTracking.service';
 import requestHelper from '@/core/request/request.helper';
 import { deleteImage, uploadImage } from '@/libs/cloudinary.lib';
 import classTopicService from '@/services/class-based-learning/classTopic.service';
@@ -85,14 +84,6 @@ class ClassTopicController {
 
         await topicService.deleteTopicById(topicId);
         SuccessResponse.ok(res, topicId);
-    }
-
-    public async startLearningFlashcards(req: Request, res: Response) {
-        const userId = getUserIdFromRequest(req);
-        const topicId = requestHelper.getIdParam(req, 'topicId');
-
-        await itemSpacedRepetitionTrackingService.initializeStudentTrackingForTopic(userId, topicId);
-        SuccessResponse.ok(res, {});
     }
 }
 

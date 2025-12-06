@@ -5,7 +5,6 @@ import flashcardController from '@/controllers/flashcard/flashcard.controller';
 import { validateFlashcardsBatch } from '@/middleware/validations/flashcard.validation';
 import { authMiddleware } from '@/middleware/auth.middleware';
 import paramsValidator from '@/core/validations/params.validator';
-import classTopicController from '@/controllers/class-based-learning/classTopic.controller';
 
 const router = Router({ mergeParams: true }); // for using req.params.topicId in /topics/:topicId/flashcards
 
@@ -13,7 +12,6 @@ globalAsyncHandler(router);
 router.use(authMiddleware);
 
 router.get('/', flashcardController.getFlashcardsForTopic);
-router.get('/learning', flashcardController.getDueAnkiCardsForTopic);
 router.post('/batch/changes', validateFlashcardsBatch(), flashcardController.batchFlashcardsForTopicChanges);
 router.post('/batch/node', validateFlashcardsBatch(), flashcardController.handleBatchFlashcardsForNode); //for use with mindmap's node
 router.patch(
@@ -21,16 +19,8 @@ router.patch(
     paramsValidator.validateId('flashcardId'),
     flashcardController.reviewFlashcardByAnki
 );
-router.patch(
-    '/:flashcardId/toggle-star',
-    paramsValidator.validateId('flashcardId'),
-    flashcardController.toggleStar
-);
-router.post('/start-learning', classTopicController.startLearningFlashcards);
+router.patch('/:flashcardId/toggle-star', paramsValidator.validateId('flashcardId'), flashcardController.toggleStar);
 router.post('/search-images', flashcardController.searchFlashcardImages);
-
-router.post('/batch/state', validateFlashcardsBatch(), flashcardController.batchFlashcardsForTopicState);
-router.post('/batch/node/state', flashcardController.batchFlashcardsForNodeState);
 
 registerRoute('/flashcards', router, {
     description: 'Flashcards API for CRUD single flashcard',
