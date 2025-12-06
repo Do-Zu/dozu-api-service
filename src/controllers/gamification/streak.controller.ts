@@ -7,16 +7,28 @@ import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 export class StreakController {
   constructor() {}
 
-  // GET /api/gamification/streak
+  // GET /api/gamification/streak?classId=xxx
   getUserStreak = async (req: Request, res: Response): Promise<void> => {
     try {
       const userId = getUserIdFromRequest(req);
+      const classId = req.query.classId ? parseInt(req.query.classId as string) : undefined;
 
-      const streak = await streakService.getUserStreak(userId);
+      if (!classId || isNaN(classId)) {
+        throw new BadRequest('classId query parameter is required and must be a valid number');
+      }
+
+      let streak = await streakService.getClassStreak(userId, classId);
+      
+      // If streak doesn't exist, initialize it
+      if (!streak) {
+        streak = await streakService.initializeClassStreak(userId, classId);
+      }
       
       SuccessResponse.ok(res, streak, 'User streak retrieved successfully');
     } catch (error) {
-      if (error instanceof Error) {
+      if (error instanceof BadRequest) {
+        throw error;
+      } else if (error instanceof Error) {
         throw new DatabaseError(error.message);
       } else {
         throw new DatabaseError('Failed to get user streak');
@@ -24,16 +36,23 @@ export class StreakController {
     }
   };
 
-  // GET /api/gamification/streak/stats
+  // GET /api/gamification/streak/stats?classId=xxx
   getStreakStats = async (req: Request, res: Response): Promise<void> => {
     try {
       const userId = getUserIdFromRequest(req);
+      const classId = req.query.classId ? parseInt(req.query.classId as string) : undefined;
 
-      const stats = await streakService.getStreakStats(userId);
+      if (!classId || isNaN(classId)) {
+        throw new BadRequest('classId query parameter is required and must be a valid number');
+      }
+
+      const stats = await streakService.getClassStreakStats(userId, classId);
       
       SuccessResponse.ok(res, stats, 'Streak statistics retrieved successfully');
     } catch (error) {
-      if (error instanceof Error) {
+      if (error instanceof BadRequest) {
+        throw error;
+      } else if (error instanceof Error) {
         throw new DatabaseError(error.message);
       } else {
         throw new DatabaseError('Failed to get streak statistics');
@@ -43,29 +62,26 @@ export class StreakController {
 
   // POST /api/gamification/streak/update
   updateStreak = async (req: Request, res: Response): Promise<void> => {
-    try {
       const userId = getUserIdFromRequest(req);
-
-      const result = await streakService.updateUserStreak(userId);
-      
-      SuccessResponse.ok(res, result, 'Streak updated successfully');
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new DatabaseError(error.message);
-      } else {
-        throw new DatabaseError('Failed to update streak');
+      const { classId } = req.body;
+      if (!classId || typeof classId !== 'number') {
+        throw new BadRequest('classId is required and must be a number');
       }
-    }
+      const result = await streakService.updateUserStreak(userId, classId);
+      SuccessResponse.ok(res, result, 'Streak updated successfully');
   };
 
   // POST /api/gamification/streak/buy-freeze
   buyStreakFreeze = async (req: Request, res: Response): Promise<void> => {
     try {
       const userId = getUserIdFromRequest(req);
+      const { classId, cost = 100 } = req.body;
 
-      const { cost = 100 } = req.body;
+      if (!classId || typeof classId !== 'number') {
+        throw new BadRequest('classId is required and must be a number');
+      }
 
-      await streakService.buyStreakFreeze(userId, cost);
+      await streakService.buyStreakFreeze(userId, classId, cost);
       
       SuccessResponse.ok(res, null, 'Streak freeze purchased successfully');
     } catch (error) {
