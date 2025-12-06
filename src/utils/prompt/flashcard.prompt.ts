@@ -1,5 +1,6 @@
-import { ICommonGenerateOptions, NodesData } from '@/dtos/generate/models/GenerateContentRequestInterface';
+import { ICommonGenerateOptions, IGenerateOptions } from '@/dtos/generate/models/GenerateContentRequestInterface';
 import { safeDestructure } from '../common';
+import { LIST_TYPES_DESCRIPTION } from './constant/prompt.constant';
 
 const defaultOptions = {
     numberOfItem: 20,
@@ -25,6 +26,9 @@ You are an expert in Learning Science and Spaced Repetition Systems.
 
 # TASK
 Create a set of ${numberOfItem} flashcards based on the provided CONTENT.
+
+# LIST TYPE DESCRIPTIONS
+${LIST_TYPES_DESCRIPTION}
 
 # CONSTRAINTS
 1. **Quantity:** Generate exactly ${numberOfItem} flashcards.
@@ -56,7 +60,13 @@ ${content}
 `;
 };
 
-export function createFlashcardForMultiNodesPrompt(content: string, nodesData?: NodesData | undefined): string {
+export function createFlashcardForMultiNodesPrompt(content: string, options?: IGenerateOptions): string {
+    const { commonGenerateOptions, nodesData } = safeDestructure(options);
+    const { numberOfItem, difficulty, focus, listType } = safeDestructure(commonGenerateOptions, {
+        ...defaultOptions,
+    });
+
+    const validListTypes = listType?.map(t => t.trim()).join(', ');
     return `
         Create a set of flashcards for multiple nodes of a mindmap as described below.
 
@@ -73,7 +83,17 @@ export function createFlashcardForMultiNodesPrompt(content: string, nodesData?: 
         - Create flashcards **separately for each node**, strictly based on the portion of the full content that lies between the node's start and end sections.
         - Do NOT mix information between nodes.
         - Do NOT include content outside the start-end range of each node.
-        - For each node, generate 3-10 high-quality flashcards, depending on the richness of the content.
+        - Distribute flashcards across nodes based on the **richness and depth** of each node's content, ensuring that nodes with more substantial information receive more flashcards.
+
+        Constraints:
+            1. **Quantity:** The **total number** of flashcards across all nodes must be exactly **${numberOfItem}**.
+            2. **Difficulty:** ${difficulty}.
+            3. **Focus:** Focus strictly on ${focus}.
+            4. **Type Constraint:** 
+                - Each flashcard must belong to **one of the following valid list types**: ${validListTypes}.
+
+        List types description:
+        ${LIST_TYPES_DESCRIPTION}
 
         Output format (strict):
         - The result must be **one single array**.
@@ -81,7 +101,7 @@ export function createFlashcardForMultiNodesPrompt(content: string, nodesData?: 
           { nodeId: string, flashcards: [{ q: string, a: string }] }
         - The "flashcards" array for each node must appear exactly once.
         - Each flashcard is an object:  
-          { q: "question or term", a: "answer or definition" }
+          { q: "question or term", a: "answer or definition", type: "One of ${validListTypes}" }
 
         Below is the list of nodes with their metadata:
 

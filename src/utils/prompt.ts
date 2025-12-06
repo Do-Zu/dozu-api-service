@@ -40,7 +40,7 @@ const generatePromptText = (content: string, type: TYPE_PROMPT, options?: IGener
         case 'SHORT_SUMMARY':
             return summaryPrompt.createShortSummaryPrompt(content);
         case 'MULTI_NODE_FLASHCARD':
-            return createFlashcardForMultiNodesPrompt(content, options?.nodesData);
+            return createFlashcardForMultiNodesPrompt(content, options);
         default:
             return `${PROMPT_SUMMARY_CONTENT} 
                 Content: ${content}`;

@@ -1,5 +1,6 @@
 import { ICommonGenerateOptions } from '@/dtos/generate/models/GenerateContentRequestInterface';
 import { safeDestructure } from '../common';
+import { LIST_TYPES_DESCRIPTION } from './constant/prompt.constant';
 
 const defaultOptions = {
     numberOfItem: 20,
@@ -28,10 +29,7 @@ You are an expert educational content creator and a strict JSON parser.
 Generate a quiz array based on the provided CONTENT text. 
 
 # LIST TYPE DESCRIPTIONS
-- MULTIPLE CHOICE: A question with 4 options where only one option is correct. Tests recognition, recall, or application of knowledge.
-- TRUE FALSE: A statement that the learner must judge as true or false. Use additional distractors like "Not Given" or "Unknown" to fill 4 options.
-- FILL BLANK: A sentence or phrase with a missing word or phrase. One correct answer and 3 plausible distractors.
-- FREE RESPONSE: An open-ended question requiring a written answer in the learner's own words. Still provide 4 suggested options as examples if needed.
+${LIST_TYPES_DESCRIPTION}
 
 # CONSTRAINTS
 1. **Quantity:** Generate exactly ${numberOfItem} questions.
