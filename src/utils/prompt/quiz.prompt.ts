@@ -1,5 +1,6 @@
-import { IGenerateOptions } from '@/dtos/generate/models/GenerateContentRequestInterface';
+import { ICommonGenerateOptions } from '@/dtos/generate/models/GenerateContentRequestInterface';
 import { safeDestructure } from '../common';
+import { LIST_TYPES_DESCRIPTION } from './constant/prompt.constant';
 
 const defaultOptions = {
     numberOfItem: 20,
@@ -10,7 +11,7 @@ const defaultOptions = {
 
 export const createQuizPrompt = (
     content: string,
-    options?: IGenerateOptions,
+    options?: ICommonGenerateOptions,
     defaultOptionsParam = defaultOptions
 ): string => {
     const { numberOfItem, difficulty, focus, listType } = safeDestructure(options, {
@@ -27,6 +28,9 @@ You are an expert educational content creator and a strict JSON parser.
 # TASK
 Generate a quiz array based on the provided CONTENT text. 
 
+# LIST TYPE DESCRIPTIONS
+${LIST_TYPES_DESCRIPTION}
+
 # CONSTRAINTS
 1. **Quantity:** Generate exactly ${numberOfItem} questions.
 2. **Difficulty:** ${difficulty}.
@@ -35,8 +39,7 @@ Generate a quiz array based on the provided CONTENT text.
 5. **Format:** Return ONLY a valid JSON array. Do not include markdown code blocks (like \`\`\`json), comments, or introductory text.
 6. **Question Types:** Use these formats: ${validListTypes}.
 7. **Options:** Every question must have exactly 4 options ("o" array). 
-   - For TRUE/FALSE: Use ["True", "False", "Not Given", "Unknown"] or similar distractors to fill 4 spots, but point to the correct boolean logic.
-   - For FILL BLANK: Provide the correct word as one option and 3 plausible distractors.
+8. **Distribution:** The total number of questions must be distributed as evenly as possible among the specified question types in ${validListTypes}. If the number cannot be divided equally, assign the remaining questions starting from the first type in the list.
 
 # COGNITIVE TYPES
 While following the formats above, vary the cognitive style of questions:

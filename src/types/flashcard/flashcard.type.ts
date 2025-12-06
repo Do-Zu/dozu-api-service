@@ -1,4 +1,3 @@
-import { IQualityResponse } from '@/services/spaced-repetition-system/super-memo-2/superMemo2.service';
 import { z } from 'zod';
 import { IItemSpacedRepetition } from '../tracking/itemSpacedRepetitionTracking.type';
 import { IItemStatus } from '@/models';
@@ -35,11 +34,6 @@ export const ZFlashcardTracked = z.object({
     qualityResponse: ZQualityResponse,
 });
 
-export interface IQualityResponseNextReviewInterval {
-    qualityResponse: IQualityResponse;
-    nextReviewInterval: number;
-}
-
 export interface IFlashcard {
     flashcardId: number;
     topicId: number;
@@ -75,11 +69,21 @@ export type IFlashcardBatchResult = {
     flashcardsUpdated: IFlashcard[];
 };
 
-export interface IImageSaveInput {
-    id: string;
-    url: string;
-    downloadLocation: string;
+export interface IUnspashImageSaveInput {
+    type: 'unsplash';
+    data: {
+        id: string;
+        url: string;
+        downloadLocation: string;
+    };
 }
+
+export interface IUploadImageSaveInput {
+    type: 'upload';
+    data: string;
+}
+
+export type IImageSaveInput = IUnspashImageSaveInput | IUploadImageSaveInput;
 
 export type IDueAnkiCard = Pick<IFlashcard, 'flashcardId' | 'front' | 'back' | 'imageUrl' | 'topicName' | 'nodeId'> & {
     learningState: IFlashcardLearningState;
@@ -93,3 +97,13 @@ export type IAnkiCardReviewed = Pick<IFlashcard, 'flashcardId'> & {
     status: IItemStatus;
     rating: IAnkiRating;
 };
+
+export type InsertFlashcardsBody = (Pick<IFlashcard, 'front' | 'back' | 'nodeId'> & {
+    image?: IImageSaveInput | null;
+})[];
+
+export type IUpdateFlashcard = Pick<IFlashcard, 'flashcardId' | 'front' | 'back' | 'nodeId' | 'imageUrl'>;
+
+export type IUpdateFlashcardsBody = (Pick<IFlashcard, 'flashcardId' | 'front' | 'back' | 'nodeId'> & {
+    image?: IImageSaveInput | null;
+})[];
