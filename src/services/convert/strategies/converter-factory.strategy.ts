@@ -6,7 +6,7 @@ import { LibreOfficeConverter } from './libreoffice-converter.strategy';
  * Implements Factory Pattern
  */
 export class ConverterFactory {
-    private converters: IFileConverter[];
+    private readonly converters: IFileConverter[];
 
     constructor() {
         this.converters = [new LibreOfficeConverter()];
