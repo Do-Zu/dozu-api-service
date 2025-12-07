@@ -23,15 +23,16 @@ export abstract class BaseFileConverter implements IFileConverter {
         }
 
         const uploadDir = CONVERT_CONFIG.UPLOAD_DIR;
+        const uploadDirResolved = fs.realpathSync(uploadDir);
         let normalizedInputPath;
 
         try {
-            normalizedInputPath = fs.realpathSync(path.resolve(uploadDir, path.relative(uploadDir, inputPath)));
+            normalizedInputPath = fs.realpathSync(path.resolve(inputPath));
         } catch {
             throw new BadRequest('Input file path is invalid or inaccessible.');
         }
 
-        if (!normalizedInputPath.startsWith(path.resolve(uploadDir))) {
+        if (!normalizedInputPath.startsWith(uploadDirResolved)) {
             throw new Forbidden('Access to files outside the upload directory is forbidden.');
         }
     }

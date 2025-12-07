@@ -4,13 +4,18 @@ import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import { CONVERT_CONFIG, SupportedExtension } from '@/services/convert/config/convert.config';
 
-if (!fs.existsSync(CONVERT_CONFIG.UPLOAD_DIR)) {
-    fs.mkdirSync(CONVERT_CONFIG.UPLOAD_DIR, { recursive: true });
-}
+/**
+ * Ensure directory exists, create if it doesn't
+ */
+const ensureDirectoryExists = (dirPath: string): void => {
+    if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
+    }
+};
 
-if (!fs.existsSync(CONVERT_CONFIG.OUTPUT_DIR)) {
-    fs.mkdirSync(CONVERT_CONFIG.OUTPUT_DIR, { recursive: true });
-}
+// Initialize directories on module load
+ensureDirectoryExists(CONVERT_CONFIG.UPLOAD_DIR);
+ensureDirectoryExists(CONVERT_CONFIG.OUTPUT_DIR);
 
 /**
  * Multer configuration for file uploads
@@ -18,6 +23,7 @@ if (!fs.existsSync(CONVERT_CONFIG.OUTPUT_DIR)) {
  */
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
+        ensureDirectoryExists(CONVERT_CONFIG.UPLOAD_DIR);
         cb(null, CONVERT_CONFIG.UPLOAD_DIR);
     },
     filename: (req, file, cb) => {
