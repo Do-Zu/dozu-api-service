@@ -20,7 +20,7 @@ import { STATUS_GEN } from '../utils/constant';
 import { JOB_NAME, WORKER_NAME } from '../constants/constant';
 import { HTTP_STATUS } from '@/constants/index.constant';
 import { validatePayloadSizeBuffer } from '../utils/validate';
-import { isNilOrEmpty, lowercase } from '@/utils/common';
+import { isNilOrEmpty, lowercase, safeDestructure } from '@/utils/common';
 import { ResponseFormatJSONObject, ResponseFormatJSONSchema, ResponseFormatText } from 'openai/resources/shared';
 
 /**
@@ -113,7 +113,7 @@ class GenerativeService extends BaseGenerativeService {
      * This is the main worker function that handles content generation jobs
      */
     private async processor(job: Job): Promise<void> {
-        const { jobId, data: dataGenerated, type } = job.data;
+        const { jobId, data: dataGenerated, type, isError } = job.data;
 
         try {
             if (!job || !dataGenerated || !jobId) {
@@ -131,6 +131,15 @@ class GenerativeService extends BaseGenerativeService {
                     },
                     this.RESULT_TTL
                 );
+            }
+
+            if (isError) {
+                logger.error(`Processing error message from Lambda for job ${jobId}`, {
+                    error: dataGenerated,
+                    jobId,
+                });
+
+                throw new Error(dataGenerated?.message || 'An error occurred while processing your request');
             }
 
             //NOTE: Only store; do not emit SSE here (cross-instance emission handled in completion handler)
@@ -175,11 +184,6 @@ class GenerativeService extends BaseGenerativeService {
             // Send error to client if connected
             if (sseManager.isClientConnected(jobId)) {
                 sseManager.sendEvent(jobId, clientError, true);
-            } else {
-                // Store error in Redis for later retrieval
-                this.storeData(clientError, jobId, 'error').catch(err => {
-                    logger.error(`Failed to store error in Redis: ${err.message}`);
-                });
             }
         }
     }
@@ -517,11 +521,15 @@ class GenerativeService extends BaseGenerativeService {
     private async checkStatusOfMessage(bullJobId: string) {
         const bullJob = await queue.getJob(WORKER_NAME, bullJobId);
 
-        if (bullJob && bullJob?.data)
+        if (bullJob && bullJob?.data) {
+            const { jobId, type, isError } = safeDestructure(bullJob.data);
+
             return {
-                jobId: bullJob?.data?.jobId,
-                type: bullJob?.data?.type,
+                jobId,
+                type,
+                isError,
             };
+        }
 
         return await redisInstance.get(`${this.PREFIX_KEY_CACHED_JOB}:${bullJobId}`);
     }
@@ -536,7 +544,7 @@ class GenerativeService extends BaseGenerativeService {
 
             if (!messageInfo?.jobId || !messageInfo.type) return false;
 
-            const { jobId, type } = messageInfo;
+            const { jobId, type, isError } = safeDestructure(messageInfo);
 
             if (!sseManager.isClientConnected(jobId)) {
                 // No local client; nothing to do (another instance may own it)
@@ -562,7 +570,7 @@ class GenerativeService extends BaseGenerativeService {
                 return false;
             }
 
-            sseManager.sendEvent(jobId, { ...cached, type });
+            sseManager.sendEvent(jobId, { ...cached, type }, isError);
 
             logger.info(`SSE result delivered for job ${jobId}`);
 

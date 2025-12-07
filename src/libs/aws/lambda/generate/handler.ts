@@ -112,7 +112,7 @@ export const handler = async (event: any) => {
             // Add job to the queue
             job = await queue.add(
                 job_name,
-                { data: result, jobId, type },
+                { data: result, jobId, type, isError: false },
                 {
                     attempts: 3,
                     backoff: {
@@ -145,6 +145,40 @@ export const handler = async (event: any) => {
         };
     } catch (error) {
         console.error('Lambda handler error:', error);
+
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorData = {
+            message: 'Failed to process job',
+            error: errorMessage,
+            errorType: error instanceof Error ? error.name : 'UnknownError',
+            status: 'error',
+            timestamp: new Date().toISOString(),
+        };
+
+        // Push error to queue before closing connection
+        try {
+            const { jobId, queue_name, job_name, type, isAsync = true } = event.data || {};
+
+            if (isAsync && jobId && queue_name && job_name) {
+                const queue = createQueue(queue_name);
+
+                // Add error job to the queue
+                await queue.add(
+                    job_name,
+                    { data: errorData, jobId, type, isError: true },
+                    {
+                        attempts: 1,
+                        removeOnComplete: 5,
+                        removeOnFail: 5,
+                    }
+                );
+
+                console.log(`Error job added to queue ${queue_name} for job ${jobId}`);
+            }
+        } catch (queueError) {
+            console.error('Failed to push error to queue:', queueError);
+        }
+
         if (redisConnection) {
             try {
                 await redisConnection.quit();
@@ -155,10 +189,7 @@ export const handler = async (event: any) => {
         }
         return {
             statusCode: 500,
-            body: JSON.stringify({
-                message: 'Failed to process job',
-                error: error instanceof Error ? error.message : String(error),
-            }),
+            body: JSON.stringify(errorData),
         };
     }
 };
