@@ -1,6 +1,6 @@
 import { defineConfig } from 'drizzle-kit';
 import * as dotenv from 'dotenv';
-import path from 'path';
+import path from 'node:path';
 import fs from 'fs';
 
 const env = process.env.NODE_ENV || 'development';
