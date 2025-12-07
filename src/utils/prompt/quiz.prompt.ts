@@ -1,36 +1,70 @@
-import { IGenerateOptions } from '@/dtos/generate/models/GenerateContentRequestInterface';
+import { ICommonGenerateOptions } from '@/dtos/generate/models/GenerateContentRequestInterface';
 import { safeDestructure } from '../common';
+import { LIST_TYPES_DESCRIPTION } from './constant/prompt.constant';
 
 const defaultOptions = {
     numberOfItem: 20,
     difficulty: 'Medium',
     focus: 'essential concepts and key points',
-    listType: ['MULTIPLE CHOICE', ' FILL BLANK ', 'TRUE FALSE'],
+    listType: ['MULTIPLE CHOICE', 'TRUE FALSE', 'FILL BLANK'],
 };
 
 export const createQuizPrompt = (
     content: string,
-    options?: IGenerateOptions,
+    options?: ICommonGenerateOptions,
     defaultOptionsParam = defaultOptions
 ): string => {
     const { numberOfItem, difficulty, focus, listType } = safeDestructure(options, {
         ...defaultOptionsParam,
     });
 
-    const listTypeStr = listType?.join(', ');
+    // Clean up list types to ensure strings are trimmed
+    const validListTypes = listType?.map(t => t.trim()).join(', ') || 'MULTIPLE CHOICE';
 
-    return `Create a quizzes from the following content.
-- Focus on ${focus}
-- Difficulty level: ${difficulty}
-- Aim for the smallest effective set, approximately ${numberOfItem} questions
-- Combine various question type includes: ${listTypeStr} format.
-- Each question must have exactly 4 options (A, B, C, D)
-- Create a variety of question types: OPEN-ENDED QUESTIONS, CLOSED-ENDED QUESTIONS, INVESTIGATION QUESTIONS, DIRECTIONAL QUESTIONS, REVERSE QUESTIONS
-- Randomize the position of the correct answer within the options
-  Note: q: is question, o: options, idx: index of the correct answer (0-3). For example:
-[{"q": "Your question here", "o": ["A", "B", "C", "D"], "idx": 1, "type": "One of ${listTypeStr} "}]
-- Response follow language of the content
-- Output should be in only one array
+    return `
+# ROLE
+You are an expert educational content creator and a strict JSON parser.
 
-Content: ${content}`;
+# TASK
+Generate a quiz array based on the provided CONTENT text. 
+
+# LIST TYPE DESCRIPTIONS
+${LIST_TYPES_DESCRIPTION}
+
+# CONSTRAINTS
+1. **Quantity:** Generate exactly ${numberOfItem} questions.
+2. **Difficulty:** ${difficulty}.
+3. **Focus:** Focus strictly on ${focus}.
+4. **Language:** The output language MUST match the language of the CONTENT text.
+5. **Format:** Return ONLY a valid JSON array. Do not include markdown code blocks (like \`\`\`json), comments, or introductory text.
+6. **Question Types:** Use these formats: ${validListTypes}.
+7. **Options:** Every question must have exactly 4 options ("o" array). 
+8. **Distribution:** The total number of questions must be distributed as evenly as possible among the specified question types in ${validListTypes}. If the number cannot be divided equally, assign the remaining questions starting from the first type in the list.
+
+# COGNITIVE TYPES
+While following the formats above, vary the cognitive style of questions:
+- RECALL (Definitions)
+- APPLICATION (Scenarios)
+- ANALYSIS (Why/How)
+- REVERSE (Which is NOT...)
+
+# OUTPUT SCHEMA
+The output must strictly follow this JSON OBJECT:
+{
+  q: string; // The question stem
+  o: [string, string, string, string]; // Exactly 4 options
+  idx: number; // 0-3 (Index of the correct answer)
+  type: string; // One of: ${validListTypes}
+  hint: string; // A helpful hint
+  explain: string; // Detailed explanation of why the answer is correct
+}
+
+# CONTENT
+"""
+${content}
+"""
+
+# RESPONSE
+Should be in only one array
+`;
 };

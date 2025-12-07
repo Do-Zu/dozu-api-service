@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import logger from '@/utils/logger';
-// import { STATUS_GEN } from '../generative/v3/utils/constant';
+import { STATUS_GEN } from '../generative/utils/constant';
 
 class SSEManager {
     private clients: Map<string, Response> = new Map();
@@ -34,7 +34,7 @@ class SSEManager {
         });
 
         // Send initial connection established message
-        res.write(`data: ${JSON.stringify({ status: 'connected', jobId })}\n\n`);
+        res.write(`data: ${JSON.stringify({ status: STATUS_GEN.connected, jobId })}\n\n`);
 
         // Add client to the map (one client per jobId)
         this.clients.set(jobId, res);
@@ -89,7 +89,7 @@ class SSEManager {
             return false;
         }
 
-        const status = isError ? 'error' : 'completed';
+        const status = isError ? STATUS_GEN.error : STATUS_GEN.completed;
 
         const eventData = JSON.stringify({
             jobId,

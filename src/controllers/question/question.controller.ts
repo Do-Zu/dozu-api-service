@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
-import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import { BadRequest, DatabaseError } from '@/core/error';
 import { SuccessResponse } from '@/core/success';
 import { questionService } from '@/services/question/question.service';
 import topicService from '@/services/topic/topic.service';
 import { QuestionBatchPayload } from '@/dtos/question/ question.dto';
+import logger from '@/utils/logger';
 
 class QuestionController {
     constructor() {}
@@ -21,7 +21,7 @@ class QuestionController {
             const questions = await questionService.handleGetAllQuestionsForTopic(topicId);
             const topicName = topic.name;
             SuccessResponse.ok(res, { questions, topicName });
-        } catch (err) {
+        } catch {
             throw new DatabaseError('Something went wrong while fetching questions');
         }
     }
@@ -39,8 +39,6 @@ class QuestionController {
         }
 
         const { insert, update, delete: deleteIds }: QuestionBatchPayload = req.body;
-        console.log("Batch received:", req.body);
-
 
         try {
             await questionService.handleBatchQuestions(topicId, {
@@ -48,7 +46,8 @@ class QuestionController {
                 update,
                 delete: deleteIds,
             });
-        } catch (err) {
+        } catch (error) {
+            logger.error('Failed to batch process questions', { topicId, error });
             throw new DatabaseError('Failed to batch process questions');
         }
 

@@ -1,7 +1,7 @@
 import db, { Transaction } from '@/libs/drizzleClient.lib';
-import { flashcardsTable, itemSpacedRepetitionTrackingTable, topicsTable, TypeInsertFlashcard } from '@/models';
+import { flashcardsTable, itemSpacedRepetitionTrackingTable, TypeInsertFlashcard } from '@/models';
 import { IFlashcardLearningState, IFlashcard } from '@/types/flashcard/flashcard.type';
-import { and, asc, eq, lte } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import itemSpacedRepetitionTrackingService from '@/services/tracking/itemSpacedRepetitionTracking.service';
 
 type IInsertFlashcard = Pick<IFlashcard, 'topicId' | 'front' | 'back'>;
@@ -38,49 +38,6 @@ class FlashcardRepo {
         return flashcards[0];
     }
 
-    public async getDueFlashcardsForTopicAndUser(
-        topicId: number,
-        userId: number,
-        dueDate: string
-    ): Promise<IFlashcard[]> {
-        const flashcards = await db
-            .select({
-                flashcardId: flashcardsTable.flashcardId,
-                topicId: topicsTable.topicId,
-                nodeId: flashcardsTable.nodeId,
-                topicName: topicsTable.name,
-                front: flashcardsTable.front,
-                back: flashcardsTable.back,
-                imageUrl: flashcardsTable.imageUrl,
-                createdAt: flashcardsTable.createdAt,
-
-                // learning state (sm-2)
-                learningState: {
-                    status: itemSpacedRepetitionTrackingTable.status,
-                    lastReviewed: itemSpacedRepetitionTrackingTable.lastReviewed,
-                    nextReview: itemSpacedRepetitionTrackingTable.nextReview,
-                    reviewInterval: itemSpacedRepetitionTrackingTable.reviewInterval,
-                    easinessFactor: itemSpacedRepetitionTrackingTable.easinessFactor,
-                    repetitionNumber: itemSpacedRepetitionTrackingTable.repetitionNumber,
-                    step: itemSpacedRepetitionTrackingTable.step,
-                },
-            })
-            .from(flashcardsTable)
-            .innerJoin(topicsTable, eq(topicsTable.topicId, flashcardsTable.topicId))
-            .innerJoin(
-                itemSpacedRepetitionTrackingTable,
-                and(
-                    eq(itemSpacedRepetitionTrackingTable.type, 'flashcard'),
-                    eq(itemSpacedRepetitionTrackingTable.itemId, flashcardsTable.flashcardId),
-                    eq(itemSpacedRepetitionTrackingTable.userId, userId) // specific user
-                )
-            )
-            .where(and(eq(topicsTable.topicId, topicId), lte(itemSpacedRepetitionTrackingTable.nextReview, dueDate)))
-            .orderBy(asc(itemSpacedRepetitionTrackingTable.nextReview));
-
-        return flashcards;
-    }
-
     public async getFlashcardsForTopic(topicId: number): Promise<IFlashcard[]> {
         const flashcards = await db
             .select({
@@ -90,6 +47,7 @@ class FlashcardRepo {
                 front: flashcardsTable.front,
                 back: flashcardsTable.back,
                 imageUrl: flashcardsTable.imageUrl,
+                isStar: flashcardsTable.isStar,
                 createdAt: flashcardsTable.createdAt,
             })
             .from(flashcardsTable)
@@ -107,6 +65,7 @@ class FlashcardRepo {
             front: flashcardsTable.front,
             back: flashcardsTable.back,
             imageUrl: flashcardsTable.imageUrl,
+            isStar: flashcardsTable.isStar,
             createdAt: flashcardsTable.createdAt,
         });
         return result;
@@ -146,6 +105,7 @@ class FlashcardRepo {
                     front: flashcardsTable.front,
                     back: flashcardsTable.back,
                     imageUrl: flashcardsTable.imageUrl,
+                    isStar: flashcardsTable.isStar,
                     createdAt: flashcardsTable.createdAt,
                 });
             result.push(card);
@@ -183,6 +143,31 @@ class FlashcardRepo {
     public async deleteFlashcardsInTopic(topicId: number, tx?: Transaction) {
         const executor = tx ?? db;
         await executor.delete(flashcardsTable).where(eq(flashcardsTable.topicId, topicId));
+    }
+
+    public async toggleStar(flashcardId: number): Promise<{ flashcardId: number; isStar: boolean }> {
+        // Get current star status
+        const [current] = await db
+            .select({ isStar: flashcardsTable.isStar })
+            .from(flashcardsTable)
+            .where(eq(flashcardsTable.flashcardId, flashcardId))
+            .limit(1);
+
+        if (!current) {
+            throw new Error('Flashcard not found');
+        }
+
+        // Toggle star status
+        const [updated] = await db
+            .update(flashcardsTable)
+            .set({ isStar: !current.isStar })
+            .where(eq(flashcardsTable.flashcardId, flashcardId))
+            .returning({
+                flashcardId: flashcardsTable.flashcardId,
+                isStar: flashcardsTable.isStar,
+            });
+
+        return { flashcardId: updated.flashcardId, isStar: updated.isStar };
     }
 }
 

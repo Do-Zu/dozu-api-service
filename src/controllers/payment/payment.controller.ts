@@ -169,6 +169,33 @@ class PaymentController {
 
         SuccessResponse.ok(res, transaction);
     }
+
+    /**
+     * Get transaction history for the current user
+     */
+    public async getTransactionHistory(req: Request, res: Response) {
+        const userId = getUserIdFromRequest(req);
+
+        const DEFAULT_LIMIT = 50;
+        const MAX_LIMIT = 100; // adjust as appropriate
+        const rawLimit = req.query.limit;
+
+        let limit = DEFAULT_LIMIT;
+
+        if (rawLimit !== undefined) {
+            const parsed = Number(rawLimit);
+
+            if (!Number.isInteger(parsed) || parsed <= 0) {
+                throw new BadRequest('limit must be a positive integer');
+            }
+
+            limit = Math.min(parsed, MAX_LIMIT);
+        }
+
+        const transactions = await paymentService.getUserTransactionHistory(userId, limit);
+
+        SuccessResponse.ok(res, transactions, 'Transaction history retrieved successfully');
+    }
 }
 
 export const paymentController = new PaymentController();

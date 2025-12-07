@@ -6,16 +6,24 @@ import { authMiddleware } from '@/middleware/auth.middleware';
 import subscriptionMiddleware from '@/middleware/subscription/subscript.middleware';
 import paramsValidator from '@/core/validations/params.validator';
 import { flashcardRoutes } from '../flashcard/flashcard.routes';
+import { flashcardRoutes as flashcardRoutesV2 } from '../flashcard/v2/flashcard.routes';
 import topicMiddleware from '@/middleware/topic/topic.middleware';
 import { fileUploadSingleMiddleware } from '@/libs/multer.lib';
 import { noteRoutes } from '@/routes/note/note.routes';
+import noteController from '@/features/note/note.controller';
 
 const router = Router();
 globalAsyncHandler(router);
 
 router.use(authMiddleware);
 
-router.get('/:topicId', paramsValidator.validateId('topicId'), topicController.getTopicById);
+router.get(
+    '/:topicId',
+    paramsValidator.validateId('topicId'),
+    topicMiddleware.verifyTopicByIdInParam,
+    topicMiddleware.verifyUserCanAccessTopic,
+    topicController.getTopicById
+);
 router.get('/', topicController.getTopicsForUser);
 router.post(
     '/',
@@ -46,11 +54,27 @@ router.use(
 );
 
 router.use(
+    '/:topicId/flashcards/v2',
+    paramsValidator.validateId('topicId'),
+    topicMiddleware.verifyTopicByIdInParam,
+    topicMiddleware.verifyUserCanAccessTopic,
+    flashcardRoutesV2
+);
+
+router.use(
     '/:topicId/notes',
     paramsValidator.validateId('topicId'),
     topicMiddleware.verifyTopicByIdInParam,
     topicMiddleware.verifyUserCanAccessTopic,
     noteRoutes
+);
+
+router.put(
+    '/:topicId/note',
+    paramsValidator.validateId('topicId'),
+    topicMiddleware.verifyTopicByIdInParam,
+    topicMiddleware.verifyUserCanAccessTopic,
+    noteController.updateNote
 );
 
 registerRoute('/topics', router, {

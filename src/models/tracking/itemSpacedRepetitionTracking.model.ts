@@ -33,3 +33,5 @@ export const itemSpacedRepetitionTrackingTable = pgTable(
         pk: primaryKey({ columns: [table.itemId, table.userId, table.type] }),
     })
 );
+
+export type TypeInsertSpacedRepetitionTracking = typeof itemSpacedRepetitionTrackingTable.$inferInsert;  

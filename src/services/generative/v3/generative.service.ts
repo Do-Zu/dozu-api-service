@@ -20,7 +20,8 @@ import { STATUS_GEN } from '../utils/constant';
 import { JOB_NAME, WORKER_NAME } from '../constants/constant';
 import { HTTP_STATUS } from '@/constants/index.constant';
 import { validatePayloadSizeBuffer } from '../utils/validate';
-import { lowercase } from '@/utils/common';
+import { isNilOrEmpty, lowercase } from '@/utils/common';
+import { ResponseFormatJSONObject, ResponseFormatJSONSchema, ResponseFormatText } from 'openai/resources/shared';
 
 /**
  * Main generative service implementation
@@ -32,6 +33,11 @@ import { lowercase } from '@/utils/common';
  * 4. AWS Lambda integration for scalable processing
  * 5. Result caching in Redis
  */
+
+export interface IStreamGenerateOptions {
+    response_format?: ResponseFormatJSONObject | ResponseFormatJSONSchema | ResponseFormatText | undefined;
+}
+
 class GenerativeService extends BaseGenerativeService {
     private readonly TYPE_PROMPT_MAPPING: Record<string, TYPE_PROMPT> = {
         flashcard: 'FLASH_CARD',
@@ -39,6 +45,8 @@ class GenerativeService extends BaseGenerativeService {
         mindmap: 'MIND_MAP',
         feynman_review: 'FEYNMAN_REVIEW',
         feynman_question: 'FEYNMAN_QUESTION',
+        short_summary: 'SHORT_SUMMARY',
+        multi_node_flashcard: 'MULTI_NODE_FLASHCARD',
     };
 
     // BullMQ Worker configuration
@@ -93,7 +101,7 @@ class GenerativeService extends BaseGenerativeService {
                 errorType: error.name || 'ProcessingError',
                 errorCode: 500,
                 errorDetails: error.message,
-                status: STATUS_GEN.fail,
+                status: STATUS_GEN.error,
             };
 
             sseManager.sendEvent(jobId, clientError, true);
@@ -161,7 +169,7 @@ class GenerativeService extends BaseGenerativeService {
                 errorType: error.name || 'ProcessingError',
                 errorCode: 500,
                 errorDetails: error.message,
-                status: STATUS_GEN.fail,
+                status: STATUS_GEN.error,
             };
 
             // Send error to client if connected
@@ -184,12 +192,6 @@ class GenerativeService extends BaseGenerativeService {
         await redisInstance.set(key, data, this.RESULT_TTL);
     }
 
-    private async makeResultGenerateSent(type: string, jobId: string): Promise<boolean> {
-        const key = `result:sent:${type}:${jobId}`;
-        const res = await redisInstance.setnx(key, '1');
-        return res === 1;
-    }
-
     /**
      *
      */
@@ -199,7 +201,7 @@ class GenerativeService extends BaseGenerativeService {
 
     private mapRequestType(input: string): TYPE_PROMPT {
         const key = lowercase(input);
-        return this.TYPE_PROMPT_MAPPING[key] ?? 'FLASH_CARD';
+        return this.TYPE_PROMPT_MAPPING[key];
     }
 
     /**
@@ -259,11 +261,31 @@ class GenerativeService extends BaseGenerativeService {
 
         // Parse output and return formatted result
         const data = convertJsonToArray(fullContent || '[]');
+
         return {
             data,
             text: fullContent,
             status: STATUS_GEN.completed,
         };
+    }
+
+    public async *streamGenerateContent(payload: GenerateContentRequestInterface) {
+        const { content, type } = payload;
+
+        const key = lowercase(type);
+
+        const promptType = this.TYPE_PROMPT_MAPPING[key];
+
+        const prompt = generatePromptText(content, promptType);
+        const response_format = this.getResponseFormatForGenerationType(type);
+
+        if (isNilOrEmpty(prompt)) {
+            throw new BadRequest('Prompt Invalid');
+        }
+
+        for await (const chunk of this.getLLMProvider().handleProcessStreamContent(prompt, { response_format })) {
+            yield { status: 'connected', data: chunk };
+        }
     }
 
     /**
@@ -485,8 +507,8 @@ class GenerativeService extends BaseGenerativeService {
                 return STATUS_GEN.success;
             case 'completed':
                 return STATUS_GEN.completed;
-            case 'failed':
-                return STATUS_GEN.fail;
+            case 'error':
+                return STATUS_GEN.error;
             default:
                 return STATUS_GEN.register;
         }
@@ -548,6 +570,19 @@ class GenerativeService extends BaseGenerativeService {
         } catch (err) {
             logger.error(`Error in completion handler dispatch for job ${bullJobId}: ${(err as Error).message}`);
             return false;
+        }
+    }
+
+    private getResponseFormatForGenerationType(
+        type: string
+    ): ResponseFormatText | ResponseFormatJSONSchema | ResponseFormatJSONObject | undefined {
+        switch (type) {
+            case 'short_summary': {
+                return { type: 'text' };
+            }
+            default: {
+                return { type: 'json_object' };
+            }
         }
     }
 }

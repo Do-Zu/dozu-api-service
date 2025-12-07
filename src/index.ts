@@ -16,6 +16,8 @@ import NotificationScheduler from './services/notification/notification.schedule
 import { createServer } from 'http';
 import { webSocketService } from './libs/websocket/socket.io';
 import { notificationWebSocketService } from './libs/websocket/notification.websocket';
+import { quizActivityWebSocketService } from './libs/websocket/quizActivity.websocket';
+import { startClassQuizScheduler } from './utils/quiz/classQuizScheduler.job';
 
 setupGlobalErrorHandlers();
 
@@ -81,12 +83,19 @@ webSocketService.initialize(httpServer);
 // This reuses the same Socket.IO instance from base service to avoid conflicts
 notificationWebSocketService.initialize(httpServer);
 
+// Initialize Quiz Activity WebSocket service
+// This reuses the same Socket.IO instance for realtime quiz activity tracking
+quizActivityWebSocketService.initialize(httpServer);
+
 // Start server
 const server = httpServer.listen(port, () => {
   db();
   
   // Initialize notification scheduler
   NotificationScheduler.init();
+
+  // Start class quiz scheduler
+  startClassQuizScheduler();
   
   logger.info(`Server is running at http://${host}:${port}`);
   logger.info('WebSocket server initialized and ready for connections');

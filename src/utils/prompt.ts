@@ -1,8 +1,10 @@
 import { createCustomMindmapPrompt } from './prompt/mindmap.prompt';
 import { createFeynmanEvaluationPrompt, createFeynmanPromptGenerateQuestion } from './prompt/feynman.prompt';
-import { createFlashcardPrompt } from './prompt/flashcard.prompt';
+import { createFlashcardForMultiNodesPrompt, createFlashcardPrompt } from './prompt/flashcard.prompt';
 import { createQuizPrompt } from './prompt/quiz.prompt';
 import { IGenerateOptions } from '@/dtos/generate/models/GenerateContentRequestInterface';
+import summaryPrompt from './prompt/summary.prompt';
+
 export const DEFAULT_MAX_ITEM_GEN = 40;
 const PROMPT_SUMMARY_CONTENT = `Create a summary of the following content.
 - Focus on essential concepts and key points only
@@ -19,20 +21,26 @@ export type TYPE_PROMPT =
     | 'MIND_MAP'
     | 'QUIZ'
     | 'FEYNMAN_QUESTION'
-    | 'FEYNMAN_REVIEW';
+    | 'FEYNMAN_REVIEW'
+    | 'SHORT_SUMMARY'
+    | 'MULTI_NODE_FLASHCARD';
 
 const generatePromptText = (content: string, type: TYPE_PROMPT, options?: IGenerateOptions): string => {
     switch (type) {
         case 'FLASH_CARD':
-            return createFlashcardPrompt(content, options);
+            return createFlashcardPrompt(content, options?.commonGenerateOptions);
         case 'QUIZ':
-            return createQuizPrompt(content, options);
+            return createQuizPrompt(content, options?.commonGenerateOptions);
         case 'MIND_MAP':
             return createCustomMindmapPrompt(content);
         case 'FEYNMAN_QUESTION':
             return createFeynmanPromptGenerateQuestion(content);
         case 'FEYNMAN_REVIEW':
             return createFeynmanEvaluationPrompt(content);
+        case 'SHORT_SUMMARY':
+            return summaryPrompt.createShortSummaryPrompt(content);
+        case 'MULTI_NODE_FLASHCARD':
+            return createFlashcardForMultiNodesPrompt(content, options);
         default:
             return `${PROMPT_SUMMARY_CONTENT} 
                 Content: ${content}`;

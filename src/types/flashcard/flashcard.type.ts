@@ -1,7 +1,5 @@
-import { IQualityResponse } from '@/services/spaced-repetition-system/super-memo-2/superMemo2.service';
 import { z } from 'zod';
 import { IItemSpacedRepetition } from '../tracking/itemSpacedRepetitionTracking.type';
-import { INextReviewDataByRating } from '@/services/flashcard/flashcard.service';
 import { IItemStatus } from '@/models';
 import { IAnkiRating } from '@/services/spaced-repetition-system/super-memo-2/anki.service';
 
@@ -36,11 +34,6 @@ export const ZFlashcardTracked = z.object({
     qualityResponse: ZQualityResponse,
 });
 
-export interface IQualityResponseNextReviewInterval {
-    qualityResponse: IQualityResponse;
-    nextReviewInterval: number;
-}
-
 export interface IFlashcard {
     flashcardId: number;
     topicId: number;
@@ -48,6 +41,7 @@ export interface IFlashcard {
     front: string;
     back: string;
     imageUrl?: string | null;
+    isStar?: boolean;
     createdAt: Date;
     learningState?: IFlashcardLearningState;
 
@@ -75,21 +69,41 @@ export type IFlashcardBatchResult = {
     flashcardsUpdated: IFlashcard[];
 };
 
-export interface IImageSaveInput {
-    id: string;
-    url: string;
-    downloadLocation: string;
+export interface IUnspashImageSaveInput {
+    type: 'unsplash';
+    data: {
+        id: string;
+        url: string;
+        downloadLocation: string;
+    };
 }
 
+export interface IUploadImageSaveInput {
+    type: 'upload';
+    data: string;
+}
+
+export type IImageSaveInput = IUnspashImageSaveInput | IUploadImageSaveInput;
+
 export type IDueAnkiCard = Pick<IFlashcard, 'flashcardId' | 'front' | 'back' | 'imageUrl' | 'topicName' | 'nodeId'> & {
-    nextReviewDataByRatings: INextReviewDataByRating[];
+    learningState: IFlashcardLearningState;
     nextReview: string;
     status: IItemStatus;
 };
 
 export type IAnkiCardReviewed = Pick<IFlashcard, 'flashcardId'> & {
+    learningState: IFlashcardLearningState;
     nextReview: string;
     status: IItemStatus;
-    nextReviewDataByRatings: INextReviewDataByRating[];
     rating: IAnkiRating;
 };
+
+export type InsertFlashcardsBody = (Pick<IFlashcard, 'front' | 'back' | 'nodeId'> & {
+    image?: IImageSaveInput | null;
+})[];
+
+export type IUpdateFlashcard = Pick<IFlashcard, 'flashcardId' | 'front' | 'back' | 'nodeId' | 'imageUrl'>;
+
+export type IUpdateFlashcardsBody = (Pick<IFlashcard, 'flashcardId' | 'front' | 'back' | 'nodeId'> & {
+    image?: IImageSaveInput | null;
+})[];

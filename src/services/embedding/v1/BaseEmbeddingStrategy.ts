@@ -12,6 +12,7 @@ import { BadRequest, ServiceUnavailable } from '@/core/error';
 import { HTTP_STATUS } from '@/constants/index.constant';
 import { TypeMetaDataChunkEmbed } from '@/models/embedding';
 import logger from '@/utils/logger';
+import { BASE_API_EMBEDDING_SERVICE } from './api/api';
 
 /**
  * Base strategy interface for different embedding types
@@ -21,8 +22,6 @@ export interface IEmbeddingStrategy {
     canHandle(input: EmbeddingInputType): boolean;
     queryTopSimilarity(payload: IQuerySimilarity): Promise<IReturnItemQuery[]>;
 }
-
-const BASE_API_EMBEDDING_SERVICE = process.env.EMBEDDING_API_URL;
 
 export abstract class BaseEmbeddingStrategy implements IEmbeddingStrategy {
     protected BASE_API_EMBEDDING_SERVICE_PROVIDER;

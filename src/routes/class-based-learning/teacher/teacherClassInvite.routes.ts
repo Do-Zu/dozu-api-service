@@ -23,12 +23,6 @@ router.post(
     classInviteController.inviteByEmail.bind(classInviteController)
 );
 
-// Get invites for class
-router.get(
-    '/',
-    classInviteController.getInvitesForClass.bind(classInviteController)
-);
-
 // Regenerate invite link
 router.post(
     '/regenerate',
