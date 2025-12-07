@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { generateService } from '@/services/generative/v1/generate.service';
 import { SuccessResponse } from '@/core/success';
 import multer from 'multer';
-import path from 'path';
+import path from 'node:path';
 import fs from 'fs';
 import { BadRequest } from '@/core/error';
 

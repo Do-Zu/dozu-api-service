@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import path from 'path';
+import path from 'node:path';
 import * as fs from 'fs';
 import logger from '../utils/logger';
 

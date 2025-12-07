@@ -1,4 +1,4 @@
-import path from 'path';
+import path from 'node:path';
 import { IConversionResult, IFileService } from '@/types/convert.types';
 import { ConverterFactory } from './strategies/converter-factory.strategy';
 import { UrlToPdfConverter } from './strategies/url-converter.strategy';
