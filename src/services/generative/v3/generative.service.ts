@@ -20,7 +20,7 @@ import { STATUS_GEN } from '../utils/constant';
 import { JOB_NAME, WORKER_NAME } from '../constants/constant';
 import { HTTP_STATUS } from '@/constants/index.constant';
 import { validatePayloadSizeBuffer } from '../utils/validate';
-import { isNilOrEmpty, lowercase, safeDestructure } from '@/utils/common';
+import { isEmpty, isNilOrEmpty, lowercase, safeDestructure } from '@/utils/common';
 import { ResponseFormatJSONObject, ResponseFormatJSONSchema, ResponseFormatText } from 'openai/resources/shared';
 
 /**
@@ -521,17 +521,17 @@ class GenerativeService extends BaseGenerativeService {
     private async checkStatusOfMessage(bullJobId: string) {
         const bullJob = await queue.getJob(WORKER_NAME, bullJobId);
 
-        if (bullJob && bullJob?.data) {
-            const { jobId, type, isError } = safeDestructure(bullJob.data);
-
-            return {
-                jobId,
-                type,
-                isError,
-            };
+        if (isEmpty(bullJob?.data)) {
+            return await redisInstance.get(`${this.PREFIX_KEY_CACHED_JOB}:${bullJobId}`);
         }
 
-        return await redisInstance.get(`${this.PREFIX_KEY_CACHED_JOB}:${bullJobId}`);
+        const { jobId, type, isError } = safeDestructure(bullJob!.data);
+
+        return {
+            jobId,
+            type,
+            isError,
+        };
     }
 
     /**
