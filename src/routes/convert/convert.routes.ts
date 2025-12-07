@@ -1,9 +1,9 @@
 import express from 'express';
 import { registerRoute } from '../register.routes';
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
-import { uploadMiddleware } from '@/middleware/convert-upload.middleware';
+import { uploadMiddleware } from '@/middleware/storage/convert-upload.middleware';
 import { convertController } from '@/controllers/convert/convert.controller';
-// import { authMiddleware } from '@/middleware/auth.middleware';
+import { authMiddleware } from '@/middleware/auth.middleware';
 
 /**
  * Convert routes
@@ -14,7 +14,7 @@ const router = express.Router();
 // Apply global async handler
 globalAsyncHandler(router);
 
-// router.use(authMiddleware);
+router.use(authMiddleware);
 
 /**
  * @route POST /convert/file
