@@ -40,7 +40,10 @@ class ConvertService {
      */
     async convertFile(inputPath: string, originalFilename: string): Promise<IConversionResult> {
         const extension = path.extname(originalFilename).toLowerCase();
-        const outputFilename = this.fileService.generateUniqueFilename(originalFilename, '.pdf');
+        const outputFilename = this.fileService.generateUniqueFilename(
+            originalFilename,
+            CONVERT_CONFIG.DEFAULT_FORMAT_CONVERT
+        );
         const outputPath = path.join(this.outputDir, outputFilename);
 
         try {
@@ -56,7 +59,7 @@ class ConvertService {
             return {
                 buffer,
                 filename: outputFilename,
-                mimeType: 'application/pdf',
+                mimeType: CONVERT_CONFIG.DEFAULT_FORMAT_MIMETYPE_CONVERT,
             };
         } finally {
             // Cleanup: delete input and output files
@@ -71,7 +74,7 @@ class ConvertService {
      * @returns Conversion result with buffer and metadata
      */
     async convertUrl(url: string): Promise<IConversionResult> {
-        const outputFilename = this.fileService.generateUniqueFilename('url', '.pdf');
+        const outputFilename = this.fileService.generateUniqueFilename('url', CONVERT_CONFIG.DEFAULT_FORMAT_CONVERT);
         const outputPath = path.join(this.outputDir, outputFilename);
 
         try {

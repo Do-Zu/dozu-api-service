@@ -53,7 +53,7 @@ export class FileService implements IFileService {
         }
     }
 
-    generateUniqueFilename(originalName: string, extension: string = '.pdf'): string {
+    generateUniqueFilename(originalName: string, extension: string): string {
         const baseName = path.parse(originalName).name;
         return `${baseName}-${uuidv4()}${extension}`;
     }

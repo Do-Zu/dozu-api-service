@@ -25,6 +25,8 @@ export const CONVERT_CONFIG = {
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
     } as LaunchOptions,
     NETWORK_TIMEOUT: 60000,
+    DEFAULT_FORMAT_CONVERT: '.pdf',
+    DEFAULT_FORMAT_MIMETYPE_CONVERT: 'application/pdf',
 } as const;
 
 export type SupportedExtension = (typeof CONVERT_CONFIG.SUPPORTED_EXTENSIONS)[number];

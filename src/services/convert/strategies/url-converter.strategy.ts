@@ -1,6 +1,7 @@
 import puppeteer, { Browser } from 'puppeteer';
 import { IUrlConverter } from '@/types/convert.types';
 import { CONVERT_CONFIG } from '@/services/convert/config/convert.config';
+import { BadRequest, InternalServerError } from '@/core/error';
 
 /**
  * URL to PDF converter using Puppeteer
@@ -27,9 +28,14 @@ export class UrlToPdfConverter implements IUrlConverter {
         }
 
         try {
-            new URL(url);
+            const parsedUrl = new URL(url);
+            const allowedProtocols = ['http:', 'https:'];
+
+            if (!allowedProtocols.includes(parsedUrl.protocol)) {
+                throw new BadRequest(`Invalid URL protocol. Only HTTP and HTTPS are allowed.`);
+            }
         } catch {
-            throw new Error('Invalid URL format');
+            throw new BadRequest('Invalid URL format');
         }
     }
 
@@ -45,7 +51,7 @@ export class UrlToPdfConverter implements IUrlConverter {
 
     private async convertUrlToPdf(url: string, outputPath: string): Promise<void> {
         if (!this.browser) {
-            throw new Error('Browser not initialized');
+            throw new InternalServerError('Browser not initialized');
         }
 
         const page = await this.browser.newPage();
