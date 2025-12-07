@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
+import sanitize from 'sanitize-filename';
 import { v4 as uuidv4 } from 'uuid';
 import { IFileService } from '@/types/convert.types';
 import logger from '@/utils/logger';
@@ -30,16 +31,32 @@ export class FileService implements IFileService {
         }
     }
 
-    async deleteFile(filepath: string): Promise<void> {
-        if (!this.fileExists(filepath)) {
+    async deleteFile(filepath: string, rootDir: string): Promise<void> {
+        let resolvedPath: string;
+
+        try {
+            resolvedPath = fs.realpathSync(path.resolve(rootDir, filepath));
+        } catch {
+            // If the file doesn't exist, realpathSync will throw
+            return;
+        }
+
+        const rootResolved = fs.realpathSync(rootDir);
+
+        if (!resolvedPath.startsWith(rootResolved)) {
+            logger.error(`Attempted to delete file outside allowed directory: ${resolvedPath}`);
+            return;
+        }
+
+        if (!this.fileExists(resolvedPath)) {
             return;
         }
 
         try {
-            await unlinkAsync(filepath);
+            await unlinkAsync(resolvedPath);
         } catch (error) {
             // Log error but don't throw - cleanup is best effort
-            logger.error(`Failed to delete file ${filepath}:`, error);
+            logger.error(`Failed to delete file ${resolvedPath}:`, error);
         }
     }
 
@@ -54,7 +71,8 @@ export class FileService implements IFileService {
     }
 
     generateUniqueFilename(originalName: string, extension: string): string {
-        const baseName = path.parse(originalName).name;
+        const sanitizedName = sanitize(originalName);
+        const baseName = path.parse(sanitizedName).name;
         return `${baseName}-${uuidv4()}${extension}`;
     }
 }

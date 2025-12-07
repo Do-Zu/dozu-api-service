@@ -121,6 +121,7 @@
         "pdf-parse": "1.1.1",
         "pg": "8.14.1",
         "puppeteer": "24.32.0",
+        "sanitize-filename": "1.6.3",
         "socket.io": "4.8.1",
         "unsplash-js": "7.0.19",
         "uuid": "11.1.0",

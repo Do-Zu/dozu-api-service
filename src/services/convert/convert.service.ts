@@ -63,8 +63,8 @@ class ConvertService {
             };
         } finally {
             // Cleanup: delete input and output files
-            await this.fileService.deleteFile(inputPath);
-            await this.fileService.deleteFile(outputPath);
+            await this.fileService.deleteFile(inputPath, this.uploadDir);
+            await this.fileService.deleteFile(outputPath, this.outputDir);
         }
     }
 
@@ -91,7 +91,7 @@ class ConvertService {
             };
         } finally {
             // Cleanup: delete output file
-            await this.fileService.deleteFile(outputPath);
+            await this.fileService.deleteFile(outputPath, this.outputDir);
         }
     }
 }

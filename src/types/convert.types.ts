@@ -20,7 +20,7 @@ export interface IUrlConverter {
 export interface IFileService {
     saveFile(buffer: Buffer, filepath: string): Promise<void>;
     readFile(filepath: string): Promise<Buffer>;
-    deleteFile(filepath: string): Promise<void>;
+    deleteFile(filepath: string, rootDir: string): Promise<void>;
     fileExists(filepath: string): boolean;
     ensureDirectoryExists(dirPath: string): void;
     generateUniqueFilename(originalName: string, extension: string): string;
