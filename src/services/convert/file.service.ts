@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { promisify } from 'util';
+import { promisify } from 'node:util';
 import sanitize from 'sanitize-filename';
 import { v4 as uuidv4 } from 'uuid';
 import { IFileService } from '@/types/convert.types';
