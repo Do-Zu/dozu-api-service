@@ -39,9 +39,10 @@ jobs:
                   HOST: ${{ secrets.VIETNIX_HOST }}
                   USERNAME: ${{ secrets.VIETNIX_USERNAME }}
                   PASSWORD: ${{ secrets.VIETNIX_PASSWORD }}
+                  SSH_PORT: ${{ secrets.SSH_PORT }}
               run: |
                   set -e
-                  sshpass -p "$PASSWORD" ssh -p 8622 -o StrictHostKeyChecking=no "$USERNAME@$HOST" "echo 'VIETNIX connection OK'; \
+                  sshpass -p "$PASSWORD" ssh -p "$SSH_PORT" -o StrictHostKeyChecking=no "$USERNAME@$HOST" "echo 'VIETNIX connection OK'; \
                     echo 'Checking sudo access (may prompt internally)...'; \
                     echo \"$PASSWORD\" | sudo -S -p '' echo 'Sudo access confirmed' || echo 'Sudo access not required or failed'"
     build-source:
@@ -157,6 +158,7 @@ jobs:
                   UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
                   ALLOWED_ORIGINS: ${{ secrets.ALLOWED_ORIGINS }}
                   EMBEDDING_API_URL: ${{ secrets.EMBEDDING_API_URL }}
+                  GOTENBERG_URL: ${{ secrets.GOTENBERG_URL }}
               run: |
                   set -euo pipefail
                   if [ "$ENV_INPUT" = "production" ]; then
@@ -208,6 +210,7 @@ jobs:
                     echo "UNSPLASH_ACCESS_KEY=$UNSPLASH_ACCESS_KEY"
                     echo "ALLOWED_ORIGINS=$ALLOWED_ORIGINS"
                     echo "EMBEDDING_API_URL=$EMBEDDING_API_URL"
+                    echo "GOTENBERG_URL=$GOTENBERG_URL"
                   } > "$ENV_FILE"
                   echo "env_file=$ENV_FILE" >> "$GITHUB_OUTPUT"
 
@@ -252,6 +255,8 @@ jobs:
                   PASSWORD: ${{ secrets.VIETNIX_PASSWORD }}
                   DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME }}
                   DOCKER_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+                  APP_PORT: ${{ secrets.PORT }}
+                  SSH_PORT: ${{ secrets.SSH_PORT }}
               run: |
                   set -e
                   IMAGE="$(printf '%s' '${{ needs.build-push.outputs.image_b64 }}' | base64 -d)"
@@ -272,8 +277,8 @@ jobs:
                   # Define variables
                   CONTAINER_NAME="api-service"
                   NETWORK_NAME="dozu-app-network"
-                  CONTAINER_PORT="3444"
-                  HOST_PORT="3444"
+                  CONTAINER_PORT="$APP_PORT"
+                  HOST_PORT="$APP_PORT"
                   VOLUME_NAME="api-logs"
                   VOLUME_PATH="/app/logs"
 
@@ -304,4 +309,4 @@ jobs:
                   )
 
                   # run remote with sudo and pass env vars explicitly
-                  sshpass -p "$PASSWORD" ssh -p 8622 -o StrictHostKeyChecking=no "$USERNAME@$HOST" "command -v docker >/dev/null 2>&1 || { echo 'Docker is not installed on remote'; exit 1; }; echo \"$PASSWORD\" | sudo -S -p '' env DOCKER_USER='$DOCKER_USER' DOCKER_TOKEN='$DOCKER_TOKEN' IMAGE='$IMAGE' TAG='$TAG' bash -lc '$REMOTE_CMDS'"
+                  sshpass -p "$PASSWORD" ssh -p "$SSH_PORT" -o StrictHostKeyChecking=no "$USERNAME@$HOST" "command -v docker >/dev/null 2>&1 || { echo 'Docker is not installed on remote'; exit 1; }; echo \"$PASSWORD\" | sudo -S -p '' env DOCKER_USER='$DOCKER_USER' DOCKER_TOKEN='$DOCKER_TOKEN' IMAGE='$IMAGE' TAG='$TAG' PORT='$PORT' bash -lc '$REMOTE_CMDS'"
