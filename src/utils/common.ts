@@ -6,7 +6,16 @@
  * @returns boolean - Returns true if both strings are equal ignoring case, false otherwise.
  */
 export function compareIgnoreCapitalization(str1: string, str2: string): boolean {
-    return str1?.toLowerCase() === str2?.toLowerCase();
+    if (str1 === str2) return true;
+    return lowercase(str1) === lowercase(str2);
+}
+
+/**
+ * Safely normalizes a string to lowercase and trims surrounding whitespace.
+ * Returns empty string for nullish input.
+ */
+export function lowercase(str: string): string {
+    return str ? str.trim().toLowerCase() : '';
 }
 
 /**
@@ -18,3 +27,114 @@ export function compareIgnoreCapitalization(str1: string, str2: string): boolean
 export function removeHyphensFromUUID(uuid: string): string {
     return uuid.replace(/-/g, '');
 }
+
+/**
+ * Returns true if the value is undefined, null, or an empty string.
+ *
+ * @param val - Value to test.
+ */
+export const isNilOrEmpty = (val: unknown): boolean => val === undefined || val === null || val === '';
+
+/**
+ * Check and convert to string
+ * @param val
+ * @returns string
+ */
+export const checkAndConvertToString = (val: string | number | undefined | null): string => {
+    if (isNilOrEmpty(val)) return '';
+
+    return val!.toString();
+};
+
+/**
+ *
+ * @param value
+ * @returns True if list is empty, false otherwise.
+ */
+const isListEmpty = (value: unknown[]): boolean => {
+    return value.length === 0;
+};
+
+/**
+ *
+ * @param obj
+ * @returns True if the object is empty, false otherwise.
+ */
+const isObjectEmpty = (obj: object): boolean => {
+    return Object.keys(obj).length === 0 && obj.constructor === Object;
+};
+
+/**
+ * Checks if an object is empty (has no own properties).
+ *
+ * @param obj - The object to be checked.
+ * @returns return empty for unknown type
+ */
+export const isEmpty = (value: unknown): boolean => {
+    if (value === null || value === undefined) return true;
+
+    if (typeof value === 'string') return value.length === 0;
+
+    if (Array.isArray(value)) return isListEmpty(value);
+
+    if (typeof value === 'object') {
+        return isObjectEmpty(value);
+    }
+
+    return false;
+};
+
+/**
+ * Checks if a value is null/undefined or empty.
+ *
+ * @param value - The value to be checked.
+ * @returns True if the value is null, undefined, or empty; false otherwise.
+ */
+export const isNullOrEmpty = (value: unknown): boolean => {
+    if (isNilOrEmpty(value)) return true;
+
+    return isEmpty(value);
+};
+
+/**
+ * Safely converts a value to a number.
+ * Returns defaultValue if conversion fails or result is not finite.
+ *
+ * @param value - Any input value.
+ * @param defaultValue - Value to return when parsing fails.
+ */
+export const toNumber = (value: unknown, defaultValue: number = NaN): number => {
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? value : defaultValue;
+    }
+
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) return defaultValue;
+
+        const parsed = Number(trimmed);
+        return Number.isFinite(parsed) ? parsed : defaultValue;
+    }
+
+    return defaultValue;
+};
+
+/**
+ * Utility function for safe destructuring without React hooks.
+ * Can be used in any TypeScript/JavaScript context.
+ *
+ * @template T - The expected type of the object
+ * @param {T | undefined | null} object - The object to safely destructure
+ * @param {Partial<T>} defaultValues - Default values for missing properties
+ * @returns {T} A safe object that won't crash on destructuring
+ *
+ * @example
+ * ```tsx
+ * const { name, age } = safeDestructure(user, { name: '', age: 0 });
+ * ```
+ */
+export const safeDestructure = <T extends object>(object: T | undefined | null, defaultValues: Partial<T> = {}): T => {
+    if (isNilOrEmpty(object)) return defaultValues as T;
+
+    return { ...defaultValues, ...object } as T;
+};

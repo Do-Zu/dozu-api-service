@@ -1,10 +1,11 @@
 import db from '@/libs/drizzleClient.lib';
 import { classEnrollmentsTable, classesTable, usersTable } from '@/models';
+import { ICreateClassService, IUpdateClassService } from '@/services/class-based-learning/class.service';
 import { IClass } from '@/types/class-based-learning/class.type';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
-export type ICreateClassRepo = Pick<IClass, 'name' | 'description' | 'invitationCode'> & { teacherId: number };
-export type IUpdateClassRepo = Pick<IClass, 'name' | 'description'>;
+export type ICreateClassRepo = ICreateClassService & { invitationCode: string; teacherId: number };
+export type IUpdateClassRepo = IUpdateClassService;
 
 class ClassRepo {
     public async getClassById(classId: number): Promise<IClass | undefined> {
@@ -14,6 +15,7 @@ class ClassRepo {
                 name: classesTable.name,
                 description: classesTable.description,
                 invitationCode: classesTable.invitationCode,
+                imageUrl: classesTable.imageUrl,
                 createdAt: classesTable.createdAt,
             })
             .from(classesTable)
@@ -28,6 +30,7 @@ class ClassRepo {
                 name: classesTable.name,
                 description: classesTable.description,
                 invitationCode: classesTable.invitationCode,
+                imageUrl: classesTable.imageUrl,
                 createdAt: classesTable.createdAt,
                 enrolledAt: classEnrollmentsTable.enrolledAt,
                 teacherName: usersTable.fullName,
@@ -47,6 +50,7 @@ class ClassRepo {
                 name: classesTable.name,
                 description: classesTable.description,
                 invitationCode: classesTable.invitationCode,
+                imageUrl: classesTable.imageUrl,
                 createdAt: classesTable.createdAt,
             })
             .from(classesTable)
@@ -54,12 +58,13 @@ class ClassRepo {
         return classes;
     }
 
-    public async createClassForUser(data: ICreateClassRepo): Promise<IClass> {
+    public async createClassForTeacher(data: ICreateClassRepo): Promise<IClass> {
         const [result] = await db.insert(classesTable).values(data).returning({
             classId: classesTable.classId,
             name: classesTable.name,
             description: classesTable.description,
             invitationCode: classesTable.invitationCode,
+            imageUrl: classesTable.imageUrl,
             createdAt: classesTable.createdAt,
         });
         return result;
@@ -71,6 +76,7 @@ class ClassRepo {
             name: classesTable.name,
             description: classesTable.description,
             invitationCode: classesTable.invitationCode,
+            imageUrl: classesTable.imageUrl,
             createdAt: classesTable.createdAt,
         });
         return result;
@@ -84,12 +90,22 @@ class ClassRepo {
                 name: classesTable.name,
                 description: classesTable.description,
                 invitationCode: classesTable.invitationCode,
+                imageUrl: classesTable.imageUrl,
                 createdAt: classesTable.createdAt,
             })
             .from(classesTable)
             .where(eq(classesTable.invitationCode, invitationCode));
 
         return result;
+    }
+
+    public async isTeacherOwnerOfClass(classId: number, teacherId: number): Promise<boolean> {
+        const result = await db
+            .select({})
+            .from(classesTable)
+            .where(and(eq(classesTable.classId, classId), eq(classesTable.teacherId, teacherId)))
+            .limit(1);
+        return result.length === 1;
     }
 }
 

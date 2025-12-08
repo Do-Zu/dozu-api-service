@@ -185,6 +185,70 @@ class ProgressController {
       SuccessResponse.ok(res, { completedTopics });
    
   }
+
+  /**
+   * Update learning tracking data from client
+   * Updates both progress table and daily_study_records
+   */
+  public async updateLearningTracking(req: Request, res: Response): Promise<void> {
+    
+      const userId = this.extractUserId(req);
+      const {
+        topicId,
+        contentType,
+        timeSpent, // in milliseconds from client
+        isCompleted = false,
+        itemsStudied = 0,
+        accuracy = 0,
+        sessionData
+      } = req.body;
+
+      if (!topicId || !contentType || typeof timeSpent !== 'number') {
+        throw new BadRequest('Missing required fields: topicId, contentType, timeSpent');
+      }
+
+      // Convert timeSpent from milliseconds to seconds and minutes for database
+      const timeSpentSeconds = Math.floor(timeSpent / 1000);
+      const timeSpentMinutes = timeSpent / (1000 * 60); // Keep as decimal for calculation
+      
+      // Round to nearest minute for database storage (integer required)
+      // Ensure minimum 1 minute if any time was spent
+      const recordedMinutes = timeSpentMinutes > 0 ? Math.max(1, Math.round(timeSpentMinutes)) : 0;
+
+      // Update or create progress record
+      await progressService.updateLearningProgress({
+        userId,
+        topicId,
+        contentType,
+        timeSpent: timeSpentSeconds,
+        isCompleted,
+        metadata: {
+          itemsStudied,
+          accuracy,
+          sessionData,
+          lastUpdated: new Date().toISOString()
+        }
+      });
+
+      // Update daily study records
+      // Use local date instead of UTC to match user's timezone
+      const today = new Date();
+      const localDateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      
+      await progressService.updateDailyStudyRecord({
+        userId,
+        date: localDateString, // YYYY-MM-DD format in local timezone
+        additionalMinutes: recordedMinutes,
+        sessionIncrement: 1
+      });
+
+      SuccessResponse.ok(res, { 
+        message: 'Learning tracking updated successfully',
+        timeSpentMinutes,
+        isCompleted 
+      });
+   
+  }
 }
 
 export const progressController = new ProgressController();

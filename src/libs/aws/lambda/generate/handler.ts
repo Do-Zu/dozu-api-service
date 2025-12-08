@@ -1,9 +1,10 @@
 import { ChatCompletionMessageParam } from 'openai/resources/chat';
-import { convertJsonToArray, generatePromptText, TYPE_PROMPT } from '../../../../utils/prompt';
+import { generatePromptText, TYPE_PROMPT } from '../../../../utils/prompt';
 import { decompressContent } from '../../../../utils/compress';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 import OpenAI from 'openai';
+import { IGenerateOptions } from '@/dtos/generate/models/GenerateContentRequestInterface';
 
 // Configure Redis connection
 const REDIS_HOST = process.env.REDIS_HOST || 'localhost';
@@ -67,6 +68,7 @@ export const handler = async (event: any) => {
             job_name,
             model,
             apiKey,
+            options,
             providerBaseUrl,
             isRawText = false,
             isAsync = true,
@@ -87,6 +89,8 @@ export const handler = async (event: any) => {
             };
         }
 
+        console.log({ model });
+
         const contentDecompressed = isRawText ? content : decompressContent(content);
 
         console.log({
@@ -95,11 +99,10 @@ export const handler = async (event: any) => {
             queue_name,
             type,
             job_name,
-            contentDecompressed,
         });
 
         //generate content
-        const result = await generateContent(contentDecompressed, type, apiKey, providerBaseUrl, model);
+        const result = await generateContent(contentDecompressed, type, apiKey, providerBaseUrl, model, options);
 
         let job;
 
@@ -109,7 +112,7 @@ export const handler = async (event: any) => {
             // Add job to the queue
             job = await queue.add(
                 job_name,
-                { data: result, jobId, type },
+                { data: result, jobId, type, isError: false },
                 {
                     attempts: 3,
                     backoff: {
@@ -142,6 +145,40 @@ export const handler = async (event: any) => {
         };
     } catch (error) {
         console.error('Lambda handler error:', error);
+
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorData = {
+            message: 'Failed to process job',
+            error: errorMessage,
+            errorType: error instanceof Error ? error.name : 'UnknownError',
+            status: 'error',
+            timestamp: new Date().toISOString(),
+        };
+
+        // Push error to queue before closing connection
+        try {
+            const { jobId, queue_name, job_name, type, isAsync = true } = event.data || {};
+
+            if (isAsync && jobId && queue_name && job_name) {
+                const queue = createQueue(queue_name);
+
+                // Add error job to the queue
+                await queue.add(
+                    job_name,
+                    { data: errorData, jobId, type, isError: true },
+                    {
+                        attempts: 1,
+                        removeOnComplete: 5,
+                        removeOnFail: 5,
+                    }
+                );
+
+                console.log(`Error job added to queue ${queue_name} for job ${jobId}`);
+            }
+        } catch (queueError) {
+            console.error('Failed to push error to queue:', queueError);
+        }
+
         if (redisConnection) {
             try {
                 await redisConnection.quit();
@@ -152,10 +189,7 @@ export const handler = async (event: any) => {
         }
         return {
             statusCode: 500,
-            body: JSON.stringify({
-                message: 'Failed to process job',
-                error: error instanceof Error ? error.message : String(error),
-            }),
+            body: JSON.stringify(errorData),
         };
     }
 };
@@ -166,7 +200,8 @@ async function generateContent(
     type: TYPE_PROMPT,
     apiKey: string,
     baseURL: string,
-    model: string
+    model: string,
+    options?: IGenerateOptions
 ): Promise<any> {
     console.log(`Starting content generation with type: ${type}`);
 
@@ -180,9 +215,9 @@ async function generateContent(
         console.log('OpenAI client initialized');
 
         // Generate the appropriate prompt for the requested content type
-        const prompt = generatePromptText(content, type);
+        const prompt = generatePromptText(content, type, options);
 
-        console.log(`Generated prompt (first 100 chars): ${prompt.substring(0, 100)}...`);
+        console.log(`Generated prompt`);
 
         // Set up messages for the chat completion
         const messages: ChatCompletionMessageParam[] = [
@@ -196,33 +231,25 @@ async function generateContent(
             },
         ];
 
-        let fullContent = '';
-        // let chunkCount = 0;
+        console.log('Creating OpenAI completion...');
 
-        console.log('Creating OpenAI stream...');
-
-        // Create a streaming chat completion
-        const stream = await openai.chat.completions.create({
+        // Create a non-streaming chat completion
+        const completion = await openai.chat.completions.create({
             model,
             messages: messages,
-            stream: true,
-            temperature: 0.7,
-            max_tokens: 30000,
+            stream: false,
+            temperature: 0.5,
+            max_tokens: 120000,
             response_format: {
                 type: 'json_object',
             },
         });
 
-        console.log('Stream created, processing chunks...');
+        console.log('Completion received, processing response...');
 
-        // Process the stream chunks
-        for await (const chunk of stream) {
-            const content = chunk.choices?.[0]?.delta?.content || '';
-            fullContent += content;
-            // chunkCount++;
-        }
+        const responseContent = completion.choices?.[0]?.message?.content;
 
-        if (fullContent.trim().length === 0) {
+        if (!responseContent || responseContent.trim().length === 0) {
             console.warn('Warning: Received empty content from OpenAI');
             return {
                 data: [],
@@ -231,14 +258,19 @@ async function generateContent(
             };
         }
 
-        // Parse the generated content
+        // Parse the generated content directly as JSON
         try {
-            const data = convertJsonToArray(fullContent);
-            console.log(`Successfully parsed JSON data, items: ${Array.isArray(data) ? data.length : 'not an array'}`);
+            const jsonData = JSON.parse(responseContent);
+
+            // If the response is already an array, use it directly
+            // If it's an object, try to extract the array from it
+            const data: any = jsonData;
+
+            console.log(`Successfully parsed JSON data`);
 
             return {
                 data,
-                rawText: fullContent,
+                rawText: responseContent,
                 timestamp: new Date().toISOString(),
             };
         } catch (parseError) {
@@ -247,7 +279,7 @@ async function generateContent(
             // Return the raw text and error information if parsing fails
             return {
                 data: [],
-                rawText: fullContent,
+                rawText: responseContent,
                 error: 'Failed to parse LLM response as JSON',
                 timestamp: new Date().toISOString(),
             };

@@ -66,19 +66,25 @@ class QuizRepo {
     async getWrongQuiz(topicId: number, userId: number) {
         const result = await db.execute(
             sql`
-    SELECT DISTINCT ON (qr.question_id)
-      q.question_id AS "questionId",
-      q.topic_id AS "topicId",
-      q.question_text AS "questionText",
-      q.choices AS "choices",
-      q.correct_index AS "correctIndex",
-      q.created_at AS "createdAt"
-    FROM question_result qr
-    JOIN questions q ON qr.question_id = q.question_id
-    WHERE qr.user_id = ${userId}
-      AND q.topic_id = ${topicId}
-      AND qr.correct = false
-    ORDER BY qr.question_id, qr.answered_at DESC
+            SELECT 
+  q.question_id AS "questionId",
+  q.topic_id AS "topicId",
+  q.question_text AS "questionText",
+  q.choices AS "choices",
+  q.correct_index AS "correctIndex",
+  q.created_at AS "createdAt"
+FROM (
+  SELECT DISTINCT ON (qr.question_id)
+    qr.question_id,
+    qr.correct,
+    qr.answered_at
+  FROM question_result qr
+  WHERE qr.user_id = ${userId}
+  ORDER BY qr.question_id, qr.answered_at DESC
+) latest_wrong
+JOIN questions q ON latest_wrong.question_id = q.question_id
+WHERE latest_wrong.correct = false
+  AND q.topic_id = ${topicId};
   `
         );
         return result.rows;
@@ -117,6 +123,7 @@ class QuizRepo {
             .insert(quizResultTable)
             .values({
                 quizId,
+                userId,
                 correctAnswersCount,
                 questionsCount: results.length,
                 timeReviewed: new Date(),
@@ -129,6 +136,7 @@ class QuizRepo {
             questionId: r.questionId,
             userId,
             correct: r.correct,
+            userAnswerIndex: r.userAnswerIndex,
             answeredAt: new Date(),
         }));
 
@@ -145,7 +153,15 @@ class QuizRepo {
         return record?.topicId ?? -1;
     }
 
-    async getQuizHistoryByTopic(topicId: number) {
+    async getTopicIdByQuizId(quizId: number): Promise<number> {
+        const record = await db.query.quizzesTable.findFirst({
+            columns: { topicId: true },
+            where: eq(quizzesTable.quizId, quizId),
+        });
+        return record?.topicId ?? -1;
+    }
+
+    async getQuizHistoryByTopic(topicId: number, userId: number) {
         return await db
             .select({
                 quizResultId: quizResultTable.quizResultId,
@@ -156,7 +172,8 @@ class QuizRepo {
             })
             .from(quizResultTable)
             .innerJoin(quizzesTable, eq(quizResultTable.quizId, quizzesTable.quizId))
-            .where(eq(quizzesTable.topicId, topicId))
+            .where(and(eq(quizzesTable.topicId, topicId), eq(quizResultTable.userId, userId)))
+
             .orderBy(desc(quizResultTable.timeReviewed));
     }
 
@@ -174,6 +191,7 @@ class QuizRepo {
                 choices: questionsTable.choices,
                 correctIndex: questionsTable.correctIndex,
                 userAnswerCorrect: questionResultTable.correct,
+                userAnswerIndex: questionResultTable.userAnswerIndex,
             })
             .from(quizResultTable)
             .innerJoin(questionResultTable, eq(quizResultTable.quizId, questionResultTable.quizId))
@@ -190,6 +208,7 @@ class QuizRepo {
             choices: r.choices,
             correctIndex: r.correctIndex,
             userAnswerCorrect: r.userAnswerCorrect,
+            userAnswerIndex: r.userAnswerIndex,
         }));
 
         return {
@@ -201,23 +220,50 @@ class QuizRepo {
             questions,
         };
     }
-    //     {
-    //   "quizResultId": 12,
-    //   "quizId": 5,
-    //   "correctAnswersCount": 7,
-    //   "questionsCount": 10,
-    //   "timeReviewed": "2025-07-13T10:00:00Z",
-    //   "questions": [
-    //     {
-    //       "questionId": 101,
-    //       "questionText": "What is 2 + 2?",
-    //       "choices": ["2", "3", "4", "5"],
-    //       "correctIndex": 2,
-    //       "userAnswerCorrect": true
-    //     },
-    //     ...
-    //   ]
-    // }
+
+    async getQuizStatistics(topicId: number) {
+        const result = await db
+            .select({
+                correctAnswersCount: quizResultTable.correctAnswersCount,
+                questionsCount: quizResultTable.questionsCount,
+            })
+            .from(quizResultTable)
+            .innerJoin(quizzesTable, eq(quizResultTable.quizId, quizzesTable.quizId))
+            .where(eq(quizzesTable.topicId, topicId));
+
+        const totalQuizzes = result.length;
+        if (totalQuizzes === 0) {
+            return {
+                totalQuizzes: 0,
+                averageScore: 0,
+                perfectScoreCount: 0,
+                averageQuestionsPerQuiz: 0,
+            };
+        }
+
+        let totalCorrect = 0;
+        let totalQuestions = 0;
+        let perfectScoreCount = 0;
+
+        for (const r of result) {
+            totalCorrect += r.correctAnswersCount ?? 0;
+            totalQuestions += r.questionsCount ?? 0;
+            if (r.correctAnswersCount === r.questionsCount) {
+                perfectScoreCount++;
+            }
+        }
+
+        const averageScore = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
+
+        const averageQuestionsPerQuiz = totalQuizzes > 0 ? Math.round(totalQuestions / totalQuizzes) : 0;
+
+        return {
+            totalQuizzes,
+            averageScore,
+            perfectScoreCount,
+            averageQuestionsPerQuiz,
+        };
+    }
 }
 
 export const quizRepo = new QuizRepo();

@@ -15,5 +15,34 @@ export type GenerateContentRequestInterface = {
      * Optional method parameter for specifying generation behavior.
      */
     method?: string;
+
+    /**
+     *
+     */
+    options?: IGenerateOptions;
+
+    /**
+     *
+     */
+    inputSetId?: number | string;
 };
 
+export interface IGenerateOptions {
+    commonGenerateOptions?: ICommonGenerateOptions;
+    nodesData?: NodesData;
+}
+
+export interface ICommonGenerateOptions {
+    numberOfItem: number;
+    difficulty: string;
+    focus: string;
+    listType: string[];
+}
+
+export type NodesData = {
+    nodeId: string;
+    label: string;
+    description?: string;
+    startSection: string;
+    endSection: string;
+}[];

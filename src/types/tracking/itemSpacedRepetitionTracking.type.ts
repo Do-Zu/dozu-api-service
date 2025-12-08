@@ -1,8 +1,21 @@
-import { IItemType } from "@/models";
+import { IFlashcardStatus, IItemType, TypeInsertSpacedRepetitionTracking } from '@/models';
 
-export interface ICreateTrackingRecord {
-    userId: number,
-    topicId: number,
-    itemId: number,
-    type: IItemType,
+export interface IItemSpacedRepetition {
+    itemId: number;
+    userId: number;
+    topicId: number;
+    type: IItemType;
+    createdAt: Date;
+    repetitionNumber: number;
+    easinessFactor: string;
+    reviewInterval: number;
+    lastReviewed: string | null;
+    nextReview: string;
+    status: IFlashcardStatus;
+    step: number | null;
 }
+
+export type ICreateTrackingRecord = Pick<
+    TypeInsertSpacedRepetitionTracking,
+    'userId' | 'topicId' | 'itemId' | 'type' | 'nextReview'
+>;

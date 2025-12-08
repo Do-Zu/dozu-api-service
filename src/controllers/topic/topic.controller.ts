@@ -1,46 +1,37 @@
-import { BadRequest, DatabaseError } from '@/core/error';
 import { SuccessResponse } from '@/core/success';
-// import { ITopicBasic, ITopicAdded, ITopicUpdated } from '@/types/topic/topic.type';
-import logger from '@/utils/logger';
 import { Request, Response } from 'express';
 import topicService from '@/services/topic/topic.service';
-import { getUserIdFromRequest, isTeacher } from '@/utils/auth/authHelpers.utils';
-import { getCurrentDateFromRequest } from '@/utils/date';
-import { topicsTable } from '@/models';
-import db from '@/libs/drizzleClient.lib';
-import { ICreateTopicBody, ICreateTopicInClassBody, ITopic, IUpdateTopicBody } from '@/types/topic/topic.type';
-import itemSpacedRepetitionTrackingService from '@/services/tracking/itemSpacedRepetitionTracking.service';
+import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
+import { getCurrentTimestampFromRequest } from '@/utils/date';
+import { ICreateTopicBody, ITopic, IUpdateTopicBody } from '@/types/topic/topic.type';
 import { updateTopicIdOfInputSet } from '@/repositories/inputSet.repo';
+import requestHelper from '@/core/request/request.helper';
+import { deleteImage, uploadImage } from '@/libs/cloudinary.lib';
+import { extractPublicId } from 'cloudinary-build-url';
+import { NotFoundError } from '@/core/error';
 
 class TopicController {
     constructor() {}
 
     public async getTopicById(req: Request, res: Response): Promise<void> {
-        let { topicId } = req.validatedParams as { topicId: number };
+        const userId = getUserIdFromRequest(req);
+        const topicId = requestHelper.getIdParam(req, 'topicId');
+        const currentDate = getCurrentTimestampFromRequest(req);
 
-        let topic: ITopic | undefined;
-        try {
-            topic = await topicService.getTopicById(topicId);
-        } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
+        const topic: ITopic | undefined = await topicService.getTopicWithCardCounts({ userId, topicId, currentDate });
+
+        if (!topic) {
+            throw new NotFoundError('Topic not found');
         }
 
         SuccessResponse.ok(res, topic);
     }
 
     public async getTopicsForUser(req: Request, res: Response): Promise<void> {
-        const currentDate = getCurrentDateFromRequest(req);
+        const currentDate = getCurrentTimestampFromRequest(req);
         const userId = getUserIdFromRequest(req);
 
-        let topics: ITopic[];
-        try {
-            topics = await topicService.getTopicsForUser(userId, currentDate);
-        } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
-        }
-
+        const topics: ITopic[] = await topicService.getTopicsForUser(userId, currentDate);
         SuccessResponse.ok(res, topics);
     }
 
@@ -48,115 +39,62 @@ class TopicController {
         const userId = getUserIdFromRequest(req);
         const { name, description } = req.body as ICreateTopicBody;
         const { inputSetId } = req.body as { inputSetId: string };
+        const imageFile = req.file;
 
-        let result;
-        try {
-            result = await topicService.createTopicForUser(userId, { name, description });
-            if(inputSetId) {
-                const topicId = result.topicId;
-                await updateTopicIdOfInputSet({ topicId: topicId, inputSetId: parseInt(inputSetId) });
+        let imageUrl: string | null = null;
+        if (imageFile) {
+            const imageObject = await uploadImage(imageFile.buffer);
+            if (!imageObject) {
+                throw new Error('Cannot upload image');
             }
-        } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
+            imageUrl = imageObject.secure_url;
         }
 
-        SuccessResponse.ok(res, result);
+        const result = await topicService.createTopicForUser(userId, { name, description, imageUrl });
+
+        if (inputSetId) {
+            const topicId = result.topicId;
+            await updateTopicIdOfInputSet({ topicId: topicId, inputSetId: parseInt(inputSetId) });
+        }
+
+        SuccessResponse.created(res, result);
     }
 
     public async updateTopicById(req: Request, res: Response): Promise<void> {
-        let { topicId } = req.validatedParams as { topicId: number };
+        const topicId = requestHelper.getIdParam(req, 'topicId');
         const { name, description } = req.body as IUpdateTopicBody;
+        const imageFile = req.file;
+        const topic = requestHelper.getResource(req, 'topic');
 
-        let result;
-        try {
-            result = await topicService.updateTopicById(topicId, { name, description });
-        } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
+        let imageUrl: string | null = null;
+        if (imageFile) {
+            if (topic.imageUrl) {
+                // delete old image of topic
+                await deleteImage(extractPublicId(topic.imageUrl));
+            }
+            // upload new image
+            const imageObject = await uploadImage(imageFile.buffer);
+            if (!imageObject) {
+                throw new Error('Cannot upload image');
+            }
+            imageUrl = imageObject.secure_url;
         }
 
+        const result = await topicService.updateTopicById(topicId, { name, description, imageUrl });
         SuccessResponse.ok(res, result);
     }
 
     // còn flashcards -> vẫn xóa topic
     public async deleteTopicById(req: Request, res: Response): Promise<void> {
-        let { topicId } = req.validatedParams as { topicId: number };
+        const topicId = requestHelper.getIdParam(req, 'topicId');
+        const topic = requestHelper.getResource(req, 'topic');
 
-        try {
-            await topicService.deleteTopicById(topicId);
-        } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
-        }
-        SuccessResponse.noContent(res);
-    }
-
-    public async getTopicsInClass(req: Request, res: Response) {
-        const teacher = await isTeacher(req);
-        let { classId } = req.params as { classId: string | number };
-        classId = parseInt(classId as string);
-
-        let result : ITopic[];
-        try {
-            if(teacher) {
-                result = await topicService.getTopicsInClassForTeacher(classId);
-            } else {
-                const currentDate = getCurrentDateFromRequest(req);
-                const userId = getUserIdFromRequest(req);
-                result = await topicService.getTopicsInClassForStudent(classId, userId, currentDate);
-            }
-        } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
-        }
-        SuccessResponse.ok(res, result);
-    }
-
-    public async createTopicForClass(req: Request, res: Response) {
-        const userId = getUserIdFromRequest(req);
-        if (isNaN(userId)) {
-            throw new BadRequest('Invalid param, cannot get topics');
-        }
-        let { classId } = req.params as { classId: string | number };
-        classId = parseInt(classId as string);
-
-        const { name, description } = req.body as ICreateTopicInClassBody;
-
-        const dataInserted = { userId, classId, name, description };
-
-        let result;
-        try {
-            [result] = await db.insert(topicsTable).values(dataInserted).returning({
-                topicId: topicsTable.topicId,
-                classId: topicsTable.classId,
-                name: topicsTable.name,
-                description: topicsTable.description,
-                createdAt: topicsTable.createdAt,
-            });
-        } catch (err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
+        if (topic.imageUrl) {
+            await deleteImage(extractPublicId(topic.imageUrl));
         }
 
-        SuccessResponse.ok(res, result);
-    }
-
-    public async startLearningFlashcards(req: Request, res: Response) {
-        const userId = getUserIdFromRequest(req);
-        if (isNaN(userId)) {
-            throw new BadRequest('Invalid param, cannot start learning flashcards');
-        }
-
-        let { topicId } = req.validatedParams as { topicId: number };
-
-        try {
-            await itemSpacedRepetitionTrackingService.initializeStudentTrackingForTopic(userId, topicId);
-        } catch(err) {
-            logger.error(err);
-            throw new DatabaseError('Something went wrong');
-        }
-        SuccessResponse.ok(res, { });
+        await topicService.deleteTopicById(topicId);
+        SuccessResponse.ok(res, topicId);
     }
 }
 

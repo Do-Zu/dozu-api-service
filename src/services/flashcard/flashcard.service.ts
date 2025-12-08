@@ -1,145 +1,292 @@
-import flashcardRepo, {
-    IFlashcardAddedArgument,
-    IPutFlashcardToLearningArgumentDate,
-    IFlashcardsForTopicReturned,
-    IFlashcardsLearningForUserReturned,
-    IFlashcardSpacedRepetitionReturned,
-    IApplyFlashcardSM2ArgumentSM2,
-} from '@/repositories/flashcard.repo';
+import db from '@/libs/drizzleClient.lib';
+import flashcardRepo, { IUpdateFlashcardRepo } from '@/repositories/flashcard.repo';
 import {
-    IFlashcardAdded,
-    IFlashcardDeleted,
-    IFlashcardFull,
-    IFlashcardsBatch,
-    IFlashcardUpdated,
-    IQualityResponseNextReviewInterval,
+    IFlashcardCreateInput,
+    IFlashcard,
+    IFlashcardLearningState,
+    IFlashcardsBatchInput,
+    IFlashcardUpdateInput,
+    IImageSaveInput,
+    IFlashcardBatchResult,
+    IUnspashImageSaveInput,
 } from '@/types/flashcard/flashcard.type';
-import { IQualityResponse } from '../spaced-repetition-system/super-memo-2/superMemo2.origin';
-import { getDateAdded, getDateFormatted } from '@/utils/date';
-import SuperMemo2 from '../spaced-repetition-system/super-memo-2/superMemo2.origin';
 import { FlashcardItemInterface } from '@/dtos/generate';
+import { ICreateTrackingRecord } from '@/types/tracking/itemSpacedRepetitionTracking.type';
+import itemSpacedRepetitionTrackingRepo from '@/repositories/tracking/itemSpacedRepetitionTracking.repo';
+import { getUserRoles } from '@/repositories/auth.repo';
+import classEnrollmentService from '../class-based-learning/classEnrollment.service';
+import topicService from '../topic/topic.service';
+import unsplashLib from '@/libs/unsplash.lib';
+import {
+    IAnkiRating,
+    IBaseIntervalWithDeviation,
+    INextReviewInterval,
+} from '../spaced-repetition-system/super-memo-2/anki.service';
+import { TypeInsertFlashcard } from '@/models';
 
-export type IFlashcardNextReviewReturned = Pick<IFlashcardFull, 'flashcardId' | 'front' | 'back' | 'topicName'> & {
-    qualityResponsesNextReviewInterval: IQualityResponseNextReviewInterval[];
-};
-
-export type IFlashcardNextReviewArgumentFlashcards = Omit<IFlashcardFull, 'lastReviewed'>[];
+export interface INextReviewDataByRating {
+    rating: IAnkiRating;
+    interval: INextReviewInterval;
+    baseIntervalWithDeviation: IBaseIntervalWithDeviation | null;
+}
 
 class FlashcardService {
     constructor() {}
 
-    public async handleGetFlashcardSpacedRepetition(flashcardId: number): Promise<IFlashcardSpacedRepetitionReturned> {
-        const flashcard = await flashcardRepo.handleGetFlashcardSpacedRepetition(flashcardId);
+    public async getSpacedRepetitionDataForFlashcard(flashcardId: number): Promise<IFlashcardLearningState> {
+        const flashcard = await flashcardRepo.getSpacedRepetitionDataForFlashcard(flashcardId);
         return flashcard;
     }
 
-    public async handleGetAllFlashcardsForTopic(topicId: number): Promise<IFlashcardsForTopicReturned> {
-        const flashcards = await flashcardRepo.handleGetAllFlashcardsForTopic(topicId);
+    public async getFlashcardsForTopic(topicId: number): Promise<IFlashcard[]> {
+        const flashcards = await flashcardRepo.getFlashcardsForTopic(topicId);
         return flashcards;
     }
 
-    public async handleInsertFlashcardsForTopic(
+    private getSavedImageUrl(imageInput: IImageSaveInput | null | undefined) {
+        let savedImageUrl: string | undefined = undefined;
+        if (imageInput?.type === 'unsplash') {
+            savedImageUrl = imageInput.data.url;
+        } else if (imageInput?.type === 'upload') {
+            savedImageUrl = imageInput.data;
+        }
+        return savedImageUrl;
+    }
+
+    public async createFlashcardsForTopic({
+        userId,
+        topicId,
+        nodeId,
+        flashcards,
+    }: {
+        userId: number;
+        topicId: number;
+        nodeId?: string | null | undefined;
+        flashcards: IFlashcardCreateInput[];
+    }): Promise<IFlashcard[]> {
+        const roles = await getUserRoles(userId);
+        const isTeacher = roles.find(role => role.name === 'teacher') !== undefined;
+
+        for (const card of flashcards) {
+            if (card.image && card.image.type === 'unsplash') await this.saveFlashcardImage(card.image);
+        }
+
+        const data: TypeInsertFlashcard[] = flashcards.map(flashcard => {
+            const savedImageUrl = this.getSavedImageUrl(flashcard.image);
+
+            const card = {
+                topicId,
+                front: flashcard.front,
+                back: flashcard.back,
+                imageUrl: savedImageUrl, // insert imageUrl
+                nodeId,
+            };
+            if (card.imageUrl === undefined) {
+                delete card['imageUrl'];
+            }
+            if (card.nodeId === undefined) {
+                delete card['nodeId'];
+            }
+            return card;
+        });
+
+        let result: IFlashcard[] = [];
+        // belong to personal topic
+        if (!isTeacher) {
+            await db.transaction(async tx => {
+                result = await flashcardRepo.insertFlashcards(data, tx);
+
+                // insert tracking records for user
+                const trackingRecords: ICreateTrackingRecord[] = result.map(flashcard => {
+                    return {
+                        userId,
+                        topicId,
+                        itemId: flashcard.flashcardId,
+                        type: 'flashcard',
+                        step: 0,
+                    };
+                });
+
+                await itemSpacedRepetitionTrackingRepo.initializeTrackingRecords(trackingRecords, tx);
+            });
+        }
+
+        // belong to class-based topic (teacher CRUD flashcards)
+        else {
+            const topic = await topicService.getTopicById(topicId);
+            let { classId } = topic!;
+            classId = classId!;
+            await db.transaction(async tx => {
+                result = await flashcardRepo.insertFlashcards(data, tx);
+                const students = await classEnrollmentService.getStudentsInClass(classId);
+
+                // insert tracking records for teacher
+                const trackingRecords: ICreateTrackingRecord[] = result.map(flashcard => {
+                    return {
+                        userId,
+                        topicId,
+                        itemId: flashcard.flashcardId,
+                        type: 'flashcard',
+                        step: 0,
+                    };
+                });
+
+                await itemSpacedRepetitionTrackingRepo.initializeTrackingRecords(trackingRecords, tx);
+
+                // students who are leanring that topic (tracking records should > 0)
+                const studentsLearning: { studentId: number }[] = [];
+
+                // get students who are learning
+                for (const student of students) {
+                    const trackingRecords = await itemSpacedRepetitionTrackingRepo.getTrackingRecordsByUserAndTopicId(
+                        {
+                            userId: student.userId,
+                            topicId,
+                            itemtype: 'flashcard',
+                        },
+                        tx
+                    );
+                    if (trackingRecords.length > 0) {
+                        studentsLearning.push({ studentId: student.userId });
+                    }
+                }
+
+                // create sm-2 records for students learning
+                for (const student of studentsLearning) {
+                    const trackingRecords: ICreateTrackingRecord[] = result.map(flashcard => {
+                        return {
+                            userId: student.studentId,
+                            topicId,
+                            itemId: flashcard.flashcardId,
+                            type: 'flashcard',
+                            step: 0,
+                        };
+                    });
+
+                    await itemSpacedRepetitionTrackingRepo.initializeTrackingRecords(trackingRecords, tx);
+                }
+            });
+        }
+
+        return result;
+    }
+
+    public async handleInsertFlashcardsForNode(
         userId: number,
         topicId: number,
-        flashcards: IFlashcardAdded[] | FlashcardItemInterface[]
+        nodeId: string,
+        flashcards: IFlashcardCreateInput[] | FlashcardItemInterface[]
     ): Promise<void> {
-        let flashcardsFormatted: IFlashcardAddedArgument = flashcards.map(flashcard => {
+        let data = flashcards.map(flashcard => {
             if ('front' in flashcard && 'back' in flashcard) {
-                return { topicId: topicId, front: flashcard.front, back: flashcard.back };
+                return { topicId: topicId, front: flashcard.front, back: flashcard.back, nodeId: nodeId };
             } else {
-                return { topicId, front: flashcard.q, back: flashcard.a };
+                return { topicId, front: flashcard.q, back: flashcard.a, nodeId: nodeId };
             }
         });
 
-        await flashcardRepo.handleInsertFlashcardsForTopic(userId, topicId, flashcardsFormatted);
+        //reusing topic's repo functions since nodeId value is added already - DuyND
+        await flashcardRepo.insertFlashcardsIntoTopic(userId, topicId, data);
     }
 
-    public async handleUpdateFlashcardsForTopic(flashcards: IFlashcardUpdated[]): Promise<void> {
-        await flashcardRepo.handleUpdateFlashcardsForTopic(flashcards);
+    public async updateFlashcardsByIds(flashcards: IFlashcardUpdateInput[]): Promise<IFlashcard[]> {
+        for (const card of flashcards) {
+            if (card.image && card.image.type === 'unsplash') await this.saveFlashcardImage(card.image);
+        }
+        const data: IUpdateFlashcardRepo[] = flashcards.map(flashcard => {
+            const savedImageUrl = this.getSavedImageUrl(flashcard.image);
+            const card = {
+                flashcardId: flashcard.flashcardId,
+                front: flashcard.front,
+                back: flashcard.back,
+                imageUrl: savedImageUrl, // update imageUrl
+            };
+            if (card.imageUrl === undefined) {
+                delete card['imageUrl'];
+            }
+            return card;
+        });
+
+        const result = await flashcardRepo.updateFlashcards(data);
+        return result;
     }
 
-    public async handleDeleteFlashcardsForTopic(flashcardsIds: IFlashcardDeleted[]): Promise<void> {
-        await flashcardRepo.handleDeleteFlashcardsForTopic(flashcardsIds);
+    public async deleteFlashcardsByIds(flashcardsIds: number[]): Promise<void> {
+        await db.transaction(async tx => {
+            await flashcardRepo.deleteFlashcards(flashcardsIds, tx);
+        });
     }
 
-    public async handleBatchFlashcardsForTopic(
-        userId: number,
-        topicId: number,
-        { flashcardsAdded, flashcardsUpdated, flashcardsDeleted }: IFlashcardsBatch
-    ): Promise<void> {
+    public async toggleStar(flashcardId: number): Promise<{ flashcardId: number; isStar: boolean }> {
+        return await flashcardRepo.toggleStar(flashcardId);
+    }
+
+    // todo-ka: use transaction
+    public async batchFlashcardsForTopic({
+        userId,
+        topicId,
+        nodeId,
+        data,
+    }: {
+        userId: number;
+        topicId: number;
+        nodeId?: string | null | undefined;
+        data: IFlashcardsBatchInput;
+    }): Promise<IFlashcardBatchResult> {
+        const { flashcardsAdded, flashcardsUpdated, flashcardsDeleted } = data;
+        let result: IFlashcardBatchResult = { flashcardsAdded: [], flashcardsUpdated: [] };
+
         if (flashcardsAdded && flashcardsAdded.length > 0) {
-            await this.handleInsertFlashcardsForTopic(userId, topicId, flashcardsAdded);
+            result.flashcardsAdded = await this.createFlashcardsForTopic({
+                userId,
+                topicId,
+                nodeId,
+                flashcards: flashcardsAdded,
+            });
         }
 
         if (flashcardsUpdated && flashcardsUpdated.length > 0) {
-            await this.handleUpdateFlashcardsForTopic(flashcardsUpdated);
+            result.flashcardsUpdated = await this.updateFlashcardsByIds(flashcardsUpdated);
         }
 
         if (flashcardsDeleted && flashcardsDeleted.length > 0) {
-            await this.handleDeleteFlashcardsForTopic(flashcardsDeleted);
+            await this.deleteFlashcardsByIds(flashcardsDeleted);
+        }
+
+        return result;
+    }
+
+    public async handleBatchFlashcardsForNode(
+        userId: number,
+        topicId: number,
+        nodeId: string,
+        { flashcardsAdded, flashcardsUpdated, flashcardsDeleted }: IFlashcardsBatchInput
+    ): Promise<void> {
+        if (flashcardsAdded && flashcardsAdded.length > 0) {
+            await this.handleInsertFlashcardsForNode(userId, topicId, nodeId, flashcardsAdded);
+        }
+
+        if (flashcardsUpdated && flashcardsUpdated.length > 0) {
+            //implements later
+            // await this.handleUpdateFlashcardsForTopic(flashcardsUpdated);
+        }
+
+        if (flashcardsDeleted && flashcardsDeleted.length > 0) {
+            //implements later
+            // await this.handleDeleteFlashcardsForTopic(flashcardsDeleted);
         }
     }
 
-    public async handlePutFlashcardToLearning(flashcardId: number): Promise<void> {
-        const currentDate = new Date(Date.now());
-        const tommorow = getDateAdded(currentDate, 1);
-
-        const date: IPutFlashcardToLearningArgumentDate = {
-            lastReviewed: getDateFormatted(currentDate),
-            nextReview: getDateFormatted(tommorow),
-        };
-
-        await flashcardRepo.handlePutFlashcardToLearning(flashcardId, date);
+    public async applySM2ToFlashcard(
+        userId: number,
+        flashcardId: number,
+        sm2: Omit<IFlashcardLearningState, 'status'>
+    ): Promise<void> {
+        await flashcardRepo.applySM2ToFlashcard(userId, flashcardId, sm2);
     }
 
-    public async handleApplyFlashcardSM2(userId: number, flashcardId: number, sm2: IApplyFlashcardSM2ArgumentSM2): Promise<void> {
-        await flashcardRepo.handleApplyFlashcardSM2(userId, flashcardId, sm2);
-    }
-
-    public async handleGetFlashcardsLearningForUser(userId: number, currentDate: string): Promise<IFlashcardsLearningForUserReturned> {
-        const flashcards = await flashcardRepo.handleGetFlashcardsLearningForUser(userId, currentDate);
-        return flashcards;
-    }
-
-    public async handleGetFlashcardsLearningForTopic(topicId: number, userId: number, currentDate: string): Promise<IFlashcardsLearningForUserReturned> {
-        const flashcards = await flashcardRepo.handleGetFlashcardsLearningForTopic(topicId, userId, currentDate);
-        return flashcards;
-    }
-
-    // done check type
-    public async handleGetNextReviewIntervalsForAllQualityResponses(
-        flashcards: IFlashcardNextReviewArgumentFlashcards
-    ): Promise<IFlashcardNextReviewReturned[]> {
-        let flashcardsReturned: IFlashcardNextReviewReturned[] = [];
-
-        for (const flashcard of flashcards) {
-            const { reviewInterval, easinessFactor, repetitionNumber } = flashcard;
-            let qualityResponse = 0;
-            let flashcardReturned: IFlashcardNextReviewReturned & {
-                qualityResponsesNextReviewInterval: IQualityResponseNextReviewInterval[];
-            } = {
-                flashcardId: flashcard.flashcardId,
-                topicName: flashcard.topicName,
-                front: flashcard.front,
-                back: flashcard.back,
-                qualityResponsesNextReviewInterval: [],
-            };
-            for (; qualityResponse <= 5; ++qualityResponse) {
-                const superMemo2 = new SuperMemo2(
-                    easinessFactor,
-                    reviewInterval,
-                    repetitionNumber,
-                    qualityResponse as IQualityResponse
-                );
-                const info = superMemo2.calc();
-                flashcardReturned.qualityResponsesNextReviewInterval.push({
-                    qualityResponse: qualityResponse as IQualityResponse,
-                    nextReviewInterval: info.reviewInterval,
-                });
-            }
-            flashcardsReturned.push(flashcardReturned);
-        }
-        return flashcardsReturned;
+    public async saveFlashcardImage(image: IUnspashImageSaveInput) {
+        await unsplashLib.downloadImage(image.data.downloadLocation);
     }
 }
 

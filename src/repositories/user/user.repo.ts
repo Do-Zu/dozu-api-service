@@ -2,6 +2,8 @@ import { eq } from 'drizzle-orm';
 import db from '../../libs/drizzleClient.lib';
 import { usersTable } from '../../models/user.model';
 import { FreeTimeSlotDays, TimeSlot } from './type';
+import { getSystemDate } from '@/utils/date';
+import { isNilOrEmpty } from '@/utils/common';
 
 export class UserRepository {
     /**
@@ -145,6 +147,45 @@ export class UserRepository {
     public async getAllUsers() {
         const users = await db.select().from(usersTable);
         return users;
+    }
+
+    /**
+     * Batch update user preferences for schedule
+     * @param param - Object containing userId and preferences
+     * @param userId - The ID of the user
+     * @returns
+     */
+    public async batchUpdatePreferencesSchedule({
+        userId,
+        preferencesParam,
+    }: {
+        userId: number;
+        preferencesParam: {
+            studyPreferences: string[];
+            preferences: {
+                studyDuration: number | null;
+                studyMethods: string[];
+            };
+            freeTime: FreeTimeSlotDays;
+        };
+    }) {
+        const { studyPreferences, preferences, freeTime } = preferencesParam;
+
+        const { studyDuration } = preferences;
+
+        const [updatedUser] = await db
+            .update(usersTable)
+            .set({
+                studyPreferences: isNilOrEmpty(studyPreferences) ? null : studyPreferences,
+                preferences: preferences,
+                avgStudyDuration: isNilOrEmpty(studyDuration) ? null : studyDuration!.toString(),
+                freeTime: isNilOrEmpty(freeTime) ? null : freeTime,
+                updatedAt: getSystemDate(),
+            })
+            .where(eq(usersTable.userId, userId))
+            .returning();
+
+        return updatedUser;
     }
 }
 

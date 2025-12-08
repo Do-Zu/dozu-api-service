@@ -6,6 +6,8 @@ import { GenerationOptions } from '@/services/generative/base/base.abstract';
 import { MindmapData } from '@/models/mindmap/mindmap.model';
 import { MindmapGenerateService } from '../../../../v3/mindmap.generate.service';
 import { ProcessingProgress } from '@/types/generate/large-file.type';
+import { IStreamGenerateOptions } from '@/services/generative/v3/generative.service';
+import { safeDestructure } from '@/utils/common';
 
 /**
  * Implements AbstractBaseLLMService for OpenAI API
@@ -15,6 +17,13 @@ export class OpenAIService extends BaseLLMProvider {
     private openai: OpenAI | undefined;
     private isClientInitialized = false;
     private mindmapService: MindmapGenerateService | undefined;
+
+    private DEFAULT_MAX_TOKEN = 50000;
+    private DEFAULT_TEMPERATURE = 0.3;
+    private MAIN_ROLE_DESC_LLM: string = 'You are an expert at creating educational content from academic content.';
+    private NOT_OUTPUT_CODE_FENCES: string = `Do not output any code fences, including \`\`\`markdown, \`\`\`json, \`\`\`text, or any variant.
+        Always follow the format instructions in the user prompt literally.
+    `;
 
     constructor() {
         super();
@@ -39,11 +48,6 @@ export class OpenAIService extends BaseLLMProvider {
                 apiKey: this.apiKey!,
                 baseURL: this.baseURL!,
             });
-
-            // Initialize mindmap service
-            if (this.openai && this.model) {
-                this.mindmapService = new MindmapGenerateService(this.openai, this.model);
-            }
 
             this.isClientInitialized = true;
             logger.info('OpenAI client initialized successfully');
@@ -128,7 +132,7 @@ export class OpenAIService extends BaseLLMProvider {
      */
     private async createStream(
         messages: Array<ChatCompletionMessageParam>,
-        config?: Omit<ChatCompletionCreateParamsStreaming, 'model'>
+        config?: Partial<Omit<ChatCompletionCreateParamsStreaming, 'model'>>
     ) {
         // Check if service is available
         if (!this.isAvailable()) {
@@ -149,8 +153,8 @@ export class OpenAIService extends BaseLLMProvider {
             return await this.openai!.chat.completions.create({
                 model: this.model!,
                 messages,
-                max_tokens: config?.max_tokens ?? 8000,
-                temperature: config?.temperature ?? 0.1,
+                max_tokens: config?.max_tokens ?? this.DEFAULT_MAX_TOKEN,
+                temperature: config?.temperature ?? this.DEFAULT_TEMPERATURE,
                 stream: true,
                 stream_options: {
                     include_usage: true,
@@ -191,7 +195,7 @@ export class OpenAIService extends BaseLLMProvider {
             messages = [
                 {
                     role: 'system',
-                    content: 'You are an expert at creating educational content from academic content.',
+                    content: this.MAIN_ROLE_DESC_LLM,
                 },
                 { role: 'user', content: prompt },
             ];
@@ -202,8 +206,8 @@ export class OpenAIService extends BaseLLMProvider {
             return await this.openai!.chat.completions.create({
                 model: this.model!,
                 messages,
-                max_tokens: config?.maxTokens ?? 8000,
-                temperature: config?.temperature ?? 0.1,
+                max_tokens: config?.maxTokens ?? 100000,
+                temperature: config?.temperature ?? 0.3,
                 top_p: config?.topP,
                 response_format: { type: 'json_object' },
             });
@@ -219,18 +223,24 @@ export class OpenAIService extends BaseLLMProvider {
      *
      * @param prompt The prompt to generate from
      * @yields Chunks of generated content
-     */ public async *handleProcessStreamContent(prompt: string): AsyncGenerator<string, void, unknown> {
+     */ public async *handleProcessStreamContent(
+        prompt: string,
+        options?: IStreamGenerateOptions
+    ): AsyncGenerator<string, void, unknown> {
+        const { response_format } = safeDestructure(options);
         // Configure generation context
         const messages: ChatCompletionMessageParam[] = [
             {
                 role: 'system',
-                content: 'You are an expert at creating educational content from academic content.',
+                content: this.MAIN_ROLE_DESC_LLM + ' ' + this.NOT_OUTPUT_CODE_FENCES,
             },
             { role: 'user', content: prompt },
         ];
 
         // Create streaming response
-        const stream = await this.createStream(messages);
+        const stream = await this.createStream(messages, {
+            response_format,
+        });
 
         if (!stream) return;
 

@@ -8,7 +8,7 @@ import {
   real,
   boolean,
 } from 'drizzle-orm/pg-core';
-import { topicsTable } from '@/models/topic.model';
+import { topicsTable } from '@/models/topic/topic.model';
 
 export const studySlotTable = pgTable('study_slots', {
   studySlotId: serial('study_slot_id').primaryKey(),

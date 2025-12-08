@@ -8,6 +8,7 @@ import { BadRequest, InternalServerError } from '@/core/error';
 import logger from '@/utils/logger';
 import { FileProcessingStatus } from '@/types/generate/generate.type';
 import { PresignedUrlRequest, PresignedUrlResponse } from '@/types/uploads/upload.types';
+import { getSystemDate } from '@/utils/date';
 
 /**
  * File upload configuration interface
@@ -84,12 +85,12 @@ export class UploadFileService {
                 'text/html',
                 'text/xml',
                 // Images
-                // 'image/jpeg',
-                // 'image/png',
-                // 'image/gif',
-                // 'image/bmp',
-                // 'image/webp',
-                // 'image/svg+xml',
+                'image/jpeg',
+                'image/png',
+                'image/gif',
+                'image/bmp',
+                'image/webp',
+                'image/svg+xml',
                 // Archives
                 'application/zip',
                 'application/x-rar-compressed',
@@ -98,7 +99,16 @@ export class UploadFileService {
                 'application/gzip',
             ],
             uploadDir: config?.uploadDir || generateConfig.uploadDir,
-            allowedExtensions: config?.allowedExtensions || ['.pdf', '.doc', '.docx', '.txt', '.md'],
+            allowedExtensions: config?.allowedExtensions || [
+                '.pdf',
+                '.doc',
+                '.docx',
+                '.txt',
+                '.md',
+                '.jpeg',
+                '.png',
+                '.jpg',
+            ],
         };
 
         // Ensure upload directory exists
@@ -260,7 +270,7 @@ export class UploadFileService {
                 filePath: file.path,
                 size: file.size,
                 mimeType: file.mimetype,
-                uploadedAt: new Date(),
+                uploadedAt: getSystemDate(),
                 status: FileProcessingStatus.COMPLETED,
             };
 
@@ -476,7 +486,7 @@ export class UploadFileService {
 
             const fileId = uuidv4();
 
-            const expiresIn = expiresInMinutes * 60; // Convert to seconds
+            const expiresIn = expiresInMinutes * 60;
 
             // Store presigned URL info
 
@@ -486,6 +496,7 @@ export class UploadFileService {
             const response: PresignedUrlResponse = {
                 uploadUrl,
                 fileId,
+                fileKey: `${fileId}:${request.fileName}`,
                 expiresIn,
                 conditions: {
                     maxFileSize: this.defaultConfig.maxFileSize!,
@@ -560,15 +571,6 @@ export class UploadFileService {
             throw new BadRequest('File ID is required');
         }
         return null;
-    }
-
-    /**
-     * Clean up expired presigned URLs
-     */
-    public cleanupExpiredPresignedUrls(): number {
-        let cleanedCount = 0;
-
-        return cleanedCount;
     }
 
     /**

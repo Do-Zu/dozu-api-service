@@ -7,15 +7,15 @@ export interface ItemTrackingWithTopic {
     repetitionNumber: number;
     easinessFactor: string;
     reviewInterval: number;
-    lastReviewed: string | null;
-    nextReview: string | null;
+    lastReviewed: Date | string | null;
+    nextReview: Date | string | null;
     status: string;
-    topicTitle: string;
+    topicTitle: string | null;
     topicDescription: string | null;
 }
 export interface IScheduleTopicReview {
     topicId: number;
-    topicTitle: string;
+    topicTitle: string | null;
     topicDescription: string | null;
     reviewDate: Date;
     status: string;
@@ -27,13 +27,14 @@ export interface IScheduleTopicReview {
 
 export interface IGroupTopic {
     topicId: number;
-    topicTitle: string;
+    topicTitle: string | null;
     topicDescription: string | null;
     easinessFactor: string;
     reviewInterval: number;
     repetition: number;
-    lastReviewed: string | null;
+    lastReviewed: Date | string | null;
     reviewDate: Date;
+    timeReview: string;
     status: string;
     type: string;
 }
@@ -42,7 +43,7 @@ export interface IItemScheduleGenerated {
     priority: number;
     startTime: Date;
     endTime: Date;
-    title: string;
+    title: string | null;
     description: string | null;
     type: string;
     amountItem: number;

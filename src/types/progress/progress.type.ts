@@ -31,8 +31,13 @@ export interface ProgressMetadata {
   attempts?: number; 
   timeSpent?: number; 
   lastPosition?: number; 
-  answers?: Record<string, any>; 
-  notes?: string; 
+  answers?: Record<string, unknown>; 
+  notes?: string;
+  // Learning tracking fields
+  itemsStudied?: number;
+  accuracy?: number;
+  sessionData?: Record<string, unknown>;
+  lastUpdated?: string;
 }
 
 export interface IProgressCreate {

@@ -1,5 +1,5 @@
-import { pgTable, serial, integer, text, timestamp } from 'drizzle-orm/pg-core';
-import { topicsTable } from '@/models/topic.model';
+import { pgTable, serial, integer, text, timestamp, boolean } from 'drizzle-orm/pg-core';
+import { topicsTable } from '@/models/topic/topic.model';
 
 export const flashcardsTable = pgTable('flashcards', {
   flashcardId: serial('flashcard_id').primaryKey(),
@@ -10,5 +10,9 @@ export const flashcardsTable = pgTable('flashcards', {
 
   front: text('front').notNull(),
   back: text('back').notNull(),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  imageUrl: text('image_url'),
+  isStar: boolean('is_star').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+export type TypeInsertFlashcard = typeof flashcardsTable.$inferInsert;

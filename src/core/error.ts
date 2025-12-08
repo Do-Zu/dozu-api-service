@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
-import { HTTP_STATUS } from '@/constants/index.constant';
+import { ERROR_MESSAGES, HTTP_STATUS, LOG_MESSAGES } from '@/constants/index.constant';
 import { config } from '@/config/env.config';
 import logger from '@/utils/logger';
 import { closeDb } from '@/libs/drizzleClient.lib';
@@ -29,70 +29,70 @@ class AppError extends Error implements IError {
 }
 
 class AuthenticationError extends AppError {
-    constructor(message = 'Authentication failed') {
+    constructor(message = ERROR_MESSAGES.AUTHENTICATION_FAILED) {
         super(message, HTTP_STATUS.UNAUTHORIZED);
         this.name = 'AuthenticationError';
     }
 }
 
 class AuthorizationError extends AppError {
-    constructor(message = 'Not authorized') {
+    constructor(message = ERROR_MESSAGES.NOT_AUTHORIZED) {
         super(message, HTTP_STATUS.FORBIDDEN);
         this.name = 'AuthorizationError';
     }
 }
 
 class NotFoundError extends AppError {
-    constructor(message = 'Resource not found') {
+    constructor(message = ERROR_MESSAGES.NOT_FOUND) {
         super(message, HTTP_STATUS.NOT_FOUND);
         this.name = 'NotFoundError';
     }
 }
 
 class DatabaseError extends AppError {
-    constructor(message = 'Database operation failed') {
+    constructor(message = ERROR_MESSAGES.DATABASE_OPERATION_FAILED) {
         super(message, HTTP_STATUS.INTERNAL_SERVER);
         this.name = 'DatabaseError';
     }
 }
 
 class BadRequest extends AppError {
-    constructor(message = 'Bad Request') {
+    constructor(message = ERROR_MESSAGES.BAD_REQUEST) {
         super(message, HTTP_STATUS.BAD_REQUEST);
         this.name = 'BadRequest';
     }
 }
 
 class PaymentRequire extends AppError {
-    constructor(message = 'Payment Required') {
+    constructor(message = ERROR_MESSAGES.PAYMENT_REQUIRED) {
         super(message, HTTP_STATUS.PAYMENT_REQUIRED);
         this.name = 'PaymentRequire';
     }
 }
 
 class PayloadTooLarge extends AppError {
-    constructor(message = 'Payload Too Large') {
+    constructor(message = ERROR_MESSAGES.PAYLOAD_TOO_LARGE) {
         super(message, HTTP_STATUS.PAYLOAD_TOO_LARGE);
         this.name = 'PayloadTooLarge';
     }
 }
 
 class Forbidden extends AppError {
-    constructor(message = 'Forbidden') {
+    constructor(message = ERROR_MESSAGES.FORBIDDEN) {
         super(message, HTTP_STATUS.FORBIDDEN);
         this.name = 'Forbidden';
     }
 }
 
 class InternalServerError extends AppError {
-    constructor(message = 'Internal Server Error') {
+    constructor(message = ERROR_MESSAGES.INTERNAL_SERVER_ERROR) {
         super(message, HTTP_STATUS.INTERNAL_SERVER);
         this.name = 'InternalServerError';
     }
-} //todo: check if appropriately done
+}
 
 class ServiceUnavailable extends AppError {
-    constructor(message = 'Service Unavailable') {
+    constructor(message = ERROR_MESSAGES.SERVICE_UNAVAILABLE) {
         super(message, HTTP_STATUS.SERVICE_UNAVAILABLE);
         this.name = 'ServiceUnavailable';
     }
@@ -104,7 +104,7 @@ class ServiceUnavailable extends AppError {
  */
 const handleError = (error: unknown, _req: Request, res: Response, next: NextFunction): void => {
     if (res.headersSent) {
-        logger.warn('Attempted to send response when headers were already sent');
+        logger.warn(LOG_MESSAGES.HEADERS_ALREADY_SENT);
         return next(error);
     }
     try {
@@ -113,10 +113,14 @@ const handleError = (error: unknown, _req: Request, res: Response, next: NextFun
         if (error instanceof AppError) {
             appError = error;
         } else if (error instanceof Error) {
-            appError = new AppError(error.message, 500);
+            const message = config.isDevelopment ? error.message : ERROR_MESSAGES.SERVER_ERROR;
+            appError = new AppError(message, HTTP_STATUS.INTERNAL_SERVER);
             appError.stack = error.stack;
         } else {
-            appError = new AppError(typeof error === 'string' ? error : 'Unknown error', HTTP_STATUS.INTERNAL_SERVER);
+            appError = new AppError(
+                typeof error === 'string' ? error : ERROR_MESSAGES.UNKNOWN_ERROR,
+                HTTP_STATUS.INTERNAL_SERVER
+            );
         }
 
         appError.statusCode = appError.statusCode || HTTP_STATUS.INTERNAL_SERVER;
@@ -145,21 +149,21 @@ const handleError = (error: unknown, _req: Request, res: Response, next: NextFun
                 });
             }
         } catch (responseError) {
-            logger.error('Error sending error response', { error: responseError });
+            logger.error(LOG_MESSAGES.ERROR_SENDING_RESPONSE, { error: responseError });
         }
     } catch (error) {
-        logger.error('Error in error handler itself', { error });
+        logger.error(LOG_MESSAGES.ERROR_IN_ERROR_HANDLER, { error });
         res.status(HTTP_STATUS.INTERNAL_SERVER).json({
             status: 'error',
             code: HTTP_STATUS.INTERNAL_SERVER,
-            message: 'Internal Server Error',
+            message: ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
         });
     }
 };
 
 const setupGlobalErrorHandlers = (): void => {
     process.on('uncaughtException', (error: Error) => {
-        logger.error('UNCAUGHT EXCEPTION!  Shutting down...', {
+        logger.error(LOG_MESSAGES.UNCAUGHT_EXCEPTION, {
             message: error.message,
             stack: error.stack,
         });
@@ -170,7 +174,7 @@ const setupGlobalErrorHandlers = (): void => {
     });
 
     process.on('unhandledRejection', (reason: Error) => {
-        logger.error('UNHANDLED REJECTION!  Shutting down...', {
+        logger.error(LOG_MESSAGES.UNHANDLED_REJECTION, {
             message: reason.message,
             stack: reason.stack,
         });
@@ -180,7 +184,7 @@ const setupGlobalErrorHandlers = (): void => {
     });
 
     process.on('SIGTERM', async () => {
-        logger.info('SIGTERM received. Shutting down gracefully');
+        logger.info(LOG_MESSAGES.SIGTERM_RECEIVED);
         await closeDb();
         process.exit(0);
         // Implement graceful shutdown but don't exit immediately

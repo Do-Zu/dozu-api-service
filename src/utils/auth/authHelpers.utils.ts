@@ -1,10 +1,11 @@
-import { SelectUser } from '@/models';
 import { getUserRoles } from '@/repositories/auth.repo';
 import { SanitizedUser } from '@/types/auth/sanitizedUser.type';
 import { Request } from 'express';
 import { getDateFormatted } from '../date';
+import { UserLoginDataResponse } from '@/services/auth.service';
+import { DecodedTokenPayload } from '@/types/auth/jwtPayload.type';
 
-export const sanitizeUserObject = (userData: SelectUser): SanitizedUser => {
+export const sanitizeUserObject = (userData: UserLoginDataResponse): SanitizedUser => {
     const returnData = {
         userId: userData.userId,
         username: userData.username,
@@ -16,7 +17,8 @@ export const sanitizeUserObject = (userData: SelectUser): SanitizedUser => {
         createdAt: userData?.createdAt ? getDateFormatted(userData?.createdAt) : null,
         lastLoginAt: userData?.lastLoginAt ? getDateFormatted(userData?.lastLoginAt) : null,
         permissions: [],
-        roles: [...userData.role],
+        roles: userData.roles,
+        isActive: userData.isActive,
     } as SanitizedUser;
 
     return returnData;
@@ -24,7 +26,7 @@ export const sanitizeUserObject = (userData: SelectUser): SanitizedUser => {
 
 export const getUserIdFromRequest = (req: Request): number => {
     const user = req.currentUser;
-    let { userId } = user as { userId: string | number };
+    let { userId } = user as DecodedTokenPayload;
     userId = parseInt(userId as string);
     return userId;
 };

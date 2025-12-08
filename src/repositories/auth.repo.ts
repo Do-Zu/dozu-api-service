@@ -13,7 +13,7 @@ import {
 import { emailVerificationCodesTable, InsertEmailVerificationCode } from '@/models/auth/emailVerificationCode.model';
 import type { InsertUser, SelectUser } from '@/models/user.model';
 import { generateSecureCode } from '@/utils/auth/crypto.utils';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, or } from 'drizzle-orm';
 
 export const insertUser = async (username: string, passwordHash: string, email: string): Promise<SelectUser> => {
     const newUser: InsertUser = {
@@ -95,6 +95,20 @@ export const selectOneUserByEmail = async (email: string) => {
     return result;
 };
 
+export const selectOneUserByEmailOrUsername = async ({
+    username,
+    email,
+}: {
+    username: string;
+    email: string;
+}): Promise<SelectUser> => {
+    const [result] = await db
+        .select()
+        .from(usersTable)
+        .where(or(eq(usersTable.username, username), eq(usersTable.email, email)));
+    return result;
+};
+
 export const findByProviderId = async (provider: string, providerId: string) => {
     const [result] = await db
         .select()
@@ -151,10 +165,44 @@ export const getUserRoleId = async (): Promise<number> => {
     return userRoleId;
 };
 
+export const getTeacherRoleId = async (): Promise<number> => {
+    let teacherRoleId = -1;
+    const [result] = await db.select().from(rolesTable).where(eq(rolesTable.name, 'teacher'));
+    if (!result) {
+        const userRole: InsertRole = {
+            name: 'teacher',
+            description: 'Basic teacher',
+        };
+        const [insertedRole] = await db.insert(rolesTable).values(userRole).returning();
+        teacherRoleId = insertedRole.roleId;
+    } else {
+        teacherRoleId = result.roleId;
+    }
+    return teacherRoleId;
+};
+
 export const addRole = async (userRoleId: number, userId: number): Promise<void> => {
     const userRole: InsertUserRolesPermission = {
         roleId: userRoleId,
         userId: userId,
     };
     await db.insert(userRolesTable).values(userRole);
+};
+
+export const updateUserPassword = async ({
+    userId,
+    hashedPassword,
+}: {
+    userId: number;
+    hashedPassword: string;
+}): Promise<SelectUser> => {
+    const [updatedUser] = await db
+        .update(usersTable)
+        .set({ passwordHash: hashedPassword })
+        .where(eq(usersTable.userId, userId))
+        .returning();
+    if (!updatedUser) {
+        throw new Error('User not found');
+    }
+    return updatedUser;
 };

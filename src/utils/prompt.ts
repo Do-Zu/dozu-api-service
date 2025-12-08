@@ -1,27 +1,11 @@
 import { createCustomMindmapPrompt } from './prompt/mindmap.prompt';
+import { createFeynmanEvaluationPrompt, createFeynmanPromptGenerateQuestion } from './prompt/feynman.prompt';
+import { createFlashcardForMultiNodesPrompt, createFlashcardPrompt } from './prompt/flashcard.prompt';
+import { createQuizPrompt } from './prompt/quiz.prompt';
+import { IGenerateOptions } from '@/dtos/generate/models/GenerateContentRequestInterface';
+import summaryPrompt from './prompt/summary.prompt';
 
-const PROMPT_TEMPLATE_FLASHCARD = `Create flashcards from the following content.
-  - Focus on essential concepts and key points only
-  - Aim for the smallest effective set, not exceeding 40 flashcards
-  - Responses follow this format: [{"q": "your term/question", "a": "your definition/answer"}]
-  - Response follow language of the content
-  - Create a variety format for flashcard: question,true/false,open-ended,multiple-choice,fill-in-the-blank styles
-  - Output should be in only one array
-`;
-
-const PROMPT_TEMPLATE_QUIZ_MULTIPLE_CHOICE = `Create a quizzes from the following content.
-- Focus on essential concepts and key points only
-- Aim for the smallest effective set , not exceeding to 30 questions
-- Combine various question type includes:  MULTIPLE CHOICE , FILL BLANK , TRUE FALSE format.
-- Each question must have exactly 4 options (A, B, C, D)
-- Create a variety of question types: OPEN-ENDED QUESTIONS, CLOSED-ENDED QUESTIONS, INVESTIGATION QUESTIONS, DIRECTIONAL QUESTIONS, REVERSE QUESTIONS
-- Randomize the position of the correct answer within the options
-  Note: q: is question, o: options, idx: index of the correct answer (0-3). For example:
-[{"q": "Your question here", "o": ["A", "B", "C", "D"], "idx": 1}]
-- Response follow language of the content
-- Output should be in only one array
-`;
-
+export const DEFAULT_MAX_ITEM_GEN = 40;
 const PROMPT_SUMMARY_CONTENT = `Create a summary of the following content.
 - Focus on essential concepts and key points only
 - Aim for the smallest effective set, not exceeding 5 sentences
@@ -29,21 +13,34 @@ const PROMPT_SUMMARY_CONTENT = `Create a summary of the following content.
 - Output should be in only one string
 `;
 
-export type TYPE_PROMPT = 'FLASH_CARD' | 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'FILL_BANK' | 'MIND_MAP' | 'QUIZ';
+export type TYPE_PROMPT =
+    | 'FLASH_CARD'
+    | 'MULTIPLE_CHOICE'
+    | 'TRUE_FALSE'
+    | 'FILL_BANK'
+    | 'MIND_MAP'
+    | 'QUIZ'
+    | 'FEYNMAN_QUESTION'
+    | 'FEYNMAN_REVIEW'
+    | 'SHORT_SUMMARY'
+    | 'MULTI_NODE_FLASHCARD';
 
-const generatePromptText = (content: string, type: TYPE_PROMPT): string => {
+const generatePromptText = (content: string, type: TYPE_PROMPT, options?: IGenerateOptions): string => {
     switch (type) {
         case 'FLASH_CARD':
-            return `${PROMPT_TEMPLATE_FLASHCARD} 
-                Content: ${content}`;
-        case 'MULTIPLE_CHOICE':
-        case 'TRUE_FALSE':
-        case 'FILL_BANK':
+            return createFlashcardPrompt(content, options?.commonGenerateOptions);
         case 'QUIZ':
-            return `${PROMPT_TEMPLATE_QUIZ_MULTIPLE_CHOICE} 
-                Content: ${content}`;
+            return createQuizPrompt(content, options?.commonGenerateOptions);
         case 'MIND_MAP':
             return createCustomMindmapPrompt(content);
+        case 'FEYNMAN_QUESTION':
+            return createFeynmanPromptGenerateQuestion(content);
+        case 'FEYNMAN_REVIEW':
+            return createFeynmanEvaluationPrompt(content);
+        case 'SHORT_SUMMARY':
+            return summaryPrompt.createShortSummaryPrompt(content);
+        case 'MULTI_NODE_FLASHCARD':
+            return createFlashcardForMultiNodesPrompt(content, options);
         default:
             return `${PROMPT_SUMMARY_CONTENT} 
                 Content: ${content}`;

@@ -9,7 +9,7 @@ import {
   serial,
 } from 'drizzle-orm/pg-core';
 import { usersTable } from '../user.model';
-import { topicsTable } from '../topic.model';
+import { topicsTable } from '../topic/topic.model';
 // import { quizzesTable } from '../quiz/quiz.model';
 // import { flashcardsTable } from '../flashcard/flashcard.model';
 // import { videosTable } from '../video/video.model';

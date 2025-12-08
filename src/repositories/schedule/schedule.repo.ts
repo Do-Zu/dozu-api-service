@@ -1,7 +1,7 @@
 // import logger from '@/utils/logger';
 
 import db from '@/libs/drizzleClient.lib';
-import { and, eq, lte, gte } from 'drizzle-orm';
+import { and, eq, gte, lt } from 'drizzle-orm';
 import { itemSpacedRepetitionTrackingTable, topicsTable } from '@/models';
 import { ItemTrackingWithTopic } from '@/services/schedule/types/schedule.index';
 
@@ -42,13 +42,13 @@ class ScheduleRepository {
                 topicDescription: topicsTable.description,
             })
             .from(itemSpacedRepetitionTrackingTable)
-            .innerJoin(topicsTable, eq(itemSpacedRepetitionTrackingTable.userId, topicsTable.userId))
+            .leftJoin(topicsTable, eq(itemSpacedRepetitionTrackingTable.topicId, topicsTable.topicId))
             .where(
                 and(
                     eq(itemSpacedRepetitionTrackingTable.userId, userId),
                     and(
                         gte(itemSpacedRepetitionTrackingTable.nextReview, fromDate),
-                        lte(itemSpacedRepetitionTrackingTable.nextReview, toDate)
+                        lt(itemSpacedRepetitionTrackingTable.nextReview, toDate)
                     )
                 )
             );

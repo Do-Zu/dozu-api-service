@@ -134,7 +134,7 @@ class FeatureUsageService {
                 return `weekly:${getDateFormatted(weekStart)}`;
             }
             case 'monthly':
-                return `monthly:${(getDateFormatted(date), 'yyyy-MM')}`;
+                return `monthly:${getDateFormatted(date, 'yyyy-MM')}`;
             case 'yearly':
                 return `yearly:${getDateFormatted(date, 'yyyy')}`;
             case 'lifetime':
@@ -275,7 +275,7 @@ class FeatureUsageService {
                         ],
                         set: {
                             usedValue: params.usedValue.toString(),
-                            updatedAt: new Date(),
+                            updatedAt: getCurrentDateInTimeZone(),
                         },
                     });
             } catch (error) {

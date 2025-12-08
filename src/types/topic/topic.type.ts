@@ -6,19 +6,23 @@ export interface ITopic {
 
     // optional
     userId?: number;
-    classId?: number;
+    classId?: number | null;
     imageUrl?: string | null;
-    flashcardsCount?: number;
-    flashcardsDueToday?: number;
-    flashcardsNew?: number;
+    flashcardCounts?: IFlashcardCounts;
     hasProgress?: boolean;
 }
+
+export type IFlashcardCounts = {
+    new: number;
+    learning: number;
+    review: number;
+    total: number;
+};
 
 export type ICreateTopicBody = Pick<ITopic, 'name' | 'description'>;
 export type ICreateTopicResponse = Pick<ITopic, 'topicId' | 'name' | 'description' | 'createdAt' | 'imageUrl'>;
 export type IUpdateTopicBody = Pick<ITopic, 'name' | 'description'>;
-export type IUpdateTopicResponse = Pick<ITopic, 'topicId' | 'name' | 'description'>;
+export type IUpdateTopicResponse = Pick<ITopic, 'topicId' | 'name' | 'description' | 'imageUrl'>;
 
 export type ICreateTopicInClassBody = Pick<ITopic, 'name' | 'description'>;
 export type ICreateTopicInClassResponse = ICreateTopicResponse;
-

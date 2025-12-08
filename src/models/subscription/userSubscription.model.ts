@@ -69,3 +69,5 @@ export const userSubscriptionsTable = pgTable(
 
 export type SelectUserSubscription = typeof userSubscriptionsTable.$inferSelect;
 export type InsertUserSubscription = typeof userSubscriptionsTable.$inferInsert;
+export type SubscriptionStatus = SelectUserSubscription['status'];
+export type SubscriptionStatusEnum = (typeof subscriptionStatusEnum.enumValues)[number];

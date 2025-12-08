@@ -115,10 +115,19 @@ export abstract class AbstractRedisManager implements IRedisManager {
     public async set(key: string, value: unknown, ttlSeconds?: number): Promise<'OK'> {
         const redis = this.connect();
         const dataParse = JSON.stringify(value);
+
         if (ttlSeconds) {
             return redis.set(key, dataParse, 'EX', ttlSeconds);
         }
+
         return redis.set(key, dataParse);
+    }
+
+    public async setnx(key: string, value: unknown): Promise<number> {
+        const redis = this.connect();
+        const dataParse = JSON.stringify(value);
+
+        return redis.setnx(key, dataParse);
     }
 
     public async del(...keys: string[]): Promise<number> {
@@ -155,6 +164,22 @@ export abstract class AbstractRedisManager implements IRedisManager {
 
     public async incr(key: string): Promise<number> {
         return this.connect().incr(key);
+    }
+
+    public async sadd(key: string, ...members: string[]): Promise<number> {
+        return this.connect().sadd(key, ...members);
+    }
+
+    public async smembers(key: string): Promise<string[]> {
+        return this.connect().smembers(key);
+    }
+
+    public async srem(key: string, ...members: string[]): Promise<number> {
+        return this.connect().srem(key, ...members);
+    }
+
+    public async sismember(key: string, member: string): Promise<number> {
+        return this.connect().sismember(key, member);
     }
 
     public async disconnect(): Promise<void> {
@@ -197,6 +222,27 @@ export abstract class AbstractRedisManager implements IRedisManager {
             quit: async () => {
                 console.debug('[Redis Fallback] QUIT');
                 return 'OK';
+            },
+
+            // Set operations
+            sadd: async (key: string, ...members: string[]) => {
+                console.debug(`[Redis Fallback] SADD ${key} ${members.join(', ')}`);
+                return members.length;
+            },
+
+            smembers: async (key: string) => {
+                console.debug(`[Redis Fallback] SMEMBERS ${key}`);
+                return [];
+            },
+
+            srem: async (key: string, ...members: string[]) => {
+                console.debug(`[Redis Fallback] SREM ${key} ${members.join(', ')}`);
+                return 0;
+            },
+
+            sismember: async (key: string, member: string) => {
+                console.debug(`[Redis Fallback] SISMEMBER ${key} ${member}`);
+                return 0;
             },
         };
 

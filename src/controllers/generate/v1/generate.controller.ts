@@ -1,12 +1,10 @@
 import { Request, Response } from 'express';
 import { generateService } from '@/services/generative/v1/generate.service';
-import { BadRequest, InternalServerError } from '@/core/error';
-import { FileUploadRequestInterface } from '@/dtos/generate';
 import { SuccessResponse } from '@/core/success';
-import logger from '@/utils/logger';
 import multer from 'multer';
-import path from 'path';
+import path from 'node:path';
 import fs from 'fs';
+import { BadRequest } from '@/core/error';
 
 // Configure multer for file uploads
 const uploadDir = path.join(process.cwd(), 'uploads');
@@ -49,81 +47,6 @@ const upload = multer({
 
 class GenerateController {
     constructor() {}
-
-    /**
-     * Upload file and generate mindmap
-     */
-    public async uploadAndGenerateMindmap(req: Request, res: Response): Promise<void> {
-        const file = req.file;
-
-        if (!file) {
-            throw new BadRequest('No file uploaded');
-        }
-
-        const { customPrompt, userId } = req.body;
-
-        const request: FileUploadRequestInterface = {
-            filePath: file.path,
-            fileName: file.originalname,
-            mimeType: file.mimetype,
-            type: 'mindmap',
-            customPrompt,
-            userId,
-        };
-
-        logger.info(`Processing file upload for mindmap generation: ${file.originalname}`);
-
-        // Process the file and generate mindmap
-        const mindmapData = await generateService.processFileUploadForMindmap(request);
-
-        if (!mindmapData) {
-            throw new BadRequest('Failed to generate mindmap from uploaded file');
-        }
-
-        // Clean up uploaded file
-        try {
-            const normalizedPath = path.resolve(file.path);
-            if (normalizedPath.startsWith(uploadDir)) {
-                fs.unlinkSync(normalizedPath);
-            } else {
-                logger.warn(`Attempted to delete a file outside the upload directory: ${file.path}`);
-            }
-        } catch (error) {
-            logger.warn(`Failed to clean up uploaded file: ${error instanceof Error ? error.message : String(error)}`);
-        }
-
-        SuccessResponse.ok(res, mindmapData, 'Mindmap generated successfully');
-    }
-
-    /**
-     * Generate mindmap from text content
-     */
-    public async generateMindmapFromText(req: Request, res: Response): Promise<void> {
-        const { content, customPrompt, type } = req.body;
-        const { userId } = req.currentUser;
-
-        if (!content) {
-            throw new BadRequest('Content is required');
-        }
-
-        const request: FileUploadRequestInterface = {
-            content,
-            type: type || 'mindmap',
-            customPrompt,
-            userId,
-        };
-
-        logger.info('Processing text content for mindmap generation');
-
-        // Process the content and generate mindmap
-        const mindmapData = await generateService.processFileUploadForMindmap(request);
-
-        if (!mindmapData) {
-            throw new InternalServerError('Failed to generate mindmap from text content');
-        }
-
-        SuccessResponse.ok(res, mindmapData, 'Mindmap generated successfully');
-    }
 
     /**
      * Get processing status by job ID

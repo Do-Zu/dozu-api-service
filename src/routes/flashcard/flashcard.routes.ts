@@ -2,23 +2,25 @@ import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 import { Router } from 'express';
 import { registerRoute } from '@/routes/register.routes';
 import flashcardController from '@/controllers/flashcard/flashcard.controller';
-import { validateFlashcardsBatch, validateTopicId } from '@/middleware/validations/flashcard.validation';
+import { validateFlashcardsBatch } from '@/middleware/validations/flashcard.validation';
 import { authMiddleware } from '@/middleware/auth.middleware';
+import paramsValidator from '@/core/validations/params.validator';
 
-const router = Router();
+const router = Router({ mergeParams: true }); // for using req.params.topicId in /topics/:topicId/flashcards
 
 globalAsyncHandler(router);
-
 router.use(authMiddleware);
-router.get('/', validateTopicId(), flashcardController.handleGetAllFlashcardsForTopic);
 
-router.post('/batch', validateTopicId(), validateFlashcardsBatch(), flashcardController.handleBatchFlashcardsForTopic);
-
-router.put('/:flashcardId/track', flashcardController.handleTrackSingleFlashcard);
-
-router.get('/learning', flashcardController.handleGetFlashcardsLearningForUser);
-router.get('/learning/:topicId', flashcardController.handleGetFlashcardsLearningForTopic);
-router.put('/:flashcardId/put-to-learning', flashcardController.handlePutFlashcardToLearning);
+router.get('/', flashcardController.getFlashcardsForTopic);
+router.post('/batch/changes', validateFlashcardsBatch(), flashcardController.batchFlashcardsForTopicChanges);
+router.post('/batch/node', validateFlashcardsBatch(), flashcardController.handleBatchFlashcardsForNode); //for use with mindmap's node
+router.patch(
+    '/:flashcardId/review',
+    paramsValidator.validateId('flashcardId'),
+    flashcardController.reviewFlashcardByAnki
+);
+router.patch('/:flashcardId/toggle-star', paramsValidator.validateId('flashcardId'), flashcardController.toggleStar);
+router.post('/search-images', flashcardController.searchFlashcardImages);
 
 registerRoute('/flashcards', router, {
     description: 'Flashcards API for CRUD single flashcard',

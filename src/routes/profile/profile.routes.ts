@@ -13,6 +13,7 @@ router.use(authMiddleware);
 
 // Profile CRUD operations
 router.get('/', profileController.getProfile);
+router.get('/:userId', profileController.getProfileById); // For teachers to view student profiles
 router.put('/', profileController.updateProfile);
 router.delete('/', profileController.deleteAccount);
 

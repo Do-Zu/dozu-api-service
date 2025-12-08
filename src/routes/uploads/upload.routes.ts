@@ -1,9 +1,8 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 import { registerRoute } from '../register.routes';
 import { uploadFileController } from '@/controllers/uploads/upload.file.controller';
-import { authMiddleware, authMiddlewareIfHeadersPresent } from '@/middleware/auth.middleware';
+import { authMiddleware } from '@/middleware/auth.middleware';
 import {
     validateFileId,
     validateFileIds,
@@ -12,7 +11,8 @@ import {
     validateSingleFileUpload,
     validateMultipleFilesUpload,
     validatePresignedUrlRequest,
-    validatePresignedUpload,
+    validateFileKey,
+    validateExpirationMinutes,
 } from '@/middleware/validations/upload.validation';
 import { rateLimitMiddleware } from '@/config/middlewares/rate-limit.config';
 
@@ -35,7 +35,6 @@ router.post(
     uploadRateLimiter,
     uploadFileController.getSingleUploadMiddleware('file'),
     validateSingleFileUpload(),
-    authMiddlewareIfHeadersPresent, //only add user object if auth header exists
     uploadFileController.uploadSingleFile
 );
 
@@ -65,13 +64,6 @@ router.get(
 router.delete('/:fileId', validateFileId(), uploadFileController.deleteFile.bind(uploadFileController));
 router.delete('/batch', validateFileIds(), uploadFileController.deleteMultipleFiles.bind(uploadFileController));
 
-// router.put(
-//   '/:fileId/move',
-//   validateFileId(),
-//   validateMoveFileRequest(),
-//   uploadFileController.moveFile.bind(uploadFileController)
-// );
-
 // Cleanup operations
 router.post('/cleanup', validateCleanupRequest(), uploadFileController.cleanupOldFiles.bind(uploadFileController));
 
@@ -82,22 +74,22 @@ router.post(
     uploadFileController.generatePresignedUrl.bind(uploadFileController)
 );
 
-router.post(
-    '/presigned/:fileId',
-    uploadFileController.getSingleUploadMiddleware('file'),
-    validatePresignedUpload(),
-    uploadFileController.uploadWithPresignedUrl.bind(uploadFileController)
+router.get('/r2/:fileKey', validateFileKey(), uploadFileController.getFileFromR2.bind(uploadFileController));
+
+router.get(
+    '/r2/:fileKey/download',
+    validateFileKey(),
+    uploadFileController.downloadFileFromR2.bind(uploadFileController)
 );
 
 router.get(
-    '/presigned/:fileId/info',
-    validateFileId(),
-    uploadFileController.getPresignedUrlInfo.bind(uploadFileController)
+    '/r2/:fileKey/presigned-download',
+    validateFileKey(),
+    validateExpirationMinutes(),
+    uploadFileController.generateR2DownloadUrl.bind(uploadFileController)
 );
 
-router.get('/presigned/active', uploadFileController.getActivePresignedUrls.bind(uploadFileController));
-
-router.post('/presigned/cleanup', uploadFileController.cleanupExpiredPresignedUrls.bind(uploadFileController));
+router.post('/file/single/complete', uploadFileController.completeSingleFileUpload.bind(uploadFileController));
 
 // Register the route
 registerRoute('/upload', router, {

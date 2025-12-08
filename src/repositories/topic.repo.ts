@@ -1,28 +1,92 @@
-import db from '@/libs/drizzleClient.lib';
+import db, { Transaction } from '@/libs/drizzleClient.lib';
 import { flashcardsTable, itemSpacedRepetitionTrackingTable, topicsTable } from '@/models';
+import { ICreateTopicService, IUpdateTopicService } from '@/services/topic/topic.service';
 import { ITopic } from '@/types/topic/topic.type';
-import logger from '@/utils/logger';
-import { and, eq, lte, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 
-export type ICreateTopicRepo = Pick<ITopic, 'name' | 'description'> & { userId: number };
-export type IUpdateTopicRepo = Pick<ITopic, 'name' | 'description'>;
+export type ICreateTopicRepo = ICreateTopicService & { userId: number; classId?: number | null };
+export type IUpdateTopicRepo = IUpdateTopicService;
 
 class TopicRepo {
     public async getTopicById(topicId: number): Promise<ITopic | undefined> {
-        const topic = await db.query.topicsTable.findFirst({
-            where: eq(topicsTable.topicId, topicId),
-            columns: {
-                topicId: true,
-                userId: true,
-                name: true,
-                description: true,
-                createdAt: true,
-            },
-        });
+        let [topic]: ITopic[] = await db
+            .select({
+                topicId: topicsTable.topicId,
+                userId: topicsTable.userId,
+                name: topicsTable.name,
+                description: topicsTable.description,
+                imageUrl: topicsTable.imageUrl,
+                createdAt: topicsTable.createdAt,
+                classId: topicsTable.classId,
+            })
+            .from(topicsTable)
+            .where(eq(topicsTable.topicId, topicId));
+
         return topic;
     }
 
-    public async getTopicsForUser(userId: number, currentDate: string): Promise<ITopic[]> {
+    public async getTopicWithCardCounts({
+        userId,
+        topicId,
+        dueDate,
+    }: {
+        userId: number;
+        topicId: number;
+        dueDate: string;
+    }): Promise<ITopic | undefined> {
+        let [topic]: ITopic[] = await db
+            .select({
+                topicId: topicsTable.topicId,
+                userId: topicsTable.userId,
+                name: topicsTable.name,
+                description: topicsTable.description,
+                imageUrl: topicsTable.imageUrl,
+                createdAt: topicsTable.createdAt,
+                classId: topicsTable.classId,
+            })
+            .from(topicsTable)
+            .where(eq(topicsTable.topicId, topicId));
+
+        if (!topic) {
+            return undefined;
+        }
+
+        const [result] = await db
+            .select({
+                flashcardCounts: {
+                    total: sql<number>`CAST(COUNT(*) AS INT)`.as('total'),
+                    review: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${dueDate} AND item_spaced_repetition_tracking.status = 'review' THEN 1 END) AS INT)`.as(
+                        'review'
+                    ),
+                    new: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.status = 'new' THEN 1 END) AS INT)`.as(
+                        'new'
+                    ),
+                    learning:
+                        sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${dueDate} AND item_spaced_repetition_tracking.status IN ('learning', 'relearning') THEN 1 END) AS INT)`.as(
+                            `learning`
+                        ),
+                },
+            })
+            .from(flashcardsTable)
+            .leftJoin(
+                itemSpacedRepetitionTrackingTable,
+                and(
+                    eq(itemSpacedRepetitionTrackingTable.userId, userId),
+                    eq(flashcardsTable.flashcardId, itemSpacedRepetitionTrackingTable.itemId),
+                    eq(itemSpacedRepetitionTrackingTable.type, 'flashcard')
+                )
+            )
+            .where(eq(flashcardsTable.topicId, topic.topicId))
+            .groupBy(flashcardsTable.topicId);
+
+        if (result) {
+            topic.flashcardCounts = result.flashcardCounts;
+        }
+
+        return topic;
+    }
+
+    public async getTopicsForUser(userId: number, dueDate: string): Promise<ITopic[]> {
         let topics: ITopic[] = await db
             .select({
                 topicId: topicsTable.topicId,
@@ -31,21 +95,21 @@ class TopicRepo {
                 description: topicsTable.description,
                 imageUrl: topicsTable.imageUrl,
                 createdAt: topicsTable.createdAt,
-                flashcardsCount:
-                    // get number of flashcards in a topic, flashcards.flashcard_id IS NOT NULL because using below left join
-                    sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL THEN 1 END) AS INT)`.as(
-                        'flashcardsCount'
+                flashcardCounts: {
+                    total: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL THEN 1 END) AS INT)`.as(
+                        'total'
                     ),
-                // get flashcards-due-today, next_review <= today and last_reviewed should not null (if it is, it should be flashcardsNew)
-                flashcardsDueToday:
-                    sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${currentDate} AND item_spaced_repetition_tracking.last_reviewed IS NOT NULL THEN 1 END) AS INT)`.as(
-                        'flashcardsDueToday'
+                    review: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${dueDate} AND item_spaced_repetition_tracking.status = 'review' THEN 1 END) AS INT)`.as(
+                        'review'
                     ),
-                // get number of new flashcards item_spaced_repetition_tracking.last_reviewed IS NULL because flashcards inserted have last_reviewed NULL
-                flashcardsNew:
-                    sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.last_reviewed IS NULL THEN 1 END) AS INT)`.as(
-                        'flashcardsNew'
+                    new: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.status = 'new' THEN 1 END) AS INT)`.as(
+                        'new'
                     ),
+                    learning:
+                        sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${dueDate} AND item_spaced_repetition_tracking.status IN ('learning', 'relearning') THEN 1 END) AS INT)`.as(
+                            `learning`
+                        ),
+                },
             })
             .from(topicsTable)
             // some topics don't have a single flashcard, so using left join to get that topics
@@ -65,6 +129,7 @@ class TopicRepo {
             topicId: topicsTable.topicId,
             name: topicsTable.name,
             description: topicsTable.description,
+            imageUrl: topicsTable.imageUrl,
             createdAt: topicsTable.createdAt,
         });
 
@@ -76,44 +141,18 @@ class TopicRepo {
             topicId: topicsTable.topicId,
             name: topicsTable.name,
             description: topicsTable.description,
+            imageUrl: topicsTable.imageUrl,
             createdAt: topicsTable.createdAt,
         });
         return result;
     }
 
-    public async deleteTopicById(topicId: number): Promise<void> {
-        await db.delete(topicsTable).where(eq(topicsTable.topicId, topicId));
+    public async deleteTopicById(topicId: number, tx?: Transaction): Promise<void> {
+        const executor = tx ?? db;
+        await executor.delete(topicsTable).where(eq(topicsTable.topicId, topicId));
     }
 
-    public async getTopicsForClass(classId: number, userId: number, currentDate: string): Promise<ITopic[]> {
-        let topics: ITopic[] = await db
-            .select({
-                topicId: topicsTable.topicId,
-                userId: topicsTable.userId,
-                name: topicsTable.name,
-                description: topicsTable.description,
-                imageUrl: topicsTable.imageUrl,
-                createdAt: topicsTable.createdAt,
-                // get flashcards-due-today, next_review <= today and last_reviewed should not null (if it is, it should be flashcardsNew)
-                flashcardsDueToday:
-                    sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${currentDate} AND item_spaced_repetition_tracking.last_reviewed IS NOT NULL THEN 1 END) AS INT)`.as(
-                        'flashcardsDueToday'
-                    ),
-            })
-            .from(topicsTable)
-            // some topics don't have a single flashcard, so using left join to get that topics
-            .leftJoin(flashcardsTable, eq(flashcardsTable.topicId, topicsTable.topicId))
-            .leftJoin(
-                itemSpacedRepetitionTrackingTable,
-                eq(itemSpacedRepetitionTrackingTable.itemId, flashcardsTable.flashcardId)
-            )
-            .where(and(eq(topicsTable.classId, classId), eq(itemSpacedRepetitionTrackingTable.userId, userId)))
-            .groupBy(topicsTable.topicId);
-
-        return topics;
-    }
-
-    public async getTopicsInClassForStudent(classId: number, userId: number, currentDate: string): Promise<ITopic[]> {
+    public async getTopicsInClassForStudent(classId: number, userId: number, dueDate: string): Promise<ITopic[]> {
         let topics: ITopic[] = await db
             .select({
                 topicId: topicsTable.topicId,
@@ -127,46 +166,45 @@ class TopicRepo {
             .where(eq(topicsTable.classId, classId));
 
         for (let i = 0; i < topics.length; ++i) {
-            // let topic = topics[i];
-            // const [personalizedData] = await db
-            //     .select({})
-            //     .from(itemSpacedRepetitionTrackingTable)
-            //     .leftJoin(topicsTable, eq(itemSpacedRepetitionTrackingTable.topicId, topicsTable.topicId))
-            //     .leftJoin(flashcardsTable, eq(flashcardsTable.topicId, topicsTable.topicId))
-            //     .where(and(
-            //         eq(topicsTable.topicId, topic.topicId),
-            //         eq(itemSpacedRepetitionTrackingTable.userId, userId),
-            //     ));
-            // topic.hasProgress = personalizedData != null;
             let topic = topics[i];
 
             const [result] = await db
                 .select({
                     topicId: flashcardsTable.topicId,
-                    // flashcardsDueToday: sql<number>`COUNT(*)`.as('flashcardsDueToday'),
-                    flashcardsDueToday:
-                        sql<number>`CAST(COUNT(CASE WHEN item_spaced_repetition_tracking.next_review <= ${currentDate} THEN 1 END) AS INT)`.as(
-                            'flashcardsDueToday'
+                    flashcardCounts: {
+                        total: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL THEN 1 END) AS INT)`.as(
+                            'total'
                         ),
-                    hasProgress: 
-                        sql<boolean>`BOOL_OR(item_spaced_repetition_tracking.item_id IS NOT NULL)`.as('hasProgress'),
+                        review: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${dueDate} AND item_spaced_repetition_tracking.status = 'review' THEN 1 END) AS INT)`.as(
+                            'review'
+                        ),
+                        new: sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.status = 'new' THEN 1 END) AS INT)`.as(
+                            'new'
+                        ),
+                        learning:
+                            sql<number>`CAST(COUNT(CASE WHEN flashcards.flashcard_id IS NOT NULL AND item_spaced_repetition_tracking.next_review <= ${dueDate} AND item_spaced_repetition_tracking.status IN ('learning', 'relearning') THEN 1 END) AS INT)`.as(
+                                `learning`
+                            ),
+                    },
+                    hasProgress: sql<boolean>`BOOL_OR(item_spaced_repetition_tracking.item_id IS NOT NULL)`.as(
+                        'hasProgress'
+                    ),
                 })
                 .from(flashcardsTable)
-                .innerJoin(itemSpacedRepetitionTrackingTable, 
+                .innerJoin(
+                    itemSpacedRepetitionTrackingTable,
                     and(
                         eq(itemSpacedRepetitionTrackingTable.userId, userId),
                         eq(flashcardsTable.flashcardId, itemSpacedRepetitionTrackingTable.itemId),
-                        eq(itemSpacedRepetitionTrackingTable.type, 'flashcard'),
+                        eq(itemSpacedRepetitionTrackingTable.type, 'flashcard')
                     )
                 )
                 .where(eq(flashcardsTable.topicId, topic.topicId))
-                .groupBy(flashcardsTable.topicId)
+                .groupBy(flashcardsTable.topicId);
 
-            // console.log('topicId', topic.name);
-            // console.log(result);
-            if(result) {
+            if (result) {
                 topic.hasProgress = true;
-                topic.flashcardsDueToday = result.flashcardsDueToday;
+                topic.flashcardCounts = result.flashcardCounts;
             } else {
                 topic.hasProgress = false;
             }
@@ -190,6 +228,19 @@ class TopicRepo {
             .groupBy(topicsTable.topicId);
 
         return topics;
+    }
+
+    public async getUserIdOfTopic(topicId: number): Promise<{ userId: number }> {
+        const [result] = await db
+            .select({
+                userId: topicsTable.userId,
+            })
+            .from(topicsTable)
+            .where(eq(topicsTable.topicId, topicId));
+        if (!result) {
+            throw new Error(`Topic with id ${topicId} not found`);
+        }
+        return result;
     }
 }
 

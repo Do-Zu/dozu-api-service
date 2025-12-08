@@ -1,4 +1,4 @@
-import { getDayOfWeek } from '@/utils/date/date';
+import { getDayOfWeek, getDateFormatted } from '@/utils/date/date';
 
 /**
  * Maps database row result to daily study hours format
@@ -32,11 +32,57 @@ export function mapToDailyStudyHoursArray(rows: Array<{
 }
 
 /**
- * Calculate total hours from minutes with proper rounding
+ * Generate array of last N days with study hours data
+ * Fills missing days with 0 hours
+ * @param dbRows - Database rows with existing data
+ * @param days - Number of days to include (default 7)
+ * @returns Complete array of daily study hours for the last N days
+ */
+export function generateDailyStudyHoursWithEmptyDays(
+  dbRows: Array<{ date: string; totalMinutes: string | number | null }>,
+  days: number = 7
+): Array<{ day: string; hours: number; date: string }> {
+  const result: Array<{ day: string; hours: number; date: string }> = [];
+  
+  // Create a map of existing data for quick lookup
+  const dataMap = new Map<string, number>();
+  dbRows.forEach(row => {
+    const totalMinutes = Number(row.totalMinutes || 0);
+    const hours = Math.round((totalMinutes / 60) * 10) / 10;
+    dataMap.set(row.date, hours);
+  });
+  
+  // Generate all days in the range - starting from today going backwards
+  // This ensures the rightmost column is always "today"
+  for (let i = days - 1; i >= 0; i--) {
+    const date = new Date();
+    // Use local timezone instead of UTC to match user's timezone
+    date.setDate(date.getDate() - i);
+    const dateString = getDateFormatted(date);
+    
+    // Use local timezone for day name calculation
+    const dayName = getDayOfWeek(dateString, 'en-US').substring(0, 3);
+    const hours = dataMap.get(dateString) || 0;
+    
+    result.push({
+      day: dayName,
+      hours,
+      date: dateString
+    });
+  }
+  
+  return result;
+}
+
+/**
+ * Calculate total hours from minutes with high precision
  * @param totalMinutes - Total minutes as string or number
- * @returns Hours rounded to 1 decimal place
+ * @returns Hours with exact conversion (no unnecessary rounding)
  */
 export function minutesToHours(totalMinutes: string | number | null): number {
   const minutes = Number(totalMinutes || 0);
-  return Math.round((minutes / 60) * 10) / 10;
+  // Convert directly without rounding to preserve precision
+  const hours = minutes / 60;
+  // Only round to 3 decimal places to avoid floating point errors
+  return Math.round(hours * 1000) / 1000;
 }

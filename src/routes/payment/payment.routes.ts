@@ -14,7 +14,9 @@ router.use(authMiddleware);
 
 // Define routes
 router.post('/register', paymentController.createLinkPaymentWithPayOS);
-router.post('/register/sepay', paymentController.createLinkPaymentWithSepay);
+router.post('/status/transaction', paymentController.updateTransactionStatus);
+router.get('/history', paymentController.getTransactionHistory);
+// router.post('/register/sepay', paymentController.createLinkPaymentWithSepay);
 
 // Register the router
 registerRoute('/payment', router, {
