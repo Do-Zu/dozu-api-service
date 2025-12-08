@@ -49,6 +49,7 @@ import './package/package.routes';
 import './class-based-learning/assignment/assignmentSubmission.routes';
 import './class-based-learning/class-quiz/studentClassQuiz.routes';
 import './class-based-learning/class-quiz/teacherClassQuiz.routes';
+import './comment/comment.routes';
 import './content/content.routes';
 import './embedding/embedding.route';
 import './image/image.routes';

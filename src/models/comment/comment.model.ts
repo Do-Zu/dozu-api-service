@@ -7,6 +7,9 @@ export const commentsTable = pgTable('comments', {
         .notNull()
         .references(() => usersTable.userId, { onDelete: 'cascade' }),
     content: text('content').notNull().default(''),
+    parentCommentId: integer('parent_comment_id').references((): any => commentsTable.commentId, {
+        onDelete: 'cascade',
+    }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }),
 });
