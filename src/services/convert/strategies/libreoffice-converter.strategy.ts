@@ -19,10 +19,10 @@ export class LibreOfficeConverter extends BaseFileConverter {
     constructor() {
         super();
 
-        if (!CONVERT_CONFIG.GOTENBERG_URL) {
-            logger.warn('Missing GOTENBERG URL API');
-        } else {
+        if (CONVERT_CONFIG.GOTENBERG_URL) {
             this.gotenbergUrl = CONVERT_CONFIG.GOTENBERG_URL;
+        } else {
+            logger.warn('Missing GOTENBERG URL API');
         }
     }
 
