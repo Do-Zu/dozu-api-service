@@ -10,7 +10,7 @@ COPY . .
 
 RUN npm run build
 
-FROM node:20-slim
+FROM node:22-slim
 
 WORKDIR /app
 
