@@ -3,6 +3,7 @@ import { IFeatureUsageInterval } from '@/models/subscription/planFeature.model';
 import planService from '@/services/subscription/plan.service';
 import subscriptionService from '@/services/subscription/subscription.service';
 import { featureUsageService } from '@/services/subscription/usage/featureUsage.service';
+import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import { compareIgnoreCapitalization } from '@/utils/common';
 import {
     getCurrentDateInTimeZone,
@@ -53,7 +54,7 @@ class SubscriptionMiddleware {
      * If the subscription is expired or feature limits are exceeded, it throws a PaymentRequire error.
      */
     public async handleSubscription(req: Request, res: Response, next: NextFunction) {
-        const userId = req.currentUser?.userId;
+        const userId = getUserIdFromRequest(req);
         const timezone = getTimezoneClient(req);
 
         //Convert to UTC standard for compare
@@ -75,7 +76,7 @@ class SubscriptionMiddleware {
         const featureId = req.body?.featureId;
 
         if (!featureId) {
-            throw new BadRequest('Feature ID is required for subscription check');
+            throw new BadRequest('feature is required for subscription check');
         }
 
         let userPlan = await subscriptionService.getUserSubscriptionWithPlan({ userId, timezone });
