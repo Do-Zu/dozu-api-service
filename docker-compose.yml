@@ -32,7 +32,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: '1'
           memory: 500M
 
   postgres:
@@ -60,8 +60,15 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: '1'
           memory: 500M
+
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    ports:
+      - "8100:3000"
+    networks:
+      - app-network
 
 networks:
   dozu-app-network:
