@@ -255,7 +255,7 @@ jobs:
                   PASSWORD: ${{ secrets.VIETNIX_PASSWORD }}
                   DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME }}
                   DOCKER_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-                  APP_PORT: ${{ secrets.PORT }}
+                  PORT: ${{ secrets.PORT }}
                   SSH_PORT: ${{ secrets.SSH_PORT }}
               run: |
                   set -e
@@ -277,8 +277,8 @@ jobs:
                   # Define variables
                   CONTAINER_NAME="api-service"
                   NETWORK_NAME="dozu-app-network"
-                  CONTAINER_PORT="$APP_PORT"
-                  HOST_PORT="$APP_PORT"
+                  CONTAINER_PORT="$PORT"
+                  HOST_PORT="$PORT"
                   VOLUME_NAME="api-logs"
                   VOLUME_PATH="/app/logs"
 
