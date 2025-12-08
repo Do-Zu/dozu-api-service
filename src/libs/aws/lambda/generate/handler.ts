@@ -262,14 +262,10 @@ async function generateContent(
         try {
             const jsonData = JSON.parse(responseContent);
 
-            // If the response is already an array, use it directly
-            // If it's an object, try to extract the array from it
-            const data: any = jsonData;
-
             console.log(`Successfully parsed JSON data`);
 
             return {
-                data,
+                data: jsonData,
                 rawText: responseContent,
                 timestamp: new Date().toISOString(),
             };
