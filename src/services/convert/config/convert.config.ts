@@ -8,7 +8,7 @@ export const CONVERT_CONFIG = {
     UPLOAD_DIR: process.env.UPLOAD_CONVERT_FILE_DIR || path.join(process.cwd(), 'uploads/convert'),
     OUTPUT_DIR: process.env.OUTPUT_CONVERT_FILE_DIR || path.join(process.cwd(), 'outputs/convert'),
     MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
-    GOTENBERG_URL: process.env.GOTENBERG_URL || 'http://localhost:8100',
+    GOTENBERG_URL: process.env.GOTENBERG_URL,
     SUPPORTED_EXTENSIONS: ['.txt', '.docx', '.doc'],
     PDF_OPTIONS: {
         format: 'A4' as const,
