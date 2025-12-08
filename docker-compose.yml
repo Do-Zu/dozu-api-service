@@ -64,11 +64,19 @@ services:
           memory: 500M
 
   gotenberg:
+    container_name: gotenberg
     image: gotenberg/gotenberg:8
+    restart: always
     ports:
       - "8100:3000"
     networks:
       - app-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:3000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
 networks:
   dozu-app-network:
