@@ -2,12 +2,37 @@ import { BadRequest, DatabaseError, Forbidden, NotFoundError } from '@/core/erro
 import commentRepo, { ICreateCommentRepo, IUpdateCommentRepo } from '@/repositories/comment/comment.repo';
 import { IComment, ICreateCommentBody, IUpdateCommentBody } from '@/types/comment/comment.type';
 import db from '@/libs/drizzleClient.lib';
-import { assignmentCommentsTable } from '@/models/class-based-learning/assignment/assignmentComment.model';
-import { learningMaterialCommentsTable } from '@/models/learning-material/learningMaterialComment.model';
+import { assignmentCommentsTable, type TypeSelectAssignmentComment } from '@/models/class-based-learning/assignment/assignmentComment.model';
+import { learningMaterialCommentsTable, type TypeSelectLearningMaterialComment } from '@/models/learning-material/learningMaterialComment.model';
 import { eq, and, isNull } from 'drizzle-orm';
 
+/**
+ * Type for comment query result from repository (includes sender info)
+ */
+type CommentQueryResult = {
+    commentId: number;
+    senderId: number;
+    content: string;
+    parentCommentId: number | null;
+    createdAt: Date;
+    updatedAt: Date | null;
+    sender?: {
+        userId: number;
+        username: string;
+        fullName: string | null;
+        avatarUrl: string | null;
+    };
+};
+
+/**
+ * Type for assignment submission query result
+ */
+type AssignmentSubmissionQueryResult = {
+    assignmentId: number;
+};
+
 class CommentService {
-    private mapCommentToIComment(result: any): IComment {
+    private mapCommentToIComment(result: CommentQueryResult): IComment {
         return {
             commentId: result.commentId,
             senderId: result.senderId,
@@ -24,13 +49,13 @@ class CommentService {
         };
     }
 
-    private async attachReplies(comment: IComment, executor: any = db): Promise<IComment> {
-        const replies = await commentRepo.getRepliesByCommentId(comment.commentId, executor);
+    private async attachReplies(comment: IComment): Promise<IComment> {
+        const replies = await commentRepo.getRepliesByCommentId(comment.commentId);
         // Recursively attach replies for infinite tree support
         comment.replies = await Promise.all(
             replies.map(async (reply) => {
                 const mappedReply = this.mapCommentToIComment(reply);
-                await this.attachReplies(mappedReply, executor);
+                await this.attachReplies(mappedReply);
                 return mappedReply;
             })
         );
@@ -103,7 +128,7 @@ class CommentService {
                     
                     // Verify parent comment belongs to the same assignment (can be top-level or nested reply)
                     // For nested replies, we need to check if the parent comment (or any ancestor) is linked to this assignment
-                    const [parentAssignmentComment] = await tx
+                    const parentAssignmentCommentResults = await tx
                         .select()
                         .from(assignmentCommentsTable)
                         .where(
@@ -114,6 +139,8 @@ class CommentService {
                             )
                         )
                         .limit(1);
+                    
+                    const parentAssignmentComment: TypeSelectAssignmentComment | undefined = parentAssignmentCommentResults[0];
                     
                     if (!parentAssignmentComment) {
                         throw new BadRequest('Parent comment does not belong to this assignment');
@@ -170,7 +197,7 @@ class CommentService {
                     
                     // Verify parent comment belongs to the same learning material (can be top-level or nested reply)
                     // For nested replies, we need to check if the parent comment (or any ancestor) is linked to this learning material
-                    const [parentLearningMaterialComment] = await tx
+                    const parentLearningMaterialCommentResults = await tx
                         .select()
                         .from(learningMaterialCommentsTable)
                         .where(
@@ -180,6 +207,8 @@ class CommentService {
                             )
                         )
                         .limit(1);
+                    
+                    const parentLearningMaterialComment: TypeSelectLearningMaterialComment | undefined = parentLearningMaterialCommentResults[0];
                     
                     if (!parentLearningMaterialComment) {
                         throw new BadRequest('Parent comment does not belong to this learning material');
@@ -278,11 +307,13 @@ class CommentService {
             try {
                 // Get assignmentId from submission
                 const { assignmentSubmissionsTable } = await import('@/models/class-based-learning/assignment/assignmentSubmission.model');
-                const [submission] = await tx
+                const submissionResults = await tx
                     .select({ assignmentId: assignmentSubmissionsTable.assignmentId })
                     .from(assignmentSubmissionsTable)
                     .where(eq(assignmentSubmissionsTable.submissionId, submissionId))
                     .limit(1);
+
+                const submission: AssignmentSubmissionQueryResult | undefined = submissionResults[0];
 
                 if (!submission) {
                     throw new NotFoundError('Submission not found');
@@ -296,7 +327,7 @@ class CommentService {
                     }
                     
                     // Verify parent comment belongs to the same submission (private comments)
-                    const [parentSubmissionComment] = await tx
+                    const parentSubmissionCommentResults = await tx
                         .select()
                         .from(assignmentCommentsTable)
                         .where(
@@ -307,6 +338,8 @@ class CommentService {
                             )
                         )
                         .limit(1);
+                    
+                    const parentSubmissionComment: TypeSelectAssignmentComment | undefined = parentSubmissionCommentResults[0];
                     
                     if (!parentSubmissionComment) {
                         throw new BadRequest('Parent comment does not belong to this submission');
