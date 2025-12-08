@@ -29,10 +29,6 @@
 name: SonarCloud analysis
 
 on:
-    push:
-        branches: ['feature/merge']
-    pull_request:
-        branches: ['feature/merge']
     workflow_dispatch:
 
 permissions:
