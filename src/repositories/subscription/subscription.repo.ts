@@ -29,8 +29,11 @@ class SubscriptionRepo {
             })
             .from(plansTable)
             .leftJoin(planFeaturesTable, eq(plansTable.planId, planFeaturesTable.planId))
-            .leftJoin(featuresTable, eq(planFeaturesTable.featureId, featuresTable.featureId))
-            .where(and(eq(plansTable.isActive, true), eq(featuresTable.isActive, true)));
+            .leftJoin(
+                featuresTable,
+                and(eq(planFeaturesTable.featureId, featuresTable.featureId), eq(featuresTable.isActive, true))
+            )
+            .where(eq(plansTable.isActive, true));
 
         return result;
     }
@@ -63,8 +66,11 @@ class SubscriptionRepo {
             })
             .from(plansTable)
             .leftJoin(planFeaturesTable, eq(plansTable.planId, planFeaturesTable.planId))
-            .leftJoin(featuresTable, eq(planFeaturesTable.featureId, featuresTable.featureId))
-            .where(and(gt(plansTable.tier, tier), eq(plansTable.isActive, true), eq(featuresTable.isActive, true)));
+            .leftJoin(
+                featuresTable,
+                and(eq(planFeaturesTable.featureId, featuresTable.featureId), eq(featuresTable.isActive, true))
+            )
+            .where(and(gt(plansTable.tier, tier), eq(plansTable.isActive, true)));
 
         return result;
     }
