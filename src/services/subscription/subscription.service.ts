@@ -18,6 +18,7 @@ import { and, desc, eq, gte, sql } from 'drizzle-orm';
 import planService from './plan.service';
 import { featureUsageService } from './usage/featureUsage.service';
 import { isEmpty, safeDestructure } from '@/utils/common';
+import { SubscriptionStatusEnum } from '@/dtos/subscription/subscription.dto';
 
 export interface IFeature {
     planId: number;
@@ -527,7 +528,7 @@ export class SubscriptionService {
         const result = await db
             .update(userSubscriptionsTable)
             .set({
-                status: 'cancelled',
+                status: SubscriptionStatusEnum.CANCELLED,
                 canceledAt: cancelTime,
                 cancellationReason: reason,
                 cancelAt: cancelTime,
@@ -545,7 +546,7 @@ export class SubscriptionService {
         newPlanId,
         timeZone,
         paymentData,
-        status = 'cancelled',
+        status = SubscriptionStatusEnum.CANCELLED,
     }: {
         userId: number;
         newPlanId: number;
@@ -561,7 +562,12 @@ export class SubscriptionService {
             const currentSubscription = await tx
                 .select()
                 .from(userSubscriptionsTable)
-                .where(and(eq(userSubscriptionsTable.userId, userId), eq(userSubscriptionsTable.status, 'active')))
+                .where(
+                    and(
+                        eq(userSubscriptionsTable.userId, userId),
+                        eq(userSubscriptionsTable.status, SubscriptionStatusEnum.ACTIVE)
+                    )
+                )
                 .limit(1);
 
             if (!currentSubscription[0]) {
@@ -595,7 +601,7 @@ export class SubscriptionService {
             const subscription: InsertUserSubscription = {
                 userId,
                 planId: newPlanId,
-                status: 'active',
+                status: SubscriptionStatusEnum.ACTIVE,
                 currentPeriodStart: startDateSubscription,
                 currentPeriodEnd: endDateSubscription,
                 externalSubscriptionId: paymentData?.externalSubscriptionId,

@@ -1,10 +1,11 @@
 import { BadRequest, Forbidden, InternalServerError, PaymentRequire } from '@/core/error';
+import { SubscriptionStatusEnum } from '@/dtos/subscription/subscription.dto';
 import { IFeatureUsageInterval } from '@/models/subscription/planFeature.model';
 import planService from '@/services/subscription/plan.service';
 import subscriptionService from '@/services/subscription/subscription.service';
 import { featureUsageService } from '@/services/subscription/usage/featureUsage.service';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
-import { compareIgnoreCapitalization } from '@/utils/common';
+import { compareIgnoreCapitalization, safeDestructure } from '@/utils/common';
 import {
     getCurrentDateInTimeZone,
     getCurrentTimestampFromRequest,
@@ -70,9 +71,6 @@ class SubscriptionMiddleware {
             throw new Forbidden(`Client time is too far from server time. Please check your device clock.`);
         }
 
-        const nowInClientTimezone = getCurrentDateInTimeZone(timezone);
-        const today = getDateFormatted(nowInClientTimezone);
-
         const featureId = req.body?.featureId;
 
         if (!featureId) {
@@ -81,58 +79,42 @@ class SubscriptionMiddleware {
 
         let userPlan = await subscriptionService.getUserSubscriptionWithPlan({ userId, timezone });
 
-        // Check if the user has a valid subscription without free plan
-        if (!compareIgnoreCapitalization(userPlan.plan.planType, PLAN_WILL_BE_IGNORE)) {
-            const currentPeriodEnd = userPlan.subscription.currentPeriodEnd;
-            const isExpired = isExpiredDate(currentPeriodEnd, today, timezone);
+        const nowInClientTimezone = getCurrentDateInTimeZone(timezone);
+        const today = getDateFormatted(nowInClientTimezone);
+        const currentPeriodEnd = getDateFormatted(userPlan.subscription.currentPeriodEnd);
+        const isExpired = isExpiredDate(currentPeriodEnd, today, timezone);
 
-            const isSubscriptionExpired = isExpired || userPlan.subscription.status === 'expired';
+        const isSubscriptionExpired =
+            isExpired || compareIgnoreCapitalization(userPlan.subscription.status, SubscriptionStatusEnum.EXPIRED);
 
-            if (isSubscriptionExpired) {
-                //Down subscription to free when expire
+        const { plan, subscription } = safeDestructure(userPlan);
 
-                const freePlan = await planService.getFreePlan();
-
-                const downSubscription = await subscriptionService.changeSubscription({
-                    newPlanId: freePlan.planId,
-                    userId,
-                    timeZone: timezone,
-                    status: 'expired',
-                });
-
-                if (!downSubscription) {
-                    throw new InternalServerError('Down Subscription Fail!');
-                }
-
-                // Get new plan for user
-                userPlan = await subscriptionService.getUserSubscriptionWithPlan({ userId, timezone });
-            }
-        } else {
-            const currentPeriodEnd = userPlan.subscription.currentPeriodEnd;
-            const isExpired = isExpiredDate(currentPeriodEnd, today, timezone);
-
-            const isSubscriptionExpired = isExpired || userPlan.subscription.status === 'expired';
-
-            if (isSubscriptionExpired) {
+        if (isSubscriptionExpired) {
+            if (!compareIgnoreCapitalization(plan?.planType, PLAN_WILL_BE_IGNORE)) {
+                userPlan = await this.handleDowngradePlan({ userId, timezone });
+            } else {
                 const reNewSubscription = await subscriptionService.processRenewal({
-                    subscriptionId: userPlan.subscription.subscriptionId,
+                    subscriptionId: subscription.subscriptionId,
                     timezone,
                 });
 
-                if (reNewSubscription) {
-                    const { newPeriodEnd, newPeriodStart } = reNewSubscription;
-
-                    userPlan.subscription = {
-                        ...userPlan.subscription,
-                        currentPeriodStart: getCurrentDateInTimeZone(timezone, newPeriodStart),
-                        currentPeriodEnd: getCurrentDateInTimeZone(timezone, newPeriodEnd),
-                    };
+                if (!reNewSubscription) {
+                    throw new InternalServerError();
                 }
+
+                const { newPeriodEnd, newPeriodStart } = reNewSubscription;
+
+                userPlan.subscription = {
+                    ...subscription,
+                    currentPeriodStart: getCurrentDateInTimeZone(timezone, newPeriodStart),
+                    currentPeriodEnd: getCurrentDateInTimeZone(timezone, newPeriodEnd),
+                };
             }
         }
 
-        const planId = userPlan?.plan?.planId;
-        const subscriptionId = userPlan?.subscription?.subscriptionId;
+        // Check if the user has a valid subscription without free plan
+        const planId = plan?.planId;
+        const subscriptionId = subscription?.subscriptionId;
 
         const isFeatureExceeded = await this.isFeatureLimitExceeded({
             userId,
@@ -197,6 +179,30 @@ class SubscriptionMiddleware {
 
         return !isEnabled;
     }
+
+    /**
+     * Down subscription to free when expire
+     * @param userId
+     * @param timezone
+     * @returns new plan
+     */
+    private handleDowngradePlan = async ({ userId, timezone }: { userId: number; timezone: string }) => {
+        const freePlan = await planService.getFreePlan();
+
+        const downSubscription = await subscriptionService.changeSubscription({
+            newPlanId: freePlan.planId,
+            userId,
+            timeZone: timezone,
+            status: SubscriptionStatusEnum.EXPIRED,
+        });
+
+        if (!downSubscription) {
+            throw new InternalServerError('Down Subscription Fail!');
+        }
+
+        // Get new plan for user
+        return await subscriptionService.getUserSubscriptionWithPlan({ userId, timezone });
+    };
 
     private timeToLive(today: string, timezone?: string, interval?: IFeatureUsageInterval): number {
         const currentTimeInTimezone = getCurrentDateInTimeZone(timezone, today);
