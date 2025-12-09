@@ -1,13 +1,13 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, gt } from 'drizzle-orm';
 import db from '@/libs/drizzleClient.lib';
 import { featuresTable, planFeaturesTable, plansTable, userSubscriptionsTable } from '@/models';
 
 class SubscriptionRepo {
     /**
-     * Get all available plans with features
+     * Get all available plans with their features in a single query
      */
-    public async getAllPlansAvailable() {
-        const plans = await db
+    public async getAllPlansWithFeatures() {
+        const result = await db
             .select({
                 planId: plansTable.planId,
                 name: plansTable.name,
@@ -17,10 +17,56 @@ class SubscriptionRepo {
                 price: plansTable.price,
                 currency: plansTable.currency,
                 isActive: plansTable.isActive,
+                tier: plansTable.tier,
+                featureId: featuresTable.featureId,
+                featureName: featuresTable.name,
+                featureDescription: featuresTable.description,
+                booleanValue: planFeaturesTable.booleanValue,
+                numericValue: planFeaturesTable.numericValue,
+                textValue: planFeaturesTable.textValue,
+                isUnlimited: planFeaturesTable.isUnlimited,
+                isEnabled: planFeaturesTable.isEnabled,
             })
             .from(plansTable)
-            .where(eq(plansTable.isActive, true));
-        return plans;
+            .leftJoin(planFeaturesTable, eq(plansTable.planId, planFeaturesTable.planId))
+            .leftJoin(featuresTable, eq(planFeaturesTable.featureId, featuresTable.featureId))
+            .where(and(eq(plansTable.isActive, true), eq(featuresTable.isActive, true)));
+
+        return result;
+    }
+
+    /**
+     * Get upgrade plans with features in a single query
+     */
+    public async filterPlansWithFeaturesForUpgrade(payload: { tier: number }) {
+        const { tier } = payload;
+
+        const result = await db
+            .select({
+                planId: plansTable.planId,
+                name: plansTable.name,
+                description: plansTable.description,
+                planType: plansTable.planType,
+                billingInterval: plansTable.billingInterval,
+                price: plansTable.price,
+                currency: plansTable.currency,
+                isActive: plansTable.isActive,
+                tier: plansTable.tier,
+                featureId: featuresTable.featureId,
+                featureName: featuresTable.name,
+                featureDescription: featuresTable.description,
+                booleanValue: planFeaturesTable.booleanValue,
+                numericValue: planFeaturesTable.numericValue,
+                textValue: planFeaturesTable.textValue,
+                isUnlimited: planFeaturesTable.isUnlimited,
+                isEnabled: planFeaturesTable.isEnabled,
+            })
+            .from(plansTable)
+            .leftJoin(planFeaturesTable, eq(plansTable.planId, planFeaturesTable.planId))
+            .leftJoin(featuresTable, eq(planFeaturesTable.featureId, featuresTable.featureId))
+            .where(and(gt(plansTable.tier, tier), eq(plansTable.isActive, true), eq(featuresTable.isActive, true)));
+
+        return result;
     }
 
     /**
@@ -61,6 +107,7 @@ class SubscriptionRepo {
                     price: plansTable.price,
                     isActive: plansTable.isActive,
                     planType: plansTable.planType,
+                    tier: plansTable.tier,
                 },
             })
             .from(userSubscriptionsTable)
