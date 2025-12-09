@@ -1,22 +1,21 @@
-import { BadRequest, Forbidden, InternalServerError, PaymentRequire } from '@/core/error';
-import { SubscriptionStatusEnum } from '@/dtos/subscription/subscription.dto';
-import { IFeatureUsageInterval } from '@/models/subscription/planFeature.model';
-import planService from '@/services/subscription/plan.service';
+import { NextFunction, Request, Response } from 'express';
+
 import subscriptionService from '@/services/subscription/subscription.service';
+import planService from '@/services/subscription/plan.service';
 import { featureUsageService } from '@/services/subscription/usage/featureUsage.service';
+import { BadRequest, Forbidden, InternalServerError, NotFoundError, PaymentRequire } from '@/core/error';
+import { SubscriptionStatusEnum } from '@/dtos/subscription/subscription.dto';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
-import { compareIgnoreCapitalization, safeDestructure } from '@/utils/common';
+import { compareIgnoreCapitalization, isEmpty, safeDestructure } from '@/utils/common';
 import {
     getCurrentDateInTimeZone,
     getCurrentTimestampFromRequest,
     getDateFormatted,
     getSystemDate,
     getTimezoneClient,
-    isExpiredDate,
     TIME_ZONE_SYSTEM,
 } from '@/utils/date';
-import { addDays, differenceInSeconds, endOfDay } from 'date-fns';
-import { NextFunction, Request, Response } from 'express';
+import { isBefore } from 'date-fns';
 
 interface ISubscriptionRequest {
     userId: number;
@@ -40,9 +39,6 @@ const TYPE_FEATURE_USAGE = {
 const PLAN_WILL_BE_IGNORE = 'free';
 
 class SubscriptionMiddleware {
-    private readonly DEFAULT_DATE_FOR_MONTH = 30;
-    private readonly DEFAULT_DATE_FOR_WEEK = 7;
-    private readonly DEFAULT_DATE_FOR_YEAR = 365;
     private readonly DEFAULT_MAX_DIFF_CLIENT_SERVER_BOUNDARY = 60 * 1000; // 1 minute
 
     constructor() {
@@ -68,7 +64,7 @@ class SubscriptionMiddleware {
         const timeDifference = Math.abs(nowServerUTC.getTime() - clientDateUTC.getTime());
 
         if (timeDifference > maxAllowedDifference) {
-            throw new Forbidden(`Client time is too far from server time. Please check your device clock.`);
+            throw new Forbidden(`client time is too far from server time. Please check your device clock.`);
         }
 
         const featureId = req.body?.featureId;
@@ -79,15 +75,19 @@ class SubscriptionMiddleware {
 
         let userPlan = await subscriptionService.getUserSubscriptionWithPlan({ userId, timezone });
 
+        const { plan, subscription } = safeDestructure(userPlan);
+
+        if (isEmpty(plan) || isEmpty(subscription)) {
+            throw new NotFoundError('user plan not found');
+        }
+
         const nowInClientTimezone = getCurrentDateInTimeZone(timezone);
         const today = getDateFormatted(nowInClientTimezone);
-        const currentPeriodEnd = getDateFormatted(userPlan.subscription.currentPeriodEnd);
-        const isExpired = isExpiredDate(currentPeriodEnd, today, timezone);
+        const currentPeriodEnd = getDateFormatted(subscription?.currentPeriodEnd);
+        const isExpired = this.isExpiredDate(currentPeriodEnd, today, timezone);
 
         const isSubscriptionExpired =
-            isExpired || compareIgnoreCapitalization(userPlan.subscription.status, SubscriptionStatusEnum.EXPIRED);
-
-        const { plan, subscription } = safeDestructure(userPlan);
+            isExpired || compareIgnoreCapitalization(subscription?.status, SubscriptionStatusEnum.EXPIRED);
 
         if (isSubscriptionExpired) {
             if (!compareIgnoreCapitalization(plan?.planType, PLAN_WILL_BE_IGNORE)) {
@@ -99,7 +99,7 @@ class SubscriptionMiddleware {
                 });
 
                 if (!reNewSubscription) {
-                    throw new InternalServerError();
+                    throw new InternalServerError('re-new subscription fail!');
                 }
 
                 const { newPeriodEnd, newPeriodStart } = reNewSubscription;
@@ -132,6 +132,11 @@ class SubscriptionMiddleware {
         next();
     }
 
+    /**
+     *  Check limitation  current feature of plan
+     * @param object
+     * @returns boolean
+     */
     private async isFeatureLimitExceeded({
         userId,
         today,
@@ -204,25 +209,24 @@ class SubscriptionMiddleware {
         return await subscriptionService.getUserSubscriptionWithPlan({ userId, timezone });
     };
 
-    private timeToLive(today: string, timezone?: string, interval?: IFeatureUsageInterval): number {
-        const currentTimeInTimezone = getCurrentDateInTimeZone(timezone, today);
-        const endOfDateTimezone = endOfDay(currentTimeInTimezone);
-
-        if (interval === 'daily') {
-            return differenceInSeconds(endOfDateTimezone, currentTimeInTimezone);
-        } else if (interval === 'weekly') {
-            const endOfWeek = addDays(currentTimeInTimezone, this.DEFAULT_DATE_FOR_WEEK);
-            return differenceInSeconds(endOfWeek, currentTimeInTimezone);
-        } else if (interval === 'monthly') {
-            const endOfMonth = addDays(currentTimeInTimezone, this.DEFAULT_DATE_FOR_MONTH);
-            return differenceInSeconds(endOfMonth, currentTimeInTimezone);
-        } else if (interval === 'yearly') {
-            const endOfYear = addDays(currentTimeInTimezone, this.DEFAULT_DATE_FOR_YEAR);
-            return differenceInSeconds(endOfYear, currentTimeInTimezone);
-        }
-
-        return -1;
-    }
+    /**
+     * Check if a subscription's current period end date is expired compared to today's date.
+     * This function compares the end date with today's date in the specified timezone.
+     *  @param currentPeriodEnd - The end date of the subscription period in ISO format (e.g., "2025-05-16T10:00:00+07:00")
+     *  @param today - The current date in ISO format (e.g., "2025-05-16T10:00:00+07:00")
+     *  @param timezone - The timezone to use for comparison (defaults to 'UTC')
+     *  @returns boolean - Returns true if the current period end date is before today's date, indicating it has expired.
+     *  If the dates are equal, it returns false, indicating the subscription is still active
+     */
+    private isExpiredDate = (
+        currentPeriodEnd: Date | string,
+        today: Date | string,
+        timezone: string = 'UTC'
+    ): boolean => {
+        const endDate = getCurrentDateInTimeZone(timezone, currentPeriodEnd);
+        const todayDate = getCurrentDateInTimeZone(timezone, today);
+        return isBefore(endDate, todayDate);
+    };
 }
 
 const subscriptionMiddleware = new SubscriptionMiddleware();

@@ -3,6 +3,7 @@ import db, { Database, Transaction } from '@/libs/drizzleClient.lib';
 import {
     featuresTable,
     IBillingInterval,
+    IFeatureUsageInterval,
     planFeaturesTable,
     SubscriptionStatus,
     userFeatureUsageTable,
@@ -13,7 +14,7 @@ import {
 } from '@/models/subscription';
 import subscriptionRepo from '@/repositories/subscription/subscription.repo';
 import { getCurrentDateInTimeZone, getSystemDate } from '@/utils/date';
-import { addMonths, addYears } from 'date-fns';
+import { addDays, addMonths, addYears, differenceInSeconds, endOfDay } from 'date-fns';
 import { and, desc, eq, gte, sql } from 'drizzle-orm';
 import planService from './plan.service';
 import { featureUsageService } from './usage/featureUsage.service';
@@ -66,6 +67,9 @@ interface IPlan {
 export class SubscriptionService {
     private readonly DEFAULT_VALUE_USAGE = '0';
     private readonly DEFAULT_CURRENCY = 'USD';
+    private readonly DEFAULT_DATE_FOR_MONTH = 30;
+    private readonly DEFAULT_DATE_FOR_WEEK = 7;
+    private readonly DEFAULT_DATE_FOR_YEAR = 365;
 
     /**
      * Transform database result rows into plans with features structure
@@ -302,6 +306,26 @@ export class SubscriptionService {
 
             return newSubscription;
         });
+    }
+
+    private timeToLive(today: string, timezone?: string, interval?: IFeatureUsageInterval): number {
+        const currentTimeInTimezone = getCurrentDateInTimeZone(timezone, today);
+        const endOfDateTimezone = endOfDay(currentTimeInTimezone);
+
+        if (interval === 'daily') {
+            return differenceInSeconds(endOfDateTimezone, currentTimeInTimezone);
+        } else if (interval === 'weekly') {
+            const endOfWeek = addDays(currentTimeInTimezone, this.DEFAULT_DATE_FOR_WEEK);
+            return differenceInSeconds(endOfWeek, currentTimeInTimezone);
+        } else if (interval === 'monthly') {
+            const endOfMonth = addDays(currentTimeInTimezone, this.DEFAULT_DATE_FOR_MONTH);
+            return differenceInSeconds(endOfMonth, currentTimeInTimezone);
+        } else if (interval === 'yearly') {
+            const endOfYear = addDays(currentTimeInTimezone, this.DEFAULT_DATE_FOR_YEAR);
+            return differenceInSeconds(endOfYear, currentTimeInTimezone);
+        }
+
+        return -1;
     }
 
     private calculateSubscriptionEndDate(billingInterval: IBillingInterval, startDateSubscription: Date) {
