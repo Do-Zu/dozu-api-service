@@ -3,30 +3,31 @@ import db from '@/libs/drizzleClient.lib';
 import { featuresTable, planFeaturesTable, plansTable, userSubscriptionsTable } from '@/models';
 
 class SubscriptionRepo {
+    private readonly SELECT_FIELDS_PLAN_WITH_FEATURES = {
+        planId: plansTable.planId,
+        name: plansTable.name,
+        description: plansTable.description,
+        planType: plansTable.planType,
+        billingInterval: plansTable.billingInterval,
+        price: plansTable.price,
+        currency: plansTable.currency,
+        isActive: plansTable.isActive,
+        tier: plansTable.tier,
+        featureId: featuresTable.featureId,
+        featureName: featuresTable.name,
+        featureDescription: featuresTable.description,
+        booleanValue: planFeaturesTable.booleanValue,
+        numericValue: planFeaturesTable.numericValue,
+        textValue: planFeaturesTable.textValue,
+        isUnlimited: planFeaturesTable.isUnlimited,
+        isEnabled: planFeaturesTable.isEnabled,
+    };
     /**
      * Get all available plans with their features in a single query
      */
     public async getAllPlansWithFeatures() {
         const result = await db
-            .select({
-                planId: plansTable.planId,
-                name: plansTable.name,
-                description: plansTable.description,
-                planType: plansTable.planType,
-                billingInterval: plansTable.billingInterval,
-                price: plansTable.price,
-                currency: plansTable.currency,
-                isActive: plansTable.isActive,
-                tier: plansTable.tier,
-                featureId: featuresTable.featureId,
-                featureName: featuresTable.name,
-                featureDescription: featuresTable.description,
-                booleanValue: planFeaturesTable.booleanValue,
-                numericValue: planFeaturesTable.numericValue,
-                textValue: planFeaturesTable.textValue,
-                isUnlimited: planFeaturesTable.isUnlimited,
-                isEnabled: planFeaturesTable.isEnabled,
-            })
+            .select(this.SELECT_FIELDS_PLAN_WITH_FEATURES)
             .from(plansTable)
             .leftJoin(planFeaturesTable, eq(plansTable.planId, planFeaturesTable.planId))
             .leftJoin(
@@ -45,25 +46,7 @@ class SubscriptionRepo {
         const { tier } = payload;
 
         const result = await db
-            .select({
-                planId: plansTable.planId,
-                name: plansTable.name,
-                description: plansTable.description,
-                planType: plansTable.planType,
-                billingInterval: plansTable.billingInterval,
-                price: plansTable.price,
-                currency: plansTable.currency,
-                isActive: plansTable.isActive,
-                tier: plansTable.tier,
-                featureId: featuresTable.featureId,
-                featureName: featuresTable.name,
-                featureDescription: featuresTable.description,
-                booleanValue: planFeaturesTable.booleanValue,
-                numericValue: planFeaturesTable.numericValue,
-                textValue: planFeaturesTable.textValue,
-                isUnlimited: planFeaturesTable.isUnlimited,
-                isEnabled: planFeaturesTable.isEnabled,
-            })
+            .select(this.SELECT_FIELDS_PLAN_WITH_FEATURES)
             .from(plansTable)
             .leftJoin(planFeaturesTable, eq(plansTable.planId, planFeaturesTable.planId))
             .leftJoin(
