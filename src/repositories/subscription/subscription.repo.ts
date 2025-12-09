@@ -1,6 +1,7 @@
 import { and, eq, gt } from 'drizzle-orm';
 import db from '@/libs/drizzleClient.lib';
 import { featuresTable, planFeaturesTable, plansTable, userSubscriptionsTable } from '@/models';
+import { SubscriptionStatusEnum } from '@/dtos/subscription/subscription.dto';
 
 class SubscriptionRepo {
     private readonly SELECT_FIELDS_PLAN_WITH_FEATURES = {
@@ -101,7 +102,12 @@ class SubscriptionRepo {
             })
             .from(userSubscriptionsTable)
             .innerJoin(plansTable, eq(userSubscriptionsTable.planId, plansTable.planId))
-            .where(and(eq(userSubscriptionsTable.userId, userId), eq(userSubscriptionsTable.status, 'active')))
+            .where(
+                and(
+                    eq(userSubscriptionsTable.userId, userId),
+                    eq(userSubscriptionsTable.status, SubscriptionStatusEnum.ACTIVE)
+                )
+            )
             .limit(1);
 
         return result[0] || null;
