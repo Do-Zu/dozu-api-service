@@ -1,4 +1,4 @@
-import { NotFoundError } from '@/core/error';
+import { BadRequest, NotFoundError } from '@/core/error';
 import db, { Database, Transaction } from '@/libs/drizzleClient.lib';
 import {
     featuresTable,
@@ -17,72 +17,137 @@ import { addMonths, addYears } from 'date-fns';
 import { and, desc, eq, gte, sql } from 'drizzle-orm';
 import planService from './plan.service';
 import { featureUsageService } from './usage/featureUsage.service';
+import { isEmpty, safeDestructure } from '@/utils/common';
 
 export interface IFeature {
     planId: number;
     featureId: number;
     name: string;
-    description?: string;
-    booleanValue?: boolean;
-    numericValue?: string;
-    textValue?: string;
-    isUnlimited: boolean;
-    isEnabled: boolean;
+    description: string | null;
+    booleanValue: boolean | null;
+    numericValue: string | null;
+    textValue: string | null;
+    isUnlimited: boolean | null;
+    isEnabled: boolean | null;
 }
 export interface SelectPlanWithFeatures {
     planId: number;
     name: string;
-    description?: string;
+    description: string | null;
     planType: string;
     billingInterval: string;
     price: string;
     currency: string;
     isActive: boolean;
+    tier: number;
     features: IFeature[];
+}
+
+interface IPlan {
+    planId: number;
+    name: string;
+    description: string | null;
+    planType: string;
+    billingInterval: string;
+    price: string;
+    currency: string;
+    isActive: boolean;
+    tier: number;
+    featureId: number | null;
+    featureName: string | null;
+    featureDescription: string | null;
+    booleanValue: boolean | null;
+    numericValue: string | null;
+    textValue: string | null;
+    isUnlimited: boolean | null;
+    isEnabled: boolean | null;
 }
 export class SubscriptionService {
     private readonly DEFAULT_VALUE_USAGE = '0';
     private readonly DEFAULT_CURRENCY = 'USD';
 
     /**
+     * Transform database result rows into plans with features structure
+     */
+    private transformPlansWithFeatures(rows: IPlan[]): SelectPlanWithFeatures[] {
+        const plansMap = new Map<number, SelectPlanWithFeatures>();
+
+        rows.forEach(row => {
+            if (!plansMap.has(row.planId)) {
+                plansMap.set(row.planId, {
+                    planId: row.planId,
+                    name: row.name,
+                    description: row.description,
+                    planType: row.planType,
+                    billingInterval: row.billingInterval,
+                    price: row.price,
+                    currency: row.currency,
+                    isActive: row.isActive,
+                    tier: row.tier,
+                    features: [],
+                });
+            }
+
+            const plan = plansMap.get(row.planId)!;
+
+            if (row?.featureId && row?.featureName) {
+                plan.features.push({
+                    planId: row.planId,
+                    featureId: row.featureId,
+                    name: row.featureName,
+                    description: row.featureDescription,
+                    booleanValue: row.booleanValue,
+                    numericValue: row.numericValue,
+                    textValue: row.textValue,
+                    isUnlimited: row.isUnlimited,
+                    isEnabled: row.isEnabled,
+                });
+            }
+        });
+
+        return Array.from(plansMap.values());
+    }
+
+    /**
      * Get all available plans with their features
      */
     public async getAvailablePlans() {
-        const plans = await subscriptionRepo.getAllPlansAvailable();
+        const rows = await subscriptionRepo.getAllPlansWithFeatures();
 
-        if (!plans || plans.length === 0) {
+        if (isEmpty(rows)) {
             throw new NotFoundError('No plans available');
         }
 
-        const planFeatures = (await subscriptionRepo.getPlanFeaturesAvailable()) as IFeature[];
+        const plansWithFeatures = this.transformPlansWithFeatures(rows);
 
-        if (!planFeatures || planFeatures.length === 0) {
-            throw new NotFoundError('No plan features available');
+        return plansWithFeatures;
+    }
+
+    public async getAvailablePlanForUserUpgrade(payload: { userId: number; timezone: string }) {
+        const { userId, timezone } = safeDestructure(payload);
+
+        const { plan, subscription } = await this.getUserSubscriptionWithPlan({
+            userId,
+            timezone,
+        });
+
+        if (!plan || !subscription) {
+            throw new BadRequest();
         }
 
-        const mapPlanFeatures = new Map<number, IFeature[]>();
+        const { tier } = safeDestructure(plan);
 
-        planFeatures?.forEach(feature => {
-            if (!feature || feature?.planId === null) {
-                throw new NotFoundError(`Feature ${feature.featureId} is not associated with any plan`);
-            }
-
-            if (!mapPlanFeatures.has(feature.planId)) {
-                mapPlanFeatures.set(feature.planId, []);
-            }
-
-            mapPlanFeatures?.get(feature.planId)?.push(feature);
+        const rows = await subscriptionRepo.filterPlansWithFeaturesForUpgrade({
+            tier,
         });
 
-        const plansWithFeatures = plans.map(plan => {
-            const features = mapPlanFeatures.get(plan.planId) || [];
-            return {
-                ...plan,
-                features,
-            };
-        });
+        if (isEmpty(rows)) {
+            return [];
+        }
 
-        return plansWithFeatures as SelectPlanWithFeatures[];
+        const plansWithFeatures = this.transformPlansWithFeatures(rows);
+
+        return plansWithFeatures;
     }
 
     public async getFeatureAbilityOfPlan({ planId, featureId }: { planId: number; featureId: number }) {
@@ -174,6 +239,7 @@ export class SubscriptionService {
             paymentData: {
                 amount: 0,
             },
+
             timeZone: timezone,
         });
 
