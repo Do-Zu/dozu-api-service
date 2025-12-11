@@ -53,7 +53,10 @@ class FeatureUsageService {
             currentUsage = await this.syncFromDatabase(userId, featureId, interval, timezone, today);
 
             const usage = currentUsage > 0 ? currentUsage : 0;
-            await redis.set(redisKey, usage);
+
+            const ttl = this.calculateTTL(today, timezone, interval);
+
+            await redis.set(redisKey, usage, ttl);
         } else {
             currentUsage = parseInt(currentUsage as string);
         }
