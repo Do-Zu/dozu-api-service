@@ -1,60 +1,37 @@
 import { IBalancedSegment } from '@/types/youtube/youtube.type';
-import { constants } from 'fs';
-import { access, readFile, unlink, writeFile } from 'fs/promises';
-import {
-    UPLOADS_DIR_PATH,
-    WHISPER_CLI_PATH,
-    WHISPER_MODEL_PATH,
-    WHISPER_OUTPUT_FILE_FORMAT,
-} from './audioTranscription.constant';
+import { readFile, unlink, writeFile } from 'fs/promises';
+import { UPLOADS_DIR_PATH } from '../whisper/whisper.constant';
 import logger from '@/utils/logger';
 import path from 'path';
 import type { Express } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { promisify } from 'util';
-import { exec } from 'child_process';
 import { InternalServerError } from '@/core/error';
 import transcriptService from '@/services/transcript/transcript.service';
-
-const execAsync = promisify(exec);
+import whisperService from '../whisper/whisper.service';
 
 class AudioTranscriptionService {
     public async getTranscriptSegmentsFromAudio(audioFile: Express.Multer.File) {
-        await this.ensureWhisperReady();
-
         const tempInputAudioPath = await this.saveAudioTempFile(audioFile);
-        const tempOutputPath = `${tempInputAudioPath}.${WHISPER_OUTPUT_FILE_FORMAT}`;
+        let tempOutputPath = null;
         try {
-            await this.runWhisper(tempInputAudioPath);
-            const transcript = await readFile(tempOutputPath, 'utf-8');
-            const transcriptSegmentsResult = this.getTranscriptSegments(transcript);
-            if (!transcriptSegmentsResult.ok) {
-                throw new Error(transcriptSegmentsResult.error);
+            tempOutputPath = await whisperService.runWhisper(tempInputAudioPath);
+            const rawTranscript = await readFile(tempOutputPath, 'utf-8');
+            const parseResult = this.getTranscriptSegments(rawTranscript);
+            if (!parseResult.ok) {
+                throw new Error(parseResult.error);
             }
-            const fullTranscriptLength = transcriptSegmentsResult.data.map(segment => segment.text).join(' ');
+            const fullTranscriptLength = parseResult.data.map(segment => segment.text).join(' ');
             const maxSegmentLength = Math.min(fullTranscriptLength.length / 10, 500);
-            const balancedSegments = transcriptService.chunkTranscriptSegments(transcriptSegmentsResult.data, {
+            const balancedSegments = transcriptService.chunkTranscriptSegments(parseResult.data, {
                 maxSegmentLength,
             });
             return balancedSegments;
         } catch (err) {
-            logger.error(err);
+            logger.error('Failed to process transcript', err);
             throw new InternalServerError('Failed to get transcription from audio.');
         } finally {
             this.safeUnlink(tempInputAudioPath);
             this.safeUnlink(tempOutputPath);
-        }
-    }
-
-    private async ensureWhisperReady() {
-        const ok = await this.verifyWhisperPaths({
-            cliPath: WHISPER_CLI_PATH,
-            modelPath: WHISPER_MODEL_PATH,
-        });
-
-        if (!ok) {
-            logger.error('Lacks whisper CLI or model to execute whisper command.');
-            throw new Error('Whisper CLI or model not found.');
         }
     }
 
@@ -65,45 +42,9 @@ class AudioTranscriptionService {
         return pathToSave;
     }
 
-    private async checkFileExist(path: string): Promise<boolean> {
-        try {
-            await access(path, constants.R_OK);
-            return true;
-        } catch {
-            return false;
-        }
-    }
-
-    private async verifyWhisperPaths({ cliPath, modelPath }: { cliPath: string; modelPath: string }) {
-        let ok: boolean = true;
-        ok = (await this.checkFileExist(cliPath)) && (await this.checkFileExist(modelPath));
-
-        return ok;
-    }
-
-    private getWhisperCommand(inputPath: string) {
-        const whisperCommand = `
-                            "${WHISPER_CLI_PATH}" 
-                            -m "${WHISPER_MODEL_PATH}" 
-                            -f "${inputPath}" 
-                            -o${WHISPER_OUTPUT_FILE_FORMAT} 
-                            -ng
-                        `;
-        return whisperCommand;
-    }
-
-    private async executeWhisperCommand(command: string) {
-        await execAsync(command.split(/\s+/).join(' '));
-    }
-
-    private async runWhisper(inputPath: string) {
-        const cmd = this.getWhisperCommand(inputPath);
-        await this.executeWhisperCommand(cmd);
-    }
-
-    private async safeUnlink(path: string) {
+    private async safeUnlink(path: string | null) {
         if (!path) return;
-        await unlink(path);
+        await unlink(path).catch(() => {});
     }
 
     private getTranscriptSegments(
