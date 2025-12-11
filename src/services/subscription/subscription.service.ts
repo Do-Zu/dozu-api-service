@@ -18,8 +18,9 @@ import { addDays, addMonths, addYears, differenceInSeconds, endOfDay } from 'dat
 import { and, desc, eq, gte, sql } from 'drizzle-orm';
 import planService from './plan.service';
 import { featureUsageService } from './usage/featureUsage.service';
-import { isEmpty, safeDestructure } from '@/utils/common';
 import { SubscriptionStatusEnum } from '@/dtos/subscription/subscription.dto';
+import { compareIgnoreCapitalization, isEmpty, safeDestructure } from '@/utils/common';
+import { SUBSCRIPTION_CONSTANTS } from '@/middleware/subscription/constants/subscription.constants';
 
 export interface IFeature {
     planId: number;
@@ -665,13 +666,15 @@ export class SubscriptionService {
                 throw new NotFoundError('Subscription Not Found When Renewal');
             }
 
-            if (!subscription.autoRenew) {
-                return null;
-            }
-
             const plan = await planService.getPlanById(subscription.planId);
 
             if (!plan) {
+                return null;
+            }
+
+            const isFreePlan = compareIgnoreCapitalization(plan.planType, SUBSCRIPTION_CONSTANTS.FREE_PLAN_TYPE);
+
+            if (!subscription?.autoRenew && !isFreePlan) {
                 return null;
             }
 
@@ -687,8 +690,10 @@ export class SubscriptionService {
                 })
                 .where(eq(userSubscriptionsTable.subscriptionId, subscriptionId));
 
+            const { planId } = plan;
+
             // Reset feature usage for the new period
-            await this.resetFeatureUsage(subscription.userId, subscriptionId, timezone, tx);
+            await this.resetFeatureUsage(subscription.userId, subscriptionId, planId, timezone, tx);
 
             return {
                 newPeriodStart,
@@ -703,25 +708,17 @@ export class SubscriptionService {
     private async resetFeatureUsage(
         userId: number,
         subscriptionId: number,
+        planId: number,
         timezone: string,
         tx: Transaction | Database = db
     ) {
-        const now = getCurrentDateInTimeZone(timezone, getSystemDate());
-        const resetPeriodEnd = addMonths(now, 1);
-        const resetValue = '0';
-
-        await tx
-            .update(userFeatureUsageTable)
-            .set({
-                usedValue: resetValue,
-                resetPeriodStart: now,
-                resetPeriodEnd,
-                lastResetAt: now,
-                updatedAt: now,
-            })
-            .where(
-                and(eq(userFeatureUsageTable.userId, userId), eq(userFeatureUsageTable.subscriptionId, subscriptionId))
-            );
+        return await this.initializeUserFeatureUsage({
+            tx: tx as Transaction,
+            planId,
+            subscriptionId,
+            timeZone: timezone,
+            userId,
+        });
     }
 }
 
