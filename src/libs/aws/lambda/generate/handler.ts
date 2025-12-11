@@ -3,8 +3,12 @@ import { generatePromptText, TYPE_PROMPT } from '../../../../utils/prompt';
 import { decompressContent } from '../../../../utils/compress';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
-import OpenAI from 'openai';
+import OpenAI, { APIError } from 'openai';
 import { IGenerateOptions } from '@/dtos/generate/models/GenerateContentRequestInterface';
+import { HTTP_STATUS, HttpStatusCode } from '../../../../constants/index.constant';
+import { getSystemDate } from '@/utils/date';
+import { isNilOrEmpty } from '@/utils/common';
+import { AppError } from '@/core/error';
 
 // Configure Redis connection
 const REDIS_HOST = process.env.REDIS_HOST || 'localhost';
@@ -112,7 +116,7 @@ export const handler = async (event: any) => {
             // Add job to the queue
             job = await queue.add(
                 job_name,
-                { data: result, jobId, type, isError: false },
+                { data: result, jobId, type, isError: false, statusCode: HTTP_STATUS.OK },
                 {
                     attempts: 3,
                     backoff: {
@@ -147,12 +151,24 @@ export const handler = async (event: any) => {
         console.error('Lambda handler error:', error);
 
         const errorMessage = error instanceof Error ? error.message : String(error);
+
+        // Extract status code from error or default to 500
+        let errorStatusCode = HTTP_STATUS.INTERNAL_SERVER;
+
+        if (error instanceof AppError) {
+            errorStatusCode = error.statusCode as HttpStatusCode;
+        } else if (error instanceof Error && error && typeof error === 'object' && 'status' in error) {
+            const errorStatus = error?.status as HttpStatusCode;
+            errorStatusCode = errorStatus;
+        }
+
         const errorData = {
             message: 'Failed to process job',
             error: errorMessage,
             errorType: error instanceof Error ? error.name : 'UnknownError',
             status: 'error',
-            timestamp: new Date().toISOString(),
+            timestamp: getSystemDate(),
+            code: errorStatusCode,
         };
 
         // Push error to queue before closing connection
@@ -162,10 +178,10 @@ export const handler = async (event: any) => {
             if (isAsync && jobId && queue_name && job_name) {
                 const queue = createQueue(queue_name);
 
-                // Add error job to the queue
+                // Add error job to the queue with actual status code
                 await queue.add(
                     job_name,
-                    { data: errorData, jobId, type, isError: true },
+                    { data: errorData, jobId, type, isError: true, statusCode: errorStatusCode },
                     {
                         attempts: 1,
                         removeOnComplete: 5,
@@ -173,7 +189,9 @@ export const handler = async (event: any) => {
                     }
                 );
 
-                console.log(`Error job added to queue ${queue_name} for job ${jobId}`);
+                console.log(
+                    `Error job added to queue ${queue_name} for job ${jobId} with status code ${errorStatusCode}`
+                );
             }
         } catch (queueError) {
             console.error('Failed to push error to queue:', queueError);
@@ -188,7 +206,7 @@ export const handler = async (event: any) => {
             }
         }
         return {
-            statusCode: 500,
+            statusCode: errorStatusCode,
             body: JSON.stringify(errorData),
         };
     }
@@ -202,7 +220,7 @@ async function generateContent(
     baseURL: string,
     model: string,
     options?: IGenerateOptions
-): Promise<any> {
+) {
     console.log(`Starting content generation with type: ${type}`);
 
     try {
@@ -249,25 +267,26 @@ async function generateContent(
 
         const responseContent = completion.choices?.[0]?.message?.content;
 
-        if (!responseContent || responseContent.trim().length === 0) {
+        if (isNilOrEmpty(responseContent?.trim())) {
             console.warn('Warning: Received empty content from OpenAI');
+
             return {
                 data: [],
                 rawText: '',
-                timestamp: new Date().toISOString(),
+                timestamp: getSystemDate(),
             };
         }
 
         // Parse the generated content directly as JSON
         try {
-            const jsonData = JSON.parse(responseContent);
+            const jsonData = JSON.parse(responseContent!);
 
             console.log(`Successfully parsed JSON data`);
 
             return {
                 data: jsonData,
                 rawText: responseContent,
-                timestamp: new Date().toISOString(),
+                timestamp: getSystemDate(),
             };
         } catch (parseError) {
             console.error('Error parsing response as JSON:', parseError);
@@ -277,13 +296,34 @@ async function generateContent(
                 data: [],
                 rawText: responseContent,
                 error: 'Failed to parse LLM response as JSON',
-                timestamp: new Date().toISOString(),
+                timestamp: getSystemDate(),
             };
         }
     } catch (error) {
         console.error('OpenAI API error:', error);
 
-        // Properly format and return the error
-        throw new Error(`Failed to generate content: ${error instanceof Error ? error.message : String(error)}`);
+        let statusCode = HTTP_STATUS.INTERNAL_SERVER;
+        let message = 'Failed to generate content';
+
+        if (error instanceof APIError) {
+            statusCode = error.status;
+            message = error.message;
+        } else if (error instanceof Error) {
+            message = error.message;
+            if (error && typeof error === 'object' && 'status' in error) {
+                const errorStatus = error?.status as HttpStatusCode;
+
+                statusCode = errorStatus;
+            }
+        } else if (error && typeof error === 'object') {
+            if ('status' in error) {
+                statusCode = error?.status as HttpStatusCode;
+            }
+            if ('message' in error) {
+                message = String(error.message);
+            }
+        }
+
+        throw new AppError(message, statusCode ?? HTTP_STATUS.INTERNAL_SERVER);
     }
 }

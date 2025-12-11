@@ -1,4 +1,4 @@
-type HttpStatusCode = 200 | 201 | 202 | 204 | 400 | 401 | 402 | 403 | 404 | 409 | 413 | 500 | 503 | 504;
+type HttpStatusCode = 200 | 201 | 202 | 204 | 400 | 401 | 402 | 403 | 404 | 409 | 413 | 429 | 500 | 503 | 504;
 type HttpResponse =
     | 'OK'
     | 'CREATED'
@@ -10,6 +10,7 @@ type HttpResponse =
     | 'FORBIDDEN'
     | 'NOT_FOUND'
     | 'CONFLICT'
+    | 'RATE_LIMIT'
     | 'PAYLOAD_TOO_LARGE'
     | 'INTERNAL_SERVER'
     | 'SERVICE_UNAVAILABLE'
@@ -27,6 +28,7 @@ const HTTP_STATUS: Record<HttpResponse, HttpStatusCode> = {
     NOT_FOUND: 404,
     CONFLICT: 409,
     PAYLOAD_TOO_LARGE: 413,
+    RATE_LIMIT: 429,
     INTERNAL_SERVER: 500,
     SERVICE_UNAVAILABLE: 503,
     GATEWAY_TIMEOUT: 504,
@@ -66,5 +68,5 @@ const METHODS: string[] = ['get', 'post', 'put', 'delete', 'patch', 'use'];
 
 const API_VERSION = 'v1';
 
-export { HTTP_STATUS, USER_ROLES, AUTH, MESSAGES, UPLOAD, METHODS, API_VERSION };
+export { HTTP_STATUS, USER_ROLES, AUTH, MESSAGES, UPLOAD, METHODS, API_VERSION, HttpStatusCode };
 export * from './message';

@@ -1,5 +1,6 @@
 import { DatabaseError, InternalServerError } from '@/core/error';
 import { redisInstance, redis } from '@/libs/redis/pub-sub/redisPubsub.connect';
+import { rateLimitManager } from './rateLimitManager';
 import {
     getAllProviderAvailable,
     getAvailableModels,
@@ -114,7 +115,7 @@ export abstract class BaseLLMProvider {
     protected abstract generate(
         prompt: string,
         config?: object
-    ): Promise<string | Array<any> | object | undefined | null>;
+    ): Promise<string | Array<unknown> | object | undefined | null>;
 
     /**
      * Initialize the service with default configuration
@@ -356,6 +357,7 @@ export abstract class BaseLLMProvider {
 
             // Check rate limits and update usage
             const canProcess = await this.checkAndUpdateRateLimits();
+
             return canProcess && !!(this.apiKey && this.model && this.baseURL);
         } catch (error) {
             logger.error(`Error checking LLM availability: ${error}`);
@@ -375,5 +377,150 @@ export abstract class BaseLLMProvider {
      */
     protected async getModelsAvailable(): Promise<IModelsLLM[]> {
         return this.modelsAvailable;
+    }
+
+    /**
+     * Handle 429 rate limit response by marking the current model as rate-limited
+     * and switching to an available model
+     *
+     * @returns Promise<boolean> - true if successfully switched to another model
+     */
+    public async handleRateLimitResponse(): Promise<boolean> {
+        // Ensure we have configuration
+        if (!this.providerId || !this.modelId || !this.apiKeyId) {
+            logger.error('Cannot handle rate limit: missing provider configuration');
+            return false;
+        }
+
+        // Mark current model as rate-limited with 1-hour cooldown
+        await rateLimitManager.markModelAsRateLimited(this.providerId, this.modelId, this.apiKeyId);
+
+        logger.warn(`Model ${this.model} (ID: ${this.modelId}) received 429 rate limit, attempting to switch model`);
+
+        // Attempt to switch to next available model
+        return await this.switchToNextAvailableModel();
+    }
+
+    /**
+     * Switch to the next available model that is not in cooldown
+     *
+     * @returns Promise<boolean> - true if successfully switched
+     */
+    private async switchToNextAvailableModel(): Promise<boolean> {
+        const lengthModelAvailable = this.modelsAvailable.length;
+
+        if (lengthModelAvailable <= 1) {
+            logger.warn('No alternative models available for switching');
+            return false;
+        }
+
+        // Store original state for rollback
+        const originalState = {
+            modelId: this.modelId,
+            model: this.model,
+            currentModelIndex: this.currentModelIndex,
+            requestPerMinuteLimit: this.requestPerMinuteLimit,
+            requestPerDateLimit: this.requestPerDateLimit,
+        };
+
+        // Try each model in priority order
+        for (let attempt = 0; attempt < lengthModelAvailable; attempt++) {
+            const nextModelIndex = (this.currentModelIndex + 1 + attempt) % lengthModelAvailable;
+            const candidateModel = this.modelsAvailable[nextModelIndex];
+
+            // Skip the currently rate-limited model
+            if (candidateModel.modelId === originalState.modelId) {
+                continue;
+            }
+
+            // Check if candidate model is in 429 cooldown
+            const isInCooldown = await rateLimitManager.isModelInCooldown(
+                this.providerId!,
+                candidateModel.modelId,
+                this.apiKeyId!
+            );
+
+            if (isInCooldown) {
+                const remainingSeconds = await rateLimitManager.getRemainingCooldownSeconds(
+                    this.providerId!,
+                    candidateModel.modelId,
+                    this.apiKeyId!
+                );
+                logger.info(
+                    `Model ${candidateModel.name} is in 429 cooldown for ${remainingSeconds} more seconds, skipping`
+                );
+                continue;
+            }
+
+            // Check if candidate model is rate-limited by usage
+            const candidateIsRateLimited = await this.checkModelRateLimitStatus(
+                candidateModel.modelId,
+                candidateModel.requestPerMinute ?? this.DEFAULT_RATE_LIMIT_PER_MINUTE,
+                candidateModel.requestPerDay ?? this.DEFAULT_RATE_LIMIT_PER_DATE
+            );
+
+            if (candidateIsRateLimited) {
+                logger.info(`Model ${candidateModel.name} is rate-limited by usage, skipping`);
+                continue;
+            }
+
+            // Found a suitable model - apply the switch
+            this.model = candidateModel.name;
+            this.modelId = candidateModel.modelId;
+            this.currentModelIndex = nextModelIndex;
+            this.requestPerMinuteLimit = candidateModel.requestPerMinute ?? this.DEFAULT_RATE_LIMIT_PER_MINUTE;
+            this.requestPerDateLimit = candidateModel.requestPerDay ?? this.DEFAULT_RATE_LIMIT_PER_DATE;
+
+            logger.info(`Switched to model ${this.model}`);
+            return true;
+        }
+
+        // Rollback to original state if no suitable model found
+        this.modelId = originalState.modelId;
+        this.model = originalState.model;
+        this.currentModelIndex = originalState.currentModelIndex;
+        this.requestPerMinuteLimit = originalState.requestPerMinuteLimit;
+        this.requestPerDateLimit = originalState.requestPerDateLimit;
+
+        logger.error('All models are either rate-limited or in cooldown');
+        return false;
+    }
+
+    /**
+     * Check if a specific model is rate-limited by usage counters
+     * Isolated check that doesn't modify class state
+     *
+     * @param modelId - Model ID to check
+     * @param minuteLimit - Rate limit per minute
+     * @param dayLimit - Rate limit per day
+     * @returns Promise<boolean> - true if rate-limited
+     */
+    private async checkModelRateLimitStatus(modelId: number, minuteLimit: number, dayLimit: number): Promise<boolean> {
+        const minuteKey = `llm:rpm:${this.providerId}:${modelId}:${this.apiKeyId}`;
+        const dayKey = `llm:rpd:${this.providerId}:${modelId}:${this.apiKeyId}`;
+
+        const [minuteUsage, dayUsage] = await Promise.all([redisInstance.get(minuteKey), redisInstance.get(dayKey)]);
+
+        const currentMinuteUsage = parseInt(minuteUsage) || 0;
+        const currentDayUsage = parseInt(dayUsage) || 0;
+
+        const minuteUsagePercent = (currentMinuteUsage / minuteLimit) * 100;
+        const dayUsagePercent = (currentDayUsage / dayLimit) * 100;
+
+        return (
+            minuteUsagePercent > this.PERCENT_RATE_LIMIT_MODEL_PER_MINUTE ||
+            dayUsagePercent >= this.PERCENT_RATE_LIMIT_MODEL_PER_DATE
+        );
+    }
+
+    /**
+     * Get current model metadata for external use
+     */
+    public getModelMetadata(): { providerId?: number; modelId?: number; apiKeyId?: number } {
+        return {
+            providerId: this.providerId,
+            modelId: this.modelId,
+            apiKeyId: this.apiKeyId,
+        };
     }
 }
