@@ -95,7 +95,12 @@ export * from '@/models/progress/dailyStudy.model';
 // gamification
 export * from '@/models/gamification/points.model';
 
+export * from '@/models/gamification/class-streaks.model';
+
+export * from '@/models/gamification/streak-events.model';
+
 export * from '@/models/gamification/achievement.model';
+
 
 export * from '@/models/feynman';
 

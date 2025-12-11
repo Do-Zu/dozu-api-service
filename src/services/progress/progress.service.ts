@@ -14,7 +14,8 @@ import {
   createProgressSchema, 
   updateProgressSchema,
 } from '@/middleware/validations/progress.validation';
-
+import topicRepo from '@/repositories/topic.repo';
+import pointsService from '@/services/gamification/points.service';
 
 class ProgressService {
   async getAllProgress(query: IProgressQuery = {}): Promise<IProgress[]> {
@@ -139,8 +140,10 @@ class ProgressService {
       // Award points for lesson completion if just completed
       if (data.isCompleted && data.contentType === ContentType.TOPIC && existingProgress.status !== ProgressStatus.COMPLETED) {
         try {
-          const pointsService = (await import('@/services/gamification/points.service')).default;
-          await pointsService.awardLessonCompletion(data.userId, topicIdNum);
+          const topic = await topicRepo.getTopicById(topicIdNum);
+          if (topic?.classId) {
+            await pointsService.awardLessonCompletion(data.userId, topic.classId, topicIdNum);
+          }
         } catch (error) {
           console.error('Failed to award lesson completion points:', error);
         }
@@ -167,8 +170,10 @@ class ProgressService {
       // Award points for lesson completion if completed
       if (data.isCompleted && data.contentType === ContentType.TOPIC) {
         try {
-          const pointsService = (await import('@/services/gamification/points.service')).default;
-          await pointsService.awardLessonCompletion(data.userId, topicIdNum);
+          const topic = await topicRepo.getTopicById(topicIdNum);
+          if (topic?.classId) {
+            await pointsService.awardLessonCompletion(data.userId, topic.classId, topicIdNum);
+          }
         } catch (error) {
           console.error('Failed to award lesson completion points:', error);
         }

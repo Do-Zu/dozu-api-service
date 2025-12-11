@@ -5,8 +5,8 @@ import { isTeacher } from '@/utils/auth/authHelpers.utils';
 import { Forbidden, BadRequest } from '@/core/error';
 
 class ProfileController {
-  // Get user profile
-   public async getProfile(req: Request, res: Response): Promise<void> {
+  // Get user profile (personal profile, no class-specific gamification)
+  public async getProfile(req: Request, res: Response): Promise<void> {
     const userId = req.currentUser!.userId;
     const profile = await ProfileService.getProfile(parseInt(userId));
     SuccessResponse.ok(res, profile);
