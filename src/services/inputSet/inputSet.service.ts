@@ -13,6 +13,7 @@ export const RESOURCE_CONTENT_TYPE = {
     YOUTUBE: 'youtube',
     WEBSITE: 'website',
     TEXT: 'text',
+    MEDIA: 'media',
 } as const;
 
 export interface UploadFileResponse {
@@ -62,9 +63,16 @@ type TextResourceMetadata = {
     content: string;
 };
 
+type MediaResourceMetadata = UploadFileResponse & { content: IBalancedSegment[] };
+
 export type ResourceContentType = (typeof RESOURCE_CONTENT_TYPE)[keyof typeof RESOURCE_CONTENT_TYPE];
 
-type MetaDataInputSet = UploadFileResponse | YoutubeResourceMetadata | WebsiteResourceMetadata | TextResourceMetadata;
+type MetaDataInputSet =
+    | UploadFileResponse
+    | YoutubeResourceMetadata
+    | WebsiteResourceMetadata
+    | TextResourceMetadata
+    | MediaResourceMetadata;
 
 type TopicId = number;
 
@@ -154,7 +162,16 @@ class InputSetService {
         title?: string;
     }) => {
         // Storage input set of topic
-        const formatedMetadata = await this.convertYoutubeContentToBalancedSegments({ metadata, contentType });
+        let formatedMetadata: MetaDataInputSet;
+        switch (contentType) {
+            case RESOURCE_CONTENT_TYPE.YOUTUBE: {
+                formatedMetadata = await this.convertYoutubeContentToBalancedSegments({ metadata, contentType });
+                break;
+            }
+            default: {
+                formatedMetadata = metadata;
+            }
+        }
 
         const inputSet = await insertInputSet({
             userId,
@@ -175,11 +192,14 @@ class InputSetService {
         }
 
         // Processing embedding and store vector
-        const embedding = await embeddingService.generateEmbedding({
-            topicId,
-            type: contentType,
-            metadata: parseMetaDataBelongTypeForEmbedding!,
-        });
+        let embedding = null;
+        if (contentType !== RESOURCE_CONTENT_TYPE.MEDIA) {
+            embedding = await embeddingService.generateEmbedding({
+                topicId,
+                type: contentType,
+                metadata: parseMetaDataBelongTypeForEmbedding!,
+            });
+        }
 
         return {
             inputSet,
@@ -231,6 +251,9 @@ class InputSetService {
                 if (!content) return null;
 
                 return { content };
+            }
+            case RESOURCE_CONTENT_TYPE.MEDIA: {
+                return { ...(params.payload as MediaResourceMetadata) };
             }
             default:
                 return null;

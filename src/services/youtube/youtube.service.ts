@@ -1,6 +1,7 @@
 import logger from '@/utils/logger';
 import Innertube from 'youtubei.js';
 import { IBalancedSegment, IYoutubeMetadata } from '../../types/youtube/youtube.type';
+import transcriptService from '../transcript/transcript.service';
 
 class YoutubeService {
     public async getYoutubeContent({
@@ -51,38 +52,13 @@ class YoutubeService {
                     .replace(/[\u200B-\u200D\uFEFF]/g, '')
                     .replace(/\s+/g, ' ');
 
-                const result: IBalancedSegment[] = [];
                 const fullTranscriptLength = fullTranscript.length;
-                const maximumSegnmentLength = Math.min(fullTranscriptLength / 10, 500); // full transcript is divided into 10 separate parts
-                let startTime: number = 0,
-                    endTime: number = 0,
-                    arrayOfText: string[] = [],
-                    currentLength = 0;
-                for (const segment of transcriptSegments) {
-                    if (arrayOfText.length === 0) startTime = segment.startTime;
-                    endTime = segment.endTime;
-                    if (!segment.text) continue;
-                    const cleanedText = segment.text.replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\s+/g, ' ');
-                    arrayOfText.push(cleanedText);
-                    currentLength += cleanedText.length;
-                    if (currentLength > maximumSegnmentLength) {
-                        result.push({
-                            startTime,
-                            endTime,
-                            text: arrayOfText.join(' '),
-                        });
-                        startTime = 0;
-                        currentLength = 0;
-                        arrayOfText = [];
-                    }
-                }
-                if (arrayOfText.length > 0) {
-                    result.push({
-                        startTime,
-                        endTime,
-                        text: arrayOfText.join(' '),
-                    });
-                }
+                const maxSegmentLength = Math.min(fullTranscriptLength / 10, 500); // full transcript is divided into 10 separate parts
+
+                const result: IBalancedSegment[] = transcriptService.chunkTranscriptSegments(transcriptSegments, {
+                    maxSegmentLength,
+                });
+
                 return { metadata, balancedSegments: result, fullTranscript };
             } catch (err) {
                 logger.error('Failed to retrieve transcript from YouTube video:', err);

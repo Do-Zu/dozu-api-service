@@ -113,6 +113,8 @@ export class UploadFileService {
                 'application/x-7z-compressed',
                 'application/x-tar',
                 'application/gzip',
+                // Media files
+                'audio/mpeg',
             ],
             uploadDir: config?.uploadDir || generateConfig.uploadDir,
             allowedExtensions: config?.allowedExtensions || [
@@ -124,6 +126,8 @@ export class UploadFileService {
                 '.jpeg',
                 '.png',
                 '.jpg',
+                // Media files
+                '.mp3',
             ],
         };
     }
