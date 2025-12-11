@@ -1,3 +1,4 @@
+import { subscriptionStatusEnum } from '@/models/subscription';
 import { z } from 'zod';
 
 // Plan DTOs
@@ -143,3 +144,15 @@ export const billingHistoryQuerySchema = z.object({
 
 export type SubscriptionQueryDto = z.infer<typeof subscriptionQuerySchema>;
 export type BillingHistoryQueryDto = z.infer<typeof billingHistoryQuerySchema>;
+
+export const SubscriptionStatusEnum = subscriptionStatusEnum.enumValues.reduce(
+    (acc, val) => {
+        const key = val.toUpperCase();
+        acc[key as Uppercase<typeof val>] = val;
+        return acc;
+    },
+    {} as Record<
+        Uppercase<(typeof subscriptionStatusEnum.enumValues)[number]>,
+        (typeof subscriptionStatusEnum.enumValues)[number]
+    >
+);
