@@ -116,6 +116,18 @@ class InputSetService {
                 throw new NotFoundError('Error: Youtube content does not exist');
             }
             data = { url, content, videoInfo };
+        } else if (contentType === RESOURCE_CONTENT_TYPE.MEDIA) {
+            const fileContent = await this.handleGetFile({ metadata } as { metadata: { fileKey: string } });
+
+            if (!fileContent) {
+                throw new NotFoundError('Error: Document does not exist');
+            }
+
+            data = {
+                fileUrl: fileContent.downloadUrl,
+                expiresIn: fileContent.expiresIn,
+                content: (metadata as MediaResourceMetadata)?.content ?? [],
+            };
         } else {
             throw new Error(`Error: Content type ${contentType} is not supported yet.`);
         }
