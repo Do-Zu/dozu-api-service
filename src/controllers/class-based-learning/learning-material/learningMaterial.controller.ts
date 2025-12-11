@@ -16,7 +16,7 @@ export const createLearningMaterialController = async (req: Request, res: Respon
         throw new BadRequest('Invalid request');
     }
 
-    const { title, content, topicId, inputResources } = req.body;
+    const { title, content, topicId, inputResources, urls } = req.body;
 
     const classId = requestHelper.getIdParam(req, 'classId');
 
@@ -30,6 +30,7 @@ export const createLearningMaterialController = async (req: Request, res: Respon
         classId,
         topicId,
         inputResources,
+        urls,
     });
     if (data.success) {
         const returnData = {
@@ -92,12 +93,14 @@ export const updateLearningMaterialController = async (req: Request, res: Respon
         learningMaterialId: learningMaterialId,
         content: requestBodyData.content ?? '',
         topicId: requestBodyData.topicId ?? null,
+        urls: requestBodyData.urls ?? [],
     };
 
     // handle edit
     const data = await editLearningMaterialService({
         learningMaterial: updatedLearningMaterial,
         inputResources: requestBodyData.inputResources,
+
     });
     if (data.success) {
         const returnData = {
