@@ -1,5 +1,5 @@
 import { usersTable } from '@/models';
-import { integer, pgEnum, pgTable, serial, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { integer, pgEnum, pgTable, serial, timestamp, uniqueIndex, varchar } from 'drizzle-orm/pg-core';
 import { assignmentsTable } from './assignment.model';
 
 export const submissionStatusEnumType = pgEnum('submission_status_type', ['draft', 'submitted', 'returned']);
@@ -24,6 +24,7 @@ export const assignmentSubmissionsTable = pgTable(
         updatedAt: timestamp('updated_at', { withTimezone: true }),
         returnedAt: timestamp('returned_at', { withTimezone: true }),
         status: submissionStatusEnumType('status').notNull().default('draft'),
+        urls: varchar('urls').array(),
     },
     table => ({
         uniqueStudentAssignment: uniqueIndex('unique_student_assignment').on(table.assignmentId, table.studentId),
