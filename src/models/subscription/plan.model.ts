@@ -1,4 +1,15 @@
-import { pgTable, serial, varchar, text, timestamp, boolean, decimal, pgEnum, uniqueIndex } from 'drizzle-orm/pg-core';
+import {
+    pgTable,
+    serial,
+    varchar,
+    text,
+    timestamp,
+    boolean,
+    decimal,
+    pgEnum,
+    uniqueIndex,
+    integer,
+} from 'drizzle-orm/pg-core';
 
 export const planTypeEnum = pgEnum('plan_type', ['free', 'pro', 'team', 'enterprise']);
 
@@ -19,6 +30,7 @@ export const plansTable = pgTable(
         price: decimal('price', { precision: 10, scale: 2 }).notNull(),
         currency: varchar('currency', { length: 3 }).notNull().default('USD'),
         isActive: boolean('is_active').notNull().default(true),
+        tier: integer('tier').notNull().default(0),
         createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
         updatedAt: timestamp('updated_at', { withTimezone: true }),
     },

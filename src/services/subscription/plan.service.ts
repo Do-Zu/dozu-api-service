@@ -36,6 +36,7 @@ class PlanService {
                 price: plansTable.price,
                 isActive: plansTable.isActive,
                 planType: plansTable.planType,
+                tier: plansTable.tier,
             })
             .from(plansTable)
             .where(

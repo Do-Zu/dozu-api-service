@@ -9,11 +9,11 @@ const router = Router();
 // Apply global async handler
 globalAsyncHandler(router);
 
-// Public routes
-router.get('/plans', subscriptionController.getAllPlans);
-
 // Protected routes (require authentication)
 router.use(authMiddleware);
+
+router.get('/plans', subscriptionController.getAllPlans);
+router.get('/upgrade/available-plan', subscriptionController.getAllAvailablePlansUpgrade);
 
 // Subscription management
 router.get('/current-plan', subscriptionController.getCurrentSubscription);

@@ -5,7 +5,6 @@ import { SuccessResponse } from '@/core/success';
 import { paymentService } from '@/services/payment/payment.service';
 import subscriptionService from '@/services/subscription/subscription.service';
 import { getCurrentDateInTimeZone, getTimezoneClient } from '@/utils/date';
-import { toNumber } from '@/utils/common';
 import {
     checkFeatureUsageSchema,
     createSubscriptionSchema,
@@ -13,6 +12,8 @@ import {
     updateSubscriptionSchema,
     upgradeSubscriptionSchema,
 } from '@/dtos/subscription/subscription.dto';
+import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
+import { toNumber } from '@/utils/common';
 import logger from '@/utils/logger';
 
 export class SubscriptionController {
@@ -21,6 +22,18 @@ export class SubscriptionController {
      */
     public async getAllPlans(_req: Request, res: Response) {
         const plans = await subscriptionService.getAvailablePlans();
+
+        SuccessResponse.ok(res, plans, 'Plans retrieved successfully');
+    }
+
+    public async getAllAvailablePlansUpgrade(req: Request, res: Response) {
+        const userId = getUserIdFromRequest(req);
+        const timezone = getTimezoneClient(req);
+
+        const plans = await subscriptionService.getAvailablePlanForUserUpgrade({
+            userId,
+            timezone,
+        });
 
         SuccessResponse.ok(res, plans, 'Plans retrieved successfully');
     }

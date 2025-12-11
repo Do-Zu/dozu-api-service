@@ -118,6 +118,7 @@ class PaymentService {
                     amount: amount.toString(),
                     currency,
                     code,
+                    status: PaymentStatus.PENDING,
                     paymentId,
                     description,
                     metadata,
