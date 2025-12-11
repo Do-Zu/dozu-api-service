@@ -57,11 +57,7 @@ export class StreakRepository {
     const result = await db()
       .update(usersTable)
       .set({
-        currentStreak: 0,
-        longestStreak: 0,
-        lastStudyDate: null,
-        streakFreezeUsed: false,
-        streakFreezeCount: 0,
+        ...this.getDefaultStreak(),
         updatedAt: new Date(),
       })
       .where(eq(usersTable.userId, userId))
@@ -145,11 +141,7 @@ export class StreakRepository {
       .values({
         userId,
         classId,
-        currentStreak: 0,
-        longestStreak: 0,
-        lastStudyDate: null,
-        streakFreezeUsed: false,
-        streakFreezeCount: 0,
+        ...this.getDefaultStreak(),
       })
       .onConflictDoNothing({
         target: [classStreaksTable.userId, classStreaksTable.classId]
@@ -176,6 +168,74 @@ export class StreakRepository {
   }
 
   /**
+   * Helper: Check if streak event already exists for today
+   */
+  private async hasEventToday(
+    tx: any,
+    userId: number,
+    classId: number | null,
+    eventDate: Date
+  ): Promise<boolean> {
+    const conditions = [
+      eq(streakEventsTable.userId, userId),
+      sql`${streakEventsTable.eventDate} >= ${eventDate}`,
+      sql`${streakEventsTable.eventDate} < ${new Date(eventDate.getTime() + 24 * 60 * 60 * 1000)}`
+    ];
+
+    if (classId !== null) {
+      conditions.push(eq(streakEventsTable.classId, classId));
+    }
+
+    const hasEvent = await tx
+      .select({ id: streakEventsTable.id })
+      .from(streakEventsTable)
+      .where(and(...conditions))
+      .limit(1);
+
+    return hasEvent.length > 0;
+  }
+
+  /**
+   * Helper: Get default streak values
+   */
+  private getDefaultStreak() {
+    return {
+      currentStreak: 0,
+      longestStreak: 0,
+      lastStudyDate: null,
+      streakFreezeUsed: false,
+      streakFreezeCount: 0,
+    };
+  }
+
+  /**
+   * Helper: Prepare streak update data
+   */
+  private prepareStreakUpdateData(
+    newStreakCount: number,
+    longestStreak: number,
+    eventDate: Date,
+    useFreeze: boolean,
+    currentFreezeCount: number
+  ) {
+    const updateData: any = {
+      currentStreak: newStreakCount,
+      longestStreak: Math.max(newStreakCount, longestStreak),
+      lastStudyDate: eventDate,
+      updatedAt: new Date(),
+    };
+
+    if (useFreeze) {
+      updateData.streakFreezeUsed = true;
+      updateData.streakFreezeCount = Math.max(0, currentFreezeCount - 1);
+    } else {
+      updateData.streakFreezeUsed = false;
+    }
+
+    return updateData;
+  }
+
+  /**
    * Atomically update class streak with proper locking and idempotency
    */
   async atomicClassStreakUpdate(
@@ -195,20 +255,7 @@ export class StreakRepository {
   }> {
     return await db().transaction(async (tx) => {
       // Check if event already processed today
-      const hasEvent = await tx
-        .select({ id: streakEventsTable.id })
-        .from(streakEventsTable)
-        .where(
-          and(
-            eq(streakEventsTable.userId, userId),
-            eq(streakEventsTable.classId, classId),
-            sql`${streakEventsTable.eventDate} >= ${eventDate}`,
-            sql`${streakEventsTable.eventDate} < ${new Date(eventDate.getTime() + 24 * 60 * 60 * 1000)}`
-          )
-        )
-        .limit(1);
-
-      if (hasEvent.length > 0) {
+      if (await this.hasEventToday(tx, userId, classId, eventDate)) {
         // Event already processed, return current state
         const currentStreak = await tx
           .select({
@@ -248,37 +295,18 @@ export class StreakRepository {
         await tx.insert(classStreaksTable).values({
           userId,
           classId,
-          currentStreak: 0,
-          longestStreak: 0,
-          lastStudyDate: null,
-          streakFreezeUsed: false,
-          streakFreezeCount: 0,
+          ...this.getDefaultStreak(),
         });
       }
 
-      const streak = currentStreak[0] || {
-        currentStreak: 0,
-        longestStreak: 0,
-        lastStudyDate: null,
-        streakFreezeUsed: false,
-        streakFreezeCount: 0,
-      };
-      const newLongestStreak = Math.max(newStreakCount, streak.longestStreak);
-
-      // Prepare update data
-      const updateData: any = {
-        currentStreak: newStreakCount,
-        longestStreak: newLongestStreak,
-        lastStudyDate: eventDate,
-        updatedAt: new Date(),
-      };
-
-      if (useFreeze) {
-        updateData.streakFreezeUsed = true;
-        updateData.streakFreezeCount = Math.max(0, streak.streakFreezeCount - 1);
-      } else {
-        updateData.streakFreezeUsed = false;
-      }
+      const streak = currentStreak[0] || this.getDefaultStreak();
+      const updateData = this.prepareStreakUpdateData(
+        newStreakCount,
+        streak.longestStreak,
+        eventDate,
+        useFreeze,
+        streak.streakFreezeCount
+      );
 
       // Update streak atomically
       const updatedStreak = await tx
@@ -393,11 +421,7 @@ export class StreakRepository {
           .values({
             userId,
             classId,
-            currentStreak: 0,
-            longestStreak: 0,
-            lastStudyDate: null,
-            streakFreezeUsed: false,
-            streakFreezeCount: 0,
+            ...this.getDefaultStreak(),
           });
         
         streak = [{ streakFreezeCount: 0 }];
@@ -440,20 +464,8 @@ export class StreakRepository {
     message: string;
   }> {
     return await db().transaction(async (tx) => {
-      // Check if event already processed today
-      const hasEvent = await tx
-        .select({ id: streakEventsTable.id })
-        .from(streakEventsTable)
-        .where(
-          and(
-            eq(streakEventsTable.userId, userId),
-            sql`${streakEventsTable.eventDate} >= ${eventDate}`,
-            sql`${streakEventsTable.eventDate} < ${new Date(eventDate.getTime() + 24 * 60 * 60 * 1000)}`
-          )
-        )
-        .limit(1);
-
-      if (hasEvent.length > 0) {
+      // Check if event already processed today (no classId for global streaks)
+      if (await this.hasEventToday(tx, userId, null, eventDate)) {
         // Event already processed, return current state
         const currentStreak = await tx
           .select({
@@ -493,22 +505,13 @@ export class StreakRepository {
       }
 
       const streak = currentStreak[0];
-      const newLongestStreak = Math.max(newStreakCount, streak.longestStreak);
-
-      // Prepare update data
-      const updateData: any = {
-        currentStreak: newStreakCount,
-        longestStreak: newLongestStreak,
-        lastStudyDate: eventDate,
-        updatedAt: new Date(),
-      };
-
-      if (useFreeze) {
-        updateData.streakFreezeUsed = true;
-        updateData.streakFreezeCount = Math.max(0, streak.streakFreezeCount - 1);
-      } else {
-        updateData.streakFreezeUsed = false;
-      }
+      const updateData = this.prepareStreakUpdateData(
+        newStreakCount,
+        streak.longestStreak,
+        eventDate,
+        useFreeze,
+        streak.streakFreezeCount
+      );
 
       // Update streak atomically
       const updatedStreak = await tx

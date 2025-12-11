@@ -11,6 +11,18 @@ class PointsService {
     this.pointsRepo = new PointsRepository();
   }
 
+  /**
+   * Get default learning statistics (used for error cases)
+   */
+  private getDefaultLearningStatistics() {
+    return {
+      totalLessonsCompleted: 0,
+      totalQuizzesCompleted: 0,
+      totalFlashcardsCompleted: 0,
+      averageScore: 0
+    };
+  }
+
   async awardPoints(userId: number, classId: number, points: number, type: string, description: string, relatedId?: number, relatedType?: string): Promise<Points> {
     return await this.pointsRepo.awardPoints(userId, classId, points, type, description, relatedId, relatedType);
   }
@@ -244,7 +256,6 @@ class PointsService {
             
           case 'flashcard_review':
             if (transaction.points === POINT_RULES.FLASHCARD_REVIEW) {
-              // Count each flashcard review (not unique, as user can review same flashcard multiple times)
               totalFlashcardsCompleted++;
             }
             break;
@@ -257,16 +268,11 @@ class PointsService {
         totalLessonsCompleted,
         totalQuizzesCompleted,
         totalFlashcardsCompleted,
-        averageScore: Math.round(averageScore * 10) / 10 // Round to 1 decimal place
+        averageScore: Math.round(averageScore * 10) / 10 
       };
     } catch (error) {
       console.error('Failed to calculate learning statistics from point transactions:', error);
-      return {
-        totalLessonsCompleted: 0,
-        totalQuizzesCompleted: 0,
-        totalFlashcardsCompleted: 0,
-        averageScore: 0
-      };
+      return this.getDefaultLearningStatistics();
     }
   }
 
