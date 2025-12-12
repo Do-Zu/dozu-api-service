@@ -34,7 +34,9 @@ class YoutubeEmbeddingService extends BaseEmbeddingStrategy {
 
             if (isNilOrEmpty(metadata)) throw new BadRequest('Empty Meta Data For Youtube Type');
 
-            const { videoId, videoInfo, lengthContent, wordCount, segments } = metadata as YoutubeResourceMetadata;
+            const { videoInfo, lengthContent, wordCount, segments } = metadata as YoutubeResourceMetadata;
+
+            const { videoId } = videoInfo;
 
             if (isNilOrEmpty(videoId)) {
                 throw new BadRequest('Video Id Invalid');
