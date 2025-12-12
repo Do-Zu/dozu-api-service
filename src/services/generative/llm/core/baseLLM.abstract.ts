@@ -8,6 +8,7 @@ import {
     getRateLimitForModel,
 } from '@/repositories/generate/llm/llm.repo';
 import logger from '@/utils/logger';
+import { isEmpty } from '@/utils/common';
 
 /**
  * Interface for LLM service functionality
@@ -119,13 +120,15 @@ export abstract class BaseLLMProvider {
      * Only loads configuration from DB once unless forced
      */
     protected async initialBase(forceRefresh = false): Promise<void> {
-        if (!this.checkInitialized() || forceRefresh) {
+        if (!this.isInitialized() || forceRefresh) {
             await this.getDefaultLLMProviderFromDatabase();
         }
     }
 
-    private checkInitialized(): boolean {
-        return !this.providerId || !this.modelId || !this.apiKeyId;
+    private isInitialized(): boolean {
+        if (isEmpty(this.providerId) || isEmpty(this.modelId) || isEmpty(this.apiKeyId)) return false;
+
+        return true;
     }
 
     /**
@@ -379,7 +382,7 @@ export abstract class BaseLLMProvider {
      */
     public async handleRateLimitResponse(): Promise<boolean> {
         // Ensure we have configuration
-        if (!this.checkInitialized()) {
+        if (!this.isInitialized()) {
             logger.error('Cannot handle rate limit: missing provider configuration');
             return false;
         }
