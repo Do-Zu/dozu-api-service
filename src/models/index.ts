@@ -117,5 +117,10 @@ export * from '@/models/learning-material/learningMaterial.model';
 
 export * from '@/models/learning-material/attachmentInLearningMaterial.model';
 
+export * from '@/models/learning-material/learningMaterialComment.model';
+
+// comments
+export * from '@/models/comment/comment.model';
+
 // notes
 export * from '@/models/note/note.model';

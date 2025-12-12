@@ -16,6 +16,7 @@ export const insertAssignmentSchema = z.object({
         .optional(),
     acceptingSubmissions: z.boolean(),
     publishedAt: z.union([z.date(), z.undefined()]).optional().nullable(),
+    urls: z.array(z.string()).nullable().optional(),
 });
 
 export const updateAssignmentSchema = z.object({
@@ -33,4 +34,5 @@ export const updateAssignmentSchema = z.object({
     acceptingSubmissions: z.boolean(),
     publishedAt: z.union([z.date(), z.undefined()]).optional().nullable(),
     updatedAt: z.union([z.date(), z.undefined()]).optional().nullable(),
+    urls: z.array(z.string()).nullable().optional(),
 });

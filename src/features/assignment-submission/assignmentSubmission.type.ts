@@ -16,10 +16,10 @@ export type InsertAssignmentSubmissionBody = Pick<InsertAssignmentSubmission, 's
 
 export type IUpdateAssignmentSubmission = Pick<
     InsertAssignmentSubmission,
-    'updatedAt' | 'status' | 'grade' | 'submittedAt' | 'returnedAt'
+    'updatedAt' | 'status' | 'grade' | 'submittedAt' | 'returnedAt' | 'urls'
 >;
 
-export type IUpdateAssignmentSubmissionBody = Pick<IUpdateAssignmentSubmission, 'status'> & {
+export type IUpdateAssignmentSubmissionBody = Pick<IUpdateAssignmentSubmission, 'status' | 'urls'> & {
     inputResources?: IInputResource[];
 };
 

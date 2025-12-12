@@ -4,6 +4,7 @@ import assignmentController from '../../../features/assignment/assignment.contro
 import paramsValidator from '@/core/validations/params.validator';
 import { isTeacher } from '@/utils/auth/authHelpers.utils';
 import { Forbidden } from '@/core/error';
+import { assignmentCommentRoutes } from './assignmentComment.routes';
 
 const router = Router({ mergeParams: true });
 globalAsyncHandler(router);
@@ -33,5 +34,8 @@ router.delete(
     paramsValidator.validateId('assignmentId'),
     assignmentController.deleteAssignmentById
 );
+
+// Assignment comments routes
+router.use('/:assignmentId/comments', paramsValidator.validateId('assignmentId'), assignmentCommentRoutes);
 
 export const assignmentRoutes = router;

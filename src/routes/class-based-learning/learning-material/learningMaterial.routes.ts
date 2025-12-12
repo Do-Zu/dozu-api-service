@@ -1,6 +1,7 @@
 import express from 'express';
 import { registerRoute } from '../../register.routes';
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
+import paramsValidator from '@/core/validations/params.validator';
 
 import {
     createLearningMaterialController,
@@ -9,6 +10,7 @@ import {
     getLearningMaterialsOfClassController,
     updateLearningMaterialController,
 } from '@/controllers/class-based-learning/learning-material/learningMaterial.controller';
+import { learningMaterialCommentRoutes } from './learningMaterialComment.routes';
 
 const router = express.Router();
 
@@ -51,6 +53,9 @@ router.put(
 );
 
 router.delete('/:learningMaterialId', deleteLearningMaterialController);
+
+// Learning material comments routes
+router.use('/:learningMaterialId/comments', paramsValidator.validateId('learningMaterialId'), learningMaterialCommentRoutes);
 
 registerRoute('/learning-material', router, {
     description: 'Learning material endpoints',
