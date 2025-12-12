@@ -12,14 +12,18 @@ export const insertLearningMaterial = async (
 export const updateLearningMaterial = async (
     inputLearningMaterial: Omit<TypeSelectLearningMaterial, 'createdAt'>
 ): Promise<TypeSelectLearningMaterial> => {
+    //grab existing urls
     const [currentLearningMaterial] = await db
         .select()
         .from(learningMaterialTable)
         .where(eq(learningMaterialTable.learningMaterialId, inputLearningMaterial.learningMaterialId));
+    const existingUrls = currentLearningMaterial?.urls ?? [];
+    const incomingUrls = inputLearningMaterial.urls ?? [];
     const learningMaterialWithUpdatedUrls = {
         ...inputLearningMaterial,
-        urls: [...(currentLearningMaterial.urls ?? []), ...(inputLearningMaterial.urls ?? [])],
+        urls: [...existingUrls, ...incomingUrls],
     };
+
     const [editedLearningMaterial] = await db
         .update(learningMaterialTable)
         .set(learningMaterialWithUpdatedUrls)

@@ -24,7 +24,7 @@ export const assignmentSubmissionsTable = pgTable(
         updatedAt: timestamp('updated_at', { withTimezone: true }),
         returnedAt: timestamp('returned_at', { withTimezone: true }),
         status: submissionStatusEnumType('status').notNull().default('draft'),
-        urls: varchar('urls').array(),
+        urls: varchar('urls', { length: 2048 }).array(),
     },
     table => ({
         uniqueStudentAssignment: uniqueIndex('unique_student_assignment').on(table.assignmentId, table.studentId),
