@@ -11,6 +11,7 @@ export const learningMaterialTable = pgTable('learning_materials', {
         .notNull()
         .references(() => classesTable.classId, { onDelete: 'cascade' }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    urls: varchar('urls', { length: 2048 }).array(),
 });
 
 export type TypeSelectLearningMaterial = typeof learningMaterialTable.$inferSelect;

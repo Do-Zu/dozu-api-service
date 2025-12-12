@@ -61,12 +61,14 @@ export const createLearningMaterialService = async ({
     topicId,
     classId,
     inputResources,
+    urls,
 }: {
     title: string;
     content: string;
     topicId?: number;
     classId: number;
     inputResources?: IInputResource[];
+    urls: string[];
 }): Promise<LearningMaterialResult> => {
     let addedAttachments;
     if (inputResources) {
@@ -80,6 +82,7 @@ export const createLearningMaterialService = async ({
         content,
         classId,
         topicId,
+        urls,
     };
     const resultLearningMaterial = await insertLearningMaterial(newLearningMaterial);
 
@@ -110,6 +113,7 @@ export const editLearningMaterialService = async ({
 }: {
     learningMaterial: Omit<TypeSelectLearningMaterial, 'createdAt'>;
     inputResources?: IInputResource[];
+
 }): Promise<LearningMaterialResult> => {
     let addedAttachments;
     if (inputResources && inputResources.length > 0) {

@@ -17,7 +17,7 @@ export type InsertAssignment = typeof assignmentsTable.$inferInsert;
 
 export type InsertAssignmentBody = Pick<
     InsertAssignment,
-    'topicId' | 'title' | 'content' | 'deadline' | 'totalGrades' | 'status' | 'acceptingSubmissions'
+    'topicId' | 'title' | 'content' | 'deadline' | 'totalGrades' | 'status' | 'acceptingSubmissions' | 'urls'
 > & { inputResources?: IInputResource[] };
 
 export type IUpdateAssignment = Pick<
