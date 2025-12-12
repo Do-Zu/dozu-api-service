@@ -1,72 +1,21 @@
 import { BadRequest, InternalServerError } from '@/core/error';
 import { getInputSetByTopicId, insertInputSet } from '@/repositories/inputSet.repo';
 import { uploadFileServiceOnR2 } from '../uploads/files/upload.file.R2.service';
-import { checkAndConvertToString, isNilOrEmpty } from '@/utils/common';
-import { embeddingService } from '../embedding/v1/embedding.service';
-import { extractYoutubeVideoId } from '@/utils/youtube/youtube.util';
-import { MetaDataInputEmbedding } from '../embedding/v1/embedding.type';
 import youtubeService from '../youtube/youtube.service';
+import { embeddingService } from '../embedding/v1/embedding.service';
+import { MetaDataInputEmbedding } from '../embedding/v1/embedding.type';
 import { IBalancedSegment } from '@/types/youtube/youtube.type';
-
-export const RESOURCE_CONTENT_TYPE = {
-    FILE: 'file',
-    YOUTUBE: 'youtube',
-    WEBSITE: 'website',
-    TEXT: 'text',
-} as const;
-
-export interface UploadFileResponse {
-    id?: string;
-    fileName: string;
-    originalName: string;
-    filePath?: string;
-    fileSize: number;
-    mimeType?: string;
-    status: 'completed' | 'processing' | 'failed';
-    uploadedAt?: string;
-    setId?: string;
-    fileKey: string;
-}
-
-interface IEmbedVideoInfo {
-    iframe_url: string;
-    flash_url: string;
-    flash_secure_url: string;
-    width: number;
-    height: number;
-}
-
-interface VideoInfo {
-    title: string;
-    thumbnailUrl: string;
-    videoId: string;
-    duration: number;
-    embed: IEmbedVideoInfo;
-}
-
-interface YoutubeResourceMetadata {
-    url: string;
-    videoId: string;
-    videoInfo: VideoInfo | null;
-    content: string | IBalancedSegment[];
-    lengthContent: number;
-    wordCount: number;
-}
-
-type WebsiteResourceMetadata = {
-    url: string;
-    content: string;
-};
-
-type TextResourceMetadata = {
-    content: string;
-};
-
-export type ResourceContentType = (typeof RESOURCE_CONTENT_TYPE)[keyof typeof RESOURCE_CONTENT_TYPE];
-
-type MetaDataInputSet = UploadFileResponse | YoutubeResourceMetadata | WebsiteResourceMetadata | TextResourceMetadata;
-
-type TopicId = number;
+import {
+    MetaDataInputSet,
+    RESOURCE_CONTENT_TYPE,
+    ResourceContentType,
+    TextResourceMetadata,
+    TopicId,
+    UploadFileResponse,
+    WebsiteResourceMetadata,
+    YoutubeResourceMetadata,
+} from './types/inputSet.type';
+import { checkAndConvertToString, isEmpty, isNilOrEmpty, safeDestructure } from '@/utils/common';
 
 class InputSetService {
     public getDocumentService = async (topicId: number) => {
@@ -77,8 +26,8 @@ class InputSetService {
         }
 
         const { metadata, setId, contentType, description, title } = inputSet;
-        // returned data
-        let data: any;
+
+        let data;
 
         if (contentType === RESOURCE_CONTENT_TYPE.FILE) {
             const fileContent = await this.handleGetFile({ metadata } as { metadata: { fileKey: string } });
@@ -154,14 +103,14 @@ class InputSetService {
         title?: string;
     }) => {
         // Storage input set of topic
-        const formatedMetadata = await this.convertYoutubeContentToBalancedSegments({ metadata, contentType });
+        const formattedMetadata = await this.convertYoutubeContentToBalancedSegments({ metadata, contentType });
 
         const inputSet = await insertInputSet({
             userId,
             topicId,
             title: checkAndConvertToString(title),
             contentType,
-            metadata: formatedMetadata,
+            metadata: formattedMetadata,
         });
 
         const parseMetaDataBelongTypeForEmbedding = this.resolveResourceMetadata({
@@ -197,26 +146,11 @@ class InputSetService {
                 return { ...(params.payload as UploadFileResponse) };
             }
             case RESOURCE_CONTENT_TYPE.YOUTUBE: {
-                const {
-                    url,
-                    videoInfo,
-                    lengthContent,
-                    videoId: videoIdParam,
-                } = params.payload as YoutubeResourceMetadata;
-
-                let videoId: string | undefined;
-
-                try {
-                    videoId = extractYoutubeVideoId(url);
-                } catch (error) {
-                    if (!isNilOrEmpty(videoIdParam)) {
-                        videoId = videoIdParam;
-                    } else {
-                        throw error;
-                    }
+                if (isEmpty(params.payload)) {
+                    return null;
                 }
 
-                return { videoId, url, lengthContent, videoInfo: videoInfo ?? null };
+                return { ...(params.payload as YoutubeResourceMetadata) };
             }
             case RESOURCE_CONTENT_TYPE.WEBSITE: {
                 const { url, content } = params.payload as WebsiteResourceMetadata;
@@ -248,25 +182,17 @@ class InputSetService {
         if (contentType !== RESOURCE_CONTENT_TYPE.YOUTUBE) {
             return metadata;
         }
-        const youtubeMetadata = metadata as YoutubeResourceMetadata;
-        let videoId = youtubeMetadata.videoInfo?.videoId;
-        if (!videoId && youtubeMetadata.url) {
-            try {
-                videoId = extractYoutubeVideoId(youtubeMetadata.url);
-            } catch {
-                videoId = undefined;
-            }
-        }
-
-        if (!videoId) {
-            throw new BadRequest('Video Id is required');
-        }
+        const { content, segments } = safeDestructure(metadata) as YoutubeResourceMetadata;
 
         try {
-            const youtubeContent = await youtubeService.getYoutubeContent({ videoId });
+            const balancedSegments = youtubeService.generateBalanceSegment({
+                transcriptSegments: segments,
+                lengthTranscript: content?.length,
+            });
+
             return {
-                ...youtubeMetadata,
-                content: youtubeContent.balancedSegments,
+                ...metadata,
+                content: balancedSegments,
             };
         } catch (error) {
             throw new InternalServerError(`Failed to convert YouTube content to balanced segments: ${error}`);

@@ -1,13 +1,6 @@
 import axios from 'axios';
-import { youtubeContentService } from '@/services/content/youtube.content.service';
 import { BaseEmbeddingStrategy } from '../BaseEmbeddingStrategy';
-import {
-    EmbeddingInputRequest,
-    EmbeddingInputType,
-    EmbeddingResult,
-    EnumEmbeddingInput,
-    YoutubeMetaDataInput,
-} from '../embedding.type';
+import { EmbeddingInputRequest, EmbeddingInputType, EmbeddingResult, EnumEmbeddingInput } from '../embedding.type';
 import { BadRequest } from '@/core/error';
 import logger from '@/utils/logger';
 import { compareIgnoreCapitalization, isNilOrEmpty, toNumber } from '@/utils/common';
@@ -16,6 +9,7 @@ import { calculateAttributeEmbedding } from '@/utils/youtube/youtube.util';
 import { HTTP_STATUS } from '@/constants/index.constant';
 import { NewEmbedding } from '@/repositories/embedding/embedding.repo';
 import { EnumContentSegmentType } from '@/models';
+import { YoutubeResourceMetadata } from '@/services/inputSet/types/inputSet.type';
 
 interface EmbeddingItemRes {
     start: number;
@@ -34,17 +28,13 @@ class YoutubeEmbeddingService extends BaseEmbeddingStrategy {
         return compareIgnoreCapitalization(type, EnumEmbeddingInput.YOUTUBE);
     }
 
-    private async getYoutubeTranscript({ videoId }: { videoId: string }) {
-        return await youtubeContentService.getTranscript({ videoId });
-    }
-
     public async process(payload: EmbeddingInputRequest): Promise<EmbeddingResult> {
         try {
             const { topicId, type, metadata } = payload;
 
             if (isNilOrEmpty(metadata)) throw new BadRequest('Empty Meta Data For Youtube Type');
 
-            const { videoId, videoInfo, lengthContent, wordCount } = metadata as YoutubeMetaDataInput;
+            const { videoId, videoInfo, lengthContent, wordCount, segments } = metadata as YoutubeResourceMetadata;
 
             if (isNilOrEmpty(videoId)) {
                 throw new BadRequest('Video Id Invalid');
@@ -57,8 +47,6 @@ class YoutubeEmbeddingService extends BaseEmbeddingStrategy {
                 duration,
                 wordCount,
             });
-
-            const { segments } = await this.getYoutubeTranscript({ videoId });
 
             const { data, status, statusText } = await axios.post(this.API_END_POINT_EMBEDDING, {
                 videoId,
