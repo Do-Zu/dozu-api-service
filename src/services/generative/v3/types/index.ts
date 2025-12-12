@@ -1,3 +1,4 @@
+import { HttpStatusCode } from '@/constants/index.constant';
 import { IGenerateOptions } from '@/dtos/generate/models/GenerateContentRequestInterface';
 import { TYPE_PROMPT } from '@/utils/prompt';
 
@@ -35,6 +36,8 @@ export interface IJobPushQueue {
     type: TYPE_PROMPT;
     jobId: string;
     data: unknown;
+    isError?: boolean;
+    statusCode: HttpStatusCode;
 }
 
 export interface IDataResponseGenContent {

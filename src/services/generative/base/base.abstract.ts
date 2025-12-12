@@ -95,6 +95,16 @@ export abstract class BaseGenerativeService implements IGenerativeService {
     }
 
     /**
+     * Handle 429 rate limit response from the LLM provider
+     * Marks the current model as rate-limited and attempts to switch to another model
+     *
+     * @returns True if successfully switched to another model, false otherwise
+     */
+    protected async handleRateLimitAndSwitchModel(): Promise<boolean> {
+        return await this.llmProvider.handleRateLimitResponse();
+    }
+
+    /**
      * Get the current LLM model identifier
      * @returns The model identifier string
      */

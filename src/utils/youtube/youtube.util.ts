@@ -91,11 +91,3 @@ export interface IYoutubeSegment {
     endMs: number;
     durationMs: number;
 }
-
-export interface IYoutubeCaptionSegment {
-    startMs: number;
-    startSecond: number;
-    endMs?: number;
-    durationMs?: number;
-    text: string;
-}
