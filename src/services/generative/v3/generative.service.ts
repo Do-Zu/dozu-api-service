@@ -113,7 +113,7 @@ class GenerativeService extends BaseGenerativeService {
      * This is the main worker function that handles content generation jobs
      */
     private async processor(job: Job): Promise<void> {
-        const { jobId, data: dataGenerated, type, isError } = job.data;
+        const { jobId, data: dataGenerated, type, isError, statusCode } = safeDestructure(job.data);
 
         try {
             if (!job || !dataGenerated || !jobId) {
@@ -128,6 +128,8 @@ class GenerativeService extends BaseGenerativeService {
                     {
                         type,
                         jobId,
+                        isError,
+                        statusCode,
                     },
                     this.RESULT_TTL
                 );
@@ -557,10 +559,7 @@ class GenerativeService extends BaseGenerativeService {
             }
 
             if (statusCode === HTTP_STATUS.RATE_LIMIT) {
-                const switched = await this.handleRateLimitAndSwitchModel();
-                if (!switched) {
-                    logger.error(`Failed to switch model after 429 rate limit for job ${jobId}`);
-                }
+                await this.handleRateLimitAndSwitchModel();
             } else {
                 // Check rate limit and update remaining requests for model
                 await this.updateStatusLLMRateLimit();
