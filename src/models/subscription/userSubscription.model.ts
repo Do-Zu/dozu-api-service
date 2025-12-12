@@ -25,15 +25,6 @@ export const subscriptionStatusEnum = pgEnum('subscription_status', [
     'trialing',
 ]);
 
-// Enum for payment status
-export const paymentStatusEnum = pgEnum('payment_status', [
-    'pending',
-    'paid',
-    'failed',
-    'refunded',
-    'partially_refunded',
-]);
-
 export const userSubscriptionsTable = pgTable(
     'user_subscriptions',
     {
@@ -79,4 +70,3 @@ export const userSubscriptionsTable = pgTable(
 export type SelectUserSubscription = typeof userSubscriptionsTable.$inferSelect;
 export type InsertUserSubscription = typeof userSubscriptionsTable.$inferInsert;
 export type SubscriptionStatus = SelectUserSubscription['status'];
-export type SubscriptionStatusEnum = (typeof subscriptionStatusEnum.enumValues)[number];

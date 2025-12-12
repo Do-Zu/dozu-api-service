@@ -2,6 +2,8 @@ import { BadRequest } from '@/core/error';
 import { SuccessResponse } from '@/core/success';
 import flashcardService from '@/services/flashcard/flashcard.service';
 import topicService from '@/services/topic/topic.service';
+import pointsService from '@/services/gamification/points.service';
+import streakService from '@/services/gamification/streak.service';
 import {
     IFlashcard,
     IFlashcardLearningState,
@@ -21,6 +23,7 @@ import AnkiService, {
     learnAheadLimit,
 } from '@/services/spaced-repetition-system/super-memo-2/anki.service';
 import ankiSettingService from '@/services/anki-setting/ankiSetting.service';
+import topicRepo from '@/repositories/topic.repo';
 class FlashcardController {
     constructor() {}
 
@@ -149,10 +152,20 @@ class FlashcardController {
 
         await flashcardService.applySM2ToFlashcard(userId, flashcardId, sm2Info);
 
-        // Award points for flashcard review
+        // Award points for flashcard review and update streak
         try {
-            const pointsService = (await import('@/services/gamification/points.service')).default;
-            await pointsService.awardFlashcardReview(userId, flashcardId);
+            // Get classId from topic
+            const topic = await topicRepo.getTopicById(topicId);
+            if (topic?.classId) {
+                await pointsService.awardFlashcardReview(userId, topic.classId, flashcardId);
+                // Update streak when user reviews flashcard
+                try {
+                    await streakService.updateUserStreak(userId, topic.classId);
+                } catch (streakError) {
+                    // Log but don't fail the request if streak update fails
+                    logger.warn('Failed to update streak after flashcard review:', streakError);
+                }
+            }
         } catch (error) {
             console.error('Failed to award flashcard review points:', error);
         }

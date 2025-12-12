@@ -11,6 +11,46 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Readable } from 'stream';
 import { insertInputSet } from '@/repositories/inputSet.repo';
 import { CONTENT_TYPE_INPUT_SET } from '@/types/inputSet/inputSet.type';
+
+/**
+ * Default allowed MIME types for file uploads
+ */
+const DEFAULT_ALLOWED_MIME_TYPES = [
+    // Documents
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    // Text files
+    'text/plain',
+    'text/csv',
+    'text/markdown',
+    'application/json',
+    'text/html',
+    'text/xml',
+    // Images
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/bmp',
+    'image/webp',
+    'image/svg+xml',
+    // Archives
+    'application/zip',
+    'application/x-rar-compressed',
+    'application/x-7z-compressed',
+    'application/x-tar',
+    'application/gzip',
+];
+
+/**
+ * Default allowed file extensions
+ */
+const DEFAULT_ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.txt', '.md', '.jpeg', '.png', '.jpg'];
+
 /**
  * File upload configuration interface
  */
@@ -74,6 +114,7 @@ export class UploadFileService {
     private SECRET_ACCESS_KEY: string;
     private END_POINT: string;
     private REGION: string = 'auto'; // Default region, can be changed if needed
+    private R2Client: S3Client;
 
     constructor(config?: Partial<FileUploadConfig>) {
         this.ACCOUNT_ID = process.env.CLOUDFLARE_R2_ACCOUNT_ID!;
@@ -84,48 +125,19 @@ export class UploadFileService {
 
         this.defaultConfig = {
             maxFileSize: config?.maxFileSize || generateConfig.maxFileSize,
-            allowedMimeTypes: config?.allowedMimeTypes || [
-                // Documents
-                'application/pdf',
-                'application/msword',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'application/vnd.ms-excel',
-                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'application/vnd.ms-powerpoint',
-                'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-                // Text files
-                'text/plain',
-                'text/csv',
-                'text/markdown',
-                'application/json',
-                'text/html',
-                'text/xml',
-                // Images
-                'image/jpeg',
-                'image/png',
-                'image/gif',
-                'image/bmp',
-                'image/webp',
-                'image/svg+xml',
-                // Archives
-                'application/zip',
-                'application/x-rar-compressed',
-                'application/x-7z-compressed',
-                'application/x-tar',
-                'application/gzip',
-            ],
+            allowedMimeTypes: config?.allowedMimeTypes || DEFAULT_ALLOWED_MIME_TYPES,
             uploadDir: config?.uploadDir || generateConfig.uploadDir,
-            allowedExtensions: config?.allowedExtensions || [
-                '.pdf',
-                '.doc',
-                '.docx',
-                '.txt',
-                '.md',
-                '.jpeg',
-                '.png',
-                '.jpg',
-            ],
+            allowedExtensions: config?.allowedExtensions || DEFAULT_ALLOWED_EXTENSIONS,
         };
+
+        this.R2Client = new S3Client({
+            region: this.REGION,
+            endpoint: this.END_POINT,
+            credentials: {
+                accessKeyId: this.ACCESSKEY_ID,
+                secretAccessKey: this.SECRET_ACCESS_KEY,
+            },
+        });
     }
 
     /**
@@ -188,15 +200,6 @@ export class UploadFileService {
         const fileId = uuidv4();
         const expiresIn = expiresInMinutes * 60;
 
-        const R2 = new S3Client({
-            region: this.REGION,
-            endpoint: this.END_POINT,
-            credentials: {
-                accessKeyId: this.ACCESSKEY_ID,
-                secretAccessKey: this.SECRET_ACCESS_KEY,
-            },
-        });
-
         try {
             const fileKey = `${fileId}:${fileName}`;
 
@@ -206,7 +209,7 @@ export class UploadFileService {
                 ContentType: fileType,
             });
 
-            const presignedUrl = await getSignedUrl(R2, command, {
+            const presignedUrl = await getSignedUrl(this.R2Client, command, {
                 expiresIn,
             });
 
@@ -233,22 +236,13 @@ export class UploadFileService {
      * @param fileKey - The file key in R2 storage
      */
     public async getFileFromR2Cloudflare(fileKey: string): Promise<FileDownloadResult> {
-        const R2 = new S3Client({
-            region: this.REGION,
-            endpoint: this.END_POINT,
-            credentials: {
-                accessKeyId: this.ACCESSKEY_ID,
-                secretAccessKey: this.SECRET_ACCESS_KEY,
-            },
-        });
-
         try {
             const command = new GetObjectCommand({
                 Bucket: this.BUCKET_NAME,
                 Key: fileKey,
             });
 
-            const response = await R2.send(command);
+            const response = await this.R2Client.send(command);
 
             if (!response.Body) {
                 throw new InternalServerError('File content not found');
@@ -312,22 +306,13 @@ export class UploadFileService {
     ): Promise<{ downloadUrl: string; expiresIn: number }> {
         const expiresIn = expiresInMinutes * 60;
 
-        const R2 = new S3Client({
-            region: this.REGION,
-            endpoint: this.END_POINT,
-            credentials: {
-                accessKeyId: this.ACCESSKEY_ID,
-                secretAccessKey: this.SECRET_ACCESS_KEY,
-            },
-        });
-
         try {
             const command = new GetObjectCommand({
                 Bucket: this.BUCKET_NAME,
                 Key: fileKey,
             });
 
-            const downloadUrl = await getSignedUrl(R2, command, {
+            const downloadUrl = await getSignedUrl(this.R2Client, command, {
                 expiresIn,
             });
 

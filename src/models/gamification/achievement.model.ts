@@ -1,5 +1,6 @@
-import { pgTable, serial, varchar, text, timestamp, boolean, integer } from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, text, timestamp, boolean, integer, uniqueIndex } from 'drizzle-orm/pg-core';
 import { usersTable } from '@/models/user.model';
+import { classesTable } from '@/models/class-based-learning/class.model';
 
 // Achievement definitions
 export const achievementTable = pgTable('achievements', {
@@ -14,14 +15,18 @@ export const achievementTable = pgTable('achievements', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
-// User achievements (earned achievements)
+// User achievements (earned achievements) - class-specific achievements only
 export const userAchievementTable = pgTable('user_achievements', {
   userAchievementId: serial('user_achievement_id').primaryKey(),
   userId: integer('user_id').notNull().references(() => usersTable.userId, { onDelete: 'cascade' }),
   achievementId: integer('achievement_id').notNull().references(() => achievementTable.achievementId, { onDelete: 'cascade' }),
+  classId: integer('class_id').notNull().references(() => classesTable.classId, { onDelete: 'cascade' }),
   earnedAt: timestamp('earned_at', { withTimezone: true }).defaultNow(),
   progress: integer('progress').notNull().default(0), // For tracking progress towards achievement
-});
+}, (t) => ({
+  // Unique constraint: one achievement per user per class
+  ux_user_achievement_class: uniqueIndex('ux_user_achievement_class').on(t.userId, t.achievementId, t.classId),
+}));
 
 export type Achievement = typeof achievementTable.$inferSelect;
 export type AchievementInsert = typeof achievementTable.$inferInsert;

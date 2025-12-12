@@ -1,23 +1,27 @@
 import { pgTable, serial, integer, varchar, timestamp, text, uniqueIndex } from 'drizzle-orm/pg-core';
 import { usersTable } from '@/models/user.model';
+import { classesTable } from '@/models/class-based-learning/class.model';
 
-// Points table
+// Points table - class-specific points only
 export const pointsTable = pgTable('points', {
   pointsId: serial('points_id').primaryKey(),
   userId: integer('user_id').notNull().references(() => usersTable.userId, { onDelete: 'cascade' }),
+  classId: integer('class_id').notNull().references(() => classesTable.classId, { onDelete: 'cascade' }),
   totalPoints: integer('total_points').notNull().default(0),
   availablePoints: integer('available_points').notNull().default(0),
   lifetimePoints: integer('lifetime_points').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (t) => ({
-  ux_user: uniqueIndex('ux_points_user_id').on(t.userId),
+  // Unique constraint: one points record per user per class
+  ux_user_class: uniqueIndex('ux_points_user_class').on(t.userId, t.classId),
 }));
 
-// Point transaction history
+// Point transaction history - class-specific transactions only
 export const pointTransactionTable = pgTable('point_transactions', {
   transactionId: serial('transaction_id').primaryKey(),
   userId: integer('user_id').notNull().references(() => usersTable.userId, { onDelete: 'cascade' }),
+  classId: integer('class_id').notNull().references(() => classesTable.classId, { onDelete: 'cascade' }),
   points: integer('points').notNull(), // Can be positive (earned) or negative (spent)
   type: varchar('type', { length: 50 }).notNull(), // 'lesson_completed', 'streak_maintained', 'quiz_high_score', 'purchase', etc.
   description: text('description'),

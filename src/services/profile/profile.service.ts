@@ -1,6 +1,5 @@
 import ProfileRepository from '@/repositories/profile/profile.repo';
 import pointsService from '@/services/gamification/points.service';
-import streakService from '@/services/gamification/streak.service';
 import { POINT_RULES } from '@/models/gamification/points.model';
 import { NotFoundError, BadRequest } from '@/core/error';
 import { hashPassword, verifyPassword } from '@/utils/auth/hash.utils';
@@ -8,6 +7,9 @@ import { ContentType } from '@/types/progress/progress.type';
 import path from 'path';
 import fs from 'fs/promises';
 import logger from '@/utils/logger';
+import { progressService } from '@/services/progress/progress.service';
+import { quizService } from '@/services/quiz/quiz.service';
+import classService from '@/services/class-based-learning/class.service';
 
 import type { 
   ProfileData, 
@@ -41,19 +43,19 @@ class ProfileService {
     const profileData = this.mapUserToProfileData(user);
     
     try {
-      // Get points summary (includes available & lifetime)
-      const summary = await pointsService.getPointSummary(userId);
-      const streak = await streakService.getUserStreak(userId);
+      // Note: Points and streaks are class-specific, not global
+      // Profile is personal and doesn't include class-based gamification
+      // For class-based gamification, use class-specific endpoints
       
-      // Calculate real learning statistics
+      // Calculate real learning statistics (from all progress, not class-specific)
       const learningStats = await this.calculateLearningStatistics(userId);
       
       profileData.gamificationStats = {
-        totalPoints: summary.totalPoints || 0, // Use totalPoints for consistency
-        currentStreak: streak?.currentStreak || 0,
-        longestStreak: streak?.longestStreak || 0,
-        level: Math.floor((summary.totalPoints || 0) / 200) + 1, // Use totalPoints for level calculation
-        experiencePoints: (summary.totalPoints || 0) % 200, // Use totalPoints for XP calculation
+        totalPoints: 0, 
+        currentStreak: 0, 
+        longestStreak: 0, 
+        level: 1,
+        experiencePoints: 0,
         nextLevelExperience: 200,
         achievements: [], // TODO: Add achievements when implemented
         weeklyActivity: [0, 0, 0, 0, 0, 0, 0], // TODO: Get real weekly activity
@@ -155,9 +157,6 @@ class ProfileService {
     averageScore: number;
   }> {
     try {
-      // Import progress service to get actual progress data
-      const { progressService } = await import('@/services/progress/progress.service');
-      
       // Get all progress data for this user
       const progressData = await progressService.getAllProgress({
         userId: userId,
@@ -173,7 +172,6 @@ class ProfileService {
       // For each topic, try to get quiz statistics to estimate quiz completions
       for (const topicId of topicIds) {
         try {
-          const { quizService } = await import('@/services/quiz/quiz.service');
           const quizStats = await quizService.getQuizStatistics(topicId);
           
           // If quiz statistics exist but no quiz progress records, estimate completions
@@ -280,8 +278,34 @@ class ProfileService {
       logger.warn('Failed to calculate learning statistics from progress data', { userId, error });
       
       // Fallback to points-based calculation if progress data fails
+      // Note: This fallback uses point transactions, but points are now class-specific
+      // So we need to get transactions from all classes or skip this fallback
       try {
-        const transactions = await pointsService.getPointHistory(userId, 1000);
+        // Get all classes for user to aggregate transactions
+        const studentClasses = await classService.getClassesForStudent(userId);
+        const teacherClasses = await classService.getClassesForTeacher(userId);
+        const allClasses = [...studentClasses, ...teacherClasses];
+        const classIds = allClasses.map(c => c.classId);
+
+        // Aggregate transactions from all classes
+        const allTransactions = [];
+        for (const classId of classIds) {
+          try {
+            const classTransactions = await pointsService.getPointHistory(userId, classId, 1000);
+            allTransactions.push(...classTransactions);
+          } catch (error) {
+            logger.debug('Failed to get point history for class', { userId, classId, error });
+          }
+        }
+        
+        // Sort by createdAt descending and limit to 1000
+        const transactions = allTransactions
+          .sort((a, b) => {
+            const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return dateB - dateA;
+          })
+          .slice(0, 1000);
         
         let totalLessonsCompleted = 0;
         let totalQuizzesCompleted = 0;

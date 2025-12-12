@@ -95,7 +95,12 @@ export * from '@/models/progress/dailyStudy.model';
 // gamification
 export * from '@/models/gamification/points.model';
 
+export * from '@/models/gamification/class-streaks.model';
+
+export * from '@/models/gamification/streak-events.model';
+
 export * from '@/models/gamification/achievement.model';
+
 
 export * from '@/models/feynman';
 
@@ -111,6 +116,11 @@ export * from '@/models/class-based-learning/assignment';
 export * from '@/models/learning-material/learningMaterial.model';
 
 export * from '@/models/learning-material/attachmentInLearningMaterial.model';
+
+export * from '@/models/learning-material/learningMaterialComment.model';
+
+// comments
+export * from '@/models/comment/comment.model';
 
 // notes
 export * from '@/models/note/note.model';

@@ -7,6 +7,7 @@ import { BadRequest } from '@/core/error';
 import { ContentType } from '@/types/progress/progress.type';
 import { progressService } from '@/services/progress/progress.service';
 import pointsService from '@/services/gamification/points.service';
+import topicRepo from '@/repositories/topic.repo';
 
 class QuizService {
     constructor() {}
@@ -76,7 +77,13 @@ class QuizService {
 
         // Award points for quiz completion
         try {
-            await pointsService.awardQuizCompletion(userId, quizId, score);
+            // Get classId from topic
+            if (topicId !== -1) {
+                const topic = await topicRepo.getTopicById(topicId);
+                if (topic?.classId) {
+                    await pointsService.awardQuizCompletion(userId, topic.classId, quizId, score);
+                }
+            }
         } catch (error) {
             console.error('Failed to award quiz completion points:', error);
         }
