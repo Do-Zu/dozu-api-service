@@ -429,18 +429,11 @@ class GenerativeService extends BaseGenerativeService {
         statusCode?: number;
         error?: string | unknown;
     }): never {
-        // Service unavailable (overloaded)
         if (lambdaResult.statusCode === HTTP_STATUS.SERVICE_UNAVAILABLE) {
             throw new ServiceUnavailable('Server is currently overloaded. Please try again later.');
         }
 
-        // Payload too large
-        if (
-            lambdaResult.statusCode === 413 ||
-            (lambdaResult.error &&
-                typeof lambdaResult.error === 'string' &&
-                lambdaResult.error.includes('payload is too large'))
-        ) {
+        if (this.isLambdaPayLoadTooLarge(lambdaResult)) {
             throw new PayloadTooLarge(
                 `Content too large for processing. Please reduce your content or upgrade your plan.`
             );
@@ -449,6 +442,25 @@ class GenerativeService extends BaseGenerativeService {
         logger.error(`Lambda processing error: ${lambdaResult.error || 'Unknown error'}`);
 
         throw new InternalServerError();
+    }
+
+    private isLambdaPayLoadTooLarge({
+        statusCode,
+        error,
+    }: {
+        success: boolean;
+        statusCode?: number;
+        error?: string | unknown;
+    }) {
+        if (statusCode === HTTP_STATUS.PAYLOAD_TOO_LARGE) {
+            return true;
+        }
+
+        if (error && typeof error === 'string' && error.includes('payload is too large')) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
