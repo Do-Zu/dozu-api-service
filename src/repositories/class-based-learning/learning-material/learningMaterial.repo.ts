@@ -12,6 +12,8 @@ export const insertLearningMaterial = async (
 export const updateLearningMaterial = async (
     inputLearningMaterial: Omit<TypeSelectLearningMaterial, 'createdAt'>
 ): Promise<TypeSelectLearningMaterial> => {
+    //exclude learningMaterialId
+    const { learningMaterialId, ...updateFields } = inputLearningMaterial;
     //grab existing urls
     const [currentLearningMaterial] = await db
         .select()
@@ -20,14 +22,14 @@ export const updateLearningMaterial = async (
     const existingUrls = currentLearningMaterial?.urls ?? [];
     const incomingUrls = inputLearningMaterial.urls ?? [];
     const learningMaterialWithUpdatedUrls = {
-        ...inputLearningMaterial,
+        ...updateFields,
         urls: [...existingUrls, ...incomingUrls],
     };
 
     const [editedLearningMaterial] = await db
         .update(learningMaterialTable)
         .set(learningMaterialWithUpdatedUrls)
-        .where(eq(learningMaterialTable.learningMaterialId, inputLearningMaterial.learningMaterialId))
+        .where(eq(learningMaterialTable.learningMaterialId, learningMaterialId))
         .returning();
     return editedLearningMaterial;
 };
