@@ -8,6 +8,7 @@ import {
     getRateLimitForModel,
 } from '@/repositories/generate/llm/llm.repo';
 import logger from '@/utils/logger';
+import { isEmpty } from '@/utils/common';
 
 /**
  * Interface for LLM service functionality
@@ -96,9 +97,6 @@ export abstract class BaseLLMProvider {
     private providers: IProvidersLLM[] = [];
     private modelsAvailable: IModelsLLM[] = [];
 
-    // Initialization state
-    private isInitialized = false;
-
     constructor() {
         this.requestPerMinuteLimit = this.DEFAULT_RATE_LIMIT_PER_MINUTE;
         this.requestPerDateLimit = this.DEFAULT_RATE_LIMIT_PER_DATE;
@@ -122,10 +120,15 @@ export abstract class BaseLLMProvider {
      * Only loads configuration from DB once unless forced
      */
     protected async initialBase(forceRefresh = false): Promise<void> {
-        if (!this.isInitialized || forceRefresh) {
+        if (!this.isInitialized() || forceRefresh) {
             await this.getDefaultLLMProviderFromDatabase();
-            this.isInitialized = true;
         }
+    }
+
+    private isInitialized(): boolean {
+        if (isEmpty(this.providerId) || isEmpty(this.modelId) || isEmpty(this.apiKeyId)) return false;
+
+        return true;
     }
 
     /**
@@ -180,24 +183,16 @@ export abstract class BaseLLMProvider {
      * Returns false if rate limits are exceeded and no model is available
      */
     protected async checkAndUpdateRateLimits(): Promise<boolean> {
-        // Ensure initialization
-        if (!this.isInitialized || !this.providerId || !this.modelId || !this.apiKeyId) {
-            await this.initialBase(true);
-        }
-
-        // Validate configuration
         if (!this.validateConfiguration()) {
             throw new InternalServerError('Provider configuration incomplete');
         }
 
-        // Get current usage from Redis
         const { minuteKey, dayKey, currentRequestMinuteUsage, currentRequestDayUsage } = await this.getCurrentUsage();
 
         // Calculate usage percentages
         const minuteUsagePercent = (currentRequestMinuteUsage / this.requestPerMinuteLimit) * 100;
         const dayUsagePercent = (currentRequestDayUsage / this.requestPerDateLimit) * 100;
 
-        // Check if we need to switch models
         if (dayUsagePercent >= this.PERCENT_RATE_LIMIT_MODEL_PER_DATE) {
             logger.warn(
                 `Model ${this.model} rate limit ${dayUsagePercent.toFixed(2)}% for this date, switching models`
@@ -387,13 +382,13 @@ export abstract class BaseLLMProvider {
      */
     public async handleRateLimitResponse(): Promise<boolean> {
         // Ensure we have configuration
-        if (!this.providerId || !this.modelId || !this.apiKeyId) {
+        if (!this.isInitialized()) {
             logger.error('Cannot handle rate limit: missing provider configuration');
             return false;
         }
 
         // Mark current model as rate-limited with 1-hour cooldown
-        await rateLimitManager.markModelAsRateLimited(this.providerId, this.modelId, this.apiKeyId);
+        await rateLimitManager.markModelAsRateLimited(this.providerId!, this.modelId!, this.apiKeyId!);
 
         logger.warn(`Model ${this.model} (ID: ${this.modelId}) received 429 rate limit, attempting to switch model`);
 
@@ -447,7 +442,7 @@ export abstract class BaseLLMProvider {
                     this.apiKeyId!
                 );
                 logger.info(
-                    `Model ${candidateModel.name} is in 429 cooldown for ${remainingSeconds} more seconds, skipping`
+                    `Model ${candidateModel.name} is in cooldown for ${remainingSeconds} more seconds, skipping`
                 );
                 continue;
             }
@@ -472,6 +467,7 @@ export abstract class BaseLLMProvider {
             this.requestPerDateLimit = candidateModel.requestPerDay ?? this.DEFAULT_RATE_LIMIT_PER_DATE;
 
             logger.info(`Switched to model ${this.model}`);
+
             return true;
         }
 

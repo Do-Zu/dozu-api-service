@@ -8,7 +8,27 @@ import { IGenerateOptions } from '@/dtos/generate/models/GenerateContentRequestI
 import { HTTP_STATUS, HttpStatusCode } from '../../../../constants/index.constant';
 import { getSystemDate } from '@/utils/date';
 import { isNilOrEmpty } from '@/utils/common';
-import { AppError } from '@/core/error';
+
+interface IError {
+    statusCode: number;
+    status: string;
+    isOperational: boolean;
+    message: string;
+    stack?: string;
+}
+class AppError extends Error implements IError {
+    public statusCode: number;
+    public isOperational: boolean;
+    public status: string;
+
+    constructor(message: string, statusCode: number) {
+        super(message);
+
+        this.statusCode = statusCode;
+        this.isOperational = true;
+        this.status = `${statusCode}`.startsWith('4') ? 'fail' : 'error';
+    }
+}
 
 // Configure Redis connection
 const REDIS_HOST = process.env.REDIS_HOST || 'localhost';

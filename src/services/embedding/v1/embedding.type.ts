@@ -1,3 +1,5 @@
+import { UploadFileResponse, YoutubeResourceMetadata } from '@/services/inputSet/types/inputSet.type';
+
 interface EmbeddingResult extends Record<string, unknown> {}
 
 const EnumEmbeddingInput = {
@@ -8,28 +10,7 @@ const EnumEmbeddingInput = {
 
 type EmbeddingInputType = (typeof EnumEmbeddingInput)[keyof typeof EnumEmbeddingInput];
 
-interface YoutubeMetaDataInput {
-    url: string;
-    videoId: string;
-    videoInfo: Record<string, unknown>;
-    lengthContent: number;
-    wordCount: number;
-}
-
-interface FileMetaDataInput {
-    id?: string;
-    fileName: string;
-    originalName: string;
-    filePath?: string;
-    fileSize: number;
-    mimeType?: string;
-    status: 'completed' | 'processing' | 'failed';
-    uploadedAt?: string;
-    setId?: string;
-    fileKey: string;
-}
-
-type MetaDataInputEmbedding = Record<string, unknown> | YoutubeMetaDataInput | FileMetaDataInput;
+type MetaDataInputEmbedding = Record<string, unknown> | YoutubeResourceMetadata | UploadFileResponse;
 interface EmbeddingInput {
     type: EmbeddingInputType;
     metadata?: MetaDataInputEmbedding;
@@ -68,8 +49,6 @@ export {
     EmbeddingResult,
     EmbeddingInput,
     EmbeddingInputType,
-    EnumEmbeddingInput,
     MetaDataInputEmbedding,
-    YoutubeMetaDataInput,
-    FileMetaDataInput,
+    EnumEmbeddingInput,
 };

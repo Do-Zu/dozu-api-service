@@ -1,11 +1,14 @@
 import { redisInstance } from '@/libs/redis/pub-sub/redisPubsub.connect';
+import { isNilOrEmpty } from '@/utils/common';
+import { getSystemDate } from '@/utils/date';
+import { addMilliseconds } from 'date-fns';
 import logger from '@/utils/logger';
 
 /**
  * Configuration for rate limit cooldown
  */
 export interface RateLimitCooldownConfig {
-    /** Cooldown duration in seconds (default: 1 hour = 3600 seconds) */
+    /** Cooldown duration in seconds */
     cooldownDurationSeconds: number;
     /** Redis key prefix for rate limit markers */
     keyPrefix: string;
@@ -28,20 +31,15 @@ export interface RateLimitedModelInfo {
  */
 const DEFAULT_CONFIG: RateLimitCooldownConfig = {
     cooldownDurationSeconds: 3600, // 1 hour
-    keyPrefix: 'llm:rate_limit_429',
+    keyPrefix: 'llm:rate_limit',
 };
 
 /**
- * RateLimitManager - Manages 429 rate limit cooldowns for LLM models
+ * RateLimitManager - Manages rate limit cooldowns for LLM models
  *
  * This service follows the Single Responsibility Principle by handling
  * only rate limit cooldown management, separate from the main LLM service.
  *
- * Features:
- * - Mark models as rate-limited with configurable cooldown period
- * - Check if a model is currently in cooldown
- * - Clear cooldown markers when needed
- * - Retrieve information about rate-limited models
  */
 export class RateLimitManager {
     private readonly config: RateLimitCooldownConfig;
@@ -74,12 +72,14 @@ export class RateLimitManager {
         providerId: number,
         modelId: number,
         apiKeyId: number,
-        reason: string = '429 Too Many Requests'
+        reason: string = 'Too Many Requests'
     ): Promise<boolean> {
         try {
             const key = this.generateRateLimitKey(providerId, modelId, apiKeyId);
-            const now = new Date();
-            const cooldownUntil = new Date(now.getTime() + this.config.cooldownDurationSeconds * 1000);
+
+            const now = getSystemDate();
+
+            const cooldownUntil = addMilliseconds(now, this.config.cooldownDurationSeconds * 1000);
 
             const rateLimitInfo: RateLimitedModelInfo = {
                 modelId,
@@ -108,22 +108,16 @@ export class RateLimitManager {
 
     /**
      * Check if a model is currently in rate limit cooldown
-     *
-     * @param providerId - LLM provider ID
-     * @param modelId - Model ID
-     * @param apiKeyId - API key ID
-     * @returns Promise<boolean> - true if model is in cooldown
      */
     public async isModelInCooldown(providerId: number, modelId: number, apiKeyId: number): Promise<boolean> {
         try {
             const key = this.generateRateLimitKey(providerId, modelId, apiKeyId);
             const result = await redisInstance.get(key);
-            return result !== null && result !== undefined;
+            return !isNilOrEmpty(result);
         } catch (error) {
             logger.error(
                 `Failed to check rate limit cooldown: ${error instanceof Error ? error.message : String(error)}`
             );
-            // In case of error, assume not in cooldown to avoid blocking requests
             return false;
         }
     }
