@@ -1,4 +1,4 @@
-import { YoutubeResourceMetadata } from '@/types/youtube/youtube.type';
+import { IBalancedSegment, YoutubeResourceMetadata } from '@/types/youtube/youtube.type';
 
 interface UploadFileResponse {
     id?: string;
@@ -22,7 +22,14 @@ type TextResourceMetadata = {
     content: string;
 };
 
-type MetaDataInputSet = UploadFileResponse | YoutubeResourceMetadata | WebsiteResourceMetadata | TextResourceMetadata;
+export type MediaResourceMetadata = UploadFileResponse & { content: IBalancedSegment[] };
+
+type MetaDataInputSet =
+    | UploadFileResponse
+    | YoutubeResourceMetadata
+    | WebsiteResourceMetadata
+    | TextResourceMetadata
+    | MediaResourceMetadata;
 
 type TopicId = number;
 
@@ -31,6 +38,7 @@ const RESOURCE_CONTENT_TYPE = {
     YOUTUBE: 'youtube',
     WEBSITE: 'website',
     TEXT: 'text',
+    MEDIA: 'media',
 } as const;
 
 type ResourceContentType = (typeof RESOURCE_CONTENT_TYPE)[keyof typeof RESOURCE_CONTENT_TYPE];

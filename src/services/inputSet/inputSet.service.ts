@@ -1,4 +1,4 @@
-import { BadRequest, InternalServerError } from '@/core/error';
+import { BadRequest, InternalServerError, NotFoundError } from '@/core/error';
 import { getInputSetByTopicId, insertInputSet } from '@/repositories/inputSet.repo';
 import { uploadFileServiceOnR2 } from '../uploads/files/upload.file.R2.service';
 import youtubeService from '../youtube/youtube.service';
@@ -6,6 +6,7 @@ import { embeddingService } from '../embedding/v1/embedding.service';
 import { MetaDataInputEmbedding } from '../embedding/v1/embedding.type';
 import { IBalancedSegment } from '@/types/youtube/youtube.type';
 import {
+    MediaResourceMetadata,
     MetaDataInputSet,
     RESOURCE_CONTENT_TYPE,
     ResourceContentType,
@@ -22,7 +23,7 @@ class InputSetService {
         const inputSet = await getInputSetByTopicId(topicId);
 
         if (!inputSet) {
-            throw new InternalServerError('Input set not found for the given topicId');
+            throw new NotFoundError('Input set not found for the given topicId');
         }
 
         const { metadata, setId, contentType, description, title } = inputSet;
@@ -33,7 +34,7 @@ class InputSetService {
             const fileContent = await this.handleGetFile({ metadata } as { metadata: { fileKey: string } });
 
             if (!fileContent) {
-                throw new InternalServerError('Error: Document does not exist');
+                throw new NotFoundError('Error: Document does not exist');
             }
 
             data = {
@@ -54,9 +55,21 @@ class InputSetService {
                 videoInfo === null ||
                 videoInfo === undefined
             ) {
-                throw new InternalServerError('Error: Youtube content does not exist');
+                throw new NotFoundError('Error: Youtube content does not exist');
             }
             data = { url, content, videoInfo };
+        } else if (contentType === RESOURCE_CONTENT_TYPE.MEDIA) {
+            const fileContent = await this.handleGetFile({ metadata } as { metadata: { fileKey: string } });
+
+            if (!fileContent) {
+                throw new NotFoundError('Error: Document does not exist');
+            }
+
+            data = {
+                fileUrl: fileContent.downloadUrl,
+                expiresIn: fileContent.expiresIn,
+                content: (metadata as MediaResourceMetadata)?.content ?? [],
+            };
         } else {
             throw new Error(`Error: Content type ${contentType} is not supported yet.`);
         }
@@ -124,11 +137,14 @@ class InputSetService {
         }
 
         // Processing embedding and store vector
-        const embedding = await embeddingService.generateEmbedding({
-            topicId,
-            type: contentType,
-            metadata: parseMetaDataBelongTypeForEmbedding!,
-        });
+        let embedding = null;
+        if (contentType !== RESOURCE_CONTENT_TYPE.MEDIA) {
+            embedding = await embeddingService.generateEmbedding({
+                topicId,
+                type: contentType,
+                metadata: parseMetaDataBelongTypeForEmbedding!,
+            });
+        }
 
         return {
             inputSet,
@@ -165,6 +181,9 @@ class InputSetService {
                 if (!content) return null;
 
                 return { content };
+            }
+            case RESOURCE_CONTENT_TYPE.MEDIA: {
+                return { ...(params.payload as MediaResourceMetadata) };
             }
             default:
                 return null;

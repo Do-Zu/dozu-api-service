@@ -44,12 +44,14 @@ const DEFAULT_ALLOWED_MIME_TYPES = [
     'application/x-7z-compressed',
     'application/x-tar',
     'application/gzip',
+    // Media files
+    'audio/mpeg',
 ];
 
 /**
  * Default allowed file extensions
  */
-const DEFAULT_ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.txt', '.md', '.jpeg', '.png', '.jpg'];
+const DEFAULT_ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.txt', '.md', '.jpeg', '.png', '.jpg', '.mp3'];
 
 /**
  * File upload configuration interface
