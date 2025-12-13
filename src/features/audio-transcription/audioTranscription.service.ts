@@ -52,12 +52,10 @@ class AudioTranscriptionService {
     }
 
     private getSeconds(timestamp: string) {
-        const firstRow = timestamp.split(',')[0];
-        const secondRowsSplited = firstRow.split(':');
-        const hours = Number(secondRowsSplited[0]);
-        const minutes = Number(secondRowsSplited[1]);
-        const seconds = Number(secondRowsSplited[2]);
-        return hours * 3600 + minutes * 60 + seconds;
+        const [timePart, msPart] = timestamp.split(',');
+        const [hours, minutes, seconds] = timePart.split(':').map(Number);
+        const ms = msPart ? Number(msPart) / 1000 : 0;
+        return hours * 3600 + minutes * 60 + seconds + ms;
     }
 }
 

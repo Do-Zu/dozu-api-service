@@ -209,12 +209,12 @@ export function validateFileMimeTypes(
     file: Express.Multer.File | undefined | null,
     options?: { mimeTypes?: string[] }
 ) {
-    const mimeTypes = options?.mimeTypes ?? [];
+    const mimeTypes = options?.mimeTypes;
     if (!file) {
         throw new BadRequest('No file uploaded');
     }
 
-    if (!mimeTypes.includes(file.mimetype)) {
+    if (mimeTypes && mimeTypes.length > 0 && !mimeTypes.includes(file.mimetype)) {
         throw new BadRequest(`Invalid file type. Only ${mimeTypes.join(', ')} are allowed.`);
     }
 }
