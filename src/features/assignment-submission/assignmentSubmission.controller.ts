@@ -93,7 +93,7 @@ class AssignmentSubmissionController {
         const assignmentId = requestHelper.getIdParam(req, 'assignmentId');
         const submissionId = requestHelper.getIdParam(req, 'submissionId');
         const submission = req.body as IUpdateAssignmentSubmissionBody;
-        const { status } = submission;
+        const { status, urls } = submission;
 
         let addedAttachments: IAddedAttachment[] | undefined = undefined;
 
@@ -109,7 +109,7 @@ class AssignmentSubmissionController {
             });
         }
 
-        const parseResult = updateAssignmentSubmissionSchema.safeParse({ status });
+        const parseResult = updateAssignmentSubmissionSchema.safeParse({ status, urls });
         if (parseResult.error) {
             throw new BadRequest('Invalid request');
         }

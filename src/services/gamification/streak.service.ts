@@ -27,14 +27,13 @@ class StreakService {
     return await this.profileRepo.getUserById(userId);
   }
 
-  async updateUserStreak(userId: number): Promise<{
+  async updateUserStreak(userId: number, classId: number): Promise<{
     currentStreak: number;
     isNewStreak: boolean;
     pointsEarned: number;
     streakBroken: boolean;
     message: string;
   }> {
-    // Get user data to determine timezone
     const user = await this.getUserData(userId);
    
     // Get user's timezone from study preferences or default to UTC
@@ -44,16 +43,17 @@ class StreakService {
     const today = getStartOfDayInTimezone(userTimezone);
     const yesterday = getYesterdayInTimezone(userTimezone);
 
-    // Get current streak data
-    let streak = await this.streakRepo.getUserStreak(userId);
+    // Get current streak data for this class
+    let streak = await this.streakRepo.getClassStreak(userId, classId);
 
     if (!streak) {
-      // Initialize streak for new user
-      streak = await this.streakRepo.initializeStreak(userId);
+      // Initialize streak for new user in this class
+      streak = await this.streakRepo.getClassStreak(userId, classId);
       
       // Use atomic update for first study session
-      const result = await this.streakRepo.atomicStreakUpdate(
+      const result = await this.streakRepo.atomicClassStreakUpdate(
         userId,
+        classId,
         today,
         'streak_restarted',
         POINT_RULES.STREAK_MAINTAINED,
@@ -64,7 +64,8 @@ class StreakService {
       if (result.success) {
         // Award points for first study session
         await pointsService.awardPoints(
-          userId, 
+          userId,
+          classId,
           POINT_RULES.STREAK_MAINTAINED, 
           'first_study_session', 
           'Started your learning journey!'
@@ -121,8 +122,9 @@ class StreakService {
       }
 
       // Use atomic update
-      const result = await this.streakRepo.atomicStreakUpdate(
+      const result = await this.streakRepo.atomicClassStreakUpdate(
         userId,
+        classId,
         today,
         'streak_continued',
         pointsEarned,
@@ -133,7 +135,8 @@ class StreakService {
       if (result.success) {
         // Award points
         await pointsService.awardPoints(
-          userId, 
+          userId,
+          classId,
           pointsEarned, 
           'streak_maintained', 
           `Maintained ${newCurrentStreak}-day streak!`
@@ -181,8 +184,9 @@ class StreakService {
       }
 
       // Use atomic update with freeze
-      const result = await this.streakRepo.atomicStreakUpdate(
+      const result = await this.streakRepo.atomicClassStreakUpdate(
         userId,
+        classId,
         today,
         'freeze_used',
         pointsEarned,
@@ -193,7 +197,8 @@ class StreakService {
       if (result.success) {
         // Award points for maintaining streak with freeze
         await pointsService.awardPoints(
-          userId, 
+          userId,
+          classId,
           pointsEarned, 
           'streak_maintained', 
           `Maintained ${newCurrentStreak}-day streak (freeze used)`
@@ -227,8 +232,9 @@ class StreakService {
     }
 
     // Streak broken - reset with atomic update
-    const result = await this.streakRepo.atomicStreakUpdate(
+    const result = await this.streakRepo.atomicClassStreakUpdate(
       userId,
+      classId,
       today,
       'streak_broken',
       POINT_RULES.STREAK_MAINTAINED,
@@ -239,7 +245,8 @@ class StreakService {
     if (result.success) {
       // Award points for restarting
       await pointsService.awardPoints(
-        userId, 
+        userId,
+        classId,
         POINT_RULES.STREAK_MAINTAINED, 
         'streak_restarted', 
         'Restarted learning streak'
@@ -264,21 +271,31 @@ class StreakService {
     }
   }
 
+  // DEPRECATED: Streak is now class-specific. Use getClassStreak(userId, classId) instead.
+  // This method is kept for backward compatibility but should not be used.
   async getUserStreak(userId: number): Promise<StreakData | null> {
-    return await this.streakRepo.getUserStreak(userId);
+    throw new Error('getUserStreak is deprecated. Streak is now class-specific. Use getClassStreak(userId, classId) instead.');
   }
 
-  async buyStreakFreeze(userId: number, cost: number = 100): Promise<void> {
-    await this.streakRepo.atomicBuyStreakFreeze(userId, cost, 1);
+  async getClassStreak(userId: number, classId: number): Promise<StreakData | null> {
+    return await this.streakRepo.getClassStreak(userId, classId);
+  }
+
+  async initializeClassStreak(userId: number, classId: number): Promise<StreakData> {
+    return await this.streakRepo.initializeClassStreak(userId, classId);
+  }
+
+  async buyStreakFreeze(userId: number, classId: number, cost: number = 100): Promise<void> {
+    await this.streakRepo.atomicBuyStreakFreeze(userId, classId, cost, 1);
   }
 
   async giftStreakFreeze(userId: number, amount: number = 1): Promise<void> {
     await this.streakRepo.incrementStreakFreeze(userId, amount);
   }
 
-  // Get streak statistics
-  async getStreakStats(userId: number) {
-    const streak = await this.getUserStreak(userId);
+  // Get streak statistics for a class
+  async getClassStreakStats(userId: number, classId: number) {
+    const streak = await this.getClassStreak(userId, classId);
     if (!streak) {
       return {
         currentStreak: 0,

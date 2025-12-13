@@ -1,5 +1,6 @@
 import paramsValidator from '@/core/validations/params.validator';
 import assignmentSubmissionController from '@/features/assignment-submission/assignmentSubmission.controller';
+import commentController from '@/controllers/comment/comment.controller';
 import { authMiddleware } from '@/middleware/auth.middleware';
 import { globalAsyncHandler } from '@/middleware/handler/handler.v2';
 import { registerRoute } from '@/routes/register.routes';
@@ -30,6 +31,20 @@ router.put(
     paramsValidator.validateId('assignmentId'),
     paramsValidator.validateId('submissionId'),
     assignmentSubmissionController.gradeAssignmentSubmission
+);
+
+// Submission comments routes (private comments)
+router.get(
+    '/:submissionId/comments',
+    paramsValidator.validateId('assignmentId'),
+    paramsValidator.validateId('submissionId'),
+    commentController.getCommentsBySubmissionId
+);
+router.post(
+    '/:submissionId/comments',
+    paramsValidator.validateId('assignmentId'),
+    paramsValidator.validateId('submissionId'),
+    commentController.createCommentForSubmission
 );
 
 registerRoute('/assignments/:assignmentId/submissions', router);

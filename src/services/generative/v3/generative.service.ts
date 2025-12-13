@@ -99,7 +99,7 @@ class GenerativeService extends BaseGenerativeService {
             const clientError = {
                 message: 'An error occurred while processing your request',
                 errorType: error.name || 'ProcessingError',
-                errorCode: 500,
+                statusCode: HTTP_STATUS.INTERNAL_SERVER,
                 errorDetails: error.message,
                 status: STATUS_GEN.error,
             };
@@ -113,7 +113,7 @@ class GenerativeService extends BaseGenerativeService {
      * This is the main worker function that handles content generation jobs
      */
     private async processor(job: Job): Promise<void> {
-        const { jobId, data: dataGenerated, type, isError } = job.data;
+        const { jobId, data: dataGenerated, type, isError, statusCode } = safeDestructure(job.data);
 
         try {
             if (!job || !dataGenerated || !jobId) {
@@ -128,6 +128,8 @@ class GenerativeService extends BaseGenerativeService {
                     {
                         type,
                         jobId,
+                        isError,
+                        statusCode,
                     },
                     this.RESULT_TTL
                 );
@@ -141,18 +143,6 @@ class GenerativeService extends BaseGenerativeService {
 
                 throw new Error(dataGenerated?.message || 'An error occurred while processing your request');
             }
-
-            //NOTE: Only store; do not emit SSE here (cross-instance emission handled in completion handler)
-            // Send data to client via SSE if connected
-            // if (sseManager.isClientConnected(jobId)) {
-            //     const dataResponse = { ...dataGenerated, type };
-            //     const clientNotified = sseManager.sendEvent(jobId, dataResponse);
-            //     if (clientNotified) {
-            //         logger.info(`Data sent to client for job ${jobId}`);
-            //     }
-            // } else {
-            //     logger.info(`No client connected for job ${jobId}, storing result in Redis`);
-            // }
 
             // Store result in Redis for later retrieval
             logger.info(`Storing result in Redis for job ${jobId}`);
@@ -175,8 +165,8 @@ class GenerativeService extends BaseGenerativeService {
 
             const clientError = {
                 message: 'An error occurred while processing your request',
-                errorType: error.name || 'ProcessingError',
-                errorCode: 500,
+                errorType: error.name,
+                statusCode: HTTP_STATUS.INTERNAL_SERVER,
                 errorDetails: error.message,
                 status: STATUS_GEN.error,
             };
@@ -232,9 +222,6 @@ class GenerativeService extends BaseGenerativeService {
             type: typeSending,
             options,
         };
-
-        // Check rate limit and update remaining requests for model
-        await this.updateStatusLLMRateLimit();
 
         const shouldUseSyncProcessing = validatePayloadSizeBuffer(dataSend);
 
@@ -422,7 +409,7 @@ class GenerativeService extends BaseGenerativeService {
             //     status: STATUS_GEN.completed,
             // };
 
-            const dataPushToQueue: IJobPushQueue = { type, jobId, data };
+            const dataPushToQueue: IJobPushQueue = { type, jobId, data, isError: false, statusCode: HTTP_STATUS.OK };
 
             return await this.processWithQueue(WORKER_NAME, dataPushToQueue);
         } catch (error) {
@@ -442,18 +429,11 @@ class GenerativeService extends BaseGenerativeService {
         statusCode?: number;
         error?: string | unknown;
     }): never {
-        // Service unavailable (overloaded)
         if (lambdaResult.statusCode === HTTP_STATUS.SERVICE_UNAVAILABLE) {
             throw new ServiceUnavailable('Server is currently overloaded. Please try again later.');
         }
 
-        // Payload too large
-        if (
-            lambdaResult.statusCode === 413 ||
-            (lambdaResult.error &&
-                typeof lambdaResult.error === 'string' &&
-                lambdaResult.error.includes('payload is too large'))
-        ) {
+        if (this.isLambdaPayLoadTooLarge(lambdaResult)) {
             throw new PayloadTooLarge(
                 `Content too large for processing. Please reduce your content or upgrade your plan.`
             );
@@ -462,6 +442,25 @@ class GenerativeService extends BaseGenerativeService {
         logger.error(`Lambda processing error: ${lambdaResult.error || 'Unknown error'}`);
 
         throw new InternalServerError();
+    }
+
+    private isLambdaPayLoadTooLarge({
+        statusCode,
+        error,
+    }: {
+        success: boolean;
+        statusCode?: number;
+        error?: string | unknown;
+    }) {
+        if (statusCode === HTTP_STATUS.PAYLOAD_TOO_LARGE) {
+            return true;
+        }
+
+        if (error && typeof error === 'string' && error.includes('payload is too large')) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -525,12 +524,13 @@ class GenerativeService extends BaseGenerativeService {
             return await redisInstance.get(`${this.PREFIX_KEY_CACHED_JOB}:${bullJobId}`);
         }
 
-        const { jobId, type, isError } = safeDestructure(bullJob!.data);
+        const { jobId, type, isError, statusCode } = safeDestructure(bullJob!.data);
 
         return {
             jobId,
             type,
             isError,
+            statusCode,
         };
     }
 
@@ -544,7 +544,7 @@ class GenerativeService extends BaseGenerativeService {
 
             if (!messageInfo?.jobId || !messageInfo.type) return false;
 
-            const { jobId, type, isError } = safeDestructure(messageInfo);
+            const { jobId, type, isError, statusCode } = safeDestructure(messageInfo);
 
             if (!sseManager.isClientConnected(jobId)) {
                 // No local client; nothing to do (another instance may own it)
@@ -553,7 +553,7 @@ class GenerativeService extends BaseGenerativeService {
 
             let cached;
 
-            const resultTypes = type ? [type] : ['FLASH_CARD', 'MULTIPLE_CHOICE', 'MIND_MAP'];
+            const resultTypes = type ? [type] : Object.values(this.TYPE_PROMPT_MAPPING);
 
             for (const typeMethod of resultTypes) {
                 const resultKey = `${typeMethod}:result:${jobId}`;
@@ -570,7 +570,14 @@ class GenerativeService extends BaseGenerativeService {
                 return false;
             }
 
-            sseManager.sendEvent(jobId, { ...cached, type }, isError);
+            if (statusCode === HTTP_STATUS.RATE_LIMIT) {
+                await this.handleRateLimitAndSwitchModel();
+            } else {
+                // Check rate limit and update remaining requests for model
+                await this.updateStatusLLMRateLimit();
+            }
+
+            sseManager.sendEvent(jobId, { ...cached, type, statusCode }, isError);
 
             logger.info(`SSE result delivered for job ${jobId}`);
 

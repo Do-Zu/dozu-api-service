@@ -1,17 +1,12 @@
-import { NewEmbedding } from '@/repositories/embedding/embedding.repo';
-import { BaseEmbeddingStrategy } from '../BaseEmbeddingStrategy';
-import {
-    EmbeddingInputType,
-    EmbeddingResult,
-    EnumEmbeddingInput,
-    FileMetaDataInput,
-    EmbeddingInputRequest,
-} from '../embedding.type';
-import { compareIgnoreCapitalization, isNilOrEmpty } from '@/utils/common';
 import { BadRequest, ServiceUnavailable } from '@/core/error';
+import { BaseEmbeddingStrategy } from '../BaseEmbeddingStrategy';
+import { NewEmbedding } from '@/repositories/embedding/embedding.repo';
+import { EmbeddingInputType, EmbeddingResult, EnumEmbeddingInput, EmbeddingInputRequest } from '../embedding.type';
+import { compareIgnoreCapitalization, isNilOrEmpty } from '@/utils/common';
 import { uploadFileServiceOnR2 } from '@/services/uploads/files/upload.file.R2.service';
-import logger from '@/utils/logger';
 import { EnumContentSegmentType } from '@/models';
+import { UploadFileResponse as FileMetaDataInput } from '@/services/inputSet/types/inputSet.type';
+import logger from '@/utils/logger';
 
 interface EmbeddingItemRes {
     pageNumber: number;

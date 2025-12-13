@@ -10,7 +10,7 @@ export enum AssignmentStatusEnum {
 
 
 
-export type ILearningMaterialToUpdate = Pick<TypeInsertLearningMaterial, 'topicId' | 'title' | 'content'>;
+export type ILearningMaterialToUpdate = Pick<TypeInsertLearningMaterial, 'topicId' | 'title' | 'content'|'urls'>;
 
 // export type ILearningMaterialToUpdate = Omit<TypeInsertLearningMaterial, 'createdAt'>;
 

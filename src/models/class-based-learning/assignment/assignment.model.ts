@@ -21,4 +21,5 @@ export const assignmentsTable = pgTable('assignments', {
     publishedAt: timestamp('published_at', { withTimezone: true }),
     status: assignmentStatusEnumType('status').notNull().default('draft'),
     acceptingSubmissions: boolean('accepting_submissions').notNull(),
+    urls: varchar('urls', { length: 2048 }).array(),
 });
