@@ -1,6 +1,6 @@
 import logger from '@/utils/logger';
-import { WHISPER_CLI_PATH, WHISPER_MODEL_PATH, WHISPER_OUTPUT_FILE_FORMAT } from './whisper.constant';
-import { access } from 'fs/promises';
+import { UPLOADS_DIR_PATH, WHISPER_CLI_PATH, WHISPER_MODEL_PATH, WHISPER_OUTPUT_FILE_FORMAT } from './whisper.constant';
+import { access, mkdir } from 'fs/promises';
 import { constants } from 'fs';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -10,7 +10,7 @@ const execAsync = promisify(exec);
 class WhisperService {
     private isReady = false;
 
-    public async runWhisper(inputPath: string): Promise<string> {
+    public async runWhisperLocal(inputPath: string): Promise<string> {
         await this.ensureWhisperReady();
         try {
             const cmd = this.getWhisperCommand(inputPath);
@@ -36,6 +36,7 @@ class WhisperService {
             throw new Error('Whisper CLI or model not found.');
         }
 
+        await mkdir(UPLOADS_DIR_PATH, { recursive: true });
         this.isReady = true;
     }
 

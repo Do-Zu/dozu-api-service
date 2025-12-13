@@ -1,13 +1,21 @@
 import { IBalancedSegment } from '@/types/youtube/youtube.type';
+import { readFile, unlink, writeFile } from 'fs/promises';
+import { UPLOADS_DIR_PATH } from '../../whisper/local/whisper.constant';
 import logger from '@/utils/logger';
+import path from 'path';
 import type { Express } from 'express';
+import { v4 as uuidv4 } from 'uuid';
 import { InternalServerError } from '@/core/error';
-import whisperService from '../whisper/api/whisper.service';
 import transcriptService from '@/services/transcript/transcript.service';
+import whisperService from '../../whisper/local/whisper.service';
+
 class AudioTranscriptionService {
-    public async getTranscriptSegmentsFromAudio(audioFile: Express.Multer.File) {
+    private async _getTranscriptSegmentsFromAudio(audioFile: Express.Multer.File) {
+        const tempInputAudioPath = await this.saveAudioTempFile(audioFile);
+        let tempOutputPath = null;
         try {
-            const rawTranscript = await whisperService.getTranscriptionFromAudioFile(audioFile);
+            tempOutputPath = await whisperService.runWhisperLocal(tempInputAudioPath);
+            const rawTranscript = await readFile(tempOutputPath, 'utf-8');
             const parseResult = this.getTranscriptSegments(rawTranscript);
             if (!parseResult.ok) {
                 throw new Error(parseResult.error);
@@ -21,7 +29,22 @@ class AudioTranscriptionService {
         } catch (err) {
             logger.error('Failed to process transcript', err);
             throw new InternalServerError('Failed to get transcription from audio.');
+        } finally {
+            this.safeUnlink(tempInputAudioPath);
+            this.safeUnlink(tempOutputPath);
         }
+    }
+
+    private async saveAudioTempFile(file: Express.Multer.File) {
+        const ext = path.extname(file.originalname).toLowerCase();
+        const pathToSave = path.join(UPLOADS_DIR_PATH, `${uuidv4()}${ext}`);
+        await writeFile(pathToSave, file.buffer);
+        return pathToSave;
+    }
+
+    private async safeUnlink(path: string | null) {
+        if (!path) return;
+        await unlink(path).catch(() => {});
     }
 
     private getTranscriptSegments(
