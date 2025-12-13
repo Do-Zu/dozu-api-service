@@ -7,43 +7,19 @@ import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 export class StreakController {
   constructor() {}
 
-  // GET /api/gamification/streak?classId=xxx
-  getUserStreak = async (req: Request, res: Response): Promise<void> => {
-    try {
-      const userId = getUserIdFromRequest(req);
-      const classId = req.query.classId ? parseInt(req.query.classId as string) : undefined;
-
-      if (!classId || isNaN(classId)) {
-        throw new BadRequest('classId query parameter is required and must be a valid number');
-      }
-
-      let streak = await streakService.getClassStreak(userId, classId);
-      
-      // If streak doesn't exist, initialize it
-      if (!streak) {
-        streak = await streakService.initializeClassStreak(userId, classId);
-      }
-      
-      SuccessResponse.ok(res, streak, 'User streak retrieved successfully');
-    } catch (error) {
-      if (error instanceof BadRequest) {
-        throw error;
-      } else if (error instanceof Error) {
-        throw new DatabaseError(error.message);
-      } else {
-        throw new DatabaseError('Failed to get user streak');
-      }
-    }
-  };
-
   // GET /api/gamification/streak/stats?classId=xxx
   getStreakStats = async (req: Request, res: Response): Promise<void> => {
     try {
       const userId = getUserIdFromRequest(req);
-      const classId = req.query.classId ? parseInt(req.query.classId as string) : undefined;
+      const classIdParam = req.query.classId as string | undefined;
 
-      if (!classId || isNaN(classId)) {
-        throw new BadRequest('classId query parameter is required and must be a valid number');
+      if (!classIdParam) {
+        throw new BadRequest('classId query parameter is required');
+      }
+
+      const classId = parseInt(classIdParam, 10);
+      if (isNaN(classId) || classId <= 0) {
+        throw new BadRequest('classId query parameter must be a valid positive number');
       }
 
       const stats = await streakService.getClassStreakStats(userId, classId);
