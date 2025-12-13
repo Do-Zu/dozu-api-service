@@ -17,7 +17,7 @@ class TranscriptService {
             if (arrayOfText.length === 0) startTime = segment.startTime;
             endTime = segment.endTime;
             if (!segment.text) continue;
-            const cleanedText = segment.text.replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\s+/g, ' ');
+            const cleanedText = segment.text.replaceAll(/[\u200B-\u200D\uFEFF]/g, '').replaceAll(/\s+/g, ' ');
             arrayOfText.push(cleanedText);
             currentLength += cleanedText.length;
             if (currentLength > Math.max(maxSegmentLength, minSegmentLength)) {
