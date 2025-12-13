@@ -14,10 +14,11 @@ class TranscriptService {
             arrayOfText: string[] = [],
             currentLength = 0;
         for (const segment of initialSegments) {
-            if (arrayOfText.length === 0) startTime = segment.startTime;
-            endTime = segment.endTime;
             if (!segment.text) continue;
             const cleanedText = segment.text.replaceAll(/[\u200B-\u200D\uFEFF]/g, '').replaceAll(/\s+/g, ' ');
+            if (!cleanedText) continue;
+            if (arrayOfText.length === 0) startTime = segment.startTime;
+            endTime = segment.endTime;
             arrayOfText.push(cleanedText);
             currentLength += cleanedText.length;
             if (currentLength > Math.max(maxSegmentLength, minSegmentLength)) {
