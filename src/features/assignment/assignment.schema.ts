@@ -9,7 +9,19 @@ export const insertAssignmentSchema = z.object({
     deadline: z
         .union([z.null(), z.coerce.date()])
         .optional()
-        .refine(d => d === null || d === undefined || !isNaN(d.getTime()), { message: 'Invalid deadline' }),
+        .refine(
+            d => {
+                if (d === null || d === undefined) return true;
+                if (isNaN(d.getTime())) return false;
+                // Check if deadline is not in the past
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const deadlineDate = new Date(d);
+                deadlineDate.setHours(0, 0, 0, 0);
+                return deadlineDate >= today;
+            },
+            { message: 'Deadline cannot be in the past' }
+        ),
     totalGrades: z.union([z.number(), z.undefined()]).optional(),
     status: z
         .union([z.literal('draft'), z.literal('scheduled'), z.literal('published'), z.literal('closed'), z.undefined()])
@@ -26,7 +38,19 @@ export const updateAssignmentSchema = z.object({
     deadline: z
         .union([z.null(), z.coerce.date()])
         .optional()
-        .refine(d => d === null || d === undefined || !isNaN(d.getTime()), { message: 'Invalid deadline' }),
+        .refine(
+            d => {
+                if (d === null || d === undefined) return true;
+                if (isNaN(d.getTime())) return false;
+                // Check if deadline is not in the past
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const deadlineDate = new Date(d);
+                deadlineDate.setHours(0, 0, 0, 0);
+                return deadlineDate >= today;
+            },
+            { message: 'Deadline cannot be in the past' }
+        ),
     totalGrades: z.union([z.number(), z.undefined()]).optional(),
     status: z
         .union([z.literal('draft'), z.literal('scheduled'), z.literal('published'), z.literal('closed'), z.undefined()])
