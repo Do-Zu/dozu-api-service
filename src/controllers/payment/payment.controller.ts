@@ -71,13 +71,15 @@ class PaymentController {
     async handleWebhookPayOS(req: Request, res: Response) {
         const webhookData: WebhookRequest = req.body;
 
+        logger.info(`Webhook data payload: `, webhookData);
+
         if (!webhookData || !webhookData.data || !webhookData.signature) {
             throw new BadRequest('Invalid webhook data');
         }
 
         await payOS.handleWebhook(webhookData);
 
-        logger.info(`Webhook processed successfully for order: ${webhookData.data.orderCode}`);
+        logger.info(`Webhook processed successfully `);
 
         SuccessResponse.ok(res, { success: true });
     }
