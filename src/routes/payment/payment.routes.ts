@@ -9,6 +9,8 @@ const router = express.Router();
 // Apply global async handler
 globalAsyncHandler(router);
 
+router.post('/payos/webhook', paymentController.handleWebhookPayOS);
+
 //
 router.use(authMiddleware);
 
