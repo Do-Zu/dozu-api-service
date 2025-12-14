@@ -236,7 +236,7 @@ export class SubscriptionService {
         return result;
     }
 
-    private async createSubscriptionFreePlan({ userId, timezone }: { userId: number; timezone: string }) {
+    public async createSubscriptionFreePlan({ userId, timezone }: { userId: number; timezone: string }) {
         const freePlan = await planService.getFreePlan();
 
         const resultCreteSubScriptionFreePlan = await this.createSubscription({
@@ -245,7 +245,6 @@ export class SubscriptionService {
             paymentData: {
                 amount: 0,
             },
-
             timeZone: timezone,
         });
 

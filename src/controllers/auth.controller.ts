@@ -11,7 +11,8 @@ import {
 } from '@/services/auth.service';
 
 import { AuthenticationError, BadRequest } from '@/core/error';
-const frontEndBaseUrl = process.env.FRONTEND_BASE_URL;
+import { getTimezoneClient } from '@/utils/date';
+import { safeDestructure } from '@/utils/common';
 
 export const testingAuthPath = async (req: Request, res: Response) => {
     // const data = await handleServiceDemo(req.body);
@@ -44,16 +45,26 @@ export const loginController = async (req: Request, res: Response) => {
 };
 
 export const registerUserController = async (req: Request, res: Response) => {
-    if (!req.body.username || !req.body.password || !req.body.email) {
+    const { username, email, password, role } = safeDestructure(req.body);
+
+    if (!username || !password || !email) {
         throw new BadRequest('Username, password and email are required');
     }
-    
+
     // Validate role if provided
-    if (req.body.role && req.body.role !== 'user' && req.body.role !== 'teacher') {
+    if (role && role !== 'user' && role !== 'teacher') {
         throw new BadRequest('Invalid role. Must be either "user" or "teacher"');
     }
 
-    const data = await registerUserService(req.body.username, req.body.password, req.body.email, req.body.role);
+    const timezone = getTimezoneClient(req);
+
+    const data = await registerUserService({
+        username,
+        email,
+        password,
+        role,
+        timezone,
+    });
 
     if (!data.success) {
         res.status(409).json({
@@ -70,11 +81,6 @@ export const registerUserController = async (req: Request, res: Response) => {
     //     sameSite: 'none',
     // });
 
-    const returnData = {
-        // ...data.user,
-        // isNewUser: true, //technically business logic, can move to service
-        // accessToken: data.accessToken,
-    };
     SuccessResponse.created(res, {
         message: 'Registration successful. Please check your email to verify your account.',
     });
@@ -148,9 +154,11 @@ export const googleOAuthRedirectController = async (req: Request, res: Response)
         throw new AuthenticationError('Google authentication failed');
     }
 
+    const timezone = getTimezoneClient(req);
+
     // const data = await getOAuthJwtTokenService(code);
     // const decoded = decodeJwtToken(data);
-    const data = await googleOAuthLoginService(code);
+    const data = await googleOAuthLoginService(code, timezone);
 
     if (data.success) {
         res.cookie('refreshToken', data.refreshToken, {
