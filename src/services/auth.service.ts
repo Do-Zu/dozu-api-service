@@ -1,9 +1,10 @@
-import { InternalServerError } from '@/core/error';
+import { DatabaseError, InternalServerError } from '@/core/error';
 import { getOAuthToken } from '@/libs/googleOAuth2Client';
 import { sendChangePasswordLinkEmail, sendVerificationLinkEmail } from '@/libs/nodeMailerTransporter.lib';
 import { InsertAuthAccount } from '@/models';
 import { InsertChangePasswordRequest, SelectChangePasswordRequest } from '@/models/auth/changePasswordRequest.model';
 import { InsertUser, SelectUser } from '@/models/user.model';
+import subscriptionService from './subscription/subscription.service';
 import ProfileRepository from '@/repositories/profile/profile.repo';
 import {
     addRole,
@@ -38,6 +39,7 @@ import { hashPassword, verifyPassword } from '@/utils/auth/hash.utils';
 import { decodeJwtToken, signAccessJwtToken, signRefreshJwtToken } from '@/utils/auth/jwt.utils';
 import logger from '@/utils/logger';
 import jwt from 'jsonwebtoken';
+import { isEmpty, safeDestructure } from '@/utils/common';
 
 const SECRET = process.env.JWT_SECRET;
 
@@ -154,26 +156,48 @@ export const addRoleTeacherForAccount = async (userId: number) => {
     await addRole(teacherRoleId, userId);
 };
 
-export const registerUserService = async (
-    username: string,
-    password: string,
-    email: string,
-    role: string = 'user'
-): Promise<LoginResult> => {
-    const passwordHash = await hashPassword(password);
+export const registerUserService = async (payload: {
+    username: string;
+    password: string;
+    email: string;
+    role: string;
+    timezone: string;
+}): Promise<LoginResult> => {
+    const { username, role = 'user', password, email, timezone } = payload;
 
     const checkExistingUser = await selectOneUserByEmailOrUsername({ username: username, email: email });
+
     if (checkExistingUser) {
         return { success: false, reason: 'Username or email already in use' };
     }
 
+    const passwordHash = await hashPassword(password);
+
     const newUserData = await insertUser(username, passwordHash, email);
+
+    if (isEmpty(newUserData)) {
+        throw new DatabaseError('Register user fail!');
+    }
+
     const verificationCodeData = await insertVerificationCode(newUserData);
+
     await sendVerificationLinkEmail(newUserData.email, verificationCodeData.verificationCode as string);
 
     await addRoleUserForAccount(newUserData.userId);
+
     if (role === 'teacher') {
         await addRoleTeacherForAccount(newUserData.userId);
+    }
+
+    const { userId } = safeDestructure(newUserData);
+
+    try {
+        await subscriptionService.createSubscriptionFreePlan({
+            userId,
+            timezone,
+        });
+    } catch (error) {
+        logger.error('Fail to new subscription for new user already register', error);
     }
 
     const returnUserData = await getLoginData(newUserData.userId);
@@ -218,7 +242,7 @@ export const getOAuthJwtTokenService = async (code: string) => {
     return result;
 };
 
-export const googleOAuthLoginService = async (code: string): Promise<LoginResult> => {
+export const googleOAuthLoginService = async (code: string, timezone: string): Promise<LoginResult> => {
     const googleTokens = await getOAuthJwtTokenService(code);
     const decoded = decodeJwtToken(googleTokens); // contains sub, email, name, etc.
     //add type of decoded
@@ -232,7 +256,7 @@ export const googleOAuthLoginService = async (code: string): Promise<LoginResult
     if (existingAuthAccount) {
         //checks if user exist
         user = await getLoginData(existingAuthAccount.userId);
-        
+
         // Update fullName if it's available in the token and not already set
         if (decoded.name && !user.fullName) {
             const profileRepo = new ProfileRepository();
@@ -284,6 +308,15 @@ export const googleOAuthLoginService = async (code: string): Promise<LoginResult
 
         const accessToken = signAccessJwtToken(sanitizedUser);
         const refreshToken = signRefreshJwtToken(sanitizedUser);
+
+        try {
+            await subscriptionService.createSubscriptionFreePlan({
+                userId: newUserData.userId,
+                timezone,
+            });
+        } catch (error) {
+            logger.error('Fail to new subscription for new user already register', error);
+        }
 
         return { success: true, user: sanitizedUser, accessToken: accessToken, refreshToken: refreshToken };
     }
