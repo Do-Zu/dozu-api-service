@@ -14,10 +14,11 @@ router.use(authMiddleware);
 const validateAudioMiddleware = [audioMiddleware.validateAudioSizeLimit, audioMiddleware.validateAudioMimeType];
 router.post('/', fileUploadSingleMiddleware, ...validateAudioMiddleware, audioTranscriptionController.handleTranscribe);
 
-registerRoute('/v1/audio-transcription', router, {
-    description: 'API for getting transcription of audio file',
+registerRoute('/v1/media-transcription', router, {
+    description:
+        'API for getting transcription of media file. This route is currently using audioTranscription controller (would change in the future, after testing if media transcription is feasible in production).',
     version: 'v1',
     isEnabled: true,
 });
 
-export const audioTranscriptionRoutes = router;
+export const mediaTranscriptionRoutes = router;
