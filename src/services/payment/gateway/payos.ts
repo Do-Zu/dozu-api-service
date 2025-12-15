@@ -12,7 +12,7 @@ import {
     ValidationData,
     WebhookRequest,
 } from '../type';
-import { InternalServerError } from '@/core/error';
+import { Forbidden, InternalServerError } from '@/core/error';
 import logger from '@/utils/logger';
 import { compareIgnoreCapitalization, toNumber } from '@/utils/common';
 import { getCurrentDateInTimeZone, getSystemDate, TIME_ZONE_SYSTEM } from '@/utils/date';
@@ -77,14 +77,14 @@ class PayOSManager extends PaymentBase implements PaymentGateway {
 
             if (!isValidSignature) {
                 logger.error('Invalid webhook signature from PayOS');
-                return false;
+                throw new Forbidden('Invalid signature');
             }
 
             const { orderCode, amount, paymentLinkId } = data;
 
             // Find payment info in Redis using pattern matching
-
             const redisKey = `${this.REDIS_PREFIX}:${orderCode}:${paymentLinkId}`;
+
             // Get payment info from Redis
             const status = success ? PaymentStatus.SUCCESS : PaymentStatus.CANCELLED;
 
@@ -123,17 +123,6 @@ class PayOSManager extends PaymentBase implements PaymentGateway {
                 timestamp: getCurrentDateInTimeZone().toISOString(),
             };
 
-            //TODO: find key to matching webhook data and see
-            // Send SSE event to user
-            // const sseSuccess = sseManager.sendEvent(userId.toString(), {
-            //     type: 'payment_status',
-            //     data: paymentUpdate,
-            // });
-
-            // if (sseSuccess) {
-            //     logger.info(`Payment status sent via SSE to user ${userId}: ${status}`);
-            // }
-
             if (
                 compareIgnoreCapitalization(status, PaymentStatus.SUCCESS) ||
                 compareIgnoreCapitalization(status, PaymentStatus.CANCELLED)
@@ -147,12 +136,10 @@ class PayOSManager extends PaymentBase implements PaymentGateway {
                 return await this.handleSuccessfulPayment(paymentUpdate);
             }
 
-            // Clean up Redis data for completed/cancelled payments
-
             return true;
         } catch (error) {
             logger.error(`Error handling webhook: ${error}`);
-            throw new InternalServerError();
+            throw error;
         }
     }
 
@@ -164,7 +151,6 @@ class PayOSManager extends PaymentBase implements PaymentGateway {
         try {
             const { userId, planId: planIdPayment, paymentId, orderCode } = paymentUpdate;
 
-            //Check current subscription of user
             const subscription = await subscriptionService.getUserActiveSubscription(userId);
 
             if (subscription && subscription?.planId === planIdPayment) {
@@ -227,7 +213,7 @@ class PayOSManager extends PaymentBase implements PaymentGateway {
             return !!response;
         } catch (error) {
             logger.error('Failed to setup webhook:', error);
-            return false;
+            throw error;
         }
     }
 
