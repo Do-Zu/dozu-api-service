@@ -39,7 +39,7 @@ class WhisperService {
             formData.append('response_format', 'srt');
             const response = await axios.post(this.whisperInferenceUrl, formData, {
                 headers: formData.getHeaders(),
-                timeout: 120_000,
+                timeout: 300_000,
             });
             const transcriptWithTimestamps = response.data;
             return transcriptWithTimestamps;
