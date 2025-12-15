@@ -53,7 +53,7 @@ import './comment/comment.routes';
 import './content/content.routes';
 import './embedding/embedding.route';
 import './image/image.routes';
-import './audioTranscription/audioTranscription.routes';
+import './mediaTranscription/mediaTranscription.routes';
 import './convert/convert.routes';
 
 // Apply global async handler to router
