@@ -44,12 +44,31 @@ const DEFAULT_ALLOWED_MIME_TYPES = [
     'application/x-7z-compressed',
     'application/x-tar',
     'application/gzip',
+    // Audio files
+    'audio/mpeg',
+    'audio/wav',
+    // Video files
+    'video/mp4',
 ];
 
 /**
  * Default allowed file extensions
  */
-const DEFAULT_ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.txt', '.md', '.jpeg', '.png', '.jpg'];
+const DEFAULT_ALLOWED_EXTENSIONS = [
+    '.pdf',
+    '.doc',
+    '.docx',
+    '.txt',
+    '.md',
+    '.jpeg',
+    '.png',
+    '.jpg',
+    // Audio files
+    '.mp3',
+    '.wav',
+    // Video files
+    '.mp4',
+];
 
 /**
  * File upload configuration interface

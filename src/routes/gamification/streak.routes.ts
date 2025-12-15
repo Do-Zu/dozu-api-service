@@ -10,9 +10,6 @@ const streakController = new StreakController();
 globalAsyncHandler(router);
 router.use(authMiddleware);
 
-// GET /api/gamification/streak - Get user's current streak
-router.get('/', streakController.getUserStreak);
-
 // GET /api/gamification/streak/stats - Get streak statistics
 router.get('/stats', streakController.getStreakStats);
 

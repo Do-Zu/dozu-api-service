@@ -69,26 +69,19 @@ class PaymentController {
      * Handle webhook from PayOS gateway
      */
     async handleWebhookPayOS(req: Request, res: Response) {
-        try {
-            const webhookData: WebhookRequest = req.body;
+        const webhookData: WebhookRequest = req.body;
 
-            if (!webhookData || !webhookData.data || !webhookData.signature) {
-                throw new BadRequest('Invalid webhook data');
-            }
+        logger.info(`Webhook data payload: `, webhookData);
 
-            const success = await payOS.handleWebhook(webhookData);
-
-            if (success) {
-                logger.info(`Webhook processed successfully for order: ${webhookData.data.orderCode}`);
-                res.status(200).json({ success: true });
-            } else {
-                logger.error(`Failed to process webhook for order: ${webhookData.data.orderCode}`);
-                res.status(400).json({ success: false, message: 'Failed to process webhook' });
-            }
-        } catch (error) {
-            logger.error(`Webhook error: ${error}`);
-            res.status(500).json({ success: false, message: 'Internal server error' });
+        if (!webhookData || !webhookData.data || !webhookData.signature) {
+            throw new BadRequest('Invalid webhook data');
         }
+
+        await payOS.handleWebhook(webhookData);
+
+        logger.info(`Webhook processed successfully `);
+
+        SuccessResponse.ok(res, { success: true });
     }
 
     /**
