@@ -41,7 +41,9 @@
         "docker:build:db:postgres": "docker-compose -f containers/database/postgres/docker-compose.yml build",
         "docker:logs:db:postgres": "docker-compose -f containers/database/postgres/docker-compose.yml logs -f postgres",
         "docker:restart:db:postgres": "docker-compose -f containers/database/postgres/docker-compose.yml restart",
-        "docker:clean:db:postgres": "docker-compose -f containers/database/postgres/docker-compose.yml down -v --remove-orphans"
+        "docker:clean:db:postgres": "docker-compose -f containers/database/postgres/docker-compose.yml down -v --remove-orphans",
+        "docker:whisper:build": "docker build -f containers/whisper/Dockerfile -t whisper-service containers/whisper",
+        "docker:whisper:run": "docker run --rm -p 8624:8624 --name whisper-service whisper-service"
     },
     "engines": {
         "node": ">=20"
