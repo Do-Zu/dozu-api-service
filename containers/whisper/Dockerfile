@@ -38,6 +38,9 @@ FROM debian:12-slim
 
 WORKDIR /app
 
+# Create new user that is not root, avoiding administrator privileges
+RUN useradd -ms /bin/bash whisperuser
+
 # Debian-slim version lacks libgomp1, install it (whisper-server requires libgomp1)
 RUN apt-get update && apt-get install -y \
     libgomp1 \
