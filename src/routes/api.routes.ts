@@ -55,6 +55,7 @@ import './embedding/embedding.route';
 import './image/image.routes';
 import './mediaTranscription/mediaTranscription.routes';
 import './convert/convert.routes';
+import './feedback/feedback.routes';
 
 // Apply global async handler to router
 globalAsyncHandler(router);
