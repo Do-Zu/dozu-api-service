@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import feedbackService, { FeedbackData } from '@/services/feedback/feedback.service';
+import feedbackService from '@/services/feedback/feedback.service';
 import { SuccessResponse } from '@/core/success';
 import { BadRequest, InternalServerError } from '@/core/error';
 import logger from '@/utils/logger';
@@ -39,25 +39,24 @@ class FeedbackController {
                 }
             }
 
-            const feedbackData: FeedbackData = {
+            const result = await feedbackService.submitFeedback({
                 message: message.trim(),
                 userId,
                 userEmail,
                 userName,
                 imageUrl,
-            };
+            });
 
-            const success = await feedbackService.sendFeedback(feedbackData);
-
-            if (success) {
-                SuccessResponse.ok(
-                    res,
-                    { message: 'Feedback đã được gửi thành công. Cảm ơn bạn đã đóng góp!' },
-                    'Feedback sent successfully'
-                );
-            } else {
-                throw new InternalServerError('Failed to send feedback. Please try again later.');
-            }
+            SuccessResponse.ok(
+                res,
+                {
+                    message: 'Feedback đã được gửi thành công. Cảm ơn bạn đã đóng góp!',
+                    feedbackId: result.feedbackId,
+                    notified: result.notified,
+                    score: result.score,
+                },
+                'Feedback received'
+            );
         } catch (error) {
             logger.error('Error submitting feedback:', error);
             if (error instanceof BadRequest) {

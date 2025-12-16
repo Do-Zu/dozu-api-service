@@ -13,11 +13,11 @@ export function getFeedbackEmailTemplate(data: FeedbackEmailData): {
 
   const html = `
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Feedback từ người dùng</title>
+  <title>User Feedback</title>
 </head>
 <body style="margin:0; padding:0; background-color:#f3f4f6;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f3f4f6; padding:24px 0;">
@@ -28,7 +28,7 @@ export function getFeedbackEmailTemplate(data: FeedbackEmailData): {
           <!-- HEADER -->
           <tr>
             <td style="padding:20px 24px; background:linear-gradient(90deg,#22c55e,#16a34a); color:#ffffff;">
-              <h1 style="margin:0; font-size:22px;">📝 Phản hồi từ người dùng</h1>
+              <h1 style="margin:0; font-size:22px;">📝 User Feedback</h1>
               <p style="margin:6px 0 0; font-size:13px; opacity:0.9;">
                 Dozu Learning Platform
               </p>
@@ -41,7 +41,7 @@ export function getFeedbackEmailTemplate(data: FeedbackEmailData): {
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td style="font-size:14px; color:#374151;">
-                    <strong>👤 Người gửi:</strong> ${userInfo}
+                    <strong>👤 Sender:</strong> ${userInfo}
                   </td>
                 </tr>
                 ${userId ? `
@@ -53,8 +53,8 @@ export function getFeedbackEmailTemplate(data: FeedbackEmailData): {
                 ` : ''}
                 <tr>
                   <td style="padding-top:6px; font-size:14px; color:#374151;">
-                    <strong>⏰ Thời gian:</strong>
-                    ${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
+                    <strong>⏰ Time:</strong>
+                    ${new Date().toLocaleString('en-US', { timeZone: 'UTC' })}
                   </td>
                 </tr>
               </table>
@@ -66,7 +66,7 @@ export function getFeedbackEmailTemplate(data: FeedbackEmailData): {
             <td style="padding:0 24px 24px;">
               <div style="background-color:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:16px;">
                 <p style="margin:0 0 8px; font-weight:600; font-size:15px; color:#111827;">
-                  💬 Nội dung phản hồi
+                  💬 Feedback Content
                 </p>
                 <p style="margin:0; font-size:14px; line-height:1.6; color:#374151;">
                   ${message.replace(/\n/g, '<br>')}
@@ -80,7 +80,7 @@ export function getFeedbackEmailTemplate(data: FeedbackEmailData): {
           <tr>
             <td style="padding:0 24px 24px;">
               <p style="margin:0 0 8px; font-weight:600; font-size:14px; color:#111827;">
-                🖼 Hình ảnh đính kèm
+                🖼 Attached Image
               </p>
               <img
                 src="${imageUrl}"
@@ -95,7 +95,7 @@ export function getFeedbackEmailTemplate(data: FeedbackEmailData): {
           <tr>
             <td style="padding:16px 24px; background-color:#f9fafb; text-align:center;">
               <p style="margin:0; font-size:12px; color:#6b7280;">
-                Email này được gửi tự động từ hệ thống <strong>Dozu Learning Platform</strong>
+                This email was automatically sent from the <strong>Dozu Learning Platform</strong> system
               </p>
             </td>
           </tr>
@@ -109,18 +109,18 @@ export function getFeedbackEmailTemplate(data: FeedbackEmailData): {
   `.trim();
 
   const text = `
-📝 PHẢN HỒI TỪ NGƯỜI DÙNG
+📝 USER FEEDBACK
 
-Người gửi: ${userInfo}
-${userId ? `User ID: ${userId}\n` : ''}Thời gian: ${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
+Sender: ${userInfo}
+${userId ? `User ID: ${userId}\n` : ''}Time: ${new Date().toLocaleString('en-US', { timeZone: 'UTC' })}
 
-NỘI DUNG PHẢN HỒI:
+FEEDBACK CONTENT:
 ${message}
 
-${imageUrl ? `\nHình ảnh đính kèm: ${imageUrl}\n` : ''}
+${imageUrl ? `\nAttached Image: ${imageUrl}\n` : ''}
 
 ---
-Email này được gửi tự động từ hệ thống Dozu Learning Platform
+This email was automatically sent from the Dozu Learning Platform system
   `.trim();
 
   return { html, text };
