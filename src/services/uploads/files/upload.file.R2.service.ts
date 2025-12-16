@@ -11,6 +11,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Readable } from 'stream';
 import { insertInputSet } from '@/repositories/inputSet.repo';
 import { CONTENT_TYPE_INPUT_SET } from '@/types/inputSet/inputSet.type';
+import { ALLOWED_MEDIA_EXT, ALLOWED_MEDIA_MIME_TYPES } from '@/utils/file/file.constant';
 
 /**
  * Default allowed MIME types for file uploads
@@ -44,31 +45,14 @@ const DEFAULT_ALLOWED_MIME_TYPES = [
     'application/x-7z-compressed',
     'application/x-tar',
     'application/gzip',
-    // Audio files
-    'audio/mpeg',
-    'audio/wav',
-    // Video files
-    'video/mp4',
-];
+].concat(ALLOWED_MEDIA_MIME_TYPES);
 
 /**
  * Default allowed file extensions
  */
-const DEFAULT_ALLOWED_EXTENSIONS = [
-    '.pdf',
-    '.doc',
-    '.docx',
-    '.txt',
-    '.md',
-    '.jpeg',
-    '.png',
-    '.jpg',
-    // Audio files
-    '.mp3',
-    '.wav',
-    // Video files
-    '.mp4',
-];
+const DEFAULT_ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.txt', '.md', '.jpeg', '.png', '.jpg'].concat(
+    ALLOWED_MEDIA_EXT
+);
 
 /**
  * File upload configuration interface
