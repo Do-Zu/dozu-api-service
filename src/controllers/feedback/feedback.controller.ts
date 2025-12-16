@@ -3,7 +3,7 @@ import feedbackService, { FeedbackData } from '@/services/feedback/feedback.serv
 import { SuccessResponse } from '@/core/success';
 import { BadRequest, InternalServerError } from '@/core/error';
 import logger from '@/utils/logger';
-import { uploadFileService } from '@/services/uploads/files/upload.file.service';
+import { uploadFileServiceOnR2 } from '@/services/uploads/files/upload.file.R2.service';
 
 /**
  * Controller class for Feedback functionality
@@ -26,16 +26,15 @@ class FeedbackController {
             let imageUrl: string | undefined;
 
             // Handle image upload if provided
-            // Note: fileUploadSingleMiddleware uses field name 'file'
+            // Note: fileUploadSingleMiddleware uses field name 'file' and stores in memory
             if (req.file) {
                 try {
-                    const uploadResult = await uploadFileService.processSingleFile(req.file);
-                    // Get the file path or URL from the result
-                    imageUrl = uploadResult.filePath || uploadResult.fileName;
-                    // If using cloud storage, you might need to construct the full URL
-                    // imageUrl = `${process.env.CLOUD_STORAGE_BASE_URL}/${uploadResult.filePath}`;
+                    // Upload file to R2 and get download URL
+                    const uploadResult = await uploadFileServiceOnR2.uploadFileFromBuffer(req.file);
+                    imageUrl = uploadResult.downloadUrl;
+                    logger.info(`Feedback image uploaded to R2: ${uploadResult.fileKey}`);
                 } catch (uploadError) {
-                    logger.warn('Failed to upload feedback image:', uploadError);
+                    logger.warn('Failed to upload feedback image to R2:', uploadError);
                     // Continue without image if upload fails
                 }
             }
