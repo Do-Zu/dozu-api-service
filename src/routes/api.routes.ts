@@ -25,6 +25,7 @@ import './admin/llmModel.routes';
 import './admin/llmProvider.routes';
 import './admin/llmApiKey.routes';
 import './admin/llmApiKeyModel.routes';
+import './admin/feedback.routes';
 import './progress/progress.routes';
 import './class-based-learning/class.routes';
 import './tracking/tracking.routes';

@@ -124,3 +124,6 @@ export * from '@/models/comment/comment.model';
 
 // notes
 export * from '@/models/note/note.model';
+
+// feedback
+export * from '@/models/feedback/feedback.model';
