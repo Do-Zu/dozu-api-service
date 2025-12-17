@@ -422,6 +422,45 @@ export class UploadFileService {
             throw new DatabaseError('Failed to complete single file upload');
         }
     }
+
+    /**
+     * Upload file from multer buffer to R2
+     * @param file - Multer file object with buffer
+     * @returns File key and download URL
+     */
+    public async uploadFileFromBuffer(file: Express.Multer.File): Promise<{ fileKey: string; downloadUrl: string }> {
+        try {
+            if (!file.buffer) {
+                throw new BadRequest('File buffer is required');
+            }
+
+            const fileId = uuidv4();
+            const fileKey = `${fileId}:${file.originalname}`;
+
+            // Upload file to R2
+            const command = new PutObjectCommand({
+                Bucket: this.BUCKET_NAME,
+                Key: fileKey,
+                Body: file.buffer,
+                ContentType: file.mimetype,
+            });
+
+            await this.R2Client.send(command);
+
+            logger.info(`File uploaded to R2 successfully: ${file.originalname} (${(file.size / 1024).toFixed(2)}KB)`);
+
+            // Generate download presigned URL (valid for 7 days for feedback images)
+            const downloadUrlResult = await this.generateDownloadPresignedUrl(fileKey, 7 * 24 * 60); // 7 days
+
+            return {
+                fileKey,
+                downloadUrl: downloadUrlResult.downloadUrl,
+            };
+        } catch (error) {
+            logger.error(`Error uploading file to R2: ${error instanceof Error ? error.message : String(error)}`);
+            throw new InternalServerError('Failed to upload file to R2 storage');
+        }
+    }
 }
 
 // Export singleton instance
