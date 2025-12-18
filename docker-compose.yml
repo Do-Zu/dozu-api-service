@@ -94,7 +94,7 @@ services:
             start_period: 15s
 
     redis:
-        container_name: duzo-redis-memcache
+        container_name: dozu-redis-memcache
         image: redis:8.4.0-alpine
         restart: always
         ports:
