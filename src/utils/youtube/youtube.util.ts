@@ -15,7 +15,7 @@ const YT_REGEXES: RegExp[] = [
     /[?&]v=([A-Za-z0-9_-]{11})/i,
 ];
 
-export const extractYoutubeVideoId = (input?: string | null): string => {
+export const extractYoutubeVideoId = (input?: string | null): string | null => {
     if (!input) throw new BadRequest('A YouTube videoId or url is required');
 
     const trimmed = input.trim();
@@ -28,7 +28,7 @@ export const extractYoutubeVideoId = (input?: string | null): string => {
         if (match && match[1]) return match[1];
     }
 
-    throw new BadRequest('Unable to extract YouTube videoId from provided url');
+    return null;
 };
 
 export const calculateAttributeEmbedding = (params: { duration: number; wordCount: number; lengthContent: number }) => {
