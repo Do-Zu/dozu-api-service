@@ -25,6 +25,7 @@ import './admin/llmModel.routes';
 import './admin/llmProvider.routes';
 import './admin/llmApiKey.routes';
 import './admin/llmApiKeyModel.routes';
+import './admin/feedback.routes';
 import './progress/progress.routes';
 import './class-based-learning/class.routes';
 import './tracking/tracking.routes';
@@ -55,6 +56,8 @@ import './embedding/embedding.route';
 import './image/image.routes';
 import './mediaTranscription/mediaTranscription.routes';
 import './convert/convert.routes';
+import './feedback/feedback.routes';
+import './youtube/youtube.routes';
 
 // Apply global async handler to router
 globalAsyncHandler(router);

@@ -6,17 +6,14 @@ import { youtubeContentController } from '@/controllers/content/youtube/youtube.
 
 const router = express.Router();
 
-// Apply global async handler
 globalAsyncHandler(router);
 
 router.use(authMiddleware);
 
-// Define routes
-router.get('/youtube/transcript', youtubeContentController.getTranscript);
+router.get('/v3/transcript', youtubeContentController.getTranscript);
 
-// Register the router
-registerRoute('/content', router, {
-    description: 'Content API endpoints',
+registerRoute('/youtube', router, {
+    description: 'Youtube content API endpoints',
     version: 'v1',
     isEnabled: true,
 });

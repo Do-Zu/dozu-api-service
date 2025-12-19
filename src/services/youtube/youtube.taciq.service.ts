@@ -1,0 +1,55 @@
+import axios from 'axios';
+import { safeDestructure, toNumber } from '@/utils/common';
+
+class YoutubeTacIqService {
+    private readonly API_BASE = 'https://tactiq-apps-prod.tactiq.io/transcript';
+    private readonly TIME_OUT = 30000;
+    private readonly HEADER_CONFIG = {
+        'Content-Type': 'application/json',
+    };
+
+    public async getTranscriptSegment({ url, lang }: { url: string; lang?: string }) {
+        const { data } = await axios.post<{
+            title: string;
+            captions: { dur: string; start: string; text: string }[];
+        }>(
+            this.API_BASE,
+            {
+                videoUrl: url,
+                lang,
+            },
+            {
+                timeout: this.TIME_OUT,
+                headers: this.HEADER_CONFIG,
+            }
+        );
+
+        const { captions, title } = safeDestructure(data, {
+            captions: [],
+        });
+
+        const segments = captions?.map(item => {
+            const start = toNumber(item?.start, 0);
+            const duration = toNumber(item?.dur, 0);
+            const end = start + duration;
+
+            return {
+                text: item?.text,
+                startMs: start * 1000,
+                endMs: end * 1000,
+                startSecond: start,
+                endSecond: end,
+                duration,
+            };
+        });
+
+        return {
+            segments,
+            metadata: {
+                title,
+            },
+        };
+    }
+}
+
+export const youtubeTacIqService = new YoutubeTacIqService();
