@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { IItemSpacedRepetition } from '../tracking/itemSpacedRepetitionTracking.type';
 import { IItemStatus } from '@/models';
-import { IAnkiRating } from '@/services/spaced-repetition-system/super-memo-2/anki.service';
+import { IAnkiRating, INextReviewInterval } from '@/services/spaced-repetition-system/super-memo-2/anki.service';
 
 export const ZFlashcardAdded = z.object({
     front: z.string(),
@@ -94,6 +94,7 @@ export type IDueAnkiCard = Pick<IFlashcard, 'flashcardId' | 'front' | 'back' | '
 export type IAnkiCardReviewed = Pick<IFlashcard, 'flashcardId'> & {
     learningState: IFlashcardLearningState;
     nextReview: string;
+    nextReviewInterval: INextReviewInterval;
     status: IItemStatus;
     rating: IAnkiRating;
 };
