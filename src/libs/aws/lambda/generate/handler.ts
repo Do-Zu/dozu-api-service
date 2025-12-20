@@ -4,7 +4,7 @@ import { decompressContent } from '../../../../utils/compress';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 import OpenAI, { APIError } from 'openai';
-import { IGenerateOptions } from '@/dtos/generate/models/GenerateContentRequestInterface';
+import { IConfigParamLLM, IGenerateOptions } from '@/dtos/generate/models/GenerateContentRequestInterface';
 import { HTTP_STATUS, HttpStatusCode } from '../../../../constants/index.constant';
 import { getSystemDate } from '@/utils/date';
 import { isNilOrEmpty } from '@/utils/common';
@@ -76,12 +76,7 @@ export const handler = async (event: any) => {
         console.log({ event });
 
         if (!event || !event.data) {
-            return {
-                statusCode: 400,
-                body: JSON.stringify({
-                    message: 'Missing event data structure',
-                }),
-            };
+            throw new AppError('Missing event data structure', HTTP_STATUS.BAD_REQUEST);
         }
 
         const {
@@ -96,21 +91,11 @@ export const handler = async (event: any) => {
             providerBaseUrl,
             isRawText = false,
             isAsync = true,
+            config,
         } = event.data;
 
         if (!jobId || !content || !queue_name || !type || !model || !apiKey || !providerBaseUrl) {
-            return {
-                statusCode: 400,
-                body: JSON.stringify({
-                    message: 'Missing required parameters',
-                    details: {
-                        jobId: !jobId ? 'missing' : 'ok',
-                        content: content === undefined ? 'missing' : 'ok',
-                        queue_name: !queue_name ? 'missing' : 'ok',
-                        type: !type ? 'missing' : 'ok',
-                    },
-                }),
-            };
+            throw new AppError('Missing required parameters', HTTP_STATUS.BAD_REQUEST);
         }
 
         console.log({ model });
@@ -119,14 +104,22 @@ export const handler = async (event: any) => {
 
         console.log({
             jobId,
-            content,
             queue_name,
             type,
             job_name,
+            config,
         });
 
         //generate content
-        const result = await generateContent(contentDecompressed, type, apiKey, providerBaseUrl, model, options);
+        const result = await generateContent(
+            contentDecompressed,
+            type,
+            apiKey,
+            providerBaseUrl,
+            model,
+            options,
+            config
+        );
 
         let job;
 
@@ -239,6 +232,7 @@ async function generateContent(
     apiKey: string,
     baseURL: string,
     model: string,
+    config: IConfigParamLLM,
     options?: IGenerateOptions
 ) {
     console.log(`Starting content generation with type: ${type}`);
@@ -276,8 +270,8 @@ async function generateContent(
             model,
             messages: messages,
             stream: false,
-            temperature: 0.5,
-            max_tokens: 120000,
+            temperature: config.temperature,
+            max_tokens: config.max_tokens,
             response_format: {
                 type: 'json_object',
             },
