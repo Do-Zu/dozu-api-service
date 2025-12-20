@@ -15,9 +15,9 @@ export type IPrivateAnkiCard = Omit<IAnkiCard, 'lastReviewed'> & {
  * Main implementation for anki scheduling logic
  */
 class AnkiScheduler implements AnkiSchedulerInterface {
-    private learningStageHandler;
-    private reviewStageHandler;
-    private relearningStageHandler;
+    private readonly learningStageHandler;
+    private readonly reviewStageHandler;
+    private readonly relearningStageHandler;
 
     /**
      *

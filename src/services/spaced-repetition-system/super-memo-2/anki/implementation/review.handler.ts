@@ -13,7 +13,7 @@ import { TimeUnit } from '@/utils/date';
 import { INVALID_RATING_MESSAGE } from '../constants/anki.constant';
 
 export default class ReviewStageHandler {
-    private fuzzHandler;
+    private readonly fuzzHandler;
     constructor(private readonly ankiSetting: IAnkiSetting) {
         this.fuzzHandler = new Fuzz(ankiSetting);
     }
