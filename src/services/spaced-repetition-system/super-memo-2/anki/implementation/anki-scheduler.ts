@@ -37,9 +37,6 @@ class AnkiScheduler implements AnkiSchedulerInterface {
     schedule(card: IAnkiCard, rating: IAnkiRating): IAnkiResult {
         // copy card object, update lastReviewed
         card = { ...card, lastReviewed: getSystemDate() };
-        if (card.lastReviewed === null) {
-            throw new Error('lastReviewed is NULL');
-        }
 
         if (card.status === IAnkiStatus.NEW) {
             card.status = IAnkiStatus.LEARNING;

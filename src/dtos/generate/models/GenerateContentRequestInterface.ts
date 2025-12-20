@@ -1,6 +1,9 @@
 /* generated using openapi-typescript-codegen -- do not edit */
 /* istanbul ignore file */
 /* tslint:disable */
+
+import { IColorTheme, IMindmapType } from "@/types/mindmap/mindmap.type";
+
 /* eslint-disable */
 export type GenerateContentRequestInterface = {
     /**
@@ -30,6 +33,7 @@ export type GenerateContentRequestInterface = {
 export interface IGenerateOptions {
     commonGenerateOptions?: ICommonGenerateOptions;
     nodesData?: NodesData;
+    mindmapGenerateOptions?: IMindmapGenerateOptions;
 }
 
 export interface ICommonGenerateOptions {
@@ -46,3 +50,9 @@ export type NodesData = {
     startSection: string;
     endSection: string;
 }[];
+
+export interface IMindmapGenerateOptions {
+    type?: IMindmapType;
+    colorTheme?: IColorTheme | null;
+    instruction?: string;
+}
