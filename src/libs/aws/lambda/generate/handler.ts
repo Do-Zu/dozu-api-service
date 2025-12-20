@@ -94,7 +94,7 @@ export const handler = async (event: any) => {
             config,
         } = event.data;
 
-        if (!jobId || !content || !queue_name || !type || !model || !apiKey || !providerBaseUrl) {
+        if (!jobId || !content || !queue_name || !type || !model || !apiKey || !providerBaseUrl || !config) {
             throw new AppError('Missing required parameters', HTTP_STATUS.BAD_REQUEST);
         }
 
@@ -117,8 +117,8 @@ export const handler = async (event: any) => {
             apiKey,
             providerBaseUrl,
             model,
-            options,
-            config
+            config,
+            options
         );
 
         let job;
@@ -272,6 +272,7 @@ async function generateContent(
             stream: false,
             temperature: config.temperature,
             max_tokens: config.max_tokens,
+            top_p: config.top_p,
             response_format: {
                 type: 'json_object',
             },
