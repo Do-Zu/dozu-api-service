@@ -32,7 +32,7 @@ const generatePromptText = (content: string, type: TYPE_PROMPT, options?: IGener
         case 'QUIZ':
             return createQuizPrompt(content, options?.commonGenerateOptions);
         case 'MIND_MAP':
-            return createCustomMindmapPrompt(content);
+            return createCustomMindmapPrompt(content, undefined, options?.mindmapGenerateOptions ?? {});
         case 'FEYNMAN_QUESTION':
             return createFeynmanPromptGenerateQuestion(content);
         case 'FEYNMAN_REVIEW':

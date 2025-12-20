@@ -24,6 +24,7 @@ import AnkiService, {
 } from '@/services/spaced-repetition-system/super-memo-2/anki.service';
 import ankiSettingService from '@/services/anki-setting/ankiSetting.service';
 import topicRepo from '@/repositories/topic.repo';
+import AnkiScheduler from '@/services/spaced-repetition-system/super-memo-2/anki/implementation/anki-scheduler';
 class FlashcardController {
     constructor() {}
 
@@ -137,7 +138,8 @@ class FlashcardController {
         };
 
         const ankiSetting = await ankiSettingService.getSettingForTopicAndUser(topicId, userId);
-        const ankiService = new AnkiService(ankiSetting);
+        const ankiScheduler = new AnkiScheduler(ankiSetting);
+        const ankiService = new AnkiService(ankiScheduler);
         const ankiResult = ankiService.schedule(ankiCard, rating);
 
         const sm2Info: IFlashcardLearningState = {
@@ -170,21 +172,14 @@ class FlashcardController {
             console.error('Failed to award flashcard review points:', error);
         }
 
-        let result: IAnkiCardReviewed | null;
-        if (
-            ankiResult.nextReviewInterval.timeUnit === TimeUnit.MINUTE &&
-            ankiResult.nextReviewInterval.interval <= learnAheadLimit
-        ) {
-            result = {
-                flashcardId,
-                nextReview: sm2Info.nextReview,
-                status: sm2Info.status,
-                learningState: sm2Info,
-                rating,
-            };
-        } else {
-            result = null;
-        }
+        const result: IAnkiCardReviewed = {
+            flashcardId,
+            nextReview: sm2Info.nextReview,
+            nextReviewInterval: ankiResult.nextReviewInterval,
+            status: sm2Info.status,
+            learningState: sm2Info,
+            rating,
+        };
 
         SuccessResponse.ok(res, result);
     }

@@ -1,3 +1,10 @@
+import { IMindmapGenerateOptions } from '@/dtos/generate/models/GenerateContentRequestInterface';
+
+const DEFAULT_COLOR_THEME = {
+    name: 'Default',
+    colors: ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#6b7280'],
+};
+
 /**
  * Create a specialized prompt for mindmap generation
  */
@@ -28,7 +35,7 @@ function createCustomMindmapPrompt(
         pageInfo?: { start: number; end: number; total: number };
         isLargeDocument?: boolean;
         customInstructions?: string;
-    } = {}
+    } & IMindmapGenerateOptions = {}
 ): string {
     return buildMindmapPromptTemplate(content, fileName, promptConfig);
 }
@@ -109,34 +116,30 @@ function buildMindmapPromptTemplate(
         pageInfo?: { start: number; end: number; total: number };
         isLargeDocument?: boolean;
         customInstructions?: string;
-    } = {}
+    } & IMindmapGenerateOptions = {}
 ): string {
-    const {
-        maxCategories = '30',
-        maxSubtopics = '20',
-        maxLabelWords = '10',
-        //contentTruncateLength = 8000,
-        isLargeDocument = false,
-        customInstructions,
-    } = options;
-
-    // const pageText = pageInfo ? ` (Pages ${pageInfo.start}-${pageInfo.end} of ${pageInfo.total})` : '';
-
-    const documentType = isLargeDocument ? 'comprehensive educational' : 'educational';
-    const categoryCount = isLargeDocument ? '5-8' : maxCategories;
-    const subtopicCount = isLargeDocument ? '3-5' : maxSubtopics;
-    const labelWords = isLargeDocument ? '3-6' : maxLabelWords;
-
-    // const truncatedContent = content.substring(0, contentTruncateLength);
-    // const contentSuffix =
-    //     content.length > contentTruncateLength
-    //         ? isLargeDocument
-    //             ? '...(content continues - this is a section of a larger document)'
-    //             : '...(content truncated)'
-    //         : '';
+    const type = options.type ?? 'abstract';
+    const instruction = options.instruction ?? '';
+    const colorTheme = options.colorTheme ?? DEFAULT_COLOR_THEME;
 
     return `
-You are an expert at creating ${documentType} mind map from ${isLargeDocument ? 'large ' : ''}documents. Analyze the following content  and create a ${isLargeDocument ? 'detailed' : 'comprehensive'} mindmap structure${isLargeDocument ? ' that captures the main themes and relationships' : ''}.
+An abstract mindmap is a high-level conceptual representation of the content.
+Characteristics:
+- Focus on core ideas, key themes, and major relationships.
+- Use 2-3 depth levels only.
+- Each level should contain a limited number of nodes (fewer than a detailed mindmap), depending on the document's complexity.
+- Node description must be an empty string.
+- Prioritize clarity, structure, and overview.
+
+A detailed mindmap is a clear and well-structured expansion of the content.
+Characteristics:
+- Cover main ideas and their key supporting points.
+- Use a slightly deeper structure than an abstract mindmap (usually 3-5 levels).
+- Each level can contain more nodes than abstract, but should remain readable and organized.
+- Node descriptions may include brief explanations or important sub-points, without going into excessive detail.
+- Focus on clarity, logical flow, and practical understanding.
+
+You are an expert at creating ${type} mind map from. Analyze the following content and create a ${type} mindmap.
 
 IMPORTANT: Return your response as valid JSON that matches this exact structure:
 {
@@ -146,9 +149,7 @@ IMPORTANT: Return your response as valid JSON that matches this exact structure:
       "position": {"x": number, "y": number},
       "data": {
         "label": "Main Topic or Subtopic",
-        "description":"Summary of the content related to this node",
-        "pageStartIndex": "Page start index belonging to this node",
-        "pageEndIndex": "Page end index belonging to this node",
+        "description":"Summary of the content related to this node or empty string if is abstract mindmap type",
         "isRoot": true,
         "color":"#ef4444",
         "roadmapOrder":0
@@ -167,30 +168,29 @@ IMPORTANT: Return your response as valid JSON that matches this exact structure:
   ]
 }
 
-IMPORTANT: pageStartIndex and pageEndIndex never exceed total page provider by content.
-
-Guidelines${isLargeDocument ? ' for large document mindmaps' : ''}:
-1. Create a central main topic node, only this main topic node will have the isRoot property inside data as true, all other nodes will have isRoot:false
-2. Add maximum ${categoryCount} main category nodes connected to the central topic
-3. Add maximum ${subtopicCount} subtopic nodes for each main category
-4. Neither nodes nor edges should ever be empty, ALWAYS INCLUDE BOTH NODES AND EDGES IN RESPONSE
-5. Ensure all node IDs are unique
-${'6. Use clear, descriptive labels (' + labelWords + ' words per node)'}
-7. Ensure comprehensive coverage of the provided content, 
-8. Connect nodes with edges, do not create loop and all nodes must be connected
-9. Response must follow the language of the content
-10. Each node must have a comprehensive summary of the related content including the overall themes and the major ideas covered, stored in the description property of data.
-11. Color may be assigned to each node as one of the following strings ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#a855f7', '#6b7280'] to the property color inside node data, the provided structure has included a color as an example but root node shouldn't have color, the branches from it can have a unifying color to distinguish themselves
-12. Color may be assigned to each edge, in this case, if the target node is colored, the edge should be the same color, the color is specified as property color inside edge data, , the provided structure has included a color as an example 
-13. If there are only a few branches, use distinct colors (for example, avoid using '#ef4444', '#f97316' for branches close to each other as they are red and orange, making them blend in with each other). Disregard if there are too many branches.
-14. Consider using only one color for each branch if there are enough colors.
-15. Each child node of a node may include one distinct roadmapOrder with respect to the parent node (meaning for all child nodes of a node, they may be numbered from 0, 1, 2,... and child nodes of another parent node may also be numbered from 0, 1, 2,...) to help visualize learning path, going from 0 to amount of child node of root node minus 1. It's supposed to represent a roadmap so try to keep the node in roughly the chronological order of the original content. Root node should not be included in the roadmap, roadmapOrder here is only shown as a reference.
-
+Guidelines:
+- Create a central main topic node, only this main topic node will have the isRoot property inside data as true, all other nodes will have isRoot:false 
+- Neither nodes nor edges should ever be empty, ALWAYS INCLUDE BOTH NODES AND EDGES IN RESPONSE
+- Ensure all node IDs are unique
+- Ensure comprehensive coverage of the provided content, 
+- Connect nodes with edges, do not create loop and all nodes must be connected
+- Response must follow the language of the content
+- Each node must have a comprehensive summary of the related content including the overall themes and the major ideas covered, stored in the description property of data.
+- Color may be assigned to each node as one of the following strings ${colorTheme.colors} to the property color inside node data, the provided structure has included a color as an example but root node shouldn't have color, the branches from it can have a unifying color to distinguish themselves.
+    - Color should be selected to ensure sufficient contrast between sibling branches, making each branch visually distinct and easy to differentiate.
+- Color may be assigned to each edge, in this case, if the target node is colored, the edge should be the same color, the color is specified as property color inside edge data, , the provided structure has included a color as an example 
+- If there are only a few branches, use distinct colors (for example, avoid using '${colorTheme.colors[0] ?? DEFAULT_COLOR_THEME.colors[0]}, ${colorTheme.colors[1] ?? DEFAULT_COLOR_THEME.colors[1]}' for branches close to each other as they are red and orange, making them blend in with each other). Disregard if there are too many branches.
+- Consider using only one color for each branch if there are enough colors.
+- Each child node of a node may include one distinct roadmapOrder with respect to the parent node (meaning for all child nodes of a node, they may be numbered from 0, 1, 2,... and child nodes of another parent node may also be numbered from 0, 1, 2,...) to help visualize learning path, going from 0 to amount of child node of root node minus 1. It's supposed to represent a roadmap so try to keep the node in roughly the chronological order of the original content. Root node should not be included in the roadmap, roadmapOrder here is only shown as a reference.
+- Instead of having too many branches originating from root node, combine related branches into one. Essentially, add an extra node in the between the root node and these nodes to group the idea, this node should represent the general idea of its child nodes.
 
 Content to analyze:
 ${content}
 
-${customInstructions ? `Additional Instructions: ${customInstructions}\n\n` : ''}Return only the JSON structure, no additional text or formatting.`;
+${instruction ? `Additional Instructions: ${instruction}\n\n` : ''}
+
+Return only the JSON structure, no additional text or formatting.
+`;
 }
 
 export {

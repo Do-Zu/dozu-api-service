@@ -28,7 +28,7 @@ class WhisperService {
         }
     }
 
-    public async getTranscriptionFromAudioFile(file: Express.Multer.File) {
+    public async getTranscriptionFromFile(file: Express.Multer.File) {
         this.validateService();
         try {
             const formData = new FormData();
