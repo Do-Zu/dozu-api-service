@@ -17,11 +17,12 @@ import {
 } from '@/dtos/generate';
 import { ContentGenerationJobDataInterface, IJobPushQueue } from './types';
 import { STATUS_GEN } from '../utils/constant';
-import { JOB_NAME, WORKER_NAME } from '../constants/constant';
 import { HTTP_STATUS } from '@/constants/index.constant';
 import { validatePayloadSizeBuffer } from '../utils/validate';
 import { isEmpty, isNilOrEmpty, lowercase, safeDestructure } from '@/utils/common';
 import { ResponseFormatJSONObject, ResponseFormatJSONSchema, ResponseFormatText } from 'openai/resources/shared';
+import { IGenerateOptions } from '@/dtos/generate/models/GenerateContentRequestInterface';
+import { DIFFICULTY, JOB_NAME, WORKER_NAME } from '../constants/constant';
 
 /**
  * Main generative service implementation
@@ -57,6 +58,25 @@ class GenerativeService extends BaseGenerativeService {
     private readonly DEFAULT_TEMP = 0.2;
     private readonly CLIENT_WAIT_TIMEOUT = 60 * 10; // 10 minutes max wait for client connection
     private readonly PREFIX_KEY_CACHED_JOB = 'JOB_GENERATED_MESSAGE_BULL_JOB_INDEX';
+    private readonly DEFAULT_MAX_TOKEN_MODEL = 120000;
+
+    private readonly CONFIG_PARAM_LLM_FOR_DIFFICULTY = {
+        EASY: {
+            temperature: 0.3,
+            top_p: 0.5,
+            max_tokens: this.DEFAULT_MAX_TOKEN_MODEL,
+        },
+        MEDIUM: {
+            temperature: 0.6,
+            top_p: 0.6,
+            max_tokens: this.DEFAULT_MAX_TOKEN_MODEL,
+        },
+        HARD: {
+            temperature: 0.9,
+            top_p: 0.7,
+            max_tokens: this.DEFAULT_MAX_TOKEN_MODEL,
+        },
+    };
 
     constructor() {
         super();
@@ -198,6 +218,21 @@ class GenerativeService extends BaseGenerativeService {
         return this.TYPE_PROMPT_MAPPING[key];
     }
 
+    private mapConfigLLM(options?: IGenerateOptions) {
+        const { difficulty } = safeDestructure(options?.commonGenerateOptions, {
+            difficulty: DIFFICULTY.EASY,
+        });
+
+        const config =
+            this.CONFIG_PARAM_LLM_FOR_DIFFICULTY[
+                difficulty.toUpperCase() as keyof typeof this.CONFIG_PARAM_LLM_FOR_DIFFICULTY
+            ];
+
+        if (isEmpty(config)) return this.CONFIG_PARAM_LLM_FOR_DIFFICULTY[DIFFICULTY.EASY];
+
+        return config;
+    }
+
     /**
      * Register a content generation request
      * This is the main entry point for content generation
@@ -213,6 +248,8 @@ class GenerativeService extends BaseGenerativeService {
         // Map request type to prompt type
         const typeSending: TYPE_PROMPT = this.mapRequestType(type);
 
+        const config = this.mapConfigLLM(options);
+
         // Create job data
         const dataSend: ContentGenerationJobDataInterface = {
             jobId,
@@ -221,6 +258,7 @@ class GenerativeService extends BaseGenerativeService {
             job_name: JOB_NAME,
             type: typeSending,
             options,
+            config,
         };
 
         const shouldUseSyncProcessing = validatePayloadSizeBuffer(dataSend);

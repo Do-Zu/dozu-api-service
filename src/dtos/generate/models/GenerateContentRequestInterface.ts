@@ -30,6 +30,12 @@ export type GenerateContentRequestInterface = {
     inputSetId?: number | string;
 };
 
+export interface IConfigParamLLM {
+    temperature: number;
+    max_tokens: number;
+    top_p: number;
+}
+
 export interface IGenerateOptions {
     commonGenerateOptions?: ICommonGenerateOptions;
     nodesData?: NodesData;

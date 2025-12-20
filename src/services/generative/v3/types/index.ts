@@ -1,5 +1,5 @@
 import { HttpStatusCode } from '@/constants/index.constant';
-import { IGenerateOptions } from '@/dtos/generate/models/GenerateContentRequestInterface';
+import { IConfigParamLLM, IGenerateOptions } from '@/dtos/generate/models/GenerateContentRequestInterface';
 import { TYPE_PROMPT } from '@/utils/prompt';
 
 export interface IBodyRequestGenContent {
@@ -31,6 +31,11 @@ export interface ContentGenerationJobDataInterface {
      * Customize result of llm
      */
     options?: IGenerateOptions;
+
+    /**
+     * Customize result of llm
+     */
+    config: IConfigParamLLM;
 }
 export interface IJobPushQueue {
     type: TYPE_PROMPT;
