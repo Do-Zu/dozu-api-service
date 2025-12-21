@@ -151,7 +151,7 @@ IMPORTANT: Return your response as valid JSON that matches this exact structure:
         "label": "Main Topic or Subtopic",
         "description":"Summary of the content related to this node or empty string if is abstract mindmap type",
         "isRoot": true,
-        "color":"#ef4444",
+        "color":"#ef4444 or empty string if isRoot is true",
         "roadmapOrder":0
       }
     }
@@ -168,6 +168,10 @@ IMPORTANT: Return your response as valid JSON that matches this exact structure:
   ]
 }
 
+IMPORTANT: 
+- Node description must be an empty string if the type of mindmap is abstract. (i.e. "description": "")
+- Node color must be an empty string if it is the root node. (i.e. "color": "")
+
 Guidelines:
 - Create a central main topic node, only this main topic node will have the isRoot property inside data as true, all other nodes will have isRoot:false 
 - Neither nodes nor edges should ever be empty, ALWAYS INCLUDE BOTH NODES AND EDGES IN RESPONSE
@@ -178,6 +182,7 @@ Guidelines:
 - Each node must have a comprehensive summary of the related content including the overall themes and the major ideas covered, stored in the description property of data.
 - Color may be assigned to each node as one of the following strings ${colorTheme.colors} to the property color inside node data, the provided structure has included a color as an example but root node shouldn't have color, the branches from it can have a unifying color to distinguish themselves.
     - Color should be selected to ensure sufficient contrast between sibling branches, making each branch visually distinct and easy to differentiate.
+    - Root node must not be colored. 
 - Color may be assigned to each edge, in this case, if the target node is colored, the edge should be the same color, the color is specified as property color inside edge data, , the provided structure has included a color as an example 
 - If there are only a few branches, use distinct colors (for example, avoid using '${colorTheme.colors[0] ?? DEFAULT_COLOR_THEME.colors[0]}, ${colorTheme.colors[1] ?? DEFAULT_COLOR_THEME.colors[1]}' for branches close to each other as they are red and orange, making them blend in with each other). Disregard if there are too many branches.
 - Consider using only one color for each branch if there are enough colors.
