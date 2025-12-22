@@ -15,7 +15,7 @@ class TranscriptService {
             currentLength = 0;
         for (const segment of initialSegments) {
             if (!segment.text) continue;
-            const cleanedText = segment.text.replaceAll(/[\u200B-\u200D\uFEFF]/g, '').replaceAll(/\s+/g, ' ');
+            const cleanedText = segment.text.replaceAll(/[\u200B-\u200D\uFEFF]/g, ' ').replaceAll(/\s+/g, ' ');
             if (!cleanedText) continue;
             if (arrayOfText.length === 0) startTime = segment.startTime;
             endTime = segment.endTime;

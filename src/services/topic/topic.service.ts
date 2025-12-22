@@ -6,7 +6,6 @@ import itemSpacedRepetitionTrackingRepo from '@/repositories/tracking/itemSpaced
 import { ICreateTopicBody, ITopic, IUpdateTopicBody } from '@/types/topic/topic.type';
 import { addMinutes } from 'date-fns';
 import { learnAheadLimit } from '../spaced-repetition-system/super-memo-2/anki.service';
-import ankiSettingService from '../anki-setting/ankiSetting.service';
 
 export type ICreateTopicService = ICreateTopicBody & { imageUrl?: string | null };
 export type IUpdateTopicService = IUpdateTopicBody & { imageUrl?: string | null };
@@ -33,15 +32,6 @@ class TopicService {
     }): Promise<ITopic | undefined> {
         const dueDate = addMinutes(new Date(currentDate), learnAheadLimit);
         let topic = await topicRepo.getTopicWithCardCounts({ userId, topicId, dueDate: dueDate.toISOString() });
-
-        if (topic) {
-            const ankiSetting = await ankiSettingService.getSettingForTopicAndUser(topicId, userId);
-            if (topic.flashcardCounts) {
-                topic.flashcardCounts.new = Math.min(topic.flashcardCounts.new, ankiSetting.newCardsPerDay);
-                topic.flashcardCounts.review = Math.min(topic.flashcardCounts.review, ankiSetting.maximumReviewsPerDay);
-            }
-        }
-
         return topic;
     }
 
