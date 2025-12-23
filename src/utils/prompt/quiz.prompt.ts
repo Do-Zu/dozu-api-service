@@ -20,9 +20,10 @@ export const createQuizPrompt = (
 
     // Clean up list types to ensure strings are trimmed
     const validListTypes = listType?.map(t => t.trim()).join(', ') || 'MULTIPLE CHOICE';
-    const numberOfItemsPerType = Math.floor(numberOfItem / listType.length);
-    const remaining = numberOfItemsPerType + (numberOfItem % listType.length);
-    const firstType = listType.length === 0 ? 'MULTIPLE CHOICE' : listType[0];
+    const typeCount = listType?.length || 1;
+    const numberOfItemsPerType = Math.floor(numberOfItem / typeCount);
+    const remaining = numberOfItemsPerType + (numberOfItem % typeCount);
+    const firstType = listType && listType.length > 0 ? listType[0] : 'MULTIPLE CHOICE';
 
     return `
 # ROLE
@@ -44,7 +45,7 @@ ${LIST_TYPES_DESCRIPTION}
 7. **Options:** Every question must have exactly 4 options ("o" array). 
 8. **Distribution:** Distribute the questions evenly across all specified question types.
     - Generate exactly ${numberOfItemsPerType} questions for each question type listed in listType.
-    - Any remaining questions (${remaining}) must be generated using the ${firstType} question type only.
+    - The first question type (${firstType}) should generate ${remaining} questions in total, which includes ${numberOfItem % listType.length} additional question(s) from the remainder.
     - Do not generate more or fewer questions than specified for any type.
 
 # COGNITIVE TYPES
