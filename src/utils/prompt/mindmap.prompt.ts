@@ -125,17 +125,23 @@ function buildMindmapPromptTemplate(
     return `
 An abstract mindmap is a high-level conceptual representation of the content.
 Characteristics:
-- Focus on core ideas, key themes, and major relationships.
-- Use 2-3 depth levels only.
-- Each level should contain a limited number of nodes (fewer than a detailed mindmap), depending on the document's complexity.
+- Focus on core ideas, key themes, and major relationships only.
+- Use 2-3 depth levels.
+    + Levels 2 nodes typically represent main categories or primary ideas of the topic.
+    + A third depth level is optional but should be included whenever the content contains meaningful sub-ideas or sub-points that contribute to structural clarity, while still avoiding detailed explanations.
 - Node description must be an empty string.
-- Prioritize clarity, structure, and overview.
+- Prioritize clarity, structure, and overall overview.
 
-A detailed mindmap is a clear and well-structured expansion of the content.
+A detailed mindmap is a clear and well-structured expansion of the content that reflects its actual level of detail.
 Characteristics:
-- Cover main ideas and their key supporting points.
+- Cover main ideas and all meaningful supporting points present in the content.
 - Use a slightly deeper structure than an abstract mindmap (usually 3-5 levels).
-- Each level can contain more nodes than abstract, but should remain readable and organized.
+    + The first two levels may be the same as those in the abstract mindmap.
+    + Additional depth levels should be added only when the input content explicitly contains deeper structure or sub-points.
+    + Do not invent, infer, or assume extra layers that are not present in the content.
+- Depth rule:
+    + If the content includes deeper sub-points (e.g. definitions, explanations, subtopics), represent them as deeper nodes.
+    + If the content stops at a higher level, do not force additional layers.
 - Node descriptions may include brief explanations or important sub-points, without going into excessive detail.
 - Focus on clarity, logical flow, and practical understanding.
 
@@ -169,7 +175,7 @@ IMPORTANT: Return your response as valid JSON that matches this exact structure:
 }
 
 IMPORTANT: 
-- Node description must be an empty string if the type of mindmap is abstract. (i.e. "description": "")
+- If the type of mindmap is abstract, ALL NODES' description must be an empty string. (i.e. "description": "")
 - Node color must be an empty string if it is the root node. (i.e. "color": "")
 
 Guidelines:
