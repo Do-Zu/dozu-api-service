@@ -10,6 +10,7 @@
         "dev": "set NODE_ENV=development&& nodemon",
         "start": "set NODE_ENV=production && node dist/index.js",
         "build": "set NODE_ENV=production && tsc",
+        "stage": "set NODE_ENV=stage && tsc --outDir dist-stage && node -r tsconfig-paths/register --max-old-space-size=2048 dist-stage/index.js",
         "build:watch": "tsc --watch",
         "vercel-build": "npm run build",
         "format": "prettier --write \"src/**/*.ts\"",
@@ -43,7 +44,10 @@
         "docker:restart:db:postgres": "docker-compose -f containers/database/postgres/docker-compose.yml restart",
         "docker:clean:db:postgres": "docker-compose -f containers/database/postgres/docker-compose.yml down -v --remove-orphans",
         "docker:whisper:build": "docker build -f containers/whisper/Dockerfile -t whisper-service containers/whisper",
-        "docker:whisper:run": "docker run --rm -p 8624:8624 --name whisper-service whisper-service"
+        "docker:whisper:run": "docker run --rm -p 8624:8624 --name whisper-service whisper-service",
+        "docker:stress:stage:build": "docker build -t dozu-api-service:stage-stress --build-arg ENV_FILE=.env.stage .",
+        "docker:stress:stage:run": "docker run --rm --name dozu-api-service-stress-stage --cpus=2 --memory=2g --memory-swap=2g -p 3555:3555 -e NODE_ENV=stage dozu-api-service:stage-stress node dist/index.js",
+        "docker:stress:stage": "npm run docker:stress:stage:build && npm run docker:stress:stage:run"
     },
     "engines": {
         "node": ">=20"

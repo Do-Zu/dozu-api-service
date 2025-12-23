@@ -3,12 +3,16 @@ import path from 'node:path';
 import * as fs from 'fs';
 import logger from '../utils/logger';
 
-const isDevelopment = process.env.NODE_ENV !== 'production';
-const environment = process.env.NODE_ENV || 'development';
+type AppEnvironment = 'development' | 'stage' | 'production';
+
+const environment = (process.env.NODE_ENV as AppEnvironment) || 'development';
+const isProduction = environment === 'production';
+const isStage = environment === 'stage';
+const isDevelopment = environment === 'development';
 
 const rootPath = path.resolve(__dirname, '../../');
 
-const envFile = isDevelopment ? '.env.development' : '.env.production';
+const envFile = isProduction ? '.env.production' : isStage ? '.env.stage' : '.env.development';
 const envPath = path.resolve(rootPath, envFile);
 
 try {
@@ -56,6 +60,7 @@ interface AppConfig {
     allowedOrigins: string[];
     isProduction: boolean;
     isDevelopment: boolean;
+    isStage: boolean;
     trustProxy: boolean | number;
 }
 
@@ -71,8 +76,9 @@ if (allowedOrigins.length === 0) {
 
 export const config: AppConfig = {
     env: environment,
-    isProduction: environment === 'production',
-    isDevelopment: environment === 'development',
+    isProduction,
+    isDevelopment,
+    isStage,
     server: {
         port: parseInt(process.env.PORT || '3333', 10),
         host: process.env.HOST || 'localhost',
@@ -87,7 +93,7 @@ export const config: AppConfig = {
             : process.env.TRUST_PROXY === 'false'
               ? false
               : parseInt(process.env.TRUST_PROXY, 10)
-        : environment === 'production'
+        : environment === 'production' || environment === 'stage'
           ? 1
           : true,
 };

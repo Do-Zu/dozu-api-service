@@ -1,8 +1,9 @@
 import { rateLimit } from 'express-rate-limit';
 import { config } from '../env.config';
+import type { RequestHandler } from 'express';
 
 const DEFAULT_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
-const DEFAULT_RATE_LIMIT_MAX_REQUESTS = 100; // Limit each IP to 100 requests per windowMs
+const DEFAULT_RATE_LIMIT_MAX_REQUESTS = 100;
 /**
  * Rate Limiting Configuration
  * Protects against brute-force attacks
@@ -12,6 +13,9 @@ const DEFAULT_RATE_LIMIT_MAX_REQUESTS = 100; // Limit each IP to 100 requests pe
  * The trust proxy setting is configured in index.ts based on the environment.
  */
 const rateLimitConfig = () => {
+    const noop: RequestHandler = (_req, _res, next) => next();
+    if (config.isStage) return noop;
+
     const developmentOptions = {
         windowMs: 5 * 60 * 1000, // 5 minutes
         max: 500, // Limit each IP to 500 requests per windowMs
@@ -36,6 +40,9 @@ const rateLimitConfig = () => {
 };
 
 export const rateLimitMiddleware = (configs: { windowMs?: number; max: number; standardHeaders?: boolean }) => {
+    const noop: RequestHandler = (_req, _res, next) => next();
+    if (config.isStage) return noop;
+
     return rateLimit(
         config.isDevelopment
             ? {
@@ -48,9 +55,9 @@ export const rateLimitMiddleware = (configs: { windowMs?: number; max: number; s
                   skipFailedRequests: false,
               }
             : {
-                  windowMs: configs.windowMs || DEFAULT_RATE_LIMIT_WINDOW_MS,
-                  max: configs.max || DEFAULT_RATE_LIMIT_MAX_REQUESTS,
-                  standardHeaders: configs.standardHeaders || true,
+                  windowMs: configs.windowMs ?? DEFAULT_RATE_LIMIT_WINDOW_MS,
+                  max: configs.max ?? DEFAULT_RATE_LIMIT_MAX_REQUESTS,
+                  standardHeaders: configs.standardHeaders ?? true,
                   legacyHeaders: false,
                   message: 'Too many requests, please try again later.',
                   skipSuccessfulRequests: false,
