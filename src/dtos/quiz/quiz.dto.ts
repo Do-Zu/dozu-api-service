@@ -35,6 +35,11 @@ export const quizCreateSchema = z.object({
     description: z.string().optional(),
 });
 
+export const quizRecommendSchema = z.object({
+    topicId: z.coerce.number(),
+});
+
 export type QuizGenerateDto = z.infer<typeof quizGenerateSchema>;
 export type QuizSubmitDto = z.infer<typeof quizSubmitSchema>;
 export type QuizCreateDto = z.infer<typeof quizCreateSchema>;
+export type QuizRecommendDto = z.infer<typeof quizRecommendSchema>;

@@ -1,5 +1,5 @@
 import validator from '@/core/validations/validator';
-import { quizGenerateSchema, quizSubmitSchema, quizCreateSchema } from '@/dtos/quiz/quiz.dto';
+import { quizGenerateSchema, quizSubmitSchema, quizCreateSchema, quizRecommendSchema } from '@/dtos/quiz/quiz.dto';
 
 export const validateQuizGenerateQuery = () =>
   validator.validate({ 
@@ -18,3 +18,9 @@ export const validateQuizCreate = () =>
     selector: 'body',
     schema: quizCreateSchema 
   });  
+
+export const validateQuizRecommendQuery = () =>
+    validator.validate({
+        selector: 'query',
+        schema: quizRecommendSchema,
+    });  

@@ -3,7 +3,7 @@ import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import { SuccessResponse } from '@/core/success';
 import { quizService } from '@/services/quiz/quiz.service';
 import topicService from '@/services/topic/topic.service';
-import { QuizGenerateDto, QuizSubmitDto } from '@/dtos/quiz/quiz.dto';
+import { QuizGenerateDto, QuizRecommendDto, QuizSubmitDto } from '@/dtos/quiz/quiz.dto';
 import { BadRequest } from '@/core/error';
 
 class QuizController {
@@ -78,6 +78,17 @@ class QuizController {
 
         const stats = await quizService.getQuizStatistics(topicId);
         SuccessResponse.ok(res, stats);
+    }
+
+    async handleGetQuizRecommendation(req: Request, res: Response): Promise<void> {
+        const userId = getUserIdFromRequest(req);
+        const { topicId } = req.query as unknown as QuizRecommendDto;
+
+        const isExisted = await topicService.doesTopicExist(Number(topicId));
+        if (!isExisted) throw new BadRequest('Topic does not exist');
+
+        const result = await quizService.getQuizRecommendation(Number(topicId), userId);
+        SuccessResponse.ok(res, result);
     }
 }
 

@@ -121,6 +121,37 @@ class QuizService {
     async getQuizStatistics(topicId: number) {
         return await quizRepo.getQuizStatistics(topicId);
     }
+
+    async getQuizRecommendation(topicId: number, userId: number) {
+    const counts = await quizRepo.getQuizTypeCounts(topicId, userId);
+
+    let recommendedType: 'wrong' | 'review' | 'weak' | 'learning' | 'new' | null = null;
+    let reason = '';
+
+    if (counts.wrong > 0) {
+        recommendedType = 'wrong';
+        reason = 'You recently answered some questions incorrectly';
+    } else if (counts.review > 0) {
+        recommendedType = 'review';
+        reason = 'Some questions are scheduled for review';
+    } else if (counts.weak > 0) {
+        recommendedType = 'weak';
+        reason = 'You have weak questions that need more practice';
+    } else if (counts.learning > 0) {
+        recommendedType = 'learning';
+        reason = 'Continue your learning progress';
+    } else if (counts.new > 0) {
+        recommendedType = 'new';
+        reason = 'New questions are ready to learn';
+    }
+
+    return {
+        recommendedType,
+        reason,
+        counts,
+    };
+}
+
 }
 
 export const quizService = new QuizService();

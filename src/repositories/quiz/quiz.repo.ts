@@ -8,6 +8,17 @@ import { IQuizResultPayload } from '@/types/quiz/quiz.type';
 import { eq, and, lte, lt, sql, desc } from 'drizzle-orm';
 import { QuizCreateDto } from '@/dtos/quiz/quiz.dto';
 
+const questionSelect = {
+    questionId: questionsTable.questionId,
+    topicId: questionsTable.topicId,
+    questionText: questionsTable.questionText,
+    choices: questionsTable.choices,
+    correctIndex: questionsTable.correctIndex,
+    questionType: questionsTable.questionType,
+    explain: questionsTable.explain,
+    hint: questionsTable.hint,
+    createdAt: questionsTable.createdAt,
+};
 class QuizRepo {
     async getInitialQuiz(topicId: number) {
         return db.select().from(questionsTable).where(eq(questionsTable.topicId, topicId));
@@ -15,7 +26,7 @@ class QuizRepo {
 
     async getReviewQuiz(topicId: number, userId: number) {
         return db
-            .select()
+            .select(questionSelect)
             .from(questionsTable)
             .innerJoin(
                 itemSpacedRepetitionTrackingTable,
@@ -34,7 +45,7 @@ class QuizRepo {
 
     async getWeakQuiz(topicId: number, userId: number, threshold = '2.0') {
         return db
-            .select()
+            .select(questionSelect)
             .from(questionsTable)
             .innerJoin(
                 itemSpacedRepetitionTrackingTable,
@@ -70,7 +81,7 @@ class QuizRepo {
 
     async getLearningQuiz(topicId: number, userId: number) {
         return db
-            .select()
+            .select(questionSelect)
             .from(questionsTable)
             .innerJoin(
                 itemSpacedRepetitionTrackingTable,
@@ -88,7 +99,7 @@ class QuizRepo {
 
     async getWrongQuiz(topicId: number, userId: number) {
         return db
-            .select()
+            .select(questionSelect)
             .from(questionsTable)
             .innerJoin(
                 itemSpacedRepetitionTrackingTable,
@@ -276,6 +287,76 @@ class QuizRepo {
             averageScore,
             perfectScoreCount,
             averageQuestionsPerQuiz,
+        };
+    }
+
+    async getQuizTypeCounts(topicId: number, userId: number) {
+        const now = new Date().toISOString();
+
+        const baseJoin = db
+            .select({ count: sql<number>`count(*)` })
+            .from(itemSpacedRepetitionTrackingTable)
+            .innerJoin(questionsTable, eq(questionsTable.questionId, itemSpacedRepetitionTrackingTable.itemId));
+
+        const [wrong] = await baseJoin.where(
+            and(
+                eq(questionsTable.topicId, topicId),
+                eq(itemSpacedRepetitionTrackingTable.userId, userId),
+                eq(itemSpacedRepetitionTrackingTable.type, 'question'),
+                eq(itemSpacedRepetitionTrackingTable.status, 'relearning')
+            )
+        );
+
+        const [review] = await baseJoin.where(
+            and(
+                eq(questionsTable.topicId, topicId),
+                eq(itemSpacedRepetitionTrackingTable.userId, userId),
+                eq(itemSpacedRepetitionTrackingTable.type, 'question'),
+                eq(itemSpacedRepetitionTrackingTable.status, 'review'),
+                lte(itemSpacedRepetitionTrackingTable.nextReview, now)
+            )
+        );
+
+        const [weak] = await baseJoin.where(
+            and(
+                eq(questionsTable.topicId, topicId),
+                eq(itemSpacedRepetitionTrackingTable.userId, userId),
+                eq(itemSpacedRepetitionTrackingTable.type, 'question'),
+                lt(itemSpacedRepetitionTrackingTable.easinessFactor, '2.0')
+            )
+        );
+
+        const [learning] = await baseJoin.where(
+            and(
+                eq(questionsTable.topicId, topicId),
+                eq(itemSpacedRepetitionTrackingTable.userId, userId),
+                eq(itemSpacedRepetitionTrackingTable.type, 'question'),
+                eq(itemSpacedRepetitionTrackingTable.status, 'learning')
+            )
+        );
+
+        const [newCount] = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(questionsTable)
+            .where(
+                and(
+                    eq(questionsTable.topicId, topicId),
+                    sql`NOT EXISTS (
+                    SELECT 1
+                    FROM ${itemSpacedRepetitionTrackingTable} sr
+                    WHERE sr.item_id = ${questionsTable.questionId}
+                      AND sr.user_id = ${userId}
+                      AND sr.type = 'question'
+                )`
+                )
+            );
+
+        return {
+            wrong: Number(wrong?.count ?? 0),
+            review: Number(review?.count ?? 0),
+            weak: Number(weak?.count ?? 0),
+            learning: Number(learning?.count ?? 0),
+            new: Number(newCount?.count ?? 0),
         };
     }
 }
