@@ -74,7 +74,7 @@ class ScheduleService {
 
     private DEFAULT_EXTRA_MINUTE_FOR_EACH_SESSION = 5;
     private DEFAULT_MINUTE_BREAK_TIME_BETWEEN_SLOT = 5;
-    private MIN_ITEMS_PER_SLOT = 20;
+    private MIN_ITEMS_PER_SLOT = 8;
     private MAX_ITEMS_PER_SLOT = 50;
     private MIN_SLOT_DURATION_MINUTES = 30; // Minimum time for a productive study session
     private REVIEW_PRIORITY_MULTIPLIER = 1.2; // Boost priority for review items
