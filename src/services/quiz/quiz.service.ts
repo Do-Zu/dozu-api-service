@@ -1,7 +1,7 @@
 import { quizRepo } from '@/repositories/quiz/quiz.repo';
 import { QuizGenerateDto, QuizCreateDto } from '@/dtos/quiz/quiz.dto';
 import { applySM2ForQuestion } from '@/utils/quiz/quizSm2Helper';
-import { fisherYatesShuffle } from '@/utils/quiz/shuffle'; 
+import { fisherYatesShuffle } from '@/utils/quiz/shuffle';
 import { IQuizResultPayload } from '@/types/quiz/quiz.type';
 import { BadRequest } from '@/core/error';
 import { ContentType } from '@/types/progress/progress.type';
@@ -11,21 +11,31 @@ import topicRepo from '@/repositories/topic.repo';
 
 class QuizService {
     constructor() {}
-    async handleGenerateQuiz(type: QuizGenerateDto['type'], topicId: number, userId: number) {
+    async handleGenerateQuiz(dto: QuizGenerateDto, userId: number) {
+        const { topicId, type, initialConfig } = dto;
         switch (type) {
-            case 'initial':
-                return quizRepo.getInitialQuiz(topicId);
+            case 'initial': {
+                let questions = await quizRepo.getInitialQuiz(topicId);
+
+                const shouldShuffle = initialConfig?.shuffle ?? true;
+                if (shouldShuffle) {
+                    questions = fisherYatesShuffle(questions);
+                }
+
+                if (initialConfig?.limit) {
+                    questions = questions.slice(0, initialConfig.limit);
+                }
+
+                return questions;
+            }
             case 'review':
                 return quizRepo.getReviewQuiz(topicId, userId);
-            case 'ef-low':
-                return quizRepo.getLowEFQuiz(topicId, userId);
+            case 'weak':
+                return quizRepo.getWeakQuiz(topicId, userId);
             case 'new':
-                return quizRepo.getNewQuiz(topicId);
-            case 'random': {
-                const allQuestions = await quizRepo.getInitialQuiz(topicId);
-                const shuffled = fisherYatesShuffle(allQuestions);
-                const selected = shuffled.slice(0, 5);
-                return selected;
+                return quizRepo.getNewQuiz(topicId, userId);
+            case 'learning': {
+                return quizRepo.getLearningQuiz(topicId, userId);
             }
             case 'wrong':
                 return quizRepo.getWrongQuiz(topicId, userId);
@@ -93,7 +103,7 @@ class QuizService {
             const questionTopicId = await quizRepo.getTopicIdByQuestionId(result.questionId);
             if (questionTopicId === -1) continue;
 
-            await applySM2ForQuestion(userId, result.questionId, questionTopicId, result.correct);
+            await applySM2ForQuestion(userId, result.questionId, questionTopicId, result.correct, result.confidence);
         }
         return quizResultId;
     }
@@ -111,6 +121,37 @@ class QuizService {
     async getQuizStatistics(topicId: number) {
         return await quizRepo.getQuizStatistics(topicId);
     }
+
+    async getQuizRecommendation(topicId: number, userId: number) {
+    const counts = await quizRepo.getQuizTypeCounts(topicId, userId);
+
+    let recommendedType: 'wrong' | 'review' | 'weak' | 'learning' | 'new' | null = null;
+    let reason = '';
+
+    if (counts.wrong > 0) {
+        recommendedType = 'wrong';
+        reason = 'You recently answered some questions incorrectly';
+    } else if (counts.review > 0) {
+        recommendedType = 'review';
+        reason = 'Some questions are scheduled for review';
+    } else if (counts.weak > 0) {
+        recommendedType = 'weak';
+        reason = 'You have weak questions that need more practice';
+    } else if (counts.learning > 0) {
+        recommendedType = 'learning';
+        reason = 'Continue your learning progress';
+    } else if (counts.new > 0) {
+        recommendedType = 'new';
+        reason = 'New questions are ready to learn';
+    }
+
+    return {
+        recommendedType,
+        reason,
+        counts,
+    };
+}
+
 }
 
 export const quizService = new QuizService();
