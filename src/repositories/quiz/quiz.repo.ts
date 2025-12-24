@@ -25,12 +25,14 @@ class QuizRepo {
                 and(
                     eq(itemSpacedRepetitionTrackingTable.topicId, topicId),
                     eq(itemSpacedRepetitionTrackingTable.userId, userId),
+                    eq(itemSpacedRepetitionTrackingTable.type, 'question'),
+                    eq(itemSpacedRepetitionTrackingTable.status, 'review'),
                     lte(itemSpacedRepetitionTrackingTable.nextReview, new Date().toISOString())
                 )
             );
     }
 
-    async getLowEFQuiz(topicId: number, userId: number) {
+    async getWeakQuiz(topicId: number, userId: number, threshold = '2.0') {
         return db
             .select()
             .from(questionsTable)
@@ -42,12 +44,13 @@ class QuizRepo {
                 and(
                     eq(itemSpacedRepetitionTrackingTable.topicId, topicId),
                     eq(itemSpacedRepetitionTrackingTable.userId, userId),
-                    lt(itemSpacedRepetitionTrackingTable.easinessFactor, '2.0') // Lọc theo EasinessFactor
+                    eq(itemSpacedRepetitionTrackingTable.type, 'question'),
+                    lt(itemSpacedRepetitionTrackingTable.easinessFactor, threshold) // lọc theo EasinessFactor
                 )
             );
     }
 
-    async getNewQuiz(topicId: number) {
+    async getNewQuiz(topicId: number, userId: number) {
         return db
             .select()
             .from(questionsTable)
@@ -56,38 +59,49 @@ class QuizRepo {
                     eq(questionsTable.topicId, topicId),
                     sql`NOT EXISTS (
                     SELECT 1
-                    FROM ${itemSpacedRepetitionTrackingTable}
-                    WHERE ${itemSpacedRepetitionTrackingTable}.item_id = ${questionsTable.questionId}
+                    FROM ${itemSpacedRepetitionTrackingTable} sr
+                    WHERE sr.item_id = ${questionsTable.questionId}
+                          AND sr.user_id = ${userId}
+                          AND sr.type = 'question'
                 )`
                 )
             );
     }
 
+    async getLearningQuiz(topicId: number, userId: number) {
+        return db
+            .select()
+            .from(questionsTable)
+            .innerJoin(
+                itemSpacedRepetitionTrackingTable,
+                eq(questionsTable.questionId, itemSpacedRepetitionTrackingTable.itemId)
+            )
+            .where(
+                and(
+                    eq(itemSpacedRepetitionTrackingTable.topicId, topicId),
+                    eq(itemSpacedRepetitionTrackingTable.userId, userId),
+                    eq(itemSpacedRepetitionTrackingTable.type, 'question'),
+                    eq(itemSpacedRepetitionTrackingTable.status, 'learning')
+                )
+            );
+    }
+
     async getWrongQuiz(topicId: number, userId: number) {
-        const result = await db.execute(
-            sql`
-            SELECT 
-  q.question_id AS "questionId",
-  q.topic_id AS "topicId",
-  q.question_text AS "questionText",
-  q.choices AS "choices",
-  q.correct_index AS "correctIndex",
-  q.created_at AS "createdAt"
-FROM (
-  SELECT DISTINCT ON (qr.question_id)
-    qr.question_id,
-    qr.correct,
-    qr.answered_at
-  FROM question_result qr
-  WHERE qr.user_id = ${userId}
-  ORDER BY qr.question_id, qr.answered_at DESC
-) latest_wrong
-JOIN questions q ON latest_wrong.question_id = q.question_id
-WHERE latest_wrong.correct = false
-  AND q.topic_id = ${topicId};
-  `
-        );
-        return result.rows;
+        return db
+            .select()
+            .from(questionsTable)
+            .innerJoin(
+                itemSpacedRepetitionTrackingTable,
+                eq(questionsTable.questionId, itemSpacedRepetitionTrackingTable.itemId)
+            )
+            .where(
+                and(
+                    eq(itemSpacedRepetitionTrackingTable.topicId, topicId),
+                    eq(itemSpacedRepetitionTrackingTable.userId, userId),
+                    eq(itemSpacedRepetitionTrackingTable.type, 'question'),
+                    eq(itemSpacedRepetitionTrackingTable.status, 'relearning')
+                )
+            );
     }
 
     async createQuizWithQuestions({ topicId, name, description }: QuizCreateDto) {

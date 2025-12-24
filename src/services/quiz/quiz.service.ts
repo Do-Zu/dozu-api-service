@@ -1,7 +1,7 @@
 import { quizRepo } from '@/repositories/quiz/quiz.repo';
 import { QuizGenerateDto, QuizCreateDto } from '@/dtos/quiz/quiz.dto';
 import { applySM2ForQuestion } from '@/utils/quiz/quizSm2Helper';
-import { fisherYatesShuffle } from '@/utils/quiz/shuffle'; 
+import { fisherYatesShuffle } from '@/utils/quiz/shuffle';
 import { IQuizResultPayload } from '@/types/quiz/quiz.type';
 import { BadRequest } from '@/core/error';
 import { ContentType } from '@/types/progress/progress.type';
@@ -11,21 +11,31 @@ import topicRepo from '@/repositories/topic.repo';
 
 class QuizService {
     constructor() {}
-    async handleGenerateQuiz(type: QuizGenerateDto['type'], topicId: number, userId: number) {
+    async handleGenerateQuiz(dto: QuizGenerateDto, userId: number) {
+        const { topicId, type, initialConfig } = dto;
         switch (type) {
-            case 'initial':
-                return quizRepo.getInitialQuiz(topicId);
+            case 'initial': {
+                let questions = await quizRepo.getInitialQuiz(topicId);
+
+                const shouldShuffle = initialConfig?.shuffle ?? true;
+                if (shouldShuffle) {
+                    questions = fisherYatesShuffle(questions);
+                }
+
+                if (initialConfig?.limit) {
+                    questions = questions.slice(0, initialConfig.limit);
+                }
+
+                return questions;
+            }
             case 'review':
                 return quizRepo.getReviewQuiz(topicId, userId);
-            case 'ef-low':
-                return quizRepo.getLowEFQuiz(topicId, userId);
+            case 'weak':
+                return quizRepo.getWeakQuiz(topicId, userId);
             case 'new':
-                return quizRepo.getNewQuiz(topicId);
-            case 'random': {
-                const allQuestions = await quizRepo.getInitialQuiz(topicId);
-                const shuffled = fisherYatesShuffle(allQuestions);
-                const selected = shuffled.slice(0, 5);
-                return selected;
+                return quizRepo.getNewQuiz(topicId, userId);
+            case 'learning': {
+                return quizRepo.getLearningQuiz(topicId, userId);
             }
             case 'wrong':
                 return quizRepo.getWrongQuiz(topicId, userId);
@@ -93,7 +103,7 @@ class QuizService {
             const questionTopicId = await quizRepo.getTopicIdByQuestionId(result.questionId);
             if (questionTopicId === -1) continue;
 
-            await applySM2ForQuestion(userId, result.questionId, questionTopicId, result.correct);
+            await applySM2ForQuestion(userId, result.questionId, questionTopicId, result.correct, result.confidence);
         }
         return quizResultId;
     }

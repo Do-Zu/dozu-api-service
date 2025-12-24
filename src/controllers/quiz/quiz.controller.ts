@@ -11,12 +11,13 @@ class QuizController {
 
     async handleGenerateQuiz(req: Request, res: Response): Promise<void> {
         const userId = getUserIdFromRequest(req);
-        const { topicId, type } = req.query as unknown as QuizGenerateDto;
+        const dto = req.query as unknown as QuizGenerateDto;
+        const { topicId } = dto;
 
         const isExisted = await topicService.doesTopicExist(Number(topicId));
         if (!isExisted) throw new BadRequest('Topic does not exist');
 
-        const questions = await quizService.handleGenerateQuiz(type, Number(topicId), userId);
+        const questions = await quizService.handleGenerateQuiz(dto, userId);
         SuccessResponse.ok(res, questions);
     }
 
