@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const questionSchema = z.object({
     id: z.number().optional(),
     questionText: z.string(),
-    choices: z.array(z.string()).min(2),
+    choices: z.array(z.string()).min(1),
     correctIndex: z.number().min(0),
     questionType: z.string().optional().nullable(),
     hint: z.string().optional().nullable(),
