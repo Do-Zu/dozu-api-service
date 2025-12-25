@@ -66,6 +66,17 @@ The output must strictly follow this JSON OBJECT:
   explain: string; // Detailed explanation of why the answer is correct
 }
 
+# IMPORTANT RULE FOR FREE RESPONSE:
+- If the correct answer would be "All of the above", the correct answer in the "o" array MUST instead be an explicit, complete sentence that combines the meaning of the relevant options.
+- EXAMPLE
+    - Invalid FREE RESPONSE options:
+        + "Client sends request"
+        + "Server processes data"
+        + "Server returns response"
+        + "All of the above"
+    - Replace "All of the above" with:
+        + "Client sends a request to the server, the server processes the data, and then returns a response to the client."
+
 # CONTENT
 """
 ${content}
