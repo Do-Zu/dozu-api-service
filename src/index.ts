@@ -15,7 +15,7 @@ import { db } from './libs/drizzleClient.lib';
 import NotificationScheduler from './services/notification/notification.scheduler';
 import { createServer } from 'http';
 import { webSocketService } from './libs/websocket/socket.io';
-import { notificationWebSocketService } from './libs/websocket/notification.websocket';
+// import { notificationWebSocketService } from './libs/websocket/notification.websocket';
 import { quizActivityWebSocketService } from './libs/websocket/quizActivity.websocket';
 import { startClassQuizScheduler } from './utils/quiz/classQuizScheduler.job';
 
@@ -46,7 +46,7 @@ app.use(morganConfig);
 
 //Rate limiting to all requests
 if (config.isProduction) {
-  app.use(rateLimit());
+    app.use(rateLimit());
 }
 
 // webSocketService.initialize(httpServer);
@@ -55,18 +55,18 @@ if (config.isProduction) {
 app.use(successHandler);
 
 app.get('/health', async (req: Request, res: Response) => {
-  res.status(200).json({
-    message: 'Hello, World!',
-    code: 200,
-    status: 'success',
-  });
+    res.status(200).json({
+        message: 'Hello, World!',
+        code: 200,
+        status: 'success',
+    });
 });
 
 app.use('/api', router);
 
 // Handle 404 errors for undefined routes
 app.all('*', (req: Request, _res: Response, next: NextFunction) => {
-  next(new NotFoundError(`Can't find ${req.originalUrl} on this server!`));
+    next(new NotFoundError(`Can't find ${req.originalUrl} on this server!`));
 });
 
 // Global error handler
@@ -81,7 +81,7 @@ webSocketService.initialize(httpServer);
 
 // Initialize Notification WebSocket service
 // This reuses the same Socket.IO instance from base service to avoid conflicts
-notificationWebSocketService.initialize(httpServer);
+// notificationWebSocketService.initialize(httpServer);
 
 // Initialize Quiz Activity WebSocket service
 // This reuses the same Socket.IO instance for realtime quiz activity tracking
@@ -89,28 +89,28 @@ quizActivityWebSocketService.initialize(httpServer);
 
 // Start server
 const server = httpServer.listen(port, () => {
-  db();
-  
-  // Initialize notification scheduler
-  NotificationScheduler.init();
+    db();
 
-  // Start class quiz scheduler
-  startClassQuizScheduler();
-  
-  logger.info(`Server is running at http://${host}:${port}`);
-  logger.info('WebSocket server initialized and ready for connections');
+    // Initialize notification scheduler
+    // NotificationScheduler.init();
+
+    // Start class quiz scheduler
+    startClassQuizScheduler();
+
+    logger.info(`Server is running at http://${host}:${port}`);
+    logger.info('WebSocket server initialized and ready for connections');
 });
 
 // Handle graceful shutdown
 process.on('SIGTERM', () => {
-  logger.info('SIGTERM received. Shutting down gracefully');
-  
-  // Stop notification scheduler
-  NotificationScheduler.stopAll();
-  
-  server.close(() => {
-    logger.info('Process terminated');
-  });
+    logger.info('SIGTERM received. Shutting down gracefully');
+
+    // Stop notification scheduler
+    NotificationScheduler.stopAll();
+
+    server.close(() => {
+        logger.info('Process terminated');
+    });
 });
 
 export default app;
