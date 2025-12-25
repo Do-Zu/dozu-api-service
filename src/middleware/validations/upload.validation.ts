@@ -219,8 +219,8 @@ export const validatePresignedUrlRequest = () => {
             throw new BadRequest('fileName contains invalid characters');
         }
 
-        // File size limit (100MB)
-        const maxFileSize = 100 * 1024 * 1024;
+        // File size limit (15MB)
+        const maxFileSize = 15 * 1024 * 1024;
 
         if (fileSize > maxFileSize) {
             throw new BadRequest(`fileSize exceeds maximum limit of ${maxFileSize / 1024 / 1024}MB`);
