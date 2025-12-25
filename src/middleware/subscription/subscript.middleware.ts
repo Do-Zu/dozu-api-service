@@ -1,12 +1,14 @@
 import { NextFunction, Request, Response } from 'express';
 
-import { BadRequest, PaymentRequire } from '@/core/error';
+import { PaymentRequire, ServiceUnavailable } from '@/core/error';
+import subscriptionService from '@/services/subscription/subscription.service';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
 import { getCurrentDateInTimeZone, getDateFormatted, getTimezoneClient } from '@/utils/date';
 
-import { timeValidator, subscriptionValidator, featureLimitChecker } from './validators';
+import { timeValidator, subscriptionValidator, featureLimitChecker, featureValidator } from './validators';
 import { ERROR_MESSAGES } from './constants/subscription.constants';
 import type { IFeatureLimitContext, ISubscriptionContext } from './types/subscription.types';
+import { isEmpty, safeDestructure } from '@/utils/common';
 
 /**
  * SubscriptionMiddleware - Orchestrator Class
@@ -23,13 +25,19 @@ class SubscriptionMiddleware {
      */
     public async handleSubscription(req: Request, res: Response, next: NextFunction): Promise<void> {
         const context = this.extractRequestContext(req);
-        const featureId = this.extractAndValidateFeatureId(req);
 
         // Validate client-server time synchronization
         timeValidator.validateClientServerTime(req);
 
         // Validate subscription and handle expiration (downgrade/renewal)
         const { plan, subscription } = await subscriptionValidator.getValidatedUserPlan(context);
+
+        const requestPath = `${req.baseUrl}${req.path}`;
+
+        const featureId = await this.getFeatureBelongEndPoint({
+            requestUrl: requestPath,
+            planId: plan.planId,
+        });
 
         // Check feature usage limits
         const featureLimitContext = this.buildFeatureLimitContext(context, {
@@ -59,17 +67,30 @@ class SubscriptionMiddleware {
         return { userId, timezone, today };
     }
 
-    /**
-     * Extracts and validates feature ID from request body
-     */
-    private extractAndValidateFeatureId(req: Request): number {
-        const featureId = req.body?.featureId;
+    private async getFeatureBelongEndPoint({
+        requestUrl,
+        planId,
+    }: {
+        requestUrl: string;
+        planId: number;
+    }): Promise<number> {
+        const features = await subscriptionService.getAllFeaturesOfPlan({ planId });
 
-        if (!featureId) {
-            throw new BadRequest(ERROR_MESSAGES.FEATURE_REQUIRED);
+        if (isEmpty(features)) {
+            throw new ServiceUnavailable();
         }
 
-        return featureId;
+        const filterFeatured = features.find(feature => {
+            const { apiUrl } = safeDestructure(feature);
+
+            if (featureValidator.isEndpointMatch({ requestUrl, apiUrl })) return feature;
+        });
+
+        if (!filterFeatured) {
+            throw new ServiceUnavailable();
+        }
+
+        return filterFeatured.featureId;
     }
 
     /**

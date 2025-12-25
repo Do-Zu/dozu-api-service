@@ -22,6 +22,7 @@ class SubscriptionRepo {
         textValue: planFeaturesTable.textValue,
         isUnlimited: planFeaturesTable.isUnlimited,
         isEnabled: planFeaturesTable.isEnabled,
+        apiUrl: planFeaturesTable.apiUrl,
     };
     /**
      * Get all available plans with their features in a single query

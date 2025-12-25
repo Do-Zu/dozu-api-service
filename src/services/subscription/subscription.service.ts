@@ -32,6 +32,7 @@ export interface IFeature {
     textValue: string | null;
     isUnlimited: boolean | null;
     isEnabled: boolean | null;
+    apiUrl: string | null;
 }
 export interface SelectPlanWithFeatures {
     planId: number;
@@ -64,6 +65,7 @@ interface IPlan {
     textValue: string | null;
     isUnlimited: boolean | null;
     isEnabled: boolean | null;
+    apiUrl: string | null;
 }
 export class SubscriptionService {
     private readonly DEFAULT_VALUE_USAGE = '0';
@@ -107,6 +109,7 @@ export class SubscriptionService {
                     textValue: row.textValue,
                     isUnlimited: row.isUnlimited,
                     isEnabled: row.isEnabled,
+                    apiUrl: row.apiUrl,
                 });
             }
         });
