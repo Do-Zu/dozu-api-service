@@ -65,7 +65,7 @@ interface IPlan {
     textValue: string | null;
     isUnlimited: boolean | null;
     isEnabled: boolean | null;
-    apiUrl: string;
+    apiUrl: string | null;
 }
 export class SubscriptionService {
     private readonly DEFAULT_VALUE_USAGE = '0';
