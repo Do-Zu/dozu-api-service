@@ -16,8 +16,8 @@ export interface IFeatureLimitContext extends ISubscriptionContext {
 }
 
 export interface IUserPlan {
-    plan: IPlan | null;
-    subscription: ISubscription | null;
+    plan: IPlan;
+    subscription: ISubscription;
 }
 
 export interface IPlan {

@@ -74,6 +74,25 @@ export class FeatureLimitChecker {
 
         return limitValue;
     }
+
+    public normalizeApiPath = (raw: string): string => {
+        if (!raw) return '/';
+
+        let p = raw.split('?')[0];
+
+        if (!p.startsWith('/')) p = `/${p}`;
+
+        p = p.replace(/\/{2,}/g, '/');
+        if (p.length > 1) p = p.replace(/\/+$/, '');
+
+        // strip your global prefix pattern: "/ap/<endpoint>" or "/api/<endpoint>"
+
+        p = p.replace(/^\/(ap|api)(\/v\d+)?/i, '');
+
+        if (!p) p = '/';
+
+        return p.toLowerCase();
+    };
 }
 
 export const featureLimitChecker = new FeatureLimitChecker();

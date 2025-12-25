@@ -15,7 +15,7 @@ import type { IUserPlan, ISubscriptionContext } from '../types/subscription.type
  */
 export class SubscriptionValidator {
     /**
-     * Fetches and validates user's subscription, handling expiration if ne cessary
+     * Fetches and validates user's subscription, handling expiration if necessary
      * @param context - Subscription context containing userId and timezone
      * @returns Validated and potentially updated user plan
      */
@@ -57,6 +57,7 @@ export class SubscriptionValidator {
             throw new NotFoundError(ERROR_MESSAGES.USER_PLAN_NOT_FOUND);
         }
     }
+
     /**
      *
      * @param subscription
