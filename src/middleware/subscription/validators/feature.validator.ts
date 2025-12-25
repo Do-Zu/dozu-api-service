@@ -1,6 +1,6 @@
 export class FeatureValidator {
     public isEndpointMatch = ({ requestUrl, apiUrl }: { requestUrl: string; apiUrl: string }): boolean => {
-        const cleanApiUrl = apiUrl.replace(/^\/+|\/+$/g, '');
+        const cleanApiUrl = apiUrl.replace(/^\/+/, '').replace(/\/+$/, '');
 
         const pattern = new RegExp(`^\\/?(api\\/)?${cleanApiUrl}\\/?$`, 'i');
 
