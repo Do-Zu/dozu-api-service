@@ -51,9 +51,19 @@ class ProgressController {
   public async createProgress(req: Request, res: Response): Promise<void> {
     
       const userId = this.extractUserId(req);
+      // Convert topicId from string to number if needed
+      const topicId = typeof req.body.topicId === 'string' 
+        ? parseInt(req.body.topicId, 10) 
+        : req.body.topicId;
+      
+      if (isNaN(topicId)) {
+        throw new BadRequest('Invalid topicId: must be a valid number');
+      }
+      
       const progressData = {
         ...req.body,
-        userId: userId
+        userId: userId,
+        topicId: topicId
       };
       const progress = await progressService.createProgress(progressData);
       SuccessResponse.created(res, progress);
