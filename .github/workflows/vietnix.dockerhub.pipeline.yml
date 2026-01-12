@@ -160,6 +160,7 @@ jobs:
                   EMBEDDING_API_URL: ${{ secrets.EMBEDDING_API_URL }}
                   GOTENBERG_URL: ${{ secrets.GOTENBERG_URL }}
                   WHISPER_API_URL: ${{ secrets.WHISPER_API_URL }}
+                  TACTIQ_FIREBASE_APP_CHECK_TOKEN: ${{ secrets.TACTIQ_FIREBASE_APP_CHECK_TOKEN }}
               run: |
                   set -euo pipefail
                   if [ "$ENV_INPUT" = "production" ]; then
@@ -213,6 +214,7 @@ jobs:
                     echo "EMBEDDING_API_URL=$EMBEDDING_API_URL"
                     echo "GOTENBERG_URL=$GOTENBERG_URL"
                     echo "WHISPER_API_URL=$WHISPER_API_URL"
+                    echo "TACTIQ_FIREBASE_APP_CHECK_TOKEN=$TACTIQ_FIREBASE_APP_CHECK_TOKEN"
                   } > "$ENV_FILE"
                   echo "env_file=$ENV_FILE" >> "$GITHUB_OUTPUT"
 
