@@ -4,6 +4,7 @@ import { userRepository } from '@/repositories/user/user.repo';
 import { IGroupTopic, IItemScheduleGenerated, ItemTrackingWithTopic } from './types/schedule.index';
 import {
     formatTimeToHHMM,
+    formatToIsoLocal,
     getDateFormatted,
     getDateFormattedWithTimeZone,
     getDayOfWeek,
@@ -395,8 +396,8 @@ class ScheduleService {
                     const scheduleItem: IItemScheduleGenerated = {
                         topicId,
                         priority,
-                        startTime: reviewDate,
-                        endTime,
+                        startTime: formatToIsoLocal(reviewDate),
+                        endTime: formatToIsoLocal(endTime),
                         title: topicTitle,
                         description: topicDescription,
                         type,
@@ -437,32 +438,35 @@ class ScheduleService {
                             : 0;
 
                     if (itemDuration <= 0) {
-                        // Invalid item duration, skip this item
+
                         dailyPriorityQueue.dequeue();
                         continue;
                     }
 
                     const availableTime = differenceInMinutes(slotEnd, slotStart);
 
-                    // Can't fit this item in remaining slot time
+
                     if (availableTime < itemDuration) {
                         const events = dailyPriorityQueue.dequeue();
                         if (events) waitEvents.push(events);
+                        continue;
                     }
 
-                    // Schedule the item
                     const scheduledItem = dailyPriorityQueue.dequeue();
 
                     if (!scheduledItem) continue;
 
-                    scheduledItem.startTime = slotStart;
-                    scheduledItem.endTime = addMinutes(slotStart, itemDuration);
+                    const startTimeDate = slotStart;
+
+                    const endTimeDate = addMinutes(slotStart, itemDuration);
+
+                    scheduledItem.startTime = formatToIsoLocal(startTimeDate);
+                    scheduledItem.endTime = formatToIsoLocal(endTimeDate);
 
                     scheduledToday.push(scheduledItem);
                     scheduledItems += scheduledItem.amountItem;
 
-                    // Update slot start time
-                    slotStart = addMinutes(scheduledItem.endTime, this.DEFAULT_MINUTE_BREAK_TIME_BETWEEN_SLOT);
+                    slotStart = addMinutes(endTimeDate, this.DEFAULT_MINUTE_BREAK_TIME_BETWEEN_SLOT);
                 }
             }
 
@@ -698,7 +702,7 @@ class ScheduleService {
 
             const statusScore =
                 this.PRIORITY_STATUS_ITEM_LEARNING_TRACKING[
-                    item.status as keyof typeof this.PRIORITY_STATUS_ITEM_LEARNING_TRACKING
+                item.status as keyof typeof this.PRIORITY_STATUS_ITEM_LEARNING_TRACKING
                 ] ?? 0;
 
             const score =

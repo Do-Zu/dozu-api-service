@@ -17,6 +17,10 @@ export function getDateFormatted(date: Date | string | number, formatStr: string
     return format(date, formatStr);
 }
 
+export function formatToIsoLocal(date: Date | string | number): string {
+    return format(date, "yyyy-MM-dd'T'HH:mm:ss");
+}
+
 /**
  * Adds a specified number of days to a given date.
  * Works with both Date objects and date strings.
@@ -91,11 +95,7 @@ export function getDateFormattedWithTimeZone(
  * @returns A string in HH:MM format
  */
 export function formatTimeToHHMM(date: Date): string {
-    return date.toLocaleTimeString('en-US', {
-        hour12: false,
-        hour: '2-digit',
-        minute: '2-digit',
-    });
+    return format(date, 'HH:mm');
 }
 
 /**

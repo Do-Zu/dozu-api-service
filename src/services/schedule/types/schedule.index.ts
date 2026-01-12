@@ -41,8 +41,8 @@ export interface IGroupTopic {
 export interface IItemScheduleGenerated {
     topicId: number;
     priority: number;
-    startTime: Date;
-    endTime: Date;
+    startTime: string;
+    endTime: string;
     title: string | null;
     description: string | null;
     type: string;
