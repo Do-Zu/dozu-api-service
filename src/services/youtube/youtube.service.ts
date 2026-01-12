@@ -4,11 +4,11 @@ import { youtubeTacIqService } from './youtube.taciq.service';
 
 
 
-interface IYouttubeService {
+interface IYoutubeService {
     getTranscript: (input: IYoutubeServiceInput) => Promise<IYoutubeServiceOutput>;
 }
 
-class YoutubeService implements IYouttubeService {
+class YoutubeService implements IYoutubeService {
     public async getTranscript(input: IYoutubeServiceInput): Promise<IYoutubeServiceOutput> {
         return await youtubeTacIqService.getTranscriptSegment(input);
     }
