@@ -39,4 +39,13 @@ interface IBalancedSegment {
     text: string;
 }
 
-export { YoutubeResourceMetadata, IYoutubeCaptionSegment, IBalancedSegment, VideoInfo };
+interface IYoutubeServiceInput {
+    url: string;
+    lang?: string;
+}
+interface IYoutubeServiceOutput {
+    segments: IYoutubeCaptionSegment[];
+    metadata: Record<string, unknown>;
+}
+
+export { YoutubeResourceMetadata, IYoutubeCaptionSegment, IBalancedSegment, VideoInfo, IYoutubeServiceInput, IYoutubeServiceOutput };
