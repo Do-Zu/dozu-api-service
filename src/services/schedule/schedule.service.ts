@@ -449,6 +449,7 @@ class ScheduleService {
                     if (availableTime < itemDuration) {
                         const events = dailyPriorityQueue.dequeue();
                         if (events) waitEvents.push(events);
+                        continue;
                     }
 
                     const scheduledItem = dailyPriorityQueue.dequeue();
