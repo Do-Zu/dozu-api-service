@@ -1,9 +1,15 @@
-import { IYoutubeCaptionSegment } from '../../types/youtube/youtube.type';
+import { IYoutubeCaptionSegment, IYoutubeServiceInput, IYoutubeServiceOutput } from '../../types/youtube/youtube.type';
 import transcriptService from '../transcript/transcript.service';
 import { youtubeTacIqService } from './youtube.taciq.service';
 
-class YoutubeService {
-    public async getTranscript(input: { url: string; lang?: string }) {
+
+
+interface IYouttubeService {
+    getTranscript: (input: IYoutubeServiceInput) => Promise<IYoutubeServiceOutput>;
+}
+
+class YoutubeService implements IYouttubeService {
+    public async getTranscript(input: IYoutubeServiceInput): Promise<IYoutubeServiceOutput> {
         return await youtubeTacIqService.getTranscriptSegment(input);
     }
 
