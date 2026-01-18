@@ -8,7 +8,7 @@ const router = Router();
 
 globalAsyncHandler(router);
 
-// router.use(authMiddleware);
+router.use(authMiddleware);
 
 router.post('/text/llm', subscriptionMiddleware.handleSubscription, generateController.generateContent);
 
