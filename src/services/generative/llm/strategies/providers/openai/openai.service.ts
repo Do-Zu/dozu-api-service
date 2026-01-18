@@ -3,9 +3,6 @@ import { ChatCompletionCreateParamsStreaming, ChatCompletionMessageParam } from 
 import { BaseLLMProvider } from '../../../core/baseLLM.abstract';
 import logger from '@/utils/logger';
 import { GenerationOptions } from '@/services/generative/base/base.abstract';
-import { MindmapData } from '@/models/mindmap/mindmap.model';
-import { MindmapGenerateService } from '../../../../v3/mindmap.generate.service';
-import { ProcessingProgress } from '@/types/generate/large-file.type';
 import { IStreamGenerateOptions } from '@/services/generative/v3/generative.service';
 import { safeDestructure } from '@/utils/common';
 
@@ -16,7 +13,6 @@ import { safeDestructure } from '@/utils/common';
 export class OpenAIService extends BaseLLMProvider {
     private openai: OpenAI | undefined;
     private isClientInitialized = false;
-    private mindmapService: MindmapGenerateService | undefined;
 
     private DEFAULT_MAX_TOKEN = 50000;
     private DEFAULT_TEMPERATURE = 0.3;
@@ -228,7 +224,7 @@ export class OpenAIService extends BaseLLMProvider {
         options?: IStreamGenerateOptions
     ): AsyncGenerator<string, void, unknown> {
         const { response_format } = safeDestructure(options);
-        // Configure generation context
+
         const messages: ChatCompletionMessageParam[] = [
             {
                 role: 'system',
@@ -237,51 +233,17 @@ export class OpenAIService extends BaseLLMProvider {
             { role: 'user', content: prompt },
         ];
 
-        // Create streaming response
         const stream = await this.createStream(messages, {
             response_format,
         });
 
         if (!stream) return;
 
-        // Yield content chunks as they arrive
         for await (const chunk of stream) {
             const content = chunk.choices[0]?.delta?.content;
             if (content) {
                 yield content;
             }
         }
-    }
-
-    /**
-     * Generate mindmap from file content using OpenAI API
-     * Delegates to the dedicated MindmapGenerateService
-     * @param filePath Path to the uploaded file
-     * @param fileName Original file name
-     * @param customPrompt Optional custom prompt to override default
-     * @returns Mindmap data structure
-     */
-    public async generateMindmapFromFile(
-        filePath: string,
-        fileName: string,
-        customPrompt?: string
-    ): Promise<MindmapData | null> {
-        if (!this.isAvailable()) {
-            logger.warn('OpenAI service unavailable for mindmap generation');
-            return null;
-        }
-
-        if (!this.mindmapService) {
-            logger.error('Mindmap service not initialized');
-            return null;
-        }
-
-        return await this.mindmapService.generateMindmapFromFile(filePath, fileName, customPrompt);
-    }
-    /**
-     * Get progress for mindmap processing job
-     */
-    public getProgress(jobId: string): ProcessingProgress | undefined {
-        return this.mindmapService?.getProgress(jobId);
     }
 }
