@@ -96,9 +96,9 @@ Use Conventional Commits:
 
 ### PR checklist
 
-- Contain title
-- Contain what going on
-- Description your implementation
+- Contain a title
+- Contains a description of what is going on
+- Describes your implementation
 - Passes `npm run typecheck` and `npm run lint`.
 - Does not add `try/catch` in controller/service/repo layers.
 - Uses `SuccessResponse` and typed errors.
