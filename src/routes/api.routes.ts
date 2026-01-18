@@ -7,8 +7,7 @@ const router: Router = express.Router();
 
 //import routers here
 import './demo/demo.routes';
-import './generate/v1/generate.routes';
-import './generate/v3/generate.routes';
+import './generate/index.routes';
 import './sse/sse.routes';
 import './flashcard/flashcard.routes';
 import './topic/topic.routes';
