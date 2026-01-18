@@ -53,7 +53,7 @@ class GenerateController {
         let isClientDisConnected = false;
 
         try {
-            const { content, type, inputSetId, method } = req.body as GenerateContentRequestInterface;
+            const { content, type, inputSetId, method, options } = req.body as GenerateContentRequestInterface;
 
             if (!content) {
                 throw new BadRequest('Content is required');
@@ -76,7 +76,7 @@ class GenerateController {
                 logger.info(`Client disconnected`);
             });
 
-            const streamGenerator = generativeService.streamGenerateContent({ content, type, inputSetId, method });
+            const streamGenerator = generativeService.streamGenerateContent({ content, type, inputSetId, method , options });
 
             for await (const packet of streamGenerator) {
                 if (isClientDisConnected) break;

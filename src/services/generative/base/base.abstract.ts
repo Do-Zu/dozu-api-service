@@ -1,5 +1,10 @@
+import { ResponseFormatJSONObject, ResponseFormatJSONSchema, ResponseFormatText } from 'openai/resources/shared';
 import { OpenAIService } from '../llm/strategies/providers/openai/openai.service';
 import { GenerateContentRequestInterface, GenerateContentResponseInterface } from '@/dtos/generate';
+import { BadRequest } from '@/core/error';
+import { lowercase, isNilOrEmpty } from '@/utils/common';
+import { generatePromptText } from '@/utils/prompt';
+import { TYPE_PROMPT_MAPPING } from '@/utils/prompt/constant/prompt.constant';
 
 /**
  * Configuration options for content generation
@@ -138,6 +143,30 @@ export abstract class BaseGenerativeService implements IGenerativeService {
     }
 
     /**
+     *
+     * @param payload
+     */
+    public async *streamGenerateContent(payload: GenerateContentRequestInterface) {
+        const { content, type, options } = payload;
+
+        const key = lowercase(type);
+
+        const promptType = TYPE_PROMPT_MAPPING[key];
+
+        const prompt = generatePromptText(content, promptType, options);
+
+        const response_format = this.getResponseFormatForGenerationType(type);
+
+        if (isNilOrEmpty(prompt)) {
+            throw new BadRequest('Prompt Invalid');
+        }
+
+        for await (const chunk of this.getLLMProvider().handleProcessStreamContent(prompt, { response_format })) {
+            yield { status: 'connected', data: chunk };
+        }
+    }
+
+    /**
      * Generate content with standard error handling and retries
      * This provides a robust wrapper around the stream generation process
      *
@@ -179,5 +208,18 @@ export abstract class BaseGenerativeService implements IGenerativeService {
 
         // Return what we have, even if incomplete
         return fullContent;
+    }
+
+    protected getResponseFormatForGenerationType(
+        type: string
+    ): ResponseFormatText | ResponseFormatJSONSchema | ResponseFormatJSONObject | undefined {
+        switch (type) {
+            case 'short_summary': {
+                return { type: 'text' };
+            }
+            default: {
+                return { type: 'json_object' };
+            }
+        }
     }
 }
