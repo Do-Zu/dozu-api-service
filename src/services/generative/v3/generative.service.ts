@@ -19,10 +19,11 @@ import { ContentGenerationJobDataInterface, IJobPushQueue } from './types';
 import { STATUS_GEN } from '../utils/constant';
 import { HTTP_STATUS } from '@/constants/index.constant';
 import { validatePayloadSizeBuffer } from '../utils/validate';
-import { isEmpty, isNilOrEmpty, lowercase, safeDestructure } from '@/utils/common';
+import { isEmpty, lowercase, safeDestructure } from '@/utils/common';
 import { ResponseFormatJSONObject, ResponseFormatJSONSchema, ResponseFormatText } from 'openai/resources/shared';
 import { IGenerateOptions } from '@/dtos/generate/models/GenerateContentRequestInterface';
 import { DIFFICULTY, JOB_NAME, WORKER_NAME } from '../constants/constant';
+import { TYPE_PROMPT_MAPPING } from '@/utils/prompt/constant/prompt.constant';
 
 /**
  * Main generative service implementation
@@ -40,16 +41,6 @@ export interface IStreamGenerateOptions {
 }
 
 class GenerativeService extends BaseGenerativeService {
-    private readonly TYPE_PROMPT_MAPPING: Record<string, TYPE_PROMPT> = {
-        flashcard: 'FLASH_CARD',
-        quiz: 'QUIZ',
-        mindmap: 'MIND_MAP',
-        feynman_review: 'FEYNMAN_REVIEW',
-        feynman_question: 'FEYNMAN_QUESTION',
-        short_summary: 'SHORT_SUMMARY',
-        multi_node_flashcard: 'MULTI_NODE_FLASHCARD',
-    };
-
     // BullMQ Worker configuration
     private worker: Worker;
     private readonly RESULT_TTL: number = 60 * 5; // 5 minutes
@@ -59,6 +50,7 @@ class GenerativeService extends BaseGenerativeService {
     private readonly CLIENT_WAIT_TIMEOUT = 60 * 10; // 10 minutes max wait for client connection
     private readonly PREFIX_KEY_CACHED_JOB = 'JOB_GENERATED_MESSAGE_BULL_JOB_INDEX';
     private readonly DEFAULT_MAX_TOKEN_MODEL = 120000;
+    private readonly TYPE_PROMPT_MAPPING = TYPE_PROMPT_MAPPING;
 
     private readonly CONFIG_PARAM_LLM_FOR_DIFFICULTY = {
         EASY: {
@@ -296,25 +288,6 @@ class GenerativeService extends BaseGenerativeService {
             text: fullContent,
             status: STATUS_GEN.completed,
         };
-    }
-
-    public async *streamGenerateContent(payload: GenerateContentRequestInterface) {
-        const { content, type } = payload;
-
-        const key = lowercase(type);
-
-        const promptType = this.TYPE_PROMPT_MAPPING[key];
-
-        const prompt = generatePromptText(content, promptType);
-        const response_format = this.getResponseFormatForGenerationType(type);
-
-        if (isNilOrEmpty(prompt)) {
-            throw new BadRequest('Prompt Invalid');
-        }
-
-        for await (const chunk of this.getLLMProvider().handleProcessStreamContent(prompt, { response_format })) {
-            yield { status: 'connected', data: chunk };
-        }
     }
 
     /**
@@ -623,19 +596,6 @@ class GenerativeService extends BaseGenerativeService {
         } catch (err) {
             logger.error(`Error in completion handler dispatch for job ${bullJobId}: ${(err as Error).message}`);
             return false;
-        }
-    }
-
-    private getResponseFormatForGenerationType(
-        type: string
-    ): ResponseFormatText | ResponseFormatJSONSchema | ResponseFormatJSONObject | undefined {
-        switch (type) {
-            case 'short_summary': {
-                return { type: 'text' };
-            }
-            default: {
-                return { type: 'json_object' };
-            }
         }
     }
 }
