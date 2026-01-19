@@ -153,6 +153,10 @@ export abstract class BaseGenerativeService implements IGenerativeService {
 
         const promptType = TYPE_PROMPT_MAPPING[key];
 
+        if (isNilOrEmpty(promptType)) {
+            throw new BadRequest('Type Invalid');
+        }
+
         const prompt = generatePromptText(content, promptType, options);
 
         const response_format = this.getResponseFormatForGenerationType(key);
