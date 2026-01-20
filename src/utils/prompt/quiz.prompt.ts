@@ -6,7 +6,7 @@ const defaultOptions = {
     numberOfItem: 20,
     difficulty: 'Medium',
     focus: 'essential concepts and key points',
-    listType: ['MULTIPLE CHOICE', 'TRUE FALSE', 'FILL BLANK'],
+    listType: ['MULTIPLE CHOICE'],
 };
 
 export const createQuizPrompt = (

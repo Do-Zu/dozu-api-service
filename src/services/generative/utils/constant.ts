@@ -1,5 +1,5 @@
 const STATUS_GEN = {
-    connected: "connected",
+    connected: 'connected',
     register: 'register',
     success: 'success',
     completed: 'completed',
