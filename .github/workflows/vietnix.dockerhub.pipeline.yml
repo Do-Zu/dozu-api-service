@@ -22,7 +22,7 @@ on:
                     - production
 
 env:
-    NODE_VERSION: '22.x'
+    NODE_VERSION: '22.22.0'
     PROJECT_DIR: '/projects/dozu-api-service'
 
 jobs:
