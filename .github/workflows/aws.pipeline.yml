@@ -1,5 +1,8 @@
 name: AWS EC2 CI/CD Pipeline
 
+permissions:
+  contents: read
+
 on:
     workflow_dispatch:
         inputs:
