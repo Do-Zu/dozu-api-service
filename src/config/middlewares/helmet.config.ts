@@ -7,7 +7,16 @@ import { config } from '../env.config';
  */
 const helmetConfig = () => {
   return helmet({
-    contentSecurityPolicy: config.isProduction ? undefined : false,
+    contentSecurityPolicy: config.isProduction
+      ? undefined
+      : {
+          directives: {
+            "default-src": ["'self'"],
+            "script-src": ["'self'", "'unsafe-inline'"],
+            "style-src": ["'self'", "'unsafe-inline'"],
+            "img-src": ["'self'", "data:"],
+          },
+        },
     crossOriginEmbedderPolicy: config.isProduction,
     hidePoweredBy: true,
     hsts: config.isProduction,
