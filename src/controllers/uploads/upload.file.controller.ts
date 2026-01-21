@@ -85,13 +85,13 @@ class UploadFileController {
      */
     public async uploadMultipleFiles(req: Request, res: Response): Promise<void> {
         try {
-            const files = req.files as Express.Multer.File[];
-            if (!files || files.length === 0) {
-                throw new BadRequest('No files uploaded');
+            const files = req.files;
+            if (!Array.isArray(files) || files.length === 0) {
+                throw new BadRequest('No files uploaded or malformed files parameter');
             }
 
             // Process the uploaded files
-            const result = await uploadFileService.processMultipleFiles(files);
+            const result = await uploadFileService.processMultipleFiles(files as Express.Multer.File[]);
 
             logger.info(`Multiple files upload completed: ${result.successCount}/${result.totalFiles} successful`);
 
