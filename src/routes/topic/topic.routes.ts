@@ -24,7 +24,17 @@ router.get(
     topicMiddleware.verifyUserCanAccessTopic,
     topicController.getTopicById
 );
+
 router.get('/', topicController.getTopicsForUser);
+
+router.get(
+    '/:topicId/tracking/statistic',
+    paramsValidator.validateId('topicId'),
+    topicMiddleware.verifyTopicByIdInParam,
+    topicMiddleware.verifyUserCanAccessTopic,
+    topicController.getTopicsForUser
+);
+
 router.post(
     '/',
     fileUploadSingleMiddleware,

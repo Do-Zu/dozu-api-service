@@ -4,7 +4,6 @@ export interface ITopic {
     description: string;
     createdAt: Date;
 
-    // optional
     userId?: number;
     classId?: number | null;
     imageUrl?: string | null;
@@ -12,12 +11,30 @@ export interface ITopic {
     hasProgress?: boolean;
 }
 
-export type IFlashcardCounts = {
+export interface ITopicOverview extends ITopic {
+    itemTrackings: IItemTrackingTopic[];
+}
+export interface IFlashcardCounts {
     new: number;
     learning: number;
     review: number;
     total: number;
-};
+}
+
+export interface IItemTrackingTopic {
+    itemId: number;
+    userId: number;
+    topicId: number;
+    type: string;
+    createdAt: Date;
+    repetitionNumber: number;
+    easinessFactor: string;
+    reviewInterval: number;
+    lastReviewed: string | null;
+    nextReview: string;
+    status: string;
+    step: number | null;
+}
 
 export type ICreateTopicBody = Pick<ITopic, 'name' | 'description'>;
 export type ICreateTopicResponse = Pick<ITopic, 'topicId' | 'name' | 'description' | 'createdAt' | 'imageUrl'>;

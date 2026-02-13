@@ -13,7 +13,7 @@ class ItemSpacedRepetitionTrackingRepo {
     }
 
     public async getTrackingRecordsByUserAndTopicId(
-        { userId, topicId, itemtype }: { userId: number; topicId: number; itemtype?: IItemType },
+        { userId, topicId, type }: { userId: number; topicId: number; type?: IItemType },
         tx?: Transaction
     ) {
         const executor = tx ?? db;
@@ -24,7 +24,7 @@ class ItemSpacedRepetitionTrackingRepo {
                 and(
                     eq(itemSpacedRepetitionTrackingTable.userId, userId),
                     eq(itemSpacedRepetitionTrackingTable.topicId, topicId),
-                    ...(itemtype ? [eq(itemSpacedRepetitionTrackingTable.type, itemtype)] : [])
+                    ...(type ? [eq(itemSpacedRepetitionTrackingTable.type, type)] : [])
                 )
             );
         return result;

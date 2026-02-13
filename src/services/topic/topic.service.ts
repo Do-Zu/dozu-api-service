@@ -3,9 +3,11 @@ import flashcardRepo from '@/repositories/flashcard.repo';
 import { deleteMindmapByTopicId } from '@/repositories/mindmap/mindmap.repo';
 import topicRepo, { ICreateTopicRepo, IUpdateTopicRepo } from '@/repositories/topic.repo';
 import itemSpacedRepetitionTrackingRepo from '@/repositories/tracking/itemSpacedRepetitionTracking.repo';
-import { ICreateTopicBody, ITopic, IUpdateTopicBody } from '@/types/topic/topic.type';
+import { ICreateTopicBody, ITopic, ITopicOverview, IUpdateTopicBody } from '@/types/topic/topic.type';
 import { addMinutes } from 'date-fns';
 import { learnAheadLimit } from '../spaced-repetition-system/super-memo-2/anki.service';
+import { getCurrentDateInTimeZone } from '@/utils/date';
+import { NotFoundError } from '@/core/error';
 
 export type ICreateTopicService = ICreateTopicBody & { imageUrl?: string | null };
 export type IUpdateTopicService = IUpdateTopicBody & { imageUrl?: string | null };
@@ -21,23 +23,55 @@ class TopicService {
         return topic;
     }
 
-    public async getTopicWithCardCounts({
+    public async getTopicWithStats({
         userId,
         topicId,
         currentDate,
+        timezone,
     }: {
         userId: number;
         topicId: number;
         currentDate: string;
-    }): Promise<ITopic | undefined> {
-        const dueDate = addMinutes(new Date(currentDate), learnAheadLimit);
-        let topic = await topicRepo.getTopicWithCardCounts({ userId, topicId, dueDate: dueDate.toISOString() });
-        return topic;
+        timezone: string;
+    }): Promise<ITopicOverview> {
+        const now = getCurrentDateInTimeZone(timezone, currentDate);
+
+        const dueDate = addMinutes(now, learnAheadLimit).toISOString();
+
+        const topic = await topicRepo.getTopic({ userId, topicId, dueDate: dueDate });
+
+        if (!topic) {
+            throw new NotFoundError();
+        }
+
+        const flashcardStats = await topicRepo.getStatisticFlashcard({ userId, topicId, dueDate });
+
+        const itemTrackings = await itemSpacedRepetitionTrackingRepo.getTrackingRecordsByUserAndTopicId({
+            topicId,
+            userId,
+        });
+
+        return {
+            ...topic,
+            flashcardCounts: flashcardStats,
+            itemTrackings,
+        };
     }
 
-    public async getTopicsForUser(userId: number, currentDate: string): Promise<ITopic[]> {
-        const dueDate = addMinutes(new Date(currentDate), learnAheadLimit);
+    public async getTopicsForUser({
+        userId,
+        currentDate,
+    }: {
+        userId: number;
+        currentDate: string;
+        timezone?: string;
+    }): Promise<ITopic[]> {
+        const now = new Date(currentDate);
+
+        const dueDate = addMinutes(now, learnAheadLimit);
+
         const topics = await topicRepo.getTopicsForUser(userId, dueDate.toISOString());
+
         return topics;
     }
 
