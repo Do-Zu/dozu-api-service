@@ -2,7 +2,7 @@ import { SuccessResponse } from '@/core/success';
 import { Request, Response } from 'express';
 import topicService from '@/services/topic/topic.service';
 import { getUserIdFromRequest } from '@/utils/auth/authHelpers.utils';
-import { getCurrentTimestampFromRequest } from '@/utils/date';
+import { getCurrentTimestampFromRequest, getTimezoneClient } from '@/utils/date';
 import { ICreateTopicBody, ITopic, IUpdateTopicBody } from '@/types/topic/topic.type';
 import { updateTopicIdOfInputSet } from '@/repositories/inputSet.repo';
 import requestHelper from '@/core/request/request.helper';
@@ -17,8 +17,9 @@ class TopicController {
         const userId = getUserIdFromRequest(req);
         const topicId = requestHelper.getIdParam(req, 'topicId');
         const currentDate = getCurrentTimestampFromRequest(req);
+        const timezone = getTimezoneClient(req);
 
-        const topic: ITopic | undefined = await topicService.getTopicWithCardCounts({ userId, topicId, currentDate });
+        const topic = await topicService.getTopicWithStats({ userId, topicId, currentDate, timezone });
 
         if (!topic) {
             throw new NotFoundError('Topic not found');
@@ -31,7 +32,8 @@ class TopicController {
         const currentDate = getCurrentTimestampFromRequest(req);
         const userId = getUserIdFromRequest(req);
 
-        const topics: ITopic[] = await topicService.getTopicsForUser(userId, currentDate);
+        const topics: ITopic[] = await topicService.getTopicsForUser({ userId, currentDate });
+
         SuccessResponse.ok(res, topics);
     }
 

@@ -1,7 +1,8 @@
 import db, { Transaction } from '@/libs/drizzleClient.lib';
 import { flashcardsTable, itemSpacedRepetitionTrackingTable, topicsTable } from '@/models';
 import { ICreateTopicService, IUpdateTopicService } from '@/services/topic/topic.service';
-import { ITopic } from '@/types/topic/topic.type';
+import { IFlashcardCounts, ITopic } from '@/types/topic/topic.type';
+import { safeDestructure } from '@/utils/common';
 import { and, eq, sql } from 'drizzle-orm';
 
 export type ICreateTopicRepo = ICreateTopicService & { userId: number; classId?: number | null };
@@ -25,16 +26,14 @@ class TopicRepo {
         return topic;
     }
 
-    public async getTopicWithCardCounts({
-        userId,
+    public async getTopic({
         topicId,
-        dueDate,
     }: {
         userId: number;
         topicId: number;
         dueDate: string;
     }): Promise<ITopic | undefined> {
-        let [topic]: ITopic[] = await db
+        const [topic]: ITopic[] = await db
             .select({
                 topicId: topicsTable.topicId,
                 userId: topicsTable.userId,
@@ -47,10 +46,18 @@ class TopicRepo {
             .from(topicsTable)
             .where(eq(topicsTable.topicId, topicId));
 
-        if (!topic) {
-            return undefined;
-        }
+        return topic;
+    }
 
+    public async getStatisticFlashcard({
+        userId,
+        topicId,
+        dueDate,
+    }: {
+        userId: number;
+        topicId: number;
+        dueDate: string;
+    }): Promise<IFlashcardCounts> {
         const [result] = await db
             .select({
                 flashcardCounts: {
@@ -76,18 +83,16 @@ class TopicRepo {
                     eq(itemSpacedRepetitionTrackingTable.type, 'flashcard')
                 )
             )
-            .where(eq(flashcardsTable.topicId, topic.topicId))
+            .where(eq(flashcardsTable.topicId, topicId))
             .groupBy(flashcardsTable.topicId);
 
-        if (result) {
-            topic.flashcardCounts = result.flashcardCounts;
-        }
+        const { flashcardCounts } = safeDestructure(result);
 
-        return topic;
+        return flashcardCounts;
     }
 
     public async getTopicsForUser(userId: number, dueDate: string): Promise<ITopic[]> {
-        let topics: ITopic[] = await db
+        const topics: ITopic[] = await db
             .select({
                 topicId: topicsTable.topicId,
                 userId: topicsTable.userId,

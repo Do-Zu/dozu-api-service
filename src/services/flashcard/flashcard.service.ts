@@ -142,7 +142,7 @@ class FlashcardService {
                         {
                             userId: student.userId,
                             topicId,
-                            itemtype: 'flashcard',
+                            type: 'flashcard',
                         },
                         tx
                     );
